@@ -177,7 +177,7 @@ def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
     b.nl()
     A("  TỶ SỐ SỬ DỤNG (D/C) = ", "result")
     A(f"{_f(res.dc, 3)}", "dc")
-    A(f"   (FS = {_f(res.fs, 2)})\n", "result")
+    A(f"  (FS = {_f(res.fs, 2)})\n", "dc")
     b.nl()
     if res.ok:
         A("  ✓ ĐẠT — D/C ≤ 1.000", "ok")
