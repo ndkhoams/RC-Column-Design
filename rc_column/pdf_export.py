@@ -134,30 +134,25 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(width_in, width_in * 0.48))
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
-    for ax, th, lab, Ms in [(ax1, 0, "N-M2", res.Mx_star),
-                            (ax2, 90, "N-M3", res.My_star)]:
+    for ax, th, lab, Ms, Mb in [(ax1, 0, "N-M2", res.Mx_star, res.Bx),
+                                (ax2, 90, "N-M3", res.My_star, res.By)]:
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
         ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
         ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        cv_full = cv + [(n, -m) for n, m in reversed(cv)]
-        lim = _radial_limit(cv_full, res.N, Ms)
+        lim = (res.BN, Mb)
         ax.scatter([Ms], [res.N], c="green", s=70, zorder=5,
                    label="A (tải trọng)")
-        if lim:
-            ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
-            ax.scatter([lim[1]], [lim[0]], c="orange", s=70, zorder=5,
-                       label="B (giới hạn)")
+        ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
+        ax.scatter([lim[1]], [lim[0]], c="orange", s=70, zorder=5,
+                   label="B (giới hạn)")
         ax.set_xlabel("M (kN·m)")
         ax.set_ylabel("N (kN)")
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=10)
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.3)
-        if lim:
-            import math
-            fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms, res.N)
-            ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {fs_dir:.2f}",
-                    transform=ax.transAxes, ha="center", fontsize=9,
-                    color="darkred", weight="bold")
+        ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {res.fs:.2f}",
+                transform=ax.transAxes, ha="center", fontsize=9,
+                color="darkred", weight="bold")
     fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
@@ -176,30 +171,26 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
     out = []
-    for th, lab, Ms in [(0, "N-M2", res.Mx_star), (90, "N-M3", res.My_star)]:
+    for th, lab, Ms, Mb in [(0, "N-M2", res.Mx_star, res.Bx),
+                             (90, "N-M3", res.My_star, res.By)]:
         fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
         ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
         ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        cv_full = cv + [(n, -m) for n, m in reversed(cv)]
-        lim = _radial_limit(cv_full, res.N, Ms)
+        lim = (res.BN, Mb)
         ax.scatter([Ms], [res.N], c="green", s=80, zorder=5,
                    label="A (tải trọng)")
-        if lim:
-            ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
-            ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
-                       label="B (giới hạn)")
+        ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
+        ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
+                   label="B (giới hạn)")
         ax.set_xlabel("M (kN·m)")
         ax.set_ylabel("N (kN)")
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.3)
-        if lim:
-            import math
-            fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms, res.N)
-            ax.text(0.5, -0.30, f"Tỉ số an toàn FS = {fs_dir:.2f}",
-                    transform=ax.transAxes, ha="center", fontsize=10,
-                    color="darkred", weight="bold")
+        ax.text(0.5, -0.30, f"Tỉ số an toàn FS = {res.fs:.2f}",
+                transform=ax.transAxes, ha="center", fontsize=10,
+                color="darkred", weight="bold")
         fig.subplots_adjust(bottom=0.22)
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
