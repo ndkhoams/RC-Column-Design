@@ -245,13 +245,13 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     Rbt = conc.Rbt
     Rsw = sw_grade.Rsw * inp.gamma_s
     Asw_1 = _m.pi * stir_in.dia ** 2 / 4  # 1 nhánh
-    # Phương 2: b = t3 (cx), h0 = t2 - cover - sw_dia - bar_dia/2
-    h0_2 = sec.cy - inp.cover - stir_in.dia - inp.bar_dia / 2
-    # Phương 3: b = t2 (cy), h0 = t3 - cover - sw_dia - bar_dia/2
-    h0_3 = sec.cx - inp.cover - stir_in.dia - inp.bar_dia / 2
+    # Phương 2 (Q2): b = t2 (cy), h0 = t3 - cover - sw_dia - bar_dia/2
+    h0_2 = sec.cx - inp.cover - stir_in.dia - inp.bar_dia / 2
+    # Phương 3 (Q3): b = t3 (cx), h0 = t2 - cover - sw_dia - bar_dia/2
+    h0_3 = sec.cy - inp.cover - stir_in.dia - inp.bar_dia / 2
     shear_ok = True
-    for Q, b_w, h0, dnum in ((inp.Q2, sec.cx, h0_2, "2"),
-                             (inp.Q3, sec.cy, h0_3, "3")):
+    for Q, b_w, h0, dnum in ((inp.Q2, sec.cy, h0_2, "2"),
+                             (inp.Q3, sec.cx, h0_3, "3")):
         Asw = Asw_1 * stir_in.legs
         h0u = max(h0, 1)
         sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
