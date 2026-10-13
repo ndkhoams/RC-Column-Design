@@ -346,22 +346,20 @@ class App(tk.Tk):
         self.rebar_rect.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
         rr = self.rebar_rect
         r = 0
-        self.sp_cover = ttk.Spinbox(rr, from_=15, to=100, width=8)
-        self.sp_cover.set("30")
+        self.sp_cover = ttk.Entry(rr, width=8)
+        self.sp_cover.insert(0, "30")
         self._row(rr, "Lớp bê tông bảo vệ cốt dọc c (mm)", self.sp_cover, r)
         r += 1
-        self.cb_corner_dia = ttk.Combobox(rr, values=DIAS, state="readonly",
-                                          width=8)
-        self.cb_corner_dia.set("20")
+        self.cb_corner_dia = ttk.Entry(rr, width=8)
+        self.cb_corner_dia.insert(0, "20")
         self._row(rr, "4 thanh thép góc", self.cb_corner_dia, r)
         r += 1
         # Thép cạnh t2: số thanh + đường kính
         fr2 = ttk.Frame(rr)
-        self.sp_e2n = ttk.Spinbox(fr2, from_=0, to=20, width=5)
-        self.sp_e2n.set("3")
-        self.cb_e2d = ttk.Combobox(fr2, values=DIAS, state="readonly",
-                                   width=5)
-        self.cb_e2d.set("20")
+        self.sp_e2n = ttk.Entry(fr2, width=5)
+        self.sp_e2n.insert(0, "3")
+        self.cb_e2d = ttk.Entry(fr2, width=5)
+        self.cb_e2d.insert(0, "20")
         self.sp_e2n.pack(side=tk.LEFT)
         ttk.Label(fr2, text="thanh/mặt – d").pack(side=tk.LEFT, padx=2)
         self.cb_e2d.pack(side=tk.LEFT)
@@ -369,11 +367,10 @@ class App(tk.Tk):
         r += 1
         # Thép cạnh t3
         fr3 = ttk.Frame(rr)
-        self.sp_e3n = ttk.Spinbox(fr3, from_=0, to=20, width=5)
-        self.sp_e3n.set("3")
-        self.cb_e3d = ttk.Combobox(fr3, values=DIAS, state="readonly",
-                                   width=5)
-        self.cb_e3d.set("20")
+        self.sp_e3n = ttk.Entry(fr3, width=5)
+        self.sp_e3n.insert(0, "3")
+        self.cb_e3d = ttk.Entry(fr3, width=5)
+        self.cb_e3d.insert(0, "20")
         self.sp_e3n.pack(side=tk.LEFT)
         ttk.Label(fr3, text="thanh/mặt – d").pack(side=tk.LEFT, padx=2)
         self.cb_e3d.pack(side=tk.LEFT)
@@ -555,11 +552,11 @@ class App(tk.Tk):
         self.en_Ly = ttk.Entry(f, width=12); self.en_Ly.insert(0, "4.0")
         self.cb_tx = ttk.Combobox(f, values=bn, state="readonly", width=10)
         self.cb_tx.set("Ngàm nửa cứng")
-        self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=10)
+        self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=16)
         self.cb_bx.set("Ngàm nửa cứng")
-        self.cb_ty = ttk.Combobox(f, values=bn, state="readonly", width=10)
+        self.cb_ty = ttk.Combobox(f, values=bn, state="readonly", width=16)
         self.cb_ty.set("Ngàm nửa cứng")
-        self.cb_by = ttk.Combobox(f, values=bn, state="readonly", width=10)
+        self.cb_by = ttk.Combobox(f, values=bn, state="readonly", width=16)
         self.cb_by.set("Ngàm nửa cứng")
         self.en_psix = ttk.Entry(f, width=12)
         self.en_psiy = ttk.Entry(f, width=12)
@@ -1548,8 +1545,8 @@ class App(tk.Tk):
         dias = sorted(set(r.dia for r in sec.rebars))
         d_avg = sum(dias) / len(dias) if dias else 0.0
         vals = {
-            "n": f"{n} thanh",
-            "nsub": " + ".join(parts),
+            "n": " + ".join(parts),
+            "nsub": "",
             "as": f"{sec.steel_area:.0f} mm\u00b2",
             "mu": f"{sec.reinforcement_ratio * 100:.2f}%",
         }
@@ -1590,15 +1587,20 @@ class App(tk.Tk):
         _card(row1, "S\u1ed1 thanh", "n", "nsub")
         _card(row1, "T\u1ed5ng As", "as")
         _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
-        # Dòng vật liệu
+        # 3 box vật liệu highlight
         if inp is not None:
-            mat = tk.Label(parent,
-                          text=f"Bê tông {inp.concrete_grade}  |  "
-                               f"Thép dọc {inp.steel_grade}  |  "
-                               f"Thép đai {inp.sw_steel_grade}",
-                          font=("", 9), fg="#4B5563", bg="#F9FAFB")
-            mat.pack(pady=(2, 4))
-            varmap["_mat"] = None  # không live update
+            mrow = tk.Frame(parent, bg="#F9FAFB")
+            mrow.pack(fill=tk.X, padx=2, pady=(2, 4))
+            for title, val in (("Bê tông", inp.concrete_grade),
+                               ("Thép dọc", inp.steel_grade),
+                               ("Thép đai", inp.sw_steel_grade)):
+                mb = tk.Frame(mrow, bg="#FEF3C7",
+                              highlightbackground="#F59E0B",
+                              highlightthickness=1)
+                mb.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3)
+                tk.Label(mb, text=f"{title}: {val}", font=("", 10, "bold"),
+                         fg="#92400E", bg="#FEF3C7").pack(pady=6)
+            varmap["_mat"] = None
         return varmap
 
     def _build_param_table(self, parent, inp, res):
@@ -1664,7 +1666,7 @@ class App(tk.Tk):
     def _build_nm_notes(self, parent, inp, res):
         """3 d\u00f2ng ch\u00fa th\u00edch d\u01b0\u1edbi bi\u1ec3u \u0111\u1ed3 N-M."""
         import math
-        mono = ("TkFixedFont", 8)
+        mono = ("TkFixedFont", 10)
         alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
@@ -1720,9 +1722,10 @@ class App(tk.Tk):
             # Cấu tạo
             sr = check_stirrup(self._last_sec, stir_in, inp.cover)
             # Chịu cắt (lấy Q2/Q3 từ inp)
-            from rc_column.materials import (get_concrete, get_steel,
-                                            STEEL_GRADES)
-            conc = get_concrete(inp.concrete_grade, inp.gamma_b)
+            from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
+                                            ConcreteMaterial)
+            conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade],
+                                    inp.gamma_b)
             swg = STEEL_GRADES.get(inp.sw_steel_grade)
             lines = []
             ok_all = True
@@ -1867,7 +1870,7 @@ class App(tk.Tk):
             ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
             ax.set_xlabel("M2 (kN·m)", fontweight="bold", fontsize=10)
             ax.set_ylabel("M3 (kN·m)", fontweight="bold", fontsize=10)
-            ax.set_title(f"M2-M3 (tại N = {res.N:.0f} kN)", fontsize=12)
+
             ax.legend(fontsize=8, loc="upper center",
                       bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
             ax.grid(True, color="#E5E7EB", linestyle="--",
