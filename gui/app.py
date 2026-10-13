@@ -431,32 +431,13 @@ class App(tk.Tk):
         ok_txt = "ĐẠT ✓" if res.ok else "KHÔNG ĐẠT ✗"
         self.result_var.set(
             f"Kết quả: {ok_txt} — D/C = {res.dc:.3f}")
-        # Tóm tắt
+        # Tóm tắt + biểu đồ + L0
         sec = build_section(inp)
-        n = len(sec.rebars)
-        dias = sorted(set(r.dia for r in sec.rebars))
-        dia_txt = "/".join(f"{d:.0f}" for d in dias)
-        summ = [
-            f"{n} thanh d{dia_txt} — As = {res.steel_area:.0f} mm², "
-            f"μ = {res.reinforcement_ratio * 100:.2f}%",
-            f"N = {res.N:.1f} kN, Mx = {res.Mx:.1f}, My = {res.My:.1f} kN·m",
-            f"M = {res.M_resultant:.1f} kN·m | Khả năng = {res.M_capacity:.1f} kN·m",
-            f"φL = {res.phi_L:.2f}; L0x = {res.L0x:.2f} m, L0y = {res.L0y:.2f} m",
-        ]
-        self.sum_text.delete("1.0", tk.END)
-        self.sum_text.insert(tk.END, "\n".join(summ))
+        self._show_summary(sec, inp, res)
         # Thuyết minh (có format màu sắc) + nhúng hình
         self._render_report(generate_report(inp, res))
         self._embed_report_images(sec, inp, res)
         self._pdf_inp, self._pdf_res = inp, res
-        # L0 preview
-        self.l0_var.set(
-            f"Chiều dài tính toán: L0x = {res.L0x:.2f} m, L0y = {res.L0y:.2f} m")
-        if HAS_MPL:
-            self._last_sec = sec
-            self._last_inp = inp
-            self._last_res = res
-            self._redraw()
 
     # ---------------- ETABS ----------------
     def on_import_etabs(self):
@@ -541,10 +522,39 @@ class App(tk.Tk):
         self._render_report(generate_report(inp_w, res_w))
         self._embed_report_images(sec_w, inp_w, res_w)
         self._pdf_inp, self._pdf_res = inp_w, res_w
+        # cập nhật cả tab Tóm tắt + biểu đồ cho tổ hợp nguy hiểm nhất
+        self._show_summary(sec_w, inp_w, res_w,
+                           prefix=f"Tổ hợp {worst_f.case}@{worst_f.station:.2f}m: ")
         self.result_var.set(
             f"Tổ hợp nguy hiểm nhất: {worst_f.case} — "
             f"{'KHÔNG ĐẠT ✗' if worst_r['dc'] > 1 else 'ĐẠT ✓'} "
             f"(D/C = {worst_r['dc']:.3f})")
+
+    def _show_summary(self, sec, inp, res, prefix=""):
+        """Cập nhật tab Tóm tắt + biểu đồ + L0."""
+        n = len(sec.rebars)
+        dias = sorted(set(r.dia for r in sec.rebars))
+        dia_txt = "/".join(f"{d:.0f}" for d in dias)
+        summ = [
+            f"{prefix}{n} thanh d{dia_txt} — As = {res.steel_area:.0f} mm², "
+            f"μ = {res.reinforcement_ratio * 100:.2f}%",
+            f"N = {res.N:.1f} kN, Mx = {res.Mx_star:.1f}, "
+            f"My = {res.My_star:.1f} kN·m (đã phóng đại η)",
+            f"M = {res.M_resultant:.1f} kN·m | D/C = {res.dc:.3f} "
+            f"(FS = {res.fs:.2f})",
+            f"φL = {res.phi_L:.2f}; L0x = {res.L0x:.2f} m, "
+            f"L0y = {res.L0y:.2f} m",
+        ]
+        self.sum_text.delete("1.0", tk.END)
+        self.sum_text.insert(tk.END, "\n".join(summ))
+        self.l0_var.set(
+            f"Chiều dài tính toán: L0x = {res.L0x:.2f} m, "
+            f"L0y = {res.L0y:.2f} m")
+        if HAS_MPL:
+            self._last_sec = sec
+            self._last_inp = inp
+            self._last_res = res
+            self._redraw()
 
     def on_export_pdf(self):
         """Xuất thuyết minh ra PDF."""
