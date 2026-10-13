@@ -79,8 +79,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                         frameon=False, fontsize=8)
         for txt in leg.get_texts():
             txt.set_fontweight("bold")
-    # Trục t2/t3 tại tâm (mũi tên xanh dương): t3 đứng, t2 ngang (chuẩn CSI)
-    alen = max(cx, cy) * 0.32
+    # Trục t2/t3 vượt ra khỏi đường bao để thấy text
+    alen = max(cx, cy) * 0.62
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#16A34A", lw=1.6))
     ax.annotate("", xy=(0, alen), xytext=(0, 0),
@@ -135,8 +135,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                 ha="center", va="top", color="#1F2937",
                 bbox=dict(boxstyle="round,pad=0.4", fc="#F9FAFB",
                           ec="#E5E7EB"))
-    # Giới hạn trục + tỉ lệ
-    m = max(cx, cy) * 0.22
+    # Giới hạn trục + tỉ lệ (đủ chỗ cho trục t2/t3 vượt ra)
+    m = max(cx, cy) * 0.30
     ax.set_xlim(-cx/2 - m, cx/2 + m)
     ax.set_ylim(-cy/2 - m, cy/2 + m * 1.35)
     ax.set_aspect("equal")
@@ -747,6 +747,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
         [img_sec],
+        [Spacer(1, 12 * mm)],
         [t_box],
     ]
     _left_tbl = Table(_left_content, colWidths=[80 * mm])
@@ -962,7 +963,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
-                            topMargin=15 * mm, bottomMargin=15 * mm,
+                            topMargin=10 * mm, bottomMargin=10 * mm,
                             title="Tóm tắt kiểm tra cột BTCT")
     doc.build(story)
     return filepath
