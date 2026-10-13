@@ -41,9 +41,9 @@ class App(tk.Tk):
         try:
             self.update_idletasks()
             self._paned.sashpos(0, self._left_width)
-            # Chặn kéo: mỗi khi sash di chuyển thì đưa về vị trí cố định
-            self._paned.bind("<B1-Motion>", lambda e: self._paned.sashpos(
-                0, self._left_width), add="+")
+            # Vô hiệu hóa sash: không cho kéo
+            self._paned.bind("<B1-Motion>", lambda e: "break", add="+")
+            self._paned.bind("<ButtonPress-1>", lambda e: "break", add="+")
         except Exception:
             pass
 
@@ -1597,15 +1597,10 @@ class App(tk.Tk):
                          fg="#6B7280", bg="white").pack()
                 varmap[subkey] = svar
 
-        row1 = tk.Frame(parent, bg="#F9FAFB")
-        row1.pack(fill=tk.X, padx=2, pady=2)
-        _card(row1, "S\u1ed1 thanh", "n", "nsub")
-        _card(row1, "T\u1ed5ng As", "as")
-        _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
-        # 3 box vật liệu (format giống box cốt thép: trắng, viền xám)
+        # 3 box vật liệu lên trên
         if inp is not None:
             mrow = tk.Frame(parent, bg="#F9FAFB")
-            mrow.pack(fill=tk.X, padx=2, pady=(2, 4))
+            mrow.pack(fill=tk.X, padx=2, pady=2)
             for title, val in (("Bê tông", inp.concrete_grade),
                                ("Thép dọc", inp.steel_grade),
                                ("Thép đai", inp.sw_steel_grade)):
@@ -1619,12 +1614,17 @@ class App(tk.Tk):
                 tk.Label(mb, text=val, font=("", 10, "bold"),
                          bg="white").pack()
             varmap["_mat"] = None
+        row1 = tk.Frame(parent, bg="#F9FAFB")
+        row1.pack(fill=tk.X, padx=2, pady=(2, 4))
+        _card(row1, "S\u1ed1 thanh", "n", "nsub")
+        _card(row1, "T\u1ed5ng As", "as")
+        _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
         return varmap
 
     def _build_param_table(self, parent, inp, res):
         """B\u1ea3ng th\u00f4ng s\u1ed1 t\u00ednh to\u00e1n (Treeview 3 c\u1ed9t)."""
         import math
-        ttk.Label(parent, text="B\u1ea3ng th\u00f4ng s\u1ed1 t\u00ednh to\u00e1n",
+        ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
         tree = ttk.Treeview(parent, columns=cols, show="headings", height=17)
@@ -1635,7 +1635,9 @@ class App(tk.Tk):
         tree.column("desc", width=200, anchor="w")
         tree.column("val", width=150, anchor="e", stretch=False)
         tree.tag_configure("odd", background="#F9FAFB")
-        tree.tag_configure("dc", background="#D1FAE5")
+        dc_bg = "#D1FAE5" if res.ok else "#FEE2E2"
+        dc_fg = "#065F46" if res.ok else "#991B1B"
+        tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
         alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
@@ -1699,9 +1701,11 @@ class App(tk.Tk):
                  font=mono, fg="#059669").pack(side=tk.LEFT)
         okc = "#059669" if res.ok else "#DC2626"
         okt = "\u0110\u1ea0T" if res.ok else "KH\u00d4NG \u0110\u1ea0T"
+        bgc = "#D1FAE5" if res.ok else "#FEE2E2"
+        fgc = "#065F46" if res.ok else "#991B1B"
         tk.Label(r1, text=f"  D/C = OA / OB = {res.dc:.3f} \u2192 {okt}  ",
-                 font=("", 8, "bold"), fg="#065F46",
-                 bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
+                 font=("", 10, "bold"), fg=fgc,
+                 bg=bgc).pack(side=tk.LEFT, padx=6)
         tk.Label(box, bg="white",
                  text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i):  N = {res.N:+.1f} kN,  "
                       f"M\u03b1 = {Ma:.1f} kN\u00b7m  "
@@ -1739,9 +1743,7 @@ class App(tk.Tk):
         tk.Label(left, text=f"  N = {res.N:+.1f} kN  ",
                  font=("", 8, "bold"), fg="#1D4ED8",
                  bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
-        tk.Label(hdr, text="\u2014 \u0110\u01b0\u1eddng bao M2-M3    "
-                           "\u25cf \u0110i\u1ec3m t\u1ea3i A",
-                 font=("", 8), fg="#4B5563").pack(side=tk.RIGHT)
+
 
     def _build_stirrup_summary(self, parent, inp, res):
         """Tóm tắt kết quả kiểm tra cốt thép đai."""
@@ -1785,8 +1787,9 @@ class App(tk.Tk):
             fg = "#065F46" if ok_all else "#991B1B"
             bg = "#D1FAE5" if ok_all else "#FEE2E2"
             txt = "\n".join(lines) if lines else "Chưa có số liệu"
-            lbl = tk.Label(parent, text=txt, font=("TkFixedFont", 9),
-                          fg=fg, bg=bg, justify=tk.LEFT, anchor="w")
+            lbl = tk.Label(parent, text=txt, font=("TkFixedFont", 10),
+                          fg="#1F2937", bg="white", justify=tk.LEFT,
+                          anchor="w")
             lbl.pack(fill=tk.X, padx=8, pady=(0, 6))
         except Exception as e:
             ttk.Label(parent, text=f"Không tính được: {e}",
@@ -1853,11 +1856,7 @@ class App(tk.Tk):
                     weight="bold", va="center", zorder=7)
             ax.set_xlabel("Mα (kN·m)", fontweight="bold", fontsize=10)
             ax.set_ylabel("N (kN)", fontweight="bold", fontsize=10)
-            ax.text(0.05, 0.95, f"α = {alpha_deg:.1f}°",
-                    transform=ax.transAxes, fontsize=9, color="#4B5563",
-                    va="top", ha="left",
-                    bbox=dict(boxstyle="round,pad=0.3", fc="white",
-                              ec="#E5E7EB", alpha=0.9))
+
             # Legend 4 mục như web, đặt dưới biểu đồ
             from matplotlib.lines import Line2D
             leg_elems = [
@@ -1932,6 +1931,8 @@ class App(tk.Tk):
         # ===== Ô trên-trái: sơ đồ mặt cắt + thẻ thống kê =====
         f_tl = ttk.Frame(self._sum_inner)
         f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        ttk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
+                  font=("", 11, "bold")).pack(pady=(2, 6))
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
         draw_section_ax(a1, sec, show_stats=False)
