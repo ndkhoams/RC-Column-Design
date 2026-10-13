@@ -733,9 +733,12 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     t_param.setStyle(TableStyle(ts))
 
     # Hàng trên: [mặt cắt + box | bảng thông số] như app
-    _ck_para = Paragraph(f"Cấu kiện: {_ck_name}", ParagraphStyle(
+    _ck_style = ParagraphStyle(
         "ck", fontName=FNB, fontSize=10, alignment=TA_CENTER,
-        textColor=HexColor("#92400E"), spaceAfter=2)) if _ck_name else Spacer(1, 1)
+        textColor=HexColor("#111827"), spaceBefore=4, spaceAfter=4,
+        backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
+    _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
+        if _ck_name else Spacer(1, 1)
     left_stack = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para],
