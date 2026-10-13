@@ -1473,6 +1473,11 @@ class App(tk.Tk):
             self.current_save_path = path
             self._update_title()
             self._update_ck()
+            # Tự động tính toán sau khi mở file
+            try:
+                self.on_check()
+            except Exception:
+                pass
             messagebox.showinfo("Mở dữ liệu", f"Đã nạp: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
