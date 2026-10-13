@@ -71,12 +71,16 @@ class App(tk.Tk):
         bottom_bar.pack(fill=tk.X, side=tk.BOTTOM, padx=2, pady=2)
         data_bar = ttk.Frame(bottom_bar)
         data_bar.pack(fill=tk.X, padx=8, pady=(8, 0))
-        ttk.Button(data_bar, text="💾 Lưu dữ liệu",
+        ttk.Button(data_bar, text="💾 SAVE",
                    command=self.on_save_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(0, 4))
+                                                   fill=tk.X, padx=(0, 2))
+        ttk.Button(data_bar, text="💾 SAVE AS",
+                   command=self.on_save_as_data).pack(side=tk.LEFT,
+                                                      expand=True, fill=tk.X,
+                                                      padx=(2, 2))
         ttk.Button(data_bar, text="📂 Mở dữ liệu",
                    command=self.on_load_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(4, 0))
+                                                   fill=tk.X, padx=(2, 0))
         ttk.Button(bottom_bar, text="KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    command=self.on_check).pack(fill=tk.X, padx=8, pady=8,
                                                ipady=8)
@@ -385,11 +389,7 @@ class App(tk.Tk):
                   text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
                   foreground="gray", font=("", 8)).grid(
                       row=1, column=0, columnspan=2, sticky=tk.W, padx=4)
-        self.var_comb = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.etabs_frame, text="Chỉ tổ hợp (Combination)",
-                        variable=self.var_comb).grid(row=2, column=0,
-                                                    columnspan=2, sticky=tk.W,
-                                                    padx=4)
+        # Luôn chỉ tính tổ hợp (Combination) - bỏ checkbox theo yêu cầu
         self.etabs_info = tk.StringVar(value="Chưa chọn file.")
         ttk.Label(self.etabs_frame, textvariable=self.etabs_info,
                   foreground="#0a4d8c", wraplength=360,
@@ -399,6 +399,7 @@ class App(tk.Tk):
         cols = ("case", "N", "Mx", "My", "dc", "kl")
         self.etabs_tree = ttk.Treeview(self.etabs_frame, columns=cols,
                                        show="headings", height=12)
+        self.etabs_tree.bind("<Double-1>", self._edit_etabs_cell)
         hd = {"case": "Tổ hợp", "N": "N", "Mx": "M2", "My": "M3",
               "dc": "D/C", "kl": "KQ"}
         wd = {"case": 80, "N": 65, "Mx": 65, "My": 65, "dc": 55, "kl": 60}
@@ -415,6 +416,7 @@ class App(tk.Tk):
         self.etabs_tree.tag_configure("worst", background="#fecaca",
                                       font=("", 9, "bold"))
         self.etabs_forces = []
+        self.current_save_path = None
         # Áp dụng trạng thái mặc định (Ngàm / Import Excel)
         self._toggle_load_mode()
 
@@ -549,7 +551,7 @@ class App(tk.Tk):
         try:
             from rc_column.etabs_import import parse_etabs_clipboard
             forces = parse_etabs_clipboard(
-                text, only_combinations=self.var_comb.get())
+                text, only_combinations=True)
         except Exception as ex:
             from tkinter import messagebox
             messagebox.showerror("Lỗi đọc clipboard", str(ex))
@@ -567,7 +569,7 @@ class App(tk.Tk):
         try:
             from rc_column.etabs_import import read_etabs_excel
             forces = read_etabs_excel(
-                path, only_combinations=self.var_comb.get())
+                path, only_combinations=True)
         except Exception as ex:
             messagebox.showerror("Lỗi đọc file", str(ex))
             return False
@@ -595,6 +597,67 @@ class App(tk.Tk):
             if r and dc == dc:
                 tag = ("ng",) if dc > 1 else ()
             t.insert("", tk.END, values=vals, tags=tag)
+
+    def _edit_etabs_cell(self, event):
+        """Double-click vào ô N/M2/M3 để sửa trực tiếp."""
+        t = self.etabs_tree
+        row_id = t.identify_row(event.y)
+        col_id = t.identify_column(event.x)
+        if not row_id or not col_id:
+            return
+        # Chỉ cho sửa cột N (1), M2 (2), M3 (3) - 0-based trong values
+        col_idx = int(col_id[1:]) - 1
+        if col_idx not in (1, 2, 3):
+            return
+        # Lấy index dòng trong etabs_forces (theo thứ tự hiển thị)
+        children = t.get_children()
+        try:
+            row_pos = list(children).index(row_id)
+        except ValueError:
+            return
+        # Entry đè lên ô
+        bbox = t.bbox(row_id, col_id)
+        if not bbox:
+            return
+        x, y, w, h = bbox
+        vals = t.item(row_id, "values")
+        entry = tk.Entry(t, font=("", 9))
+        entry.insert(0, vals[col_idx])
+        entry.select_range(0, tk.END)
+        entry.focus()
+        entry.place(x=x, y=y, width=w, height=h)
+
+        def _save(_e=None):
+            new_val = entry.get().strip()
+            try:
+                num = float(new_val)
+            except ValueError:
+                entry.destroy()
+                return
+            # Cập nhật etabs_forces theo row_pos
+            # (table có thể đã sắp xếp lại, tìm theo case+station)
+            case_station = vals[0]
+            for f in self.etabs_forces:
+                if f"{f.case}@{f.station:.2f}" == case_station:
+                    if col_idx == 1:
+                        f.N = num
+                    elif col_idx == 2:
+                        f.Mx = num
+                    elif col_idx == 3:
+                        f.My = num
+                    break
+            new_vals = list(vals)
+            new_vals[col_idx] = f"{num:.0f}"
+            new_vals[4] = "—"
+            new_vals[5] = "—"
+            t.item(row_id, values=new_vals)
+            entry.destroy()
+            self.etabs_info.set("Đã sửa dữ liệu — bấm 'KIỂM TRA KHẢ NĂNG "
+                                "CHỊU LỰC' để tính lại.")
+
+        entry.bind("<Return>", _save)
+        entry.bind("<FocusOut>", lambda e: entry.destroy())
+        entry.bind("<Escape>", lambda e: entry.destroy())
 
     def on_check_etabs(self):
         if not self.etabs_forces:
@@ -709,7 +772,7 @@ class App(tk.Tk):
             "N_lt": ev(self.en_Nlt), "Mx_lt": ev(self.en_Mxlt),
             "My_lt": ev(self.en_Mylt),
             "etabs_path": getattr(self, "etabs_file", ""),
-            "etabs_comb": bv(self.var_comb),
+            "etabs_comb": True,
             # Lưu luôn nội lực đã import (không cần link lại file Excel)
             "etabs_forces": [
                 {"story": f.story, "column": f.column, "case": f.case,
@@ -742,7 +805,7 @@ class App(tk.Tk):
             self.var_lt.set(bool(d.get("long_term", False)))
             se(self.en_Nlt, d.get("N_lt", "")); se(self.en_Mxlt, d.get("Mx_lt", ""))
             se(self.en_Mylt, d.get("My_lt", ""))
-            self.var_comb.set(bool(d.get("etabs_comb", True)))
+
             self.etabs_file = d.get("etabs_path", "")
             # cập nhật giao diện theo chế độ
             self._toggle_load_mode()
@@ -751,24 +814,47 @@ class App(tk.Tk):
         except Exception as ex:
             messagebox.showerror("Lỗi", f"Không đọc được file dữ liệu: {ex}")
 
-    def on_save_data(self):
-        """Lưu dữ liệu nhập liệu ra file JSON."""
+    def _do_save(self, path: str) -> bool:
+        """Ghi dữ liệu ra file JSON. Trả về True nếu thành công."""
         import json
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(self._collect_data(), f, ensure_ascii=False,
+                          indent=2)
+            self.current_save_path = path
+            return True
+        except Exception as ex:
+            messagebox.showerror("Lỗi", str(ex))
+            return False
+
+    def on_save_data(self):
+        """SAVE: lần đầu mở hộp thoại, lần sau ghi đè file đang mở."""
+        import os
+        from tkinter import filedialog
+        path = self.current_save_path
+        if not path or not os.path.exists(path):
+            path = filedialog.asksaveasfilename(
+                title="Lưu dữ liệu cột",
+                defaultextension=".json",
+                filetypes=[("JSON", "*.json")],
+                initialfile="CotBTCT.json")
+            if not path:
+                return
+        if self._do_save(path):
+            messagebox.showinfo("Lưu dữ liệu", f"Đã lưu: {path}")
+
+    def on_save_as_data(self):
+        """SAVE AS: luôn mở hộp thoại chọn file mới."""
         from tkinter import filedialog
         path = filedialog.asksaveasfilename(
-            title="Lưu dữ liệu cột",
+            title="Lưu dữ liệu cột (Save As)",
             defaultextension=".json",
             filetypes=[("JSON", "*.json")],
             initialfile="CotBTCT.json")
         if not path:
             return
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(self._collect_data(), f, ensure_ascii=False,
-                          indent=2)
+        if self._do_save(path):
             messagebox.showinfo("Lưu dữ liệu", f"Đã lưu: {path}")
-        except Exception as ex:
-            messagebox.showerror("Lỗi", str(ex))
 
     def on_load_data(self):
         """Mở file dữ liệu JSON đã lưu."""
@@ -793,6 +879,7 @@ class App(tk.Tk):
                     f"Đã nạp {len(self.etabs_forces)} dòng, {n_case} tổ hợp "
                     f"từ file dữ liệu — Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
                 self._fill_etabs_table([(f, None) for f in self.etabs_forces])
+            self.current_save_path = path
             messagebox.showinfo("Mở dữ liệu", f"Đã nạp: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
@@ -1000,7 +1087,10 @@ class App(tk.Tk):
             lim = (res.BN, Mb)
             ax.scatter([Ma], [res.N], c="red", s=90, zorder=5,
                        label="Điểm tải trọng")
-            ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
+            # Nét đứt từ tâm qua A kéo dài quá B; xanh nếu FS>1, đỏ nếu FS<1
+            lc = "green" if res.fs > 1 else "red"
+            ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=lc,
+                    ls="--", lw=1.5, alpha=0.9)
             ax.scatter([lim[1]], [lim[0]], c="orange", s=90,
                        zorder=5, label="Giới hạn")
             ax.set_xlabel("M (kN·m)")
@@ -1018,6 +1108,10 @@ class App(tk.Tk):
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
             N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
+            # Đóng kín mặt: thêm cột đầu vào cuối (fill góc thiếu)
+            mxg = np.concatenate([mxg, mxg[:, :1]], axis=1)
+            myg = np.concatenate([myg, myg[:, :1]], axis=1)
+            N3 = np.concatenate([N3, N3[:, :1]], axis=1)
             ax3d.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
                               edgecolor="none")
             ax3d.scatter([res.Mx_star], [res.My_star], [res.N], c="red",
@@ -1035,7 +1129,9 @@ class App(tk.Tk):
                     linewidth=1.5)
             ax.scatter([res.Mx_star], [res.My_star], c="red", s=90,
                        zorder=5, label="Điểm tải trọng")
-            ax.plot([0, res.Bx], [0, res.By], "r--", lw=1.2, alpha=0.8)
+            lc = "green" if res.fs > 1 else "red"
+            ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=lc,
+                    ls="--", lw=1.5, alpha=0.9)
             ax.scatter([res.Bx], [res.By], c="orange", s=90, zorder=5,
                        label="Giới hạn")
             ax.set_xlabel("M2 (kN·m)")
