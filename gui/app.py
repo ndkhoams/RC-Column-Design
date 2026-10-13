@@ -122,16 +122,7 @@ class App(tk.Tk):
             sum_canvas.itemconfig(1, width=e.width)
         sum_canvas.bind("<Configure>", _sum_width)
 
-        # Chọn loại biểu đồ (trên cùng)
-        plot_bar = ttk.Frame(self._sum_inner)
-        plot_bar.pack(fill=tk.X, padx=4, pady=2)
-        ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
-        self.cb_plot = ttk.Combobox(plot_bar, state="readonly", width=28,
-                                    values=["3D + N-M (góc α)",
-                                            "3D + M2-M3 (tại N)"])
-        self.cb_plot.set("3D + N-M (góc α)")
-        self.cb_plot.pack(side=tk.LEFT, padx=4)
-        self.cb_plot.bind("<<ComboboxSelected>>", lambda e: self._redraw())
+        # Layout 2x2 cố định: không còn dropdown chọn biểu đồ
         if HAS_MPL:
             self.fig = Figure(figsize=(6.5, 8.0), dpi=100)
             self.mpl = FigureCanvasTkAgg(self.fig, master=self._sum_inner)
@@ -1009,16 +1000,11 @@ class App(tk.Tk):
             except Exception:
                 pass
             try:
-                from rc_column.pdf_export import interaction_image
-                # Bỏ 3D, chỉ giữ biểu đồ N-M full-width
-                # Rộng linh động theo Text widget (mặc định 6 inch)
-                try:
-                    px = self.calc_text.winfo_width()
-                    w_in = max(4.0, min(9.0, px / 100)) if px > 1 else 6.0
-                except Exception:
-                    w_in = 6.0
-                img_m6 = interaction_image(sec, inp, res, width_in=w_in,
-                                           dpi=100)
+                from rc_column.pdf_export import interaction_image, m2m3_image
+                # 2 biểu đồ: M2-M3 (trái) và N-M nửa phải (phải)
+                img_m6 = (m2m3_image(sec, inp, res, width_in=4.0, dpi=100),
+                          interaction_image(sec, inp, res, width_in=4.0,
+                                            dpi=100, right_half=True))
             except Exception:
                 pass
 
@@ -1075,8 +1061,8 @@ class App(tk.Tk):
         t.window_create(tk.END, window=frame)
         t.insert(tk.END, "\n\n")
 
-    def _insert_charts_fullwidth(self, num, info, png: bytes):
-        """Mục 6: text full-width, biểu đồ N-M full-width bên dưới (bỏ 3D)."""
+    def _insert_charts_fullwidth(self, num, info, pngs: tuple):
+        """Mục 6: text full-width, 2 biểu đồ cạnh nhau bên dưới."""
         import base64
         from tkinter import PhotoImage
         t = self.calc_text
@@ -1084,19 +1070,23 @@ class App(tk.Tk):
         for text, tags in info["segs"]:
             t.insert(tk.END, text, tags if tags else ())
         t.insert(tk.END, "\n")
-        # 1 biểu đồ N-M full-width
+        # 2 biểu đồ cạnh nhau: M2-M3 trái, N-M nửa phải
         frame = tk.Frame(t, bg="white")
-        b64 = base64.b64encode(png).decode("ascii")
-        img = PhotoImage(data=b64)
-        self._report_images.append(img)
-        tk.Label(frame, image=img, bg="white").pack()
-        tk.Label(frame, text="Biểu đồ N-M (góc α)", font=("", 9, "bold"),
-                 fg="#0f172a", bg="white").pack()
+        for png, cap in zip(pngs, ["Biểu đồ M2-M3 (tại N)",
+                                   "Biểu đồ N-M (nửa phải)"]):
+            b64 = base64.b64encode(png).decode("ascii")
+            img = PhotoImage(data=b64)
+            self._report_images.append(img)
+            col = tk.Frame(frame, bg="white")
+            tk.Label(col, image=img, bg="white").pack()
+            tk.Label(col, text=cap, font=("", 9, "bold"),
+                     fg="#0f172a", bg="white").pack()
+            col.pack(side=tk.LEFT, padx=10, anchor=tk.N)
         self._report_frames.append(frame)
         self._bind_wheel_to_calc(frame)
         t.window_create(tk.END, window=frame)
         t.insert(tk.END, "\n")
-        t.insert(tk.END, "Hình 2. Biểu đồ N-M (góc α)\n", "sec_ref")
+        t.insert(tk.END, "Hình 2. Biểu đồ M2-M3 và N-M (góc α)\n", "sec_ref")
         t.insert(tk.END, "\n")
 
     def _bind_wheel_to_calc(self, widget):
@@ -1123,7 +1113,6 @@ class App(tk.Tk):
             return
         import math
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
-        kind = self.cb_plot.get()
         # Tạo Figure mới hoàn toàn mỗi lần vẽ -> không bao giờ sót axes cũ
         try:
             self.mpl.get_tk_widget().destroy()
@@ -1211,24 +1200,20 @@ class App(tk.Tk):
 
         from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         import numpy as np
-        self.fig.set_size_inches(7.0, 8.5)
-        gs = self.fig.add_gridspec(5, 2)
-        a1 = self.fig.add_subplot(gs[0:2, :])
+        self.fig.set_size_inches(8.0, 8.0)
+        gs = self.fig.add_gridspec(2, 2)
+        # Hàng 1: Sơ đồ mặt cắt | Biểu đồ 3D
+        a1 = self.fig.add_subplot(gs[0, 0])
         draw_section_ax(a1, sec)
-        a1.set_title("Sơ đồ mặt cắt", fontsize=13)
+        a1.set_title("Sơ đồ mặt cắt", fontsize=11)
         a1.grid(True, alpha=0.3)
-        if kind.startswith("3D + N-M"):
-            # 3D trái + N-M(α) phải
-            a2 = self.fig.add_subplot(gs[2:, 0], projection="3d")
-            _plot_3d(a2)
-            a3 = self.fig.add_subplot(gs[2:, 1])
-            _nm_alpha_ax(a3)
-        else:
-            # 3D trái + M2-M3 phải
-            a2 = self.fig.add_subplot(gs[2:, 0], projection="3d")
-            _plot_3d(a2)
-            a3 = self.fig.add_subplot(gs[2:, 1])
-            _m2m3_ax(a3)
+        a2 = self.fig.add_subplot(gs[0, 1], projection="3d")
+        _plot_3d(a2)
+        # Hàng 2: Biểu đồ N-M | Biểu đồ M2-M3 tại N
+        a3 = self.fig.add_subplot(gs[1, 0])
+        _nm_alpha_ax(a3)
+        a4 = self.fig.add_subplot(gs[1, 1])
+        _m2m3_ax(a4)
         self.fig.tight_layout()
         # Chừa chỗ dưới cho legend + dòng "Tỉ số an toàn"
         self.fig.subplots_adjust(bottom=0.34)
