@@ -380,13 +380,12 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
     img_m6 = []
     try:
         from .pdf_export import m2m3_image  # noqa
+        # N-M full (trái) như tab Tóm tắt, M2-M3 (phải)
+        png_nm = interaction_image(sec, inp, res, width_in=4.0)
         png_m2m3 = m2m3_image(sec, inp, res, width_in=4.0)
-        # N-M chỉ hiện nửa phải có đường nội lực
-        png_nm = interaction_image(sec, inp, res, width_in=4.0,
-                                   right_half=True)
         _h = 64*mm
-        img_m6 = [Image(io.BytesIO(png_m2m3), width=85*mm, height=_h),
-                  Image(io.BytesIO(png_nm), width=85*mm, height=_h)]
+        img_m6 = [Image(io.BytesIO(png_nm), width=85*mm, height=_h),
+                  Image(io.BytesIO(png_m2m3), width=85*mm, height=_h)]
     except Exception:
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
@@ -414,8 +413,8 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
             S.extend(flows)
             S.append(Spacer(1, 4))
             tbl6 = Table([[
-                [img_m6[0], P("Biểu đồ M2-M3 (tại N)", st_cap)],
-                [img_m6[1], P("Biểu đồ N-M (nửa phải)", st_cap)],
+                [img_m6[0], P("Biểu đồ N-M (góc α)", st_cap)],
+                [img_m6[1], P("Biểu đồ M2-M3 (tại N)", st_cap)],
             ]], colWidths=[88*mm, 88*mm])
             tbl6.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
