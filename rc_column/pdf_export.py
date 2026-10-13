@@ -633,8 +633,9 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     st_box_t = ParagraphStyle("bt", fontName=FN, fontSize=7,
                               textColor=HexColor("#6B7280"),
                               alignment=TA_CENTER)
-    st_box_v = ParagraphStyle("bv", fontName=FNB, fontSize=9,
-                              alignment=TA_CENTER)
+    st_box_v = ParagraphStyle("bv", fontName=FN, fontSize=7,
+                              alignment=TA_CENTER, leading=9,
+                              textColor=HexColor("#111827"))
 
     ok = res.ok
     ok_txt = "ĐẠT" if ok else "KHÔNG ĐẠT"
@@ -720,7 +721,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
                   Paragraph("Tỷ số sử dụng khả năng chịu lực", st_cell),
                   Paragraph(f"<b>{res.dc:.3f} (FS = {res.fs:.2f}) {ok_txt}</b>",
                             st_cell_b)])
-    t_param = Table(pdata, colWidths=[12 * mm, 44 * mm, 28 * mm])
+    t_param = Table(pdata, colWidths=[11 * mm, 42 * mm, 27 * mm])
     ts = [("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
           ("FONTSIZE", (0, 0), (-1, -1), 8),
           ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -744,7 +745,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
          [_ck_para],
          [img_sec],
          [t_box]],
-        colWidths=[90 * mm])
+        colWidths=[82 * mm])
     left_stack.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -752,13 +753,13 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     right_stack = Table(
         [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
          [t_param]],
-        colWidths=[86 * mm])
+        colWidths=[82 * mm])
     right_stack.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP")]))
     # Bảng ngoài đơn giản: 2 cột riêng biệt, không nested phức tạp
     _outer = Table([[left_stack, right_stack]],
-                   colWidths=[78 * mm, 86 * mm])
+                   colWidths=[82 * mm, 82 * mm])
     _outer.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 1),
