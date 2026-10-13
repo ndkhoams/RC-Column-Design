@@ -107,17 +107,52 @@ def interaction_image(sec, inp, res, width_in=5.0, dpi=150, small=False) -> byte
 
 
 # --- Xuất PDF ---
+def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
+                       st_badge_ok, st_badge_ng):
+    """Chuyển segments của 1 mục thành list flowables."""
+    out = []
+    buf_lines: List[str] = []
+    def flush():
+        if buf_lines:
+            out.append(P("<br/>".join(buf_lines), st_body))
+            buf_lines.clear()
+    for text, tags in segs:
+        t = text.strip("\n")
+        if not t:
+            continue
+        if "sec_title" in tags:
+            flush()
+            out.append(P(t.replace("● ", ""), st_h))
+        elif "sec_ref" in tags:
+            out.append(P(t.strip(), st_ref))
+        elif "dc" in tags:
+            flush()
+            out.append(P(f"TỶ SỐ SỬ DỤNG (D/C) = {t}", st_dc))
+        elif "ok" in tags:
+            flush()
+            out.append(P("✓ ĐẠT — D/C ≤ 1.000", st_badge_ok))
+        elif "ng" in tags:
+            flush()
+            out.append(P("✗ KHÔNG ĐẠT — D/C > 1.000", st_badge_ng))
+        elif "title" in tags:
+            continue
+        else:
+            buf_lines.append(t.replace("\n", "<br/>"))
+    flush()
+    return out
+
+
 def export_pdf(inp, res, filepath: str):
-    """Xuất thuyết minh ra file PDF."""
+    """Xuất thuyết minh ra file PDF (bố cục giống trong phần mềm)."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib.colors import HexColor
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Image, Table, TableStyle)
+                                    Image, Table, TableStyle, KeepTogether)
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_LEFT, TA_CENTER
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 
     font_path = _find_font()
     bold_path = _find_font_bold()
@@ -141,14 +176,15 @@ def export_pdf(inp, res, filepath: str):
     st_sub = ParagraphStyle("sub", fontName="VN", fontSize=9,
                             textColor=GRAY, alignment=TA_CENTER, spaceAfter=12)
     st_h = ParagraphStyle("h", fontName="VN-Bold", fontSize=11,
-                          textColor=SLATE, spaceBefore=14, spaceAfter=2)
+                          textColor=SLATE, spaceBefore=10, spaceAfter=2)
     st_ref = ParagraphStyle("ref", fontName="VN", fontSize=8,
                             textColor=GRAY, spaceAfter=6)
-    st_body = ParagraphStyle("body", fontName="VN", fontSize=10,
-                             textColor=SLATE, leading=14, spaceAfter=2)
-    st_mono = ParagraphStyle("mono", fontName="VN", fontSize=9,
-                             textColor=HexColor("#334155"), leading=13)
-    st_dc = ParagraphStyle("dc", fontName="VN-Bold", fontSize=16,
+    st_body = ParagraphStyle("body", fontName="VN", fontSize=9.5,
+                             textColor=SLATE, leading=13, spaceAfter=2,
+                             alignment=TA_JUSTIFY)
+    st_cap = ParagraphStyle("cap", fontName="VN", fontSize=8,
+                            textColor=GRAY, alignment=TA_CENTER, spaceBefore=4)
+    st_dc = ParagraphStyle("dc", fontName="VN-Bold", fontSize=15,
                            textColor=DC_GREEN, alignment=TA_CENTER, spaceBefore=8)
     st_badge_ok = ParagraphStyle("bok", fontName="VN-Bold", fontSize=12,
                                  textColor=GREEN_TX, backColor=GREEN_BG,
@@ -160,62 +196,54 @@ def export_pdf(inp, res, filepath: str):
                                  spaceBefore=8)
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
-                            leftMargin=18*mm, rightMargin=18*mm,
-                            topMargin=15*mm, bottomMargin=15*mm)
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=12*mm, bottomMargin=12*mm)
     S: list = []
     P = Paragraph
+    cvt = lambda segs: _segs_to_flowables(
+        segs, P, st_body, st_h, st_ref, st_dc, st_badge_ok, st_badge_ng)
 
     S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st_title))
     S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
                "(Điều 8.1.2.7)", st_sub))
 
-    from .report import generate_report
-    segs = generate_report(inp, res)
-    # chuyển segments thành paragraphs (bỏ tags màu, giữ cấu trúc)
-    buf_lines: List[str] = []
-    for text, tags in segs:
-        t = text.strip("\n")
-        if not t:
-            continue
-        if "sec_title" in tags:
-            if buf_lines:
-                S.append(P("<br/>".join(buf_lines), st_body))
-                buf_lines = []
-            S.append(P(t.replace("● ", ""), st_h))
-        elif "sec_ref" in tags:
-            S.append(P(t.strip(), st_ref))
-        elif "dc" in tags:
-            if buf_lines:
-                S.append(P("<br/>".join(buf_lines), st_body))
-                buf_lines = []
-            S.append(P(f"TỶ SỐ SỬ DỤNG (D/C) = {t}", st_dc))
-        elif "ok" in tags:
-            if buf_lines:
-                S.append(P("<br/>".join(buf_lines), st_body))
-                buf_lines = []
-            S.append(P("✓ ĐẠT — D/C ≤ 1.000", st_badge_ok))
-        elif "ng" in tags:
-            if buf_lines:
-                S.append(P("<br/>".join(buf_lines), st_body))
-                buf_lines = []
-            S.append(P("✗ KHÔNG ĐẠT — D/C > 1.000", st_badge_ng))
-        elif "title" in tags:
-            continue
-        else:
-            buf_lines.append(t.replace("\n", "<br/>"))
-    if buf_lines:
-        S.append(P("<br/>".join(buf_lines), st_body))
+    from .report import generate_report_sections
+    sections = generate_report_sections(inp, res)
 
-    # Hình mặt cắt (mục 2) và biểu đồ (mục 6)
-    S.append(Spacer(1, 12))
-    S.append(P("Hình 1. Mặt cắt cột và bố trí cốt thép", st_h))
-    img1 = Image(io.BytesIO(section_image(sec)), width=70*mm, height=70*mm)
-    S.append(img1)
-    S.append(Spacer(1, 8))
-    S.append(P("Hình 2. Biểu đồ tương tác N-M", st_h))
-    img2 = Image(io.BytesIO(interaction_image(sec, inp, res)),
-                 width=140*mm, height=119*mm)
-    S.append(img2)
+    # Ảnh cho mục 2 và 6 (kích thước vừa cho cột phải)
+    img_side = {}
+    try:
+        img_side[2] = Image(io.BytesIO(section_image(sec, small=True)),
+                            width=62*mm, height=62*mm)
+    except Exception:
+        pass
+    try:
+        img_side[6] = Image(io.BytesIO(interaction_image(sec, inp, res,
+                                                         small=True)),
+                            width=68*mm, height=58*mm)
+    except Exception:
+        pass
+    captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép",
+                6: "Hình 2. Biểu đồ tương tác N-M"}
+
+    for num in sorted(sections.keys()):
+        info = sections[num]
+        flows = cvt(info["segs"])
+        img = img_side.get(num)
+        if img is not None:
+            # Bố cục 2 cột: text trái, hình phải
+            right_col = [img, P(captions[num], st_cap)]
+            tbl = Table([[flows, right_col]],
+                        colWidths=[108*mm, 68*mm])
+            tbl.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (0, 0), 0),
+                ("RIGHTPADDING", (1, 0), (1, 0), 0),
+            ]))
+            S.append(KeepTogether(tbl))
+            S.append(Spacer(1, 6))
+        else:
+            S.extend(flows)
 
     doc.build(S)
     return filepath
