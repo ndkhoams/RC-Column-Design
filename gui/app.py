@@ -1154,11 +1154,20 @@ class App(tk.Tk):
             # Tab đang chọn
             cur = self.nb.select()
             is_summary = (cur == str(self.tab_sum))
+            # Tên file mặc định: TMTT-TÊN CẤU KIỆN.pdf
+            import os as _os
+            _ck = ""
+            _p = getattr(self, "current_save_path", "") or ""
+            if _p:
+                _ck = _os.path.splitext(_os.path.basename(_p))[0].upper()
+            _def = f"TMTT-{_ck}.pdf" if _ck else "TMTT.pdf"
+            if not is_summary:
+                _def = "ThuyetMinh.pdf"
             path = filedialog.asksaveasfilename(
                 title="Xuất PDF",
                 defaultextension=".pdf",
                 filetypes=[("PDF", "*.pdf")],
-                initialfile="TomTat.pdf" if is_summary else "ThuyetMinh.pdf")
+                initialfile=_def)
             if not path:
                 return
             if is_summary:
