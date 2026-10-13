@@ -8,6 +8,7 @@ from .materials import (CONCRETE_GRADES, STEEL_GRADES, ConcreteMaterial,
                         SteelMaterial)
 from .sections import (Section, bar_area, clear_spacing, layout_circle_bars,
                        layout_custom_bars, layout_rect_bars,
+                       layout_vietconsoft_bars,
                        make_circle_section, make_rect_section)
 from .interaction import BiaxialCapacity
 from .stability import (LongTermLoads, buckling_factors, eccentricities,
@@ -29,12 +30,35 @@ class ColumnInput:
     cy: float = 400.0              # mm
     # Cốt thép
     rebar_mode: str = "auto"       # "auto" | "custom"
-    bar_dia: float = 20.0
+    bar_dia: float = 20.0          # (giữ để tương thích: dùng cho tiết diện tròn)
     n_bars: int = 8                # cho tròn / auto
-    nx: int = 3                    # số thanh mỗi cạnh (chữ nhật)
+    nx: int = 3                    # (giữ để tương thích)
     ny: int = 3
-    cover: float = 30.0
+    cover: float = 30.0            # lớp bê tông bảo vệ cốt dọc c (mm)
     custom_bars: List[Tuple[float, float, float]] = field(default_factory=list)
+    # Bố trí thép kiểu VietconSoft (chữ nhật, rebar_mode="auto")
+    # cx = t3 (ngang), cy = t2 (đứng); thép cạnh t2 nằm 2 mặt trái/phải,
+    # thép cạnh t3 nằm 2 mặt trên/dưới (số thanh mỗi mặt, không tính góc)
+    corner_dia: float = 20.0       # đường kính 4 thanh thép góc
+    edge_t2_count: int = 3
+    edge_t2_dia: float = 20.0
+    edge_t3_count: int = 3
+    edge_t3_dia: float = 20.0
+    two_layer: bool = False
+    layer2_mode: str = "perimeter"  # "perimeter" | "concentrated" | "bundled"
+    # perimeter: đường kính lớp 2 (số thanh tự match lớp 1)
+    l2_t2_dia: float = 20.0
+    l2_t3_dia: float = 20.0
+    # concentrated
+    l2_s_layer: float = 30.0       # khe hở giữa 2 lớp (mm)
+    l2_side: str = "t2"            # "t2" | "t3": cặp mặt đặt thép lớp 2
+    l2_count: int = 5              # số thanh mỗi mặt
+    l2_dia: float = 25.0
+    # bundled (ghép bó / đôi)
+    bundle_pos: str = "inner"      # "inner" (lớp trong) | "outer" (cùng lớp ngoài)
+    bundle_size: int = 2           # số thanh mỗi bó tại cạnh
+    bundle_corner: int = 2         # số thanh mỗi bó tại góc
+    bundle_gap: float = 0.0        # khe hở giữa các thanh trong bó (mm)
     # Ổn định
     Lx: float = 4.0                # m
     Ly: float = 4.0
@@ -98,7 +122,9 @@ def build_section(inp: ColumnInput) -> Section:
         if inp.rebar_mode == "custom" and inp.custom_bars:
             layout_custom_bars(sec, inp.custom_bars)
         else:
-            layout_rect_bars(sec, inp.bar_dia, inp.nx, inp.ny, inp.cover)
+            # rebar_mode="auto": bố trí kiểu VietconSoft
+            # (4 thép góc + thép cạnh t2/t3, hỗ trợ 2 lớp)
+            layout_vietconsoft_bars(sec, inp)
     else:
         sec = make_circle_section(inp.cx, conc, steel)
         if inp.rebar_mode == "custom" and inp.custom_bars:
