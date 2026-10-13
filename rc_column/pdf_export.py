@@ -739,15 +739,12 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
         backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
     _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
-    # Spacer đẩy boxes xuống đáy (ngang hàng với bảng thông số)
-    _spacer_h = 20 * mm  # Đẩy boxes xuống đáy
     left_stack = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para],
          [img_sec],
-         [Spacer(1, _spacer_h)],
          [t_box]],
-        colWidths=[78 * mm])
+        colWidths=[90 * mm])
     left_stack.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
