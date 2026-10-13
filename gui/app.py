@@ -492,13 +492,37 @@ class App(tk.Tk):
         self._row(self.rebar_circ, "Lớp bê tông bảo vệ c (mm)",
                   self.sp_ccover, 2)
 
-        # ===== Cốt thép đai (giữ nguyên) =====
-        self.en_sw_dia = ttk.Entry(f, width=18); self.en_sw_dia.insert(0, "8")
-        self._row(f, "Đai: đường kính (mm)", self.en_sw_dia, 1)
-        self.en_sw_s = ttk.Entry(f, width=18); self.en_sw_s.insert(0, "200")
-        self._row(f, "Đai: bước đai s (mm)", self.en_sw_s, 2)
-        self.en_sw_legs = ttk.Entry(f, width=18); self.en_sw_legs.insert(0, "2")
-        self._row(f, "Đai: số nhánh", self.en_sw_legs, 3)
+        # ===== Cốt thép đai: bảng 2 hàng (bao/giữa) x 3 cột =====
+        sw_hdr = ttk.Frame(f)
+        sw_hdr.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
+                    padx=4, pady=(4, 2))
+        for j, t in enumerate(("Số nhánh", "Đường kính (mm)",
+                               "Khoảng cách s (mm)")):
+            ttk.Label(sw_hdr, text=t, style="Muted.TLabel").grid(
+                row=0, column=j + 1, padx=4)
+            sw_hdr.columnconfigure(j + 1, weight=1)
+        self.sw_inputs = {}
+        for i, lbl in enumerate(("Đai bao:", "Đai giữa:")):
+            ttk.Label(sw_hdr, text=lbl, style="Muted.TLabel").grid(
+                row=i + 1, column=0, sticky=tk.W, padx=4, pady=2)
+            row = {}
+            for j, key in enumerate(("legs", "dia", "s")):
+                e = ttk.Entry(sw_hdr, width=8)
+                e.grid(row=i + 1, column=j + 1, padx=4, pady=2,
+                       sticky=tk.EW)
+                row[key] = e
+            self.sw_inputs[lbl] = row
+        # Giá trị mặc định
+        self.sw_inputs["Đai bao:"]["legs"].insert(0, "2")
+        self.sw_inputs["Đai bao:"]["dia"].insert(0, "8")
+        self.sw_inputs["Đai bao:"]["s"].insert(0, "200")
+        self.sw_inputs["Đai giữa:"]["legs"].insert(0, "2")
+        self.sw_inputs["Đai giữa:"]["dia"].insert(0, "8")
+        self.sw_inputs["Đai giữa:"]["s"].insert(0, "200")
+        # Giữ tên cũ để tương thích (dùng Đai bao)
+        self.en_sw_dia = self.sw_inputs["Đai bao:"]["dia"]
+        self.en_sw_s = self.sw_inputs["Đai bao:"]["s"]
+        self.en_sw_legs = self.sw_inputs["Đai bao:"]["legs"]
         self.rebar_info = tk.StringVar(value="")  # giữ để tương thích, không hiển thị
         # Bind refresh
         for w in (self.sp_cover, self.sp_e2n, self.sp_e3n, self.en_l2_s,
@@ -1252,6 +1276,9 @@ class App(tk.Tk):
             # đai
             "sw_dia": ev(self.en_sw_dia), "sw_s": ev(self.en_sw_s),
             "sw_legs": ev(self.en_sw_legs),
+            "swm_dia": ev(self.sw_inputs["Đai giữa:"]["dia"]),
+            "swm_s": ev(self.sw_inputs["Đai giữa:"]["s"]),
+            "swm_legs": ev(self.sw_inputs["Đai giữa:"]["legs"]),
             # 4. Chiều dài tính toán
             "Lx": ev(self.en_Lx), "Ly": ev(self.en_Ly),
             "top_x": self.cb_tx.get(), "bot_x": self.cb_bx.get(),
@@ -1313,6 +1340,9 @@ class App(tk.Tk):
             self._toggle_two_layer()
             self._refresh_rebar_panel()
             se(self.en_sw_dia, d.get("sw_dia", "8"))
+            se(self.sw_inputs["Đai giữa:"]["dia"], d.get("swm_dia", "8"))
+            se(self.sw_inputs["Đai giữa:"]["s"], d.get("swm_s", "200"))
+            se(self.sw_inputs["Đai giữa:"]["legs"], d.get("swm_legs", "2"))
             se(self.en_sw_s, d.get("sw_s", "200"))
             se(self.en_sw_legs, d.get("sw_legs", "2"))
             se(self.en_Lx, d.get("Lx", "4.0")); se(self.en_Ly, d.get("Ly", "4.0"))
@@ -1365,6 +1395,16 @@ class App(tk.Tk):
             self._update_title()
             messagebox.showinfo("Lưu dữ liệu", f"Đã lưu: {path}")
 
+    def _update_ck(self):
+        """Cập nhật tên cấu kiện (IN HOA, bỏ .json)."""
+        import os
+        p = getattr(self, "current_save_path", None)
+        if p:
+            name = os.path.splitext(os.path.basename(p))[0].upper()
+            self.ck_var.set(f"Cấu kiện: {name}")
+        else:
+            self.ck_var.set("")
+
     def _update_title(self):
         """Title bar hiện tên file đang lưu."""
         import os
@@ -1414,6 +1454,7 @@ class App(tk.Tk):
                 self._fill_etabs_table([(f, None) for f in self.etabs_forces])
             self.current_save_path = path
             self._update_title()
+            self._update_ck()
             messagebox.showinfo("Mở dữ liệu", f"Đã nạp: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
@@ -1837,7 +1878,13 @@ class App(tk.Tk):
             lbl = tk.Label(parent, text=txt, font=("TkFixedFont", 10),
                           fg="#1F2937", bg="white", justify=tk.LEFT,
                           anchor="w")
-            lbl.pack(fill=tk.X, padx=8, pady=(0, 6))
+            lbl.pack(fill=tk.X, padx=8, pady=(0, 2))
+            # Kết luận
+            kl = "ĐẠT" if ok_all else "KHÔNG ĐẠT"
+            fgk = "#065F46" if ok_all else "#991B1B"
+            tk.Label(parent, text=f"Kết luận thép đai: {kl}",
+                     font=("", 10, "bold"), fg=fgk, bg="white",
+                     anchor="w").pack(fill=tk.X, padx=8, pady=(0, 6))
         except Exception as e:
             ttk.Label(parent, text=f"Không tính được: {e}",
                       foreground="gray").pack(padx=8, pady=4)
@@ -1989,7 +2036,10 @@ class App(tk.Tk):
         f_tl = ttk.Frame(self._sum_inner)
         f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         ttk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
-                  font=("", 11, "bold")).pack(pady=(2, 6))
+                  font=("", 11, "bold")).pack(pady=(2, 2))
+        self.ck_var = tk.StringVar(value="")
+        ttk.Label(f_tl, textvariable=self.ck_var,
+                  font=("", 10, "bold"), foreground="#92400E").pack(pady=(0, 4))
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
         draw_section_ax(a1, sec, show_stats=False)
