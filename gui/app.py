@@ -2074,7 +2074,8 @@ class App(tk.Tk):
         self._sum_inner.rowconfigure(1, weight=1)
 
         # ===== Ô trên-trái: sơ đồ mặt cắt + thẻ thống kê =====
-        f_tl = ttk.Frame(self._sum_inner)
+        f_tl = tk.Frame(self._sum_inner, bg="white", highlightbackground="#D1D5DB",
+                        highlightthickness=1)
         f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         ttk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
                   font=("", 11, "bold")).pack(pady=(2, 2))
