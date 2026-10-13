@@ -658,7 +658,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     fig1, ax1 = plt.subplots(figsize=(2.2, 2.2))
     draw_section_ax(ax1, sec, show_dims=True, show_stats=False,
                     small_dots=True)
-    img_sec = fig_to_img(fig1, 35, 35)
+    img_sec = fig_to_img(fig1, 48, 48)
 
     # Box vật liệu + thống kê (giống app)
     from collections import Counter
@@ -734,13 +734,13 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
 
     # Hàng trên: [mặt cắt + box | bảng thông số] như app
     _ck_style = ParagraphStyle(
-        "ck", fontName=FNB, fontSize=10, alignment=TA_CENTER,
+        "ck", fontName=FNB, fontSize=10, alignment=TA_LEFT,
         textColor=HexColor("#111827"), spaceBefore=4, spaceAfter=4,
         backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
     _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
     # Spacer đẩy boxes xuống đáy (ngang hàng với bảng thông số)
-    _spacer_h = 45 * mm  # Điều chỉnh để boxes ngang hàng đáy bảng
+    _spacer_h = 20 * mm  # Đẩy boxes xuống đáy
     left_stack = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para],
