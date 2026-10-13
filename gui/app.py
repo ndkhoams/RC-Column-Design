@@ -502,7 +502,7 @@ class App(tk.Tk):
                 row=0, column=j + 1, padx=4)
             sw_hdr.columnconfigure(j + 1, weight=1)
         self.sw_inputs = {}
-        for i, lbl in enumerate(("Đai bao:", "Đai giữa:")):
+        for i, lbl in enumerate(("Đai bao:", "Đai giữa t2:", "Đai giữa t3:")):
             ttk.Label(sw_hdr, text=lbl, style="Muted.TLabel").grid(
                 row=i + 1, column=0, sticky=tk.W, padx=4, pady=2)
             row = {}
@@ -513,12 +513,10 @@ class App(tk.Tk):
                 row[key] = e
             self.sw_inputs[lbl] = row
         # Giá trị mặc định
-        self.sw_inputs["Đai bao:"]["legs"].insert(0, "2")
-        self.sw_inputs["Đai bao:"]["dia"].insert(0, "8")
-        self.sw_inputs["Đai bao:"]["s"].insert(0, "200")
-        self.sw_inputs["Đai giữa:"]["legs"].insert(0, "2")
-        self.sw_inputs["Đai giữa:"]["dia"].insert(0, "8")
-        self.sw_inputs["Đai giữa:"]["s"].insert(0, "200")
+        for lbl in ("Đai bao:", "Đai giữa t2:", "Đai giữa t3:"):
+            self.sw_inputs[lbl]["legs"].insert(0, "2")
+            self.sw_inputs[lbl]["dia"].insert(0, "8")
+            self.sw_inputs[lbl]["s"].insert(0, "200")
         # Giữ tên cũ để tương thích (dùng Đai bao)
         self.en_sw_dia = self.sw_inputs["Đai bao:"]["dia"]
         self.en_sw_s = self.sw_inputs["Đai bao:"]["s"]
@@ -1276,9 +1274,12 @@ class App(tk.Tk):
             # đai
             "sw_dia": ev(self.en_sw_dia), "sw_s": ev(self.en_sw_s),
             "sw_legs": ev(self.en_sw_legs),
-            "swm_dia": ev(self.sw_inputs["Đai giữa:"]["dia"]),
-            "swm_s": ev(self.sw_inputs["Đai giữa:"]["s"]),
-            "swm_legs": ev(self.sw_inputs["Đai giữa:"]["legs"]),
+            "swm2_dia": ev(self.sw_inputs["Đai giữa t2:"]["dia"]),
+            "swm2_s": ev(self.sw_inputs["Đai giữa t2:"]["s"]),
+            "swm2_legs": ev(self.sw_inputs["Đai giữa t2:"]["legs"]),
+            "swm3_dia": ev(self.sw_inputs["Đai giữa t3:"]["dia"]),
+            "swm3_s": ev(self.sw_inputs["Đai giữa t3:"]["s"]),
+            "swm3_legs": ev(self.sw_inputs["Đai giữa t3:"]["legs"]),
             # 4. Chiều dài tính toán
             "Lx": ev(self.en_Lx), "Ly": ev(self.en_Ly),
             "top_x": self.cb_tx.get(), "bot_x": self.cb_bx.get(),
@@ -1340,9 +1341,10 @@ class App(tk.Tk):
             self._toggle_two_layer()
             self._refresh_rebar_panel()
             se(self.en_sw_dia, d.get("sw_dia", "8"))
-            se(self.sw_inputs["Đai giữa:"]["dia"], d.get("swm_dia", "8"))
-            se(self.sw_inputs["Đai giữa:"]["s"], d.get("swm_s", "200"))
-            se(self.sw_inputs["Đai giữa:"]["legs"], d.get("swm_legs", "2"))
+            for lbl, pfx in (("Đai giữa t2:", "swm2"), ("Đai giữa t3:", "swm3")):
+                se(self.sw_inputs[lbl]["dia"], d.get(f"{pfx}_dia", "8"))
+                se(self.sw_inputs[lbl]["s"], d.get(f"{pfx}_s", "200"))
+                se(self.sw_inputs[lbl]["legs"], d.get(f"{pfx}_legs", "2"))
             se(self.en_sw_s, d.get("sw_s", "200"))
             se(self.en_sw_legs, d.get("sw_legs", "2"))
             se(self.en_Lx, d.get("Lx", "4.0")); se(self.en_Ly, d.get("Ly", "4.0"))
@@ -1398,12 +1400,15 @@ class App(tk.Tk):
     def _update_ck(self):
         """Cập nhật tên cấu kiện (IN HOA, bỏ .json)."""
         import os
+        ck = getattr(self, "ck_var", None)
+        if ck is None:
+            return
         p = getattr(self, "current_save_path", None)
         if p:
             name = os.path.splitext(os.path.basename(p))[0].upper()
-            self.ck_var.set(f"Cấu kiện: {name}")
+            ck.set(f"Cấu kiện: {name}")
         else:
-            self.ck_var.set("")
+            ck.set("")
 
     def _update_title(self):
         """Title bar hiện tên file đang lưu."""
@@ -1797,12 +1802,12 @@ class App(tk.Tk):
                  text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i):  N = {res.N:+.1f} kN,  "
                       f"M\u03b1 = {Ma:.1f} kN\u00b7m  "
                       f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})",
-                 font=mono, fg="#047857").pack(anchor="w", pady=1)
+                 font=mono, fg="#2563EB").pack(anchor="w", pady=1)
         tk.Label(box, bg="white",
                  text=f"\u25c6 B (\u0111i\u1ec3m gi\u1edbi h\u1ea1n):  "
                       f"Nu = {res.BN:+.1f} kN,  M\u03b1,u = {Mb:.1f} kN\u00b7m  "
                       f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})",
-                 font=mono, fg="#C2410C").pack(anchor="w", pady=1)
+                 font=mono, fg="#2563EB").pack(anchor="w", pady=1)
 
     def _build_nm_header(self, parent, res):
         """Header trên biểu đồ N-M (format giống M2-M3)."""
@@ -1854,8 +1859,15 @@ class App(tk.Tk):
             ok_all = True
             for ch in sr.checks:
                 mark = "✓" if ch.ok else "✗"
+                extra = ""
+                if "kính đai" in ch.item:
+                    extra = f" (bố trí phi{stir_in.dia:.0f})"
+                elif "Bước đai" in ch.item:
+                    extra = (f" (bố trí khoảng cách a = "
+                             f"{stir_in.spacing:.0f} mm)")
+                tm = "thỏa mãn" if ch.ok else "không đạt"
                 lines.append(f"{mark} {ch.item}: {ch.required} "
-                             f"(có {ch.provided})")
+                             f"(có {ch.provided}){extra} — {tm}")
                 ok_all = ok_all and ch.ok
             # Chịu cắt 2 phương (tóm tắt)
             for Q, lbl in ((inp.Q2, "Q2"), (inp.Q3, "Q3")):
