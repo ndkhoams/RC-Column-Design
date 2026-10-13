@@ -887,9 +887,21 @@ class App(tk.Tk):
                  fg="#64748b", bg="white", wraplength=280).pack()
         right.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 4))
         self._report_frames.append(frame)
+        # Cuộn chuột trên khung nhúng -> cuộn text thuyết minh chính
+        self._bind_wheel_to_calc(frame)
         t.insert(tk.END, "\n")
         t.window_create(tk.END, window=frame)
         t.insert(tk.END, "\n\n")
+
+    def _bind_wheel_to_calc(self, widget):
+        """Gắn cuộn chuột đệ quy cho widget nhúng -> cuộn calc_text."""
+        def _rec(w):
+            w.bind("<MouseWheel>", self._on_calc_wheel)
+            w.bind("<Button-4>", self._on_calc_wheel)
+            w.bind("<Button-5>", self._on_calc_wheel)
+            for ch in w.winfo_children():
+                _rec(ch)
+        _rec(widget)
 
     def _embed_report_images(self, sec, inp, res):
         """(Không dùng nữa — giữ để tương thích, logic đã chuyển vào
