@@ -1123,7 +1123,9 @@ class App(tk.Tk):
                 not self.var_export_table.get():
             batch = None
         case_info = {"case": worst_f.case, "station": worst_f.station,
-                     "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My}
+                     "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My,
+                     "story": getattr(worst_f, "story", ""),
+                     "column": getattr(worst_f, "column", "")}
         self._render_report_sections(
             generate_report_sections(inp_w, res_w, batch_rows=batch,
                                      case_info=case_info,
@@ -1802,9 +1804,16 @@ class App(tk.Tk):
                  bg=bgc).pack(side=tk.LEFT, padx=6)
         # Thêm combo@vị trí
         _case = getattr(self, "_pdf_case", None) or {}
-        _combo = f"{_case.get('case', '')}@{_case.get('station', '')}" \
-            if _case.get('case') else ""
-        _combo_txt = f" [{_combo}]" if _combo else ""
+        _parts = []
+        if _case.get("story"):
+            _parts.append(str(_case.get("story")))
+        if _case.get("column"):
+            _parts.append(str(_case.get("column")))
+        if _case.get("case"):
+            _st = _case.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{_case.get('case')}{_st_txt}")
+        _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
         tk.Label(box, bg="white",
                  text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i){_combo_txt}:  "
                       f"N = {res.N:+.1f} kN,  "
@@ -1866,9 +1875,11 @@ class App(tk.Tk):
 
             # Tính chi tiết từng phương
             cols = {}
+            # Q2 (theo trục 2): b = t2 = cy, h0 từ t3 = cx
+            # Q3 (theo trục 3): b = t3 = cx, h0 từ t2 = cy
             for Q, lbl, b_w, h_dim in (
-                    (inp.Q2, "2", inp.cx, inp.cy),
-                    (inp.Q3, "3", inp.cy, inp.cx)):
+                    (inp.Q2, "2", inp.cy, inp.cx),
+                    (inp.Q3, "3", inp.cx, inp.cy)):
                 h0 = h_dim - inp.cover - inp.sw_dia - 12
                 Asw = stir_in.legs * bar_area(stir_in.dia)
                 sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt,
