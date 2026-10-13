@@ -71,6 +71,10 @@ class ConcreteMaterial:
         return self.grade.Rb * self.gamma_b
 
     @property
+    def Rbt(self) -> float:
+        return self.grade.Rbt * self.gamma_b
+
+    @property
     def Eb(self) -> float:
         return self.grade.Eb
 
