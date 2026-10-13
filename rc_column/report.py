@@ -161,14 +161,15 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     # ---- 5. Uốn dọc ----
     b.section(5, "UỐN DỌC & PHÓNG ĐẠI MÔ MEN", "CT (44)–(48)")
     phi_txt = "2.00 (thiên về an toàn)" if not inp.long_term.has_data else _f(res.phi_L)
-    A(f"  ▪ φL = {phi_txt}\n", "card")
-    b.line("δe,2 / δe,3", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
-    b.line("kb,2 / kb,3", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
-    b.line("D2 / D3", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
-    b.line("Ncr,2 / Ncr,3", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
-    b.line("η2 / η3", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
-    b.line("M2* = η2·M2", "", f"{_f(res.Mx_star, 1)} kN·m")
-    b.line("M3* = η3·M3", "", f"{_f(res.My_star, 1)} kN·m")
+    A(f"  ▪ φ_L = {phi_txt}\n", "card")
+    # Công thức dạng Mathtype: subscript Unicode ₂₃
+    b.line("δe₂ / δe₃", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
+    b.line("k_b₂ / k_b₃", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
+    b.line("D₂ / D₃", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
+    b.line("N_cr,₂ / N_cr,₃", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
+    b.line("η₂ / η₃", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
+    b.line("M₂* = η₂·M₂", "", f"{_f(res.Mx_star, 1)} kN·m")
+    b.line("M₃* = η₃·M₃", "", f"{_f(res.My_star, 1)} kN·m")
 
     # ---- 6. NDM ----
     b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
