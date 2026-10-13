@@ -123,8 +123,8 @@ class App(tk.Tk):
         plot_bar.pack(fill=tk.X, padx=4, pady=2)
         ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
         self.cb_plot = ttk.Combobox(plot_bar, state="readonly", width=28,
-                                    values=["3D + N-M (góc α)", "M2-M3 (tại N)",
-                                            "3D (N-M2-M3)"])
+                                    values=["3D + N-M (góc α)",
+                                            "3D + M2-M3 (tại N)"])
         self.cb_plot.set("3D + N-M (góc α)")
         self.cb_plot.pack(side=tk.LEFT, padx=4)
         self.cb_plot.bind("<<ComboboxSelected>>", lambda e: self._redraw())
@@ -976,82 +976,71 @@ class App(tk.Tk):
             ax.set_ylabel("N (kN)")
             ax.set_title(f"Biểu đồ N-M (α = {alpha_deg:.1f}°)",
                          fontsize=title_sz)
-            ax.legend(fontsize=9)
+            ax.legend(fontsize=8, loc="upper center",
+                      bbox_to_anchor=(0.5, -0.20), ncol=2)
             ax.grid(True, alpha=0.3)
-            ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {res.fs:.2f}",
+            ax.text(0.5, -0.38, f"Tỉ số an toàn FS = {res.fs:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
-        if kind.startswith("3D +"):
-            # Mặt cắt trên, dưới: 3D trái + N-M(α) phải
-            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-            import numpy as np
-            self.fig.set_size_inches(7.0, 8.5)
-            gs = self.fig.add_gridspec(5, 2)
-            a1 = self.fig.add_subplot(gs[0:2, :])
-            draw_section_ax(a1, sec)
-            a1.set_title("Sơ đồ mặt cắt", fontsize=13)
-            a1.grid(True, alpha=0.3)
-            # 3D bên trái
-            a2 = self.fig.add_subplot(gs[2:, 0], projection="3d")
+        def _plot_3d(ax3d):
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
             N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
-            a2.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
-                            edgecolor="none")
-            a2.scatter([res.Mx_star], [res.My_star], [res.N], c="red", s=70,
-                       label="Điểm tải trọng")
-            a2.set_xlabel("M2 (kN·m)")
-            a2.set_ylabel("M3 (kN·m)")
-            a2.set_zlabel("N (kN)")
-            a2.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
-            # N-M(α) bên phải
+            ax3d.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
+                              edgecolor="none")
+            ax3d.scatter([res.Mx_star], [res.My_star], [res.N], c="red",
+                         s=70, label="Điểm tải trọng")
+            ax3d.set_xlabel("M2 (kN·m)")
+            ax3d.set_ylabel("M3 (kN·m)")
+            ax3d.set_zlabel("N (kN)")
+            ax3d.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
+
+        def _m2m3_ax(ax):
+            # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
+            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+            pts = cap.mx_my_curve(res.N)
+            ax.plot([p[0] for p in pts], [p[1] for p in pts], "b-",
+                    linewidth=1.5)
+            ax.scatter([res.Mx_star], [res.My_star], c="red", s=90,
+                       zorder=5, label="Điểm tải trọng")
+            ax.plot([0, res.Bx], [0, res.By], "r--", lw=1.2, alpha=0.8)
+            ax.scatter([res.Bx], [res.By], c="orange", s=90, zorder=5,
+                       label="Giới hạn")
+            ax.set_xlabel("M2 (kN·m)")
+            ax.set_ylabel("M3 (kN·m)")
+            ax.set_title(f"M2-M3 (tại N = {res.N:.0f} kN)", fontsize=12)
+            ax.legend(fontsize=8, loc="upper center",
+                      bbox_to_anchor=(0.5, -0.20), ncol=2)
+            ax.grid(True, alpha=0.3)
+            ax.set_aspect("equal", adjustable="datalim")
+            ax.text(0.5, -0.38, f"Tỉ số an toàn FS = {res.fs:.2f}",
+                    transform=ax.transAxes, ha="center", fontsize=10,
+                    color="darkred", weight="bold")
+
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        import numpy as np
+        self.fig.set_size_inches(7.0, 8.5)
+        gs = self.fig.add_gridspec(5, 2)
+        a1 = self.fig.add_subplot(gs[0:2, :])
+        draw_section_ax(a1, sec)
+        a1.set_title("Sơ đồ mặt cắt", fontsize=13)
+        a1.grid(True, alpha=0.3)
+        if kind.startswith("3D + N-M"):
+            # 3D trái + N-M(α) phải
+            a2 = self.fig.add_subplot(gs[2:, 0], projection="3d")
+            _plot_3d(a2)
             a3 = self.fig.add_subplot(gs[2:, 1])
             _nm_alpha_ax(a3)
-        elif kind.startswith("M2-M3"):
-            self.fig.set_size_inches(7.0, 8.5)
-            gs = self.fig.add_gridspec(5, 1)
-            a1 = self.fig.add_subplot(gs[0:2, 0])
-            draw_section_ax(a1, sec)
-            a1.set_title("Sơ đồ mặt cắt", fontsize=13)
-            a1.grid(True, alpha=0.3)
-            a2 = self.fig.add_subplot(gs[2:, 0])
-            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
-            pts = cap.mx_my_curve(inp.N)
-            a2.plot([p[0] for p in pts], [p[1] for p in pts], "b-",
-                    linewidth=1.5, label=f"Tại N = {inp.N:.0f} kN")
-            a2.scatter([inp.Mx], [inp.My], c="red", s=90, zorder=5,
-                       label="Điểm tải trọng")
-            a2.set_xlabel("M2 (kN·m)")
-            a2.set_ylabel("M3 (kN·m)")
-            a2.set_title("Tương tác M2-M3", fontsize=12)
-            a2.legend(fontsize=9)
-            a2.grid(True, alpha=0.3)
-            a2.set_aspect("equal", adjustable="datalim")
-        else:  # 3D
-            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-            self.fig.set_size_inches(7.0, 8.5)
-            gs = self.fig.add_gridspec(5, 1)
-            a1 = self.fig.add_subplot(gs[0:2, 0])
-            draw_section_ax(a1, sec)
-            a1.set_title("Sơ đồ mặt cắt", fontsize=13)
-            a1.grid(True, alpha=0.3)
+        else:
+            # 3D trái + M2-M3 phải
             a2 = self.fig.add_subplot(gs[2:, 0], projection="3d")
-            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
-            n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
-            import numpy as np
-            N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
-            a2.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
-                            edgecolor="none")
-            a2.scatter([inp.Mx], [inp.My], [inp.N], c="red", s=70,
-                       label="Điểm tải trọng")
-            a2.set_xlabel("M2 (kN·m)")
-            a2.set_ylabel("M3 (kN·m)")
-            a2.set_zlabel("N (kN)")
-            a2.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
+            _plot_3d(a2)
+            a3 = self.fig.add_subplot(gs[2:, 1])
+            _m2m3_ax(a3)
         self.fig.tight_layout()
-        # Chừa chỗ dưới cho dòng "Tỉ số an toàn" (tránh đè nhãn trục)
-        self.fig.subplots_adjust(bottom=0.18)
+        # Chừa chỗ dưới cho legend + dòng "Tỉ số an toàn"
+        self.fig.subplots_adjust(bottom=0.22)
         self.mpl.draw()
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
