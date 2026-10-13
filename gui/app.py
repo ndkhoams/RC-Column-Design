@@ -1602,19 +1602,22 @@ class App(tk.Tk):
         _card(row1, "S\u1ed1 thanh", "n", "nsub")
         _card(row1, "T\u1ed5ng As", "as")
         _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
-        # 3 box vật liệu highlight
+        # 3 box vật liệu (format giống box cốt thép: trắng, viền xám)
         if inp is not None:
             mrow = tk.Frame(parent, bg="#F9FAFB")
             mrow.pack(fill=tk.X, padx=2, pady=(2, 4))
             for title, val in (("Bê tông", inp.concrete_grade),
                                ("Thép dọc", inp.steel_grade),
                                ("Thép đai", inp.sw_steel_grade)):
-                mb = tk.Frame(mrow, bg="#FEF3C7",
-                              highlightbackground="#F59E0B",
-                              highlightthickness=1)
-                mb.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3)
-                tk.Label(mb, text=f"{title}: {val}", font=("", 10, "bold"),
-                         fg="#92400E", bg="#FEF3C7").pack(pady=6)
+                mb = tk.Frame(mrow, bg="white",
+                              highlightbackground="#E5E7EB",
+                              highlightthickness=1, height=52)
+                mb.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3, pady=2)
+                mb.pack_propagate(False)
+                tk.Label(mb, text=title, font=("", 8), fg="#6B7280",
+                         bg="white").pack(pady=(6, 0))
+                tk.Label(mb, text=val, font=("", 10, "bold"),
+                         bg="white").pack()
             varmap["_mat"] = None
         return varmap
 
@@ -1686,10 +1689,10 @@ class App(tk.Tk):
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
         Mb = math.hypot(res.Bx, res.By)
-        box = tk.Frame(parent, bg="#FEF3C7",
-                       highlightbackground="#F59E0B", highlightthickness=1)
+        box = tk.Frame(parent, bg="white",
+                       highlightbackground="#E5E7EB", highlightthickness=1)
         box.pack(fill=tk.X, padx=4, pady=4)
-        r1 = tk.Frame(box, bg="#FEF3C7")
+        r1 = tk.Frame(box, bg="white")
         r1.pack(fill=tk.X, pady=1, padx=4)
         tk.Label(r1, text=f"\u25cf \u0110\u01b0\u1eddng bao ki\u1ec3m tra: "
                           f"N-M\u03b1 (\u03b1 = {alpha_deg:.1f}\u00b0)",
@@ -1699,12 +1702,12 @@ class App(tk.Tk):
         tk.Label(r1, text=f"  D/C = OA / OB = {res.dc:.3f} \u2192 {okt}  ",
                  font=("", 8, "bold"), fg="#065F46",
                  bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
-        tk.Label(box, bg="#FEF3C7",
+        tk.Label(box, bg="white",
                  text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i):  N = {res.N:+.1f} kN,  "
                       f"M\u03b1 = {Ma:.1f} kN\u00b7m  "
                       f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})",
                  font=mono, fg="#047857").pack(anchor="w", pady=1)
-        tk.Label(box, bg="#FEF3C7",
+        tk.Label(box, bg="white",
                  text=f"\u25c6 B (\u0111i\u1ec3m gi\u1edbi h\u1ea1n):  "
                       f"Nu = {res.BN:+.1f} kN,  M\u03b1,u = {Mb:.1f} kN\u00b7m  "
                       f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})",
