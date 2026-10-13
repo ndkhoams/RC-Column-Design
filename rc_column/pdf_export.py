@@ -577,3 +577,142 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
 
     doc.build(S)
     return filepath
+
+
+def export_summary_pdf(sec, inp, res, filepath: str):
+    """Xuất tab Tóm tắt ra PDF khổ A4 (định dạng đẹp, không phải chụp ảnh)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    Image, Table, TableStyle)
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    import io as _io
+
+    # Font
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
+        pdfmetrics.registerFont(TTFont("DejaVu-B", "DejaVuSans-Bold.ttf"))
+    except Exception:
+        pass
+    FN, FNB = "DejaVu", "DejaVu-B"
+
+    def fig_to_img(fig, w_mm):
+        buf = _io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                    facecolor="white")
+        plt.close(fig)
+        buf.seek(0)
+        return Image(buf, width=w_mm * mm,
+                     height=w_mm * mm * 0.75)  # tỉ lệ ước lượng
+
+    W, H = A4
+    story = []
+    st_title = ParagraphStyle("t", fontName=FNB, fontSize=14,
+                              alignment=TA_CENTER, spaceAfter=6)
+    st_h = ParagraphStyle("h", fontName=FNB, fontSize=11, spaceBefore=8,
+                          spaceAfter=4)
+
+    # Tiêu đề
+    ok_txt = "ĐẠT" if res.ok else "KHÔNG ĐẠT"
+    story.append(Paragraph(
+        f"TÓM TẮT KIỂM TRA CỘT BTCT — {ok_txt} (D/C = {res.dc:.3f})",
+        st_title))
+    story.append(Spacer(1, 4))
+
+    # 1. Mặt cắt + bảng thông số (2 cột)
+    fig1, ax1 = plt.subplots(figsize=(3.5, 3.5))
+    draw_section_ax(ax1, sec, show_dims=True, show_stats=False)
+    img_sec = fig_to_img(fig1, 70)
+
+    # Bảng thông số (rút gọn các dòng chính)
+    rows = [
+        ["N", f"{res.N:+.1f} kN"],
+        ["M2", f"{res.Mx_star:.1f} kN·m"],
+        ["M3", f"{res.My_star:.1f} kN·m"],
+        ["λ2 / λ3", f"{res.lam2:.1f} / {res.lam3:.1f}"],
+        ["η2 / η3", f"{res.eta2:.3f} / {res.eta3:.3f}"],
+        ["M2* / M3*", f"{res.Mx_star:.1f} / {res.My_star:.1f}"],
+        ["D/C", f"{res.dc:.3f} ({ok_txt})"],
+    ]
+    t = Table([["Thông số", "Giá trị"]] + rows, colWidths=[45 * mm, 45 * mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
+        ("FONTNAME", (0, 0), (-1, 0), FNB),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#E5E7EB")),
+        ("FONTNAME", (0, 0), (-1, -1), FN),
+    ]))
+    story.append(Paragraph("SƠ ĐỒ MẶT CẮT & THÔNG SỐ", st_h))
+    story.append(Table([[img_sec, t]], colWidths=[75 * mm, 95 * mm],
+                       style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
+    story.append(Spacer(1, 6))
+
+    # 2. Biểu đồ N-Mα và M2-M3 (2 cột)
+    story.append(Paragraph("BIỂU ĐỒ TƯƠNG TÁC", st_h))
+    # Dùng lại interaction_images cho N-M, vẽ M2-M3 đơn giản
+    from .interaction import FiberSection, uniaxial_curve_fs, BiaxialCapacity
+    import math as _m
+    fs = FiberSection(sec)
+    # N-Mα
+    alpha_deg = _m.degrees(_m.atan2(res.My_star, res.Mx_star))
+    fig2, ax2 = plt.subplots(figsize=(3.4, 2.8))
+    cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
+    GREEN = "#059669"
+    ax2.plot([p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
+    ax2.plot([-p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
+    Ma = _m.hypot(res.Mx_star, res.My_star)
+    Mb = _m.hypot(res.Bx, res.By)
+    ax2.plot([0, Mb * 1.18], [0, res.BN * 1.18], "r--", lw=1.2)
+    ax2.scatter([Ma], [res.N], c=GREEN, s=50, zorder=5,
+                edgecolors="white", label="A")
+    ax2.scatter([Mb], [res.BN], c="#F97316", s=50, zorder=5,
+                edgecolors="white", label="B")
+    ax2.set_xlabel("Mα (kN·m)"); ax2.set_ylabel("N (kN)")
+    ax2.set_title(f"Biểu đồ N-Mα (α={alpha_deg:.1f}°)", fontsize=10)
+    ax2.grid(True, alpha=0.3)
+    img_nm = fig_to_img(fig2, 80)
+    # M2-M3
+    fig3, ax3 = plt.subplots(figsize=(3.4, 2.8))
+    cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+    pts = cap.mx_my_curve(res.N)
+    xs = [p[0] for p in pts] + [pts[0][0]]
+    ys = [p[1] for p in pts] + [pts[0][1]]
+    ax3.plot(xs, ys, color="#2563EB", lw=2)
+    ax3.fill(xs, ys, color="#2563EB", alpha=0.1)
+    ax3.scatter([res.Mx_star], [res.My_star], c=GREEN, s=50, zorder=5,
+                edgecolors="white")
+    ax3.scatter([res.Bx], [res.By], c="#F97316", s=50, zorder=5,
+                edgecolors="white")
+    ax3.set_xlabel("M2 (kN·m)"); ax3.set_ylabel("M3 (kN·m)")
+    ax3.set_title(f"Mặt cắt M2-M3 (N={res.N:.0f} kN)", fontsize=10)
+    ax3.grid(True, alpha=0.3)
+    ax3.set_aspect("equal", adjustable="datalim")
+    img_mm = fig_to_img(fig3, 80)
+    story.append(Table([[img_nm, img_mm]], colWidths=[85 * mm, 85 * mm],
+                       style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
+    story.append(Spacer(1, 6))
+
+    # 3. Chi tiết A/B
+    story.append(Paragraph("CHI TIẾT ĐIỂM TẢI & GIỚI HẠN", st_h))
+    st_b = ParagraphStyle("b", fontName=FN, fontSize=9, spaceAfter=2)
+    story.append(Paragraph(
+        f"A (điểm tải): N = {res.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
+        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b))
+    story.append(Paragraph(
+        f"B (giới hạn): Nu = {res.BN:+.1f} kN, Mα,u = {Mb:.1f} kN·m "
+        f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b))
+    story.append(Paragraph(
+        f"D/C = OA/OB = {res.dc:.3f} → {ok_txt}", st_b))
+
+    doc = SimpleDocTemplate(filepath, pagesize=A4,
+                            leftMargin=12 * mm, rightMargin=12 * mm,
+                            topMargin=12 * mm, bottomMargin=12 * mm)
+    doc.build(story)
+    return filepath
