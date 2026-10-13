@@ -168,7 +168,7 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
+    fig, ax = plt.subplots(figsize=(width_in, width_in * 0.75))
     from .interaction import BiaxialCapacity
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     pts = cap.mx_my_curve(res.N)
@@ -380,11 +380,13 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
     img_m6 = []
     try:
         from .pdf_export import m2m3_image  # noqa
-        png_m2m3 = m2m3_image(sec, inp, res)
+        png_m2m3 = m2m3_image(sec, inp, res, width_in=4.0)
         # N-M chỉ hiện nửa phải có đường nội lực
-        png_nm = interaction_image(sec, inp, res, right_half=True)
-        img_m6 = [Image(io.BytesIO(png_m2m3), width=85*mm, height=72*mm),
-                  Image(io.BytesIO(png_nm), width=85*mm, height=64*mm)]
+        png_nm = interaction_image(sec, inp, res, width_in=4.0,
+                                   right_half=True)
+        _h = 64*mm
+        img_m6 = [Image(io.BytesIO(png_m2m3), width=85*mm, height=_h),
+                  Image(io.BytesIO(png_nm), width=85*mm, height=_h)]
     except Exception:
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
