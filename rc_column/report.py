@@ -1,140 +1,180 @@
-"""Sinh thuyết minh tính toán chi tiết (theo mẫu VietconSoft).
+"""Thuyết minh tính toán theo format VietconSoft (6 mục).
 
-Thuyết minh gồm các mục:
- 1. Số liệu đầu vào
- 2. Đặc trưng vật liệu tính toán
- 3. Đặc trưng tiết diện & cốt thép
- 4. Chiều dài tính toán
- 5. Hệ số phi_L
- 6. Mô hình tính toán (NDM)
- 7. Kết quả kiểm tra & kết luận
+Trả về list các segment (text, tags) để GUI render với màu sắc:
+- sec_title: tiêu đề mục (in hoa, đậm, #0f172a)
+- sec_ref: căn cứ tiêu chuẩn (xám, nhỏ)
+- card: nội dung thẻ
+- mono: công thức/số (monospace)
+- result: kết quả (đậm)
+- ok / ng: huy hiệu ĐẠT / KHÔNG ĐẠT
+- dc: số D/C nổi bật
 """
 
 import math
-from typing import List
+from typing import List, Tuple
 
 from .checker import CheckResult, ColumnInput, build_section
 from .materials import EPS_B1, EPS_B2, EPS_S2
 from .stability import BOUNDARY_NAMES
 
+Seg = Tuple[str, Tuple[str, ...]]
 
-def _fmt(x: float, nd: int = 2) -> str:
+
+def _f(x: float, nd: int = 2) -> str:
+    if not math.isfinite(x):
+        return "—"
     return f"{x:.{nd}f}"
 
 
-def generate_report(inp: ColumnInput, res: CheckResult) -> str:
+class ReportBuilder:
+    def __init__(self):
+        self.segs: List[Seg] = []
+
+    def add(self, text: str, *tags: str):
+        self.segs.append((text, tags))
+
+    def nl(self, n: int = 1):
+        self.add("\n" * n)
+
+    def section(self, num: int, title: str, ref: str):
+        self.nl(2)
+        self.add(f"● {num}. {title}", "sec_title")
+        self.add(f"  {ref}", "sec_ref")
+        self.nl()
+
+    def line(self, label: str, formula: str, value: str, result: str = ""):
+        self.add(f"  ▪ {label}\n", "card")
+        if formula:
+            self.add(f"    {formula}\n", "mono")
+        self.add(f"    = {value}", "result")
+        if result:
+            self.add(f"  {result}", "result")
+        self.nl()
+
+    def build(self) -> List[Seg]:
+        return self.segs
+
+
+def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
     sec = build_section(inp)
     conc = sec.concrete
     steel = sec.steel
-    L: List[str] = []
-    A = L.append
+    b = ReportBuilder()
+    A = b.add
 
-    A("=" * 64)
-    A("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BÊ TÔNG CỐT THÉP")
-    A("Tiêu chuẩn áp dụng: TCVN 5574:2018")
-    A("Phương pháp: Mô hình biến dạng phi tuyến (Điều 8.1.2.7)")
-    A("=" * 64)
-    A("")
+    # Tiêu đề chung
+    A("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", "title")
+    b.nl()
+    A("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến (Điều 8.1.2.7)",
+      "sec_ref")
+    b.nl()
 
-    # 1. Số liệu đầu vào
-    A("1. SỐ LIỆU ĐẦU VÀO")
-    A("-" * 64)
-    A("1.1. Vật liệu")
-    A(f"  - Bê tông cấp độ bền {inp.concrete_grade}: "
-      f"Rb = {_fmt(conc.grade.Rb)} MPa, Rbt = {_fmt(conc.grade.Rbt)} MPa, "
-      f"Eb = {conc.grade.Eb:.0f} MPa")
-    A(f"  - Hệ số điều kiện làm việc bê tông γb = {_fmt(inp.gamma_b)}")
-    A(f"  - Thép {inp.steel_grade}: Rs = {_fmt(steel.grade.Rs)} MPa, "
-      f"Rsc = {_fmt(steel.grade.Rsc)} MPa, Es = {steel.grade.Es:.0f} MPa")
-    A(f"  - Hệ số điều kiện làm việc thép γs = {_fmt(inp.gamma_s)}")
-    A(f"  - Mô hình bê tông: "
-      f"{'3 đoạn thẳng (parabol–chữ nhật)' if inp.concrete_model == '3line' else '2 đoạn thẳng'}")
-    A("")
-    A("1.2. Tiết diện")
-    if inp.section_type == "rect":
-        A(f"  - Tiết diện chữ nhật: Cx = {inp.cx:.0f} mm × Cy = {inp.cy:.0f} mm")
-    else:
-        A(f"  - Tiết diện tròn: đường kính D = {inp.cx:.0f} mm")
-    A("")
-    A("1.3. Cốt thép dọc")
+    # ---- 1. Vật liệu ----
+    b.section(1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
+              "TCVN 5574:2018 Mục 6.1 & 6.2")
+    b.line("Bê tông chịu nén Rb*",
+           f"Rb* = γb · Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
+           f"{_f(conc.Rb)} MPa")
+    b.line("Mô đun đàn hồi bê tông Eb",
+           f"Eb ({inp.concrete_grade})",
+           f"{conc.Eb:.0f} MPa")
+    b.line("Thép chịu kéo Rs",
+           f"Rs = {_f(steel.grade.Rs)} × {_f(inp.gamma_s)} (γs)",
+           f"{_f(steel.Rs)} MPa")
+    b.line("Thép chịu nén Rsc", "", f"{_f(steel.Rsc)} MPa")
+    b.line("Mô đun đàn hồi thép Es", "", f"{steel.Es:.0f} MPa")
+    b.line("Tỷ số mô đun αe",
+           f"αe = Es / Eb = {steel.Es:.0f} / {conc.Eb:.0f}",
+           f"{_f(res.alpha_e)}")
+    b.line("Biến dạng giới hạn",
+           f"εb1 = {EPS_B1}, εb2 = {EPS_B2}, εs2 = {EPS_S2}",
+           "MH3ĐT" if inp.concrete_model == "3line" else "MH2ĐT")
+
+    # ---- 2. Hình học ----
+    b.section(2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
+              f"{'Chữ nhật' if inp.section_type == 'rect' else 'Tròn'} "
+              f"{inp.cx:.0f}×{inp.cy:.0f} mm" if inp.section_type == "rect"
+              else f"Tròn D={inp.cx:.0f} mm")
+    n_bar = len(sec.rebars)
     dias = sorted(set(r.dia for r in sec.rebars))
-    dia_txt = ", ".join(f"{d:.0f}" for d in dias)
-    A(f"  - Số thanh: {len(sec.rebars)} thanh (d = {dia_txt})")
-    A(f"  - Tổng diện tích As = {res.steel_area:.0f} mm²")
-    A(f"  - Hàm lượng μ = As/Ag = {_fmt(res.reinforcement_ratio * 100)}%")
-    A("")
+    dia_txt = "/".join(f"{d:.0f}" for d in dias)
+    A(f"  ▪ Cốt thép: {n_bar} thanh d{dia_txt}, As = {res.steel_area:.0f} mm², "
+      f"μ = {_f(res.reinforcement_ratio * 100)}%\n", "card")
+    b.line("Diện tích bê tông A",
+           f"A = {_f(sec.gross_area, 0)} mm²",
+           f"{_f(sec.gross_area / 1e6, 4)} m²")
+    b.line("Mô men quán tính Ix",
+           f"Ix = {_f(res.Ix, 3)} mm⁴", "")
+    b.line("Mô men quán tính Iy",
+           f"Iy = {_f(res.Iy, 3)} mm⁴", "")
+    b.line("Bán kính quán tính ix / iy",
+           f"ix = {_f(res.ix, 1)} mm, iy = {_f(res.iy, 1)} mm", "")
 
-    # 2. Đặc trưng vật liệu tính toán
-    A("2. ĐẶC TRƯNG VẬT LIỆU TÍNH TOÁN")
-    A("-" * 64)
-    A(f"  - Rb,tt = Rb·γb = {_fmt(conc.grade.Rb)} × {_fmt(inp.gamma_b)} "
-      f"= {_fmt(conc.Rb)} MPa")
-    A(f"  - Rs,tt = Rs·γs = {_fmt(steel.grade.Rs)} × {_fmt(inp.gamma_s)} "
-      f"= {_fmt(steel.Rs)} MPa")
-    A(f"  - Rsc,tt = {_fmt(steel.Rsc)} MPa")
-    A(f"  - Biến dạng giới hạn: εb1 = {EPS_B1}, εb2 = {EPS_B2}, "
-      f"εs2 = {EPS_S2}")
-    A("")
+    # ---- 3. Chiều dài tính toán ----
+    b.section(3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
+              "TCVN 5574:2018 Mục 8.1.2.4")
+    b.line("L0x", f"L0x = {_f(res.L0x)} m", "")
+    b.line("L0y", f"L0y = {_f(res.L0y)} m", "")
+    okx = "ĐẠT" if res.lambda_x <= 120 else "KHÔNG ĐẠT"
+    oky = "ĐẠT" if res.lambda_y <= 120 else "KHÔNG ĐẠT"
+    b.line("Độ mảnh λx",
+           f"λx = L0x/ix = {_f(res.lambda_x, 1)} ≤ 120",
+           okx, "")
+    b.line("Độ mảnh λy",
+           f"λy = L0y/iy = {_f(res.lambda_y, 1)} ≤ 120",
+           oky, "")
+    buck_x = res.lambda_x > 14
+    buck_y = res.lambda_y > 14
+    A(f"  ▪ Uốn dọc phương X: {'BẮT BUỘC XÉT' if buck_x else 'không cần xét'} "
+      f"(λx {'>' if buck_x else '≤'} 14)\n", "card")
+    A(f"  ▪ Uốn dọc phương Y: {'BẮT BUỘC XÉT' if buck_y else 'không cần xét'} "
+      f"(λy {'>' if buck_y else '≤'} 14)\n", "card")
 
-    # 3. Tiết diện & cốt thép
-    A("3. ĐẶC TRƯNG TIẾT DIỆN")
-    A("-" * 64)
-    A(f"  - Diện tích bê tông (lưới fiber): {sec.concrete_area:.0f} mm²")
-    if math.isfinite(res.clear_cx):
-        A(f"  - Khoảng hở thông thủy: Cx = {_fmt(res.clear_cx, 1)} mm, "
-          f"Cy = {_fmt(res.clear_cy, 1)} mm")
-    A("")
+    # ---- 4. Độ lệch tâm ----
+    b.section(4, "ĐỘ LỆCH TÂM", "TCVN 5574:2018 Mục 8.1.2.2.4")
+    b.line("e1x = |My|/N", f"= {_f(abs(res.My) * 1000 / max(abs(res.N), 1e-9), 1)} mm",
+           f"{_f(res.e1x, 1)} mm")
+    b.line("e1y = |Mx|/N", "", f"{_f(res.e1y, 1)} mm")
+    b.line("eax / eay (ngẫu nhiên)", "",
+           f"{_f(res.eax, 1)} / {_f(res.eay, 1)} mm")
+    b.line("e0x / e0y (ban đầu)", "",
+           f"{_f(res.e0x, 1)} / {_f(res.e0y, 1)} mm")
 
-    # 4. Chiều dài tính toán
-    A("4. CHIỀU DÀI TÍNH TOÁN")
-    A("-" * 64)
-    A(f"  - Phương X: L = {_fmt(inp.Lx)} m, liên kết "
-      f"{BOUNDARY_NAMES.get(inp.top_x, '')}/{BOUNDARY_NAMES.get(inp.bottom_x, '')}, "
-      f"L0x = {_fmt(res.L0x)} m, λx = {_fmt(res.lambda_x, 1)}")
-    A(f"  - Phương Y: L = {_fmt(inp.Ly)} m, liên kết "
-      f"{BOUNDARY_NAMES.get(inp.top_y, '')}/{BOUNDARY_NAMES.get(inp.bottom_y, '')}, "
-      f"L0y = {_fmt(res.L0y)} m, λy = {_fmt(res.lambda_y, 1)}")
-    A("")
+    # ---- 5. Uốn dọc ----
+    b.section(5, "UỐN DỌC & PHÓNG ĐẠI MÔ MEN", "CT (44)–(48)")
+    phi_txt = "2.00 (thiên về an toàn)" if not inp.long_term.has_data else _f(res.phi_L)
+    A(f"  ▪ φL = {phi_txt}\n", "card")
+    b.line("δe,x / δe,y", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
+    b.line("kb,x / kb,y", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
+    b.line("Dx / Dy", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
+    b.line("Ncr,x / Ncr,y", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
+    b.line("ηx / ηy", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
+    b.line("Mx* = ηx·Mx", "", f"{_f(res.Mx_star, 1)} kN·m")
+    b.line("My* = ηy·My", "", f"{_f(res.My_star, 1)} kN·m")
 
-    # 5. Hệ số phi_L
-    A("5. HỆ SỐ φL (Công thức 48, TCVN 5574:2018)")
-    A("-" * 64)
-    if inp.long_term.has_data:
-        lt = inp.long_term
-        A(f"  - Tải dài hạn: Nlt = {_fmt(lt.N_lt)} kN, "
-          f"Mx,lt = {_fmt(lt.Mx_lt)}, My,lt = {_fmt(lt.My_lt)} kN·m")
-    else:
-        A("  - Không khai báo tải dài hạn: lấy φL = 2.00 (thiên về an toàn)")
-    A(f"  - Kết quả: φL = {_fmt(res.phi_L)}  (1.00 ≤ φL ≤ 2.00)")
-    A("")
-
-    # 6. Mô hình tính toán
-    A("6. MÔ HÌNH TÍNH TOÁN")
-    A("-" * 64)
-    A("  - Giả thiết tiết diện phẳng sau biến dạng.")
-    A("  - Bỏ qua khả năng chịu kéo của bê tông.")
-    A("  - Quan hệ σ–ε phi tuyến theo TCVN 5574:2018.")
-    A("  - Phá hoại khi bê tông vùng nén đạt biến dạng cực hạn εcu.")
-    A("  - Tiết diện rời rạc thành fiber; quét góc uốn 0°–360°")
-    A("    để dựng mặt tương tác N–Mx–My.")
-    A("")
-
-    # 7. Kết quả
-    A("7. KIỂM TRA KHẢ NĂNG CHỊU LỰC")
-    A("-" * 64)
-    A(f"  - Nội lực tính toán: N = {_fmt(res.N)} kN "
-      f"({'nén' if res.N >= 0 else 'kéo'}), "
-      f"Mx = {_fmt(res.Mx)} kN·m, My = {_fmt(res.My)} kN·m")
-    Mres = res.M_resultant
-    phi = math.degrees(math.atan2(res.My, res.Mx)) if Mres > 1e-9 else 0.0
-    A(f"  - Momen tổng hợp M = √(Mx² + My²) = {_fmt(Mres)} kN·m "
-      f"(hướng φ = {_fmt(phi, 1)}°)")
-    A(f"  - Khả năng chịu momen tại N đã cho: Mcap = {_fmt(res.M_capacity)} kN·m")
-    A(f"  - Hệ số sử dụng η = M / Mcap = {_fmt(res.utilization, 3)}")
-    A("")
+    # ---- 6. NDM ----
+    b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
+              "TCVN 5574:2018 Điều 8.1.2.7")
+    Ma = math.hypot(res.Mx_star, res.My_star)
+    alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0
+    A(f"  ▪ Điểm tải trọng A = (Mx*, My*, N) = "
+      f"({_f(res.Mx_star, 1)}, {_f(res.My_star, 1)}, {_f(res.N, 1)})\n", "card")
+    A(f"  ▪ Điểm giới hạn B = ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
+      f"{_f(res.BN, 1)}) trên mặt tương tác\n", "card")
+    A(f"  ▪ Góc uốn xiên α = {_f(alpha, 1)}°, Mα = {_f(Ma, 1)} kN·m\n", "card")
+    b.nl()
+    A("  TỶ SỐ SỬ DỤNG (D/C) = ", "result")
+    A(f"{_f(res.dc, 3)}", "dc")
+    A(f"   (FS = {_f(res.fs, 2)})\n", "result")
+    b.nl()
     if res.ok:
-        A("  KẾT LUẬN: ĐẠT — Tiết diện đủ khả năng chịu lực (η ≤ 1.0).")
+        A("  ✓ ĐẠT — D/C ≤ 1.000", "ok")
     else:
-        A("  KẾT LUẬN: KHÔNG ĐẠT — Cần tăng tiết diện hoặc hàm lượng thép (η > 1.0).")
-    A("=" * 64)
-    return "\n".join(L)
+        A("  ✗ KHÔNG ĐẠT — D/C > 1.000", "ng")
+    b.nl(2)
+    return b.build()
+
+
+# Tương thích ngược: trả về text thuần
+def generate_report_text(inp: ColumnInput, res: CheckResult) -> str:
+    return "".join(t for t, _ in generate_report(inp, res))
