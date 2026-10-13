@@ -109,7 +109,7 @@ class App(tk.Tk):
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         # Fix cứng panel trái 380px sau khi build xong
-        self._left_width = 380
+        self._left_width = 420
 
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
@@ -164,9 +164,6 @@ class App(tk.Tk):
         self.result_var = tk.StringVar(value="Chưa có kết quả")
         ttk.Label(right, textvariable=self.result_var,
                   font=("", 12, "bold")).pack(pady=4)
-        ttk.Label(right, text="Nhập dữ liệu và chọn Kiểm tra khả năng chịu lực "
-                              "để xem kết quả.",
-                  foreground="gray").pack()
 
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -1243,13 +1240,13 @@ class App(tk.Tk):
             self.cb_model.set(d.get("model", self.cb_model.get()))
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
-            self.sp_cover.set(d.get("cover", "30"))
+            se(self.sp_cover, d.get("cover", "30"))
             # Cốt thép dọc kiểu mới (fallback về field cũ nếu file cũ)
-            self.cb_corner_dia.set(d.get("corner_dia", d.get("dia", "20")))
-            self.sp_e2n.set(d.get("e2n", str(max(0, int(d.get("ny", 3)) - 2))))
-            self.cb_e2d.set(d.get("e2d", d.get("dia", "20")))
-            self.sp_e3n.set(d.get("e3n", str(max(0, int(d.get("nx", 3)) - 2))))
-            self.cb_e3d.set(d.get("e3d", d.get("dia", "20")))
+            se(self.cb_corner_dia, d.get("corner_dia", d.get("dia", "20")))
+            se(self.sp_e2n, d.get("e2n", str(max(0, int(d.get("ny", 3)) - 2))))
+            se(self.cb_e2d, d.get("e2d", d.get("dia", "20")))
+            se(self.sp_e3n, d.get("e3n", str(max(0, int(d.get("nx", 3)) - 2))))
+            se(self.cb_e3d, d.get("e3d", d.get("dia", "20")))
             self.var_two_layer.set(bool(d.get("two_layer", False)))
             self._set_l2mode(d.get("l2mode", "perimeter"))
             self.cb_l2_t2d.set(d.get("l2_t2d", "20"))
@@ -1368,6 +1365,7 @@ class App(tk.Tk):
                     f"từ file dữ liệu — Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
                 self._fill_etabs_table([(f, None) for f in self.etabs_forces])
             self.current_save_path = path
+            self._update_title()
             messagebox.showinfo("Mở dữ liệu", f"Đã nạp: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
@@ -1633,7 +1631,7 @@ class App(tk.Tk):
         tree.heading("val", text="Gi\u00e1 tr\u1ecb")
         tree.column("sym", width=64, anchor="center", stretch=False)
         tree.column("desc", width=200, anchor="w")
-        tree.column("val", width=150, anchor="e", stretch=False)
+        tree.column("val", width=220, anchor="e", stretch=False)
         tree.tag_configure("odd", background="#F9FAFB")
         dc_bg = "#D1FAE5" if res.ok else "#FEE2E2"
         dc_fg = "#065F46" if res.ok else "#991B1B"
@@ -1726,7 +1724,7 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
-        tk.Label(left, text="\u25cf Bi\u1ec3u \u0111\u1ed3 N-M",
+        tk.Label(left, text="\u25cf Bi\u1ec3u \u0111\u1ed3 t\u01b0\u01a1ng t\u00e1c N-M alpha",
                  font=("", 10, "bold")).pack(side=tk.LEFT)
         tk.Label(left, text=f"  \u03b1 = {alpha_deg:.1f}\u00b0  ",
                  font=("", 8, "bold"), fg="#065F46",
@@ -1905,7 +1903,17 @@ class App(tk.Tk):
             ax.set_xlabel("M2 (kN·m)", fontweight="bold", fontsize=10)
             ax.set_ylabel("M3 (kN·m)", fontweight="bold", fontsize=10)
 
-            ax.legend(fontsize=8, loc="upper center",
+            from matplotlib.lines import Line2D
+            leg_elems = [
+                Line2D([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+                Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+                       markersize=8, markeredgecolor="white", label="Điểm tải A"),
+                Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+                       markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+                       label="Tia tải O-A-B"),
+            ]
+            ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
                       bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
