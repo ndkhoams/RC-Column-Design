@@ -335,9 +335,8 @@ class App(tk.Tk):
         ]
         self.sum_text.delete("1.0", tk.END)
         self.sum_text.insert(tk.END, "\n".join(summ))
-        # Thuyết minh
-        self.calc_text.delete("1.0", tk.END)
-        self.calc_text.insert(tk.END, generate_report(inp, res))
+        # Thuyết minh (có format màu sắc)
+        self._render_report(generate_report(inp, res))
         # L0 preview
         self.l0_var.set(
             f"Chiều dài tính toán: L0x = {res.L0x:.2f} m, L0y = {res.L0y:.2f} m")
@@ -346,6 +345,34 @@ class App(tk.Tk):
             self._last_inp = inp
             self._last_res = res
             self._redraw()
+
+    def _render_report(self, segs):
+        """Hiển thị thuyết minh với format VietconSoft."""
+        t = self.calc_text
+        t.delete("1.0", tk.END)
+        # Định nghĩa tags (màu sắc theo Tailwind của web mẫu)
+        t.tag_configure("title", font=("", 13, "bold"),
+                        foreground="#0f172a")
+        t.tag_configure("sec_title", font=("", 11, "bold"),
+                        foreground="#0f172a")
+        t.tag_configure("sec_ref", font=("", 9),
+                        foreground="#64748b")
+        t.tag_configure("card", font=("", 10),
+                        foreground="#1e293b")
+        t.tag_configure("mono", font=("Consolas", 10),
+                        foreground="#334155")
+        t.tag_configure("result", font=("", 10, "bold"),
+                        foreground="#0f172a")
+        t.tag_configure("dc", font=("Consolas", 14, "bold"),
+                        foreground="#059669")
+        t.tag_configure("ok", font=("", 12, "bold"),
+                        foreground="#065f46", background="#d1fae5",
+                        borderwidth=1, relief="solid")
+        t.tag_configure("ng", font=("", 12, "bold"),
+                        foreground="#991b1b", background="#fee2e2",
+                        borderwidth=1, relief="solid")
+        for text, tags in segs:
+            t.insert(tk.END, text, tags if tags else ())
 
     def _redraw(self):
         """Vẽ lại theo loại biểu đồ đang chọn."""
