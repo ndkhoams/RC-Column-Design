@@ -138,7 +138,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
                             (ax2, 90, "N-M3", res.My_star)]:
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
         ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        lim = _radial_limit(cv, res.N, Ms)
+        ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
+        cv_full = cv + [(n, -m) for n, m in reversed(cv)]
+        lim = _radial_limit(cv_full, res.N, Ms)
         ax.scatter([Ms], [res.N], c="green", s=70, zorder=5,
                    label="A (tải trọng)")
         if lim:
@@ -178,7 +180,9 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
         fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
         ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        lim = _radial_limit(cv, res.N, Ms)
+        ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
+        cv_full = cv + [(n, -m) for n, m in reversed(cv)]
+        lim = _radial_limit(cv_full, res.N, Ms)
         ax.scatter([Ms], [res.N], c="green", s=80, zorder=5,
                    label="A (tải trọng)")
         if lim:
