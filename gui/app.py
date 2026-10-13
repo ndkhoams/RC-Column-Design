@@ -80,12 +80,24 @@ class App(tk.Tk):
         self.sum_text = tk.Text(self.tab_sum, wrap=tk.WORD, font=("Consolas", 10),
                                 height=10)
         self.sum_text.pack(fill=tk.X, padx=4, pady=4)
+        # Chọn loại biểu đồ
+        plot_bar = ttk.Frame(self.tab_sum)
+        plot_bar.pack(fill=tk.X, padx=4, pady=2)
+        ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
+        self.cb_plot = ttk.Combobox(plot_bar, state="readonly", width=28,
+                                    values=["N-M (2 phương)", "Mx-My (tại N)",
+                                            "3D (N-Mx-My)"])
+        self.cb_plot.set("N-M (2 phương)")
+        self.cb_plot.pack(side=tk.LEFT, padx=4)
+        self.cb_plot.bind("<<ComboboxSelected>>", lambda e: self._redraw())
         if HAS_MPL:
             self.fig = Figure(figsize=(5.4, 4.6), dpi=100)
-            self.ax1 = self.fig.add_subplot(121)
-            self.ax2 = self.fig.add_subplot(122)
             self.mpl = FigureCanvasTkAgg(self.fig, master=self.tab_sum)
             self.mpl.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        # lưu để vẽ lại khi đổi loại
+        self._last_sec = None
+        self._last_inp = None
+        self._last_res = None
 
         self.calc_text = tk.Text(self.tab_calc, wrap=tk.WORD,
                                  font=("Consolas", 10))
@@ -330,11 +342,20 @@ class App(tk.Tk):
         self.l0_var.set(
             f"Chiều dài tính toán: L0x = {res.L0x:.2f} m, L0y = {res.L0y:.2f} m")
         if HAS_MPL:
-            self._draw(sec, inp, res)
+            self._last_sec = sec
+            self._last_inp = inp
+            self._last_res = res
+            self._redraw()
 
-    def _draw(self, sec, inp, res):
-        self.ax1.clear(); self.ax2.clear()
-        a1 = self.ax1
+    def _redraw(self):
+        """Vẽ lại theo loại biểu đồ đang chọn."""
+        if not HAS_MPL or self._last_sec is None:
+            return
+        sec, inp, res = self._last_sec, self._last_inp, self._last_res
+        kind = self.cb_plot.get()
+        self.fig.clear()
+        # Trái: luôn là sơ đồ tiết diện
+        a1 = self.fig.add_subplot(121)
         if sec.kind == "rect":
             a1.add_patch(mpatches.Rectangle(
                 (-sec.cx/2, -sec.cy/2), sec.cx, sec.cy,
@@ -344,21 +365,53 @@ class App(tk.Tk):
                 (0, 0), sec.cx/2, fill=False, edgecolor="black", linewidth=1.5))
         a1.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
                    s=70, c="red", zorder=3)
-        a1.set_aspect("equal"); a1.set_title("Sơ đồ mặt cắt tiết diện cột")
+        a1.set_aspect("equal"); a1.set_title("Sơ đồ mặt cắt")
         a1.grid(True, alpha=0.3)
-        from rc_column.interaction import FiberSection, uniaxial_curve_fs
-        fs = FiberSection(sec)
-        for th, style, lab in [(0, "b-", "Mx (θ=0°)"), (90, "r--", "My (θ=90°)")]:
-            cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-            self.ax2.plot([p[1] for p in cv], [p[0] for p in cv], style,
-                          label=lab, linewidth=1.5)
-        self.ax2.scatter([math.hypot(inp.Mx, inp.My)], [inp.N], c="red", s=80,
-                         zorder=5, label="Điểm tải trọng")
-        self.ax2.set_xlabel("M (kN·m)"); self.ax2.set_ylabel("N (kN)")
-        self.ax2.set_title("Biểu đồ tương tác N-M")
-        self.ax2.legend(fontsize=8); self.ax2.grid(True, alpha=0.3)
+
+        from rc_column.interaction import (BiaxialCapacity, FiberSection,
+                                           uniaxial_curve_fs)
+        if kind.startswith("Mx-My"):
+            a2 = self.fig.add_subplot(122)
+            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+            pts = cap.mx_my_curve(inp.N)
+            a2.plot([p[0] for p in pts], [p[1] for p in pts], "b-",
+                    linewidth=1.5, label=f"Tại N = {inp.N:.0f} kN")
+            a2.scatter([inp.Mx], [inp.My], c="red", s=80, zorder=5,
+                       label="Điểm tải trọng")
+            a2.set_xlabel("Mx (kN·m)"); a2.set_ylabel("My (kN·m)")
+            a2.set_title("Tương tác Mx-My")
+            a2.legend(fontsize=8); a2.grid(True, alpha=0.3)
+            a2.set_aspect("equal", adjustable="datalim")
+        elif kind.startswith("3D"):
+            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+            a2 = self.fig.add_subplot(122, projection="3d")
+            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+            n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
+            import numpy as np
+            N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
+            a2.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
+                            edgecolor="none")
+            a2.scatter([inp.Mx], [inp.My], [inp.N], c="red", s=60,
+                       label="Điểm tải trọng")
+            a2.set_xlabel("Mx (kN·m)"); a2.set_ylabel("My (kN·m)")
+            a2.set_zlabel("N (kN)")
+            a2.set_title("Mặt tương tác 3D N-Mx-My")
+        else:
+            a2 = self.fig.add_subplot(122)
+            fs = FiberSection(sec)
+            for th, style, lab in [(0, "b-", "N-Mx (θ=0°)"),
+                                   (90, "r--", "N-My (θ=90°)")]:
+                cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
+                a2.plot([p[1] for p in cv], [p[0] for p in cv], style,
+                        label=lab, linewidth=1.5)
+            a2.scatter([math.hypot(inp.Mx, inp.My)], [inp.N], c="red", s=80,
+                       zorder=5, label="Điểm tải trọng")
+            a2.set_xlabel("M (kN·m)"); a2.set_ylabel("N (kN)")
+            a2.set_title("Biểu đồ tương tác N-M")
+            a2.legend(fontsize=8); a2.grid(True, alpha=0.3)
         self.fig.tight_layout()
         self.mpl.draw()
+
 
 
 def main():
