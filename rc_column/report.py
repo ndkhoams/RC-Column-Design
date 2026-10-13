@@ -209,7 +209,7 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     # — Chịu cắt (TCVN 5574:2018, như bảng Excel mẫu) —
     from .materials import STEEL_GRADES
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
-    A(f"  — Chịu cắt: thép đai {sw_grade.name} (Rsw = {sw_grade.Rsw:.0f} MPa)\n",
+    A(f"  — Chịu cắt: thép đai {sw_grade.name} (R_{sw} = {sw_grade.Rsw:.0f} MPa)\n",
       "card")
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
@@ -240,19 +240,19 @@ def _build_report(inp: ColumnInput, res: CheckResult,
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         A(f"  Phương {dnum}: Q = {_f(Q, 1)} kN; "
           f"b = {b_w:.0f} mm, h0 = {h0u:.0f} mm, "
-          f"Asw = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²\n",
+          f"A_{sw} = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²\n",
           "card")
         A(f"    {m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h0\n", "card")
         A(f"       = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
           f"= {_f(sh.Qcap1, 1)} kN\n", "card")
-        A(f"    {m2} ĐK2 (vết nứt xiên): Q ≤ Qb + Qsw\n", "card")
-        A(f"       qsw = Rsw×Asw/s = {_f(Rsw, 0)}×{Asw:.0f}/{stir_in.spacing:.0f}"
+        A(f"    {m2} ĐK2 (vết nứt xiên): Q ≤ Q_{b} + Q_{sw}\n", "card")
+        A(f"       q_{sw} = R_{sw}×A_{sw}/s = {_f(Rsw, 0)}×{Asw:.0f}/{stir_in.spacing:.0f}"
           f" = {_f(qsw, 1)} N/mm\n", "card")
-        A(f"       Qb = φb2×Rbt×b×h0²/C = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²"
+        A(f"       Q_{b} = φ_{b2}×R_{bt}×b×h_{0}²/C = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²"
           f"/{sh.C_opt:.0f}/1000 = {_f(sh.Qb_opt, 1)} kN\n", "card")
-        A(f"       (giới hạn Qb ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN)\n",
+        A(f"       (giới hạn Q_{b} ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN)\n",
           "card")
-        A(f"       Qsw = φsw×qsw×C = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
+        A(f"       Q_{sw} = φ_{sw}×q_{sw}×C = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
           f"= {_f(sh.Qsw_opt, 1)} kN\n", "card")
         A(f"       → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm "
           f"(khảo sát C ∈ [h0, 2h0])\n", "card")
