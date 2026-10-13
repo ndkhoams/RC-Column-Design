@@ -141,9 +141,11 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     for ax, th, lab, Ms in [(ax1, 0, "N-M2", res.Mx_star),
                             (ax2, 90, "N-M3", res.My_star)]:
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-        ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        lim = _radial_limit(cv, res.N, Ms)
-        ax.scatter([Ms], [res.N], c="green", s=70, zorder=5,
+        cv_pos = [(n, abs(m)) for n, m in cv]
+        ax.plot([p[1] for p in cv_pos], [p[0] for p in cv_pos], "b-", lw=1.5)
+        Ms_abs = abs(Ms)
+        lim = _radial_limit(cv_pos, res.N, Ms_abs)
+        ax.scatter([Ms_abs], [res.N], c="green", s=70, zorder=5,
                    label="A (tải trọng)")
         if lim:
             ax.scatter([lim[1]], [lim[0]], c="orange", s=70, zorder=5,
@@ -174,9 +176,11 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
     for th, lab, Ms in [(0, "N-M2", res.Mx_star), (90, "N-M3", res.My_star)]:
         fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-        ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        lim = _radial_limit(cv, res.N, Ms)
-        ax.scatter([Ms], [res.N], c="green", s=80, zorder=5,
+        cv_pos = [(n, abs(m)) for n, m in cv]
+        ax.plot([p[1] for p in cv_pos], [p[0] for p in cv_pos], "b-", lw=1.5)
+        Ms_abs = abs(Ms)
+        lim = _radial_limit(cv_pos, res.N, Ms_abs)
+        ax.scatter([Ms_abs], [res.N], c="green", s=80, zorder=5,
                    label="A (tải trọng)")
         if lim:
             ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
