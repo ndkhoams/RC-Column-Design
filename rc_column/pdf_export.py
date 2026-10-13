@@ -65,7 +65,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
         dot_s = max(4.0, 0.05 * dia * dia) if small_dots else \
             max(12.0, 0.15 * dia * dia)
-        ax.scatter([p.x for p in pts], [p.y for p in pts],
+        # Co vào trong 4% để không chạm viền
+        ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
                    s=dot_s, c=color, zorder=4,
                    edgecolors="white", linewidths=0.8)
         legend_handles.append(Line2D(
