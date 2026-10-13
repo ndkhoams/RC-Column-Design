@@ -755,6 +755,7 @@ class App(tk.Tk):
         # hiện thuyết minh của tổ hợp nguy hiểm nhất
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
+        inp_w.Q2, inp_w.Q3 = worst_f.Q2, worst_f.Q3
         res_w = check_column(inp_w, n_angles=24)
         sec_w = build_section(inp_w)
         batch = getattr(self, "_batch_rows", None)
