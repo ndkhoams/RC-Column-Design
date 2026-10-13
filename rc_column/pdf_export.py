@@ -584,7 +584,8 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
     doc.build(S)
     return filepath
 
-def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
+def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
+                       sec_img_path=None):
     """Xuất tab Tóm tắt ra PDF khổ A4 — đầy đủ nội dung như trong app."""
     import matplotlib
     matplotlib.use("Agg")
@@ -662,10 +663,14 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     story.append(Spacer(1, 1))
 
     # ===== Mặt cắt =====
-    # Dùng cùng tỉ lệ như app (3.9, 3.1) để hình giống hệt
-    fig1, ax1 = plt.subplots(figsize=(3.9, 3.1))
-    draw_section_ax(ax1, sec, show_dims=True, show_stats=False)
-    img_sec = fig_to_img(fig1, 60, 48)
+    # Dùng nguyên hình từ app nếu có (đúng ý đồ hiển thị)
+    if sec_img_path:
+        from reportlab.platypus import Image as _RLImage
+        img_sec = _RLImage(sec_img_path, width=60 * mm, height=48 * mm)
+    else:
+        fig1, ax1 = plt.subplots(figsize=(3.9, 3.1))
+        draw_section_ax(ax1, sec, show_dims=True, show_stats=False)
+        img_sec = fig_to_img(fig1, 60, 48)
 
     # Box vật liệu + thống kê (giống app)
     from collections import Counter
