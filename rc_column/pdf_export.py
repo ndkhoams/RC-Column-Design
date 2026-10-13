@@ -670,12 +670,12 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         _pil = _PILImage.open(sec_img_path)
         _w, _h = _pil.size
         _ratio = _w / _h
-        # Scale vừa khung 70x70mm, giữ đúng tỉ lệ
-        if 70 / 70 > _ratio:
-            _hh = 70 * mm
+        # Scale vừa khung 80x80mm, giữ đúng tỉ lệ
+        if 80 / 80 > _ratio:
+            _hh = 80 * mm
             _ww = _hh * _ratio
         else:
-            _ww = 70 * mm
+            _ww = 80 * mm
             _hh = _ww / _ratio
         img_sec = _RLImage(sec_img_path, width=_ww, height=_hh)
     else:
@@ -702,8 +702,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
          Paragraph(f"{sec.steel_area:.0f} mm²", st_box_v),
          Paragraph(f"{sec.reinforcement_ratio*100:.2f}%", st_box_v)],
     ]
-    t_box = Table(box_data, colWidths=[25 * mm, 25 * mm, 25 * mm],
-                  rowHeights=[7 * mm, 7 * mm, 7 * mm, 7 * mm])
+    t_box = Table(box_data, colWidths=[25 * mm, 25 * mm, 25 * mm])
     t_box.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#E5E7EB")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -770,7 +769,6 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
         [img_sec],
-        [Spacer(1, 8 * mm)],
         [t_box],
     ]
     _left_tbl = Table(_left_content, colWidths=[80 * mm])
