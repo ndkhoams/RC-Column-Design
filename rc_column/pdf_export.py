@@ -68,15 +68,15 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
                         frameon=False, fontsize=8)
         for txt in leg.get_texts():
             txt.set_fontweight("bold")
-    # Trục t2/t3 tại tâm (mũi tên xanh dương): t3 ngang, t2 đứng
+    # Trục t2/t3 tại tâm (mũi tên xanh dương): t2 ngang, t3 đứng
     alen = max(cx, cy) * 0.32
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
     ax.annotate("", xy=(0, alen), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
-    ax.text(alen * 1.08, 0, "t3", fontsize=9, color="#1D4ED8",
+    ax.text(alen * 1.08, 0, "t2", fontsize=9, color="#1D4ED8",
             weight="bold", va="center", ha="left")
-    ax.text(0, alen * 1.08, "t2", fontsize=9, color="#1D4ED8",
+    ax.text(0, alen * 1.08, "t3", fontsize=9, color="#1D4ED8",
             weight="bold", va="bottom", ha="center")
     # Dim t3 (dưới đáy), t2 (bên trái)
     if show_dims and sec.kind == "rect":
@@ -86,13 +86,13 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
         for xx in (-cx/2, cx/2):
             ax.plot([xx, xx], [-cy/2 - doff*0.75, -cy/2 - doff*0.35],
                     color="black", lw=0.8)
-        ax.text(0, -cy/2 - doff, f"t3 = {cx:.0f}", fontsize=8,
+        ax.text(0, -cy/2 - doff, f"t2 = {cx:.0f}", fontsize=8,
                 weight="bold", ha="center", va="top")
         ax.plot([-cx/2 - doff*0.55]*2, [-cy/2, cy/2], color="black", lw=0.8)
         for yy in (-cy/2, cy/2):
             ax.plot([-cx/2 - doff*0.75, -cx/2 - doff*0.35], [yy, yy],
                     color="black", lw=0.8)
-        ax.text(-cx/2 - doff, 0, f"t2 = {cy:.0f}", fontsize=8,
+        ax.text(-cx/2 - doff, 0, f"t3 = {cy:.0f}", fontsize=8,
                 weight="bold", ha="right", va="center", rotation=90)
     elif show_dims:
         ax.text(0, -cy/2 - max(cx, cy)*0.10, f"D = {cx:.0f}", fontsize=8,
