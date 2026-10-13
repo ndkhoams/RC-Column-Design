@@ -399,15 +399,19 @@ class App(tk.Tk):
         self.etabs_frame = ttk.Frame(f)
         self.etabs_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW)
         self.etabs_frame.grid_remove()
-        ttk.Button(self.etabs_frame, text="📂 Chọn file Excel ETABS...",
-                   command=self.on_import_etabs).grid(row=0, column=0,
-                                                     padx=(0, 2), pady=4, sticky=tk.W)
-        ttk.Button(self.etabs_frame, text="📋 Paste từ Clipboard",
-                   command=self.on_paste_etabs).grid(row=0, column=1,
-                                                    padx=2, pady=4, sticky=tk.W)
-        ttk.Button(self.etabs_frame, text="🗑️ DELETE", width=12,
-                   command=self.on_delete_forces).grid(row=0, column=2,
-                                                       padx=2, pady=4, sticky=tk.W)
+        # 3 nút Import từ Etabs: giãn đều theo cửa sổ như SAVE/SAVE AS/OPEN
+        btn_row = ttk.Frame(self.etabs_frame)
+        btn_row.grid(row=0, column=0, columnspan=3, sticky=tk.EW,
+                     padx=4, pady=4)
+        ttk.Button(btn_row, text="📂 Chọn file Excel",
+                   command=self.on_import_etabs).pack(
+                       side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
+        ttk.Button(btn_row, text="📋 Paste từ Clipboard",
+                   command=self.on_paste_etabs).pack(
+                       side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ttk.Button(btn_row, text="🗑️ Xóa nội lực",
+                   command=self.on_delete_forces).pack(
+                       side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
         ttk.Label(self.etabs_frame,
                   text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
                   foreground="gray", font=("", 8)).grid(
