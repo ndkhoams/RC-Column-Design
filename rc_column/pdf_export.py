@@ -108,33 +108,52 @@ def section_image(sec, width_in=3.2, dpi=150, small=False) -> bytes:
     return buf.getvalue()
 
 
-def interaction_image(sec, inp, res, width_in=5.0, dpi=150, small=False) -> bytes:
+def _radial_limit(curve, N_load: float, M_load: float):
+    """Giao của tia từ gốc qua (N_load, M_load) với đường cong [(N, M)]."""
+    best = None
+    best_t = 0.0
+    for i in range(len(curve) - 1):
+        n1, m1 = curve[i]
+        n2, m2 = curve[i + 1]
+        a11, a12 = N_load, -(n2 - n1)
+        a21, a22 = M_load, -(m2 - m1)
+        det = a11 * a22 - a12 * a21
+        if abs(det) < 1e-12:
+            continue
+        t = (n1 * a22 - m1 * a12) / det
+        s = (a11 * m1 - a21 * n1) / det
+        if t > 0 and 0 <= s <= 1 and t > best_t:
+            best_t = t
+            best = (t * N_load, t * M_load)
+    return best
+
+
+def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> bytes:
+    """2 biểu đồ riêng: N-M2 và N-M3."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from .interaction import BiaxialCapacity
     if small:
-        width_in, dpi = 3.0, 100
-    fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
-    cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
-    # đường bao N-M tại góc của điểm tải
-    phi = math.degrees(math.atan2(res.My_star, res.Mx_star))
-    # vẽ 2 đường N-Mx, N-My
+        width_in, dpi = 5.2, 100
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(width_in, width_in * 0.48))
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
-    for th, style, lab in [(0, "b-", "N-M2"), (90, "r--", "N-M3")]:
+    for ax, th, lab, Ms in [(ax1, 0, "N-M2", res.Mx_star),
+                            (ax2, 90, "N-M3", res.My_star)]:
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-        ax.plot([p[1] for p in cv], [p[0] for p in cv], style, label=lab, lw=1.5)
-    # điểm tải A và điểm giới hạn B (quy về M)
-    Ma = math.hypot(res.Mx_star, res.My_star)
-    Mb = math.hypot(res.Bx, res.By)
-    ax.scatter([Ma], [res.N], c="green", s=80, zorder=5, label="A (tải trọng)")
-    ax.scatter([Mb], [res.BN], c="orange", s=80, zorder=5, label="B (giới hạn)")
-    ax.set_xlabel("M (kN·m)")
-    ax.set_ylabel("N (kN)")
-    ax.set_title(f"Biểu đồ tương tác N-M (α = {phi:.1f}°)", fontsize=10)
-    ax.legend(fontsize=8)
-    ax.grid(True, alpha=0.3)
+        ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
+        lim = _radial_limit(cv, res.N, Ms)
+        ax.scatter([Ms], [res.N], c="green", s=70, zorder=5,
+                   label="A (tải trọng)")
+        if lim:
+            ax.scatter([lim[1]], [lim[0]], c="orange", s=70, zorder=5,
+                       label="B (giới hạn)")
+        ax.set_xlabel("M (kN·m)")
+        ax.set_ylabel("N (kN)")
+        ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=10)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+    fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -255,11 +274,11 @@ def export_pdf(inp, res, filepath: str):
     try:
         img_side[6] = Image(io.BytesIO(interaction_image(sec, inp, res,
                                                          small=True)),
-                            width=68*mm, height=58*mm)
+                            width=68*mm, height=33*mm)
     except Exception:
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép",
-                6: "Hình 2. Biểu đồ tương tác N-M"}
+                6: "Hình 2. Biểu đồ tương tác N-M2 và N-M3"}
 
     for num in sorted(sections.keys()):
         info = sections[num]
