@@ -1177,10 +1177,23 @@ class App(tk.Tk):
                     self._last_inp._filename =                         getattr(self, "current_save_path", "") or ""
                 except Exception:
                     pass
+                # Lưu nguyên hình mặt cắt từ app để PDF dùng
+                _sec_png = None
+                try:
+                    import tempfile, os
+                    _sec_fig = getattr(self, "_sec_fig", None)
+                    if _sec_fig is not None:
+                        _sec_png = os.path.join(
+                            tempfile.gettempdir(), "_sec_app.png")
+                        _sec_fig.savefig(_sec_png, dpi=150,
+                                         bbox_inches="tight")
+                except Exception:
+                    _sec_png = None
                 export_summary_pdf(self._last_sec, self._last_inp,
                                    self._last_res, path,
                                    case_info=getattr(self, "_pdf_case",
-                                                     None))
+                                                     None),
+                                   sec_img_path=_sec_png)
             else:
                 from rc_column.pdf_export import export_pdf
                 export_pdf(self._last_inp, self._last_res, path,
