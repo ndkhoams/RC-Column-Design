@@ -109,7 +109,7 @@ class App(tk.Tk):
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         # Fix cứng panel trái 380px sau khi build xong
-        self._left_width = 420
+        self._left_width = 460
 
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
@@ -1745,7 +1745,7 @@ class App(tk.Tk):
 
     def _build_stirrup_summary(self, parent, inp, res):
         """Tóm tắt kết quả kiểm tra cốt thép đai."""
-        ttk.Label(parent, text="Tóm tắt kiểm tra cốt thép đai",
+        ttk.Label(parent, text="Kiểm tra thép đai",
                   font=("", 11, "bold")).pack(anchor="w", padx=8, pady=(6, 2))
         try:
             from rc_column.stirrup import (StirrupInput, check_stirrup,
@@ -1780,7 +1780,8 @@ class App(tk.Tk):
                                      stir_in.spacing)
                     mark = "✓" if sh.ok else "✗"
                     lines.append(f"{mark} Chịu cắt {lbl} = {Q:.1f} kN: "
-                                f"[Q] = {min(sh.Qcap1, sh.Qcap2):.1f} kN")
+                                f"[Q] = Qb + Qsw = {sh.Qb_opt:.1f} + "
+                                f"{sh.Qsw_opt:.1f} = {sh.Qcap2:.1f} kN")
                     ok_all = ok_all and sh.ok
             fg = "#065F46" if ok_all else "#991B1B"
             bg = "#D1FAE5" if ok_all else "#FEE2E2"
@@ -1914,7 +1915,7 @@ class App(tk.Tk):
                        label="Tia tải O-A-B"),
             ]
             ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
-                      bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
+                      bbox_to_anchor=(0.5, -0.22), ncol=4, frameon=False)
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
             ax.set_axisbelow(True)
@@ -1922,7 +1923,7 @@ class App(tk.Tk):
                 ax.spines[sp].set_visible(False)
             for sp in ("left", "bottom"):
                 ax.spines[sp].set_color("#9CA3AF")
-            ax.set_aspect("equal", adjustable="datalim")
+
 
         def _new_fig(parent, figsize):
             fig = Figure(figsize=figsize, dpi=100)
