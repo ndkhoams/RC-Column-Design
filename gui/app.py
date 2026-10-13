@@ -310,7 +310,7 @@ class App(tk.Tk):
             ("Chiều dài cột L (m)", self.en_Lx, self.en_Ly),
             ("Liên kết đầu trên", self.cb_tx, self.cb_ty),
             ("Liên kết đầu dưới", self.cb_bx, self.cb_by),
-            ("Hệ số ψ (trống=tự tính)", self.en_psix, self.en_psiy),
+            ("Hệ số ψ (tự điền theo LK)", self.en_psix, self.en_psiy),
         ]
         for i, (lab, wx, wy) in enumerate(rows, start=1):
             ttk.Label(f, text=lab).grid(row=i, column=0, sticky=tk.W,
@@ -318,6 +318,22 @@ class App(tk.Tk):
             wx.grid(row=i, column=1, padx=4, pady=2, sticky=tk.EW)
             wy.grid(row=i, column=2, padx=4, pady=2, sticky=tk.EW)
         self.l0_var = tk.StringVar(value="")
+        # Tự điền hệ số ψ theo điều kiện biên
+        for cb in (self.cb_tx, self.cb_bx, self.cb_ty, self.cb_by):
+            cb.bind("<<ComboboxSelected>>", lambda e: self._auto_psi())
+        self._auto_psi()
+
+    def _auto_psi(self):
+        """Điền hệ số ψ theo bảng tra từ điều kiện biên đã chọn."""
+        from rc_column.stability import PSI_TABLE, BOUNDARY_NAMES
+        rev = {v: k for k, v in BOUNDARY_NAMES.items()}
+        for cb_t, cb_b, en in ((self.cb_tx, self.cb_bx, self.en_psix),
+                               (self.cb_ty, self.cb_by, self.en_psiy)):
+            t = rev.get(cb_t.get(), "")
+            b = rev.get(cb_b.get(), "")
+            p = PSI_TABLE.get((t, b), PSI_TABLE.get((b, t), 1.0))
+            en.delete(0, tk.END)
+            en.insert(0, f"{p:g}")
         ttk.Label(f, textvariable=self.l0_var, font=("", 9, "italic"),
                   foreground="#0a4d8c").grid(row=5, column=0, columnspan=3,
                                              sticky=tk.W, padx=4, pady=4)
