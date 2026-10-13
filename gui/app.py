@@ -1167,7 +1167,9 @@ class App(tk.Tk):
                 except Exception:
                     pass
                 export_summary_pdf(self._last_sec, self._last_inp,
-                                   self._last_res, path)
+                                   self._last_res, path,
+                                   case_info=getattr(self, "_pdf_case",
+                                                     None))
             else:
                 from rc_column.pdf_export import export_pdf
                 export_pdf(self._last_inp, self._last_res, path,
@@ -1798,8 +1800,14 @@ class App(tk.Tk):
         tk.Label(r1, text=f"  D/C = OA / OB = {res.dc:.3f} \u2192 {okt}  ",
                  font=("", 10, "bold"), fg=fgc,
                  bg=bgc).pack(side=tk.LEFT, padx=6)
+        # Thêm combo@vị trí
+        _case = getattr(self, "_pdf_case", None) or {}
+        _combo = f"{_case.get('case', '')}@{_case.get('station', '')}" \
+            if _case.get('case') else ""
+        _combo_txt = f" [{_combo}]" if _combo else ""
         tk.Label(box, bg="white",
-                 text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i):  N = {res.N:+.1f} kN,  "
+                 text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i){_combo_txt}:  "
+                      f"N = {res.N:+.1f} kN,  "
                       f"M\u03b1 = {Ma:.1f} kN\u00b7m  "
                       f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})",
                  font=mono, fg="#2563EB").pack(anchor="w", pady=1)
@@ -1807,7 +1815,7 @@ class App(tk.Tk):
                  text=f"\u25c6 B (\u0111i\u1ec3m gi\u1edbi h\u1ea1n):  "
                       f"Nu = {res.BN:+.1f} kN,  M\u03b1,u = {Mb:.1f} kN\u00b7m  "
                       f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})",
-                 font=mono, fg="#2563EB").pack(anchor="w", pady=1)
+                 font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
     def _build_nm_header(self, parent, res):
         """Header trên biểu đồ N-M (format giống M2-M3)."""
@@ -1836,6 +1844,9 @@ class App(tk.Tk):
                  font=("", 8, "bold"), fg="#1D4ED8",
                  bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
 
+
+        # Cập nhật tên cấu kiện
+        self._update_ck()
 
     def _build_stirrup_summary(self, parent, inp, res):
         """Bảng kiểm tra thép đai: Phương 2 | Phương 3."""
@@ -1940,6 +1951,7 @@ class App(tk.Tk):
         # Xóa toàn bộ nội dung cũ trong _sum_inner
         for w in self._sum_inner.winfo_children():
             w.destroy()
+        # (sẽ gọi _update_ck ở cuối method)
         self._sec_ax = None
         self._sec_fig = None
         self._sec_canvas = None
