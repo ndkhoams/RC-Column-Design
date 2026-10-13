@@ -238,7 +238,7 @@ class App(tk.Tk):
                                     state="readonly", width=18)
         self.cb_conc.set("B25")
         self._row(f, "Cấp độ bền bê tông", self.cb_conc, 0)
-        self.en_gb = ttk.Entry(f, width=18); self.en_gb.insert(0, "1.0")
+        self.en_gb = ttk.Entry(f, width=18); self.en_gb.insert(0, "0.85")
         self._row(f, "Hệ số điều kiện làm việc bê tông γb", self.en_gb, 1)
         self.cb_steel = ttk.Combobox(f, values=list(STEEL_GRADES),
                                      state="readonly", width=18)
@@ -448,7 +448,7 @@ class App(tk.Tk):
         is_rect = self.cb_kind.get() == "Chữ nhật"
         model = "3line" if self.cb_model.get().startswith("3") else "2line"
         return ColumnInput(
-            concrete_grade=self.cb_conc.get(), gamma_b=self._f(self.en_gb, 1.0),
+            concrete_grade=self.cb_conc.get(), gamma_b=self._f(self.en_gb, 0.85),
             steel_grade=self.cb_steel.get(), gamma_s=self._f(self.en_gs, 1.0),
             concrete_model=model,
             section_type="rect" if is_rect else "circle",
@@ -711,7 +711,7 @@ class App(tk.Tk):
         def se(e, v):
             e.delete(0, tk.END); e.insert(0, str(v))
         try:
-            self.cb_conc.set(d.get("concrete", "B25")); se(self.en_gb, d.get("gamma_b", "1.0"))
+            self.cb_conc.set(d.get("concrete", "B25")); se(self.en_gb, d.get("gamma_b", "0.85"))
             self.cb_steel.set(d.get("steel", "CB400-V")); se(self.en_gs, d.get("gamma_s", "1.0"))
             self.cb_model.set(d.get("model", self.cb_model.get()))
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
@@ -834,23 +834,27 @@ class App(tk.Tk):
                  "Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
                  "(Điều 8.1.2.7)\n\n", "sec_ref")
 
-        # Ảnh nhỏ cho bố cục side-by-side
+        # Ảnh cho mục 2 (side-by-side) và mục 6 (2 biểu đồ lớn)
         img_map = {}
+        img_m6 = ()
         if HAS_MPL:
             try:
+                from rc_column.pdf_export import section_image
                 img_map[2] = section_image(sec, small=True)
             except Exception:
                 pass
             try:
-                img_map[6] = interaction_image(sec, inp, res, small=True)
+                from rc_column.pdf_export import interaction_images
+                img_m6 = interaction_images(sec, inp, res, small=True)
             except Exception:
                 pass
 
         for num in sorted(sections.keys()):
             info = sections[num]
-            png = img_map.get(num)
-            if png and num in (2, 6):
-                self._insert_side_by_side(num, info, png)
+            if num == 2 and img_map.get(2):
+                self._insert_side_by_side(num, info, img_map[2])
+            elif num == 6 and img_m6:
+                self._insert_charts_fullwidth(num, info, img_m6)
             else:
                 # Hiển thị text thường
                 for text, tags in info["segs"]:
@@ -898,6 +902,35 @@ class App(tk.Tk):
         t.window_create(tk.END, window=frame)
         t.insert(tk.END, "\n\n")
 
+    def _insert_charts_fullwidth(self, num, info, pngs: tuple):
+        """Mục 6: text full-width, 2 biểu đồ lớn cạnh nhau bên dưới."""
+        import base64
+        from tkinter import PhotoImage
+        t = self.calc_text
+        # Text full-width
+        for text, tags in info["segs"]:
+            t.insert(tk.END, text, tags if tags else ())
+        t.insert(tk.END, "\n")
+        # Khung 2 biểu đồ cạnh nhau
+        frame = tk.Frame(t, bg="white")
+        for i, (png, cap) in enumerate(
+                zip(pngs, ["Biểu đồ N-M2", "Biểu đồ N-M3"])):
+            b64 = base64.b64encode(png).decode("ascii")
+            img = PhotoImage(data=b64)
+            self._report_images.append(img)
+            col = tk.Frame(frame, bg="white")
+            tk.Label(col, image=img, bg="white").pack()
+            tk.Label(col, text=cap, font=("", 9, "bold"),
+                     fg="#0f172a", bg="white").pack()
+            col.pack(side=tk.LEFT, padx=10, anchor=tk.N)
+        self._report_frames.append(frame)
+        self._bind_wheel_to_calc(frame)
+        t.window_create(tk.END, window=frame)
+        t.insert(tk.END, "\n")
+        t.insert(tk.END, "Hình 2. Biểu đồ tương tác N-M2 và N-M3\n",
+                 "sec_ref")
+        t.insert(tk.END, "\n")
+
     def _bind_wheel_to_calc(self, widget):
         """Gắn cuộn chuột đệ quy cho widget nhúng -> cuộn calc_text."""
         def _rec(w):
@@ -920,15 +953,46 @@ class App(tk.Tk):
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
         kind = self.cb_plot.get()
         self.fig.clear()
-        # Trái: luôn là sơ đồ tiết diện (trục 2/3 + dim t2/t3 kiểu ETABS)
         from rc_column.pdf_export import draw_section_ax
+        from rc_column.interaction import (BiaxialCapacity, FiberSection,
+                                           uniaxial_curve_fs)
+
+        if kind.startswith("N-M"):
+            # Layout mới: mặt cắt nhỏ trên, 2 biểu đồ N-M2/N-M3 lớn dưới
+            self.fig.set_size_inches(6.5, 8.0)
+            import matplotlib.pyplot as plt
+            a1 = plt.subplot2grid((4, 2), (0, 0), colspan=2, fig=self.fig)
+            draw_section_ax(a1, sec)
+            a1.set_title("Sơ đồ mặt cắt", fontsize=10)
+            a1.grid(True, alpha=0.3)
+            from rc_column.pdf_export import _radial_limit
+            fs = FiberSection(sec)
+            for pos, th, lab, Ms in [((1, 0), 0, "N-M2", inp.Mx),
+                                     ((1, 1), 90, "N-M3", inp.My)]:
+                ax = plt.subplot2grid((4, 2), pos, rowspan=3, fig=self.fig)
+                cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
+                ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
+                        linewidth=1.5)
+                lim = _radial_limit(cv, inp.N, Ms)
+                ax.scatter([Ms], [inp.N], c="red", s=80, zorder=5,
+                           label="Điểm tải trọng")
+                if lim:
+                    ax.scatter([lim[1]], [lim[0]], c="orange", s=80,
+                               zorder=5, label="Giới hạn")
+                ax.set_xlabel("M (kN·m)"); ax.set_ylabel("N (kN)")
+                ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
+                ax.legend(fontsize=8); ax.grid(True, alpha=0.3)
+            self.fig.tight_layout()
+            self.mpl.draw()
+            return
+
+        # Các loại khác: layout cũ (mặt cắt trái, biểu đồ phải)
+        self.fig.set_size_inches(5.4, 4.6)
         a1 = self.fig.add_subplot(121)
         draw_section_ax(a1, sec)
         a1.set_title("Sơ đồ mặt cắt")
         a1.grid(True, alpha=0.3)
 
-        from rc_column.interaction import (BiaxialCapacity, FiberSection,
-                                           uniaxial_curve_fs)
         if kind.startswith("M2-M3"):
             a2 = self.fig.add_subplot(122)
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
@@ -955,25 +1019,6 @@ class App(tk.Tk):
             a2.set_xlabel("M2 (kN·m)"); a2.set_ylabel("M3 (kN·m)")
             a2.set_zlabel("N (kN)")
             a2.set_title("Mặt tương tác 3D N-M2-M3")
-        else:
-            # 2 biểu đồ riêng: N-M2 (trên) và N-M3 (dưới)
-            from rc_column.pdf_export import _radial_limit
-            fs = FiberSection(sec)
-            for ax_pos, th, lab, Ms in [(222, 0, "N-M2", inp.Mx),
-                                        (224, 90, "N-M3", inp.My)]:
-                ax = self.fig.add_subplot(ax_pos)
-                cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-                ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
-                        linewidth=1.5)
-                lim = _radial_limit(cv, inp.N, Ms)
-                ax.scatter([Ms], [inp.N], c="red", s=60, zorder=5,
-                           label="Điểm tải trọng")
-                if lim:
-                    ax.scatter([lim[1]], [lim[0]], c="orange", s=60,
-                               zorder=5, label="Giới hạn")
-                ax.set_xlabel("M (kN·m)"); ax.set_ylabel("N (kN)")
-                ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=9)
-                ax.legend(fontsize=7); ax.grid(True, alpha=0.3)
         self.fig.tight_layout()
         self.mpl.draw()
 
