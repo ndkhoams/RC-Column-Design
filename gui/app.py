@@ -76,8 +76,6 @@ class App(tk.Tk):
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text="Tóm tắt")
         self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text="Thuyết minh tính toán")
-        self.tab_etabs = ttk.Frame(nb); nb.add(self.tab_etabs, text="Tổ hợp ETABS")
-        self._build_etabs_tab()
 
         self.sum_text = tk.Text(self.tab_sum, wrap=tk.WORD, font=("Consolas", 10),
                                 height=10)
@@ -106,50 +104,6 @@ class App(tk.Tk):
         self.calc_text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.calc_text.insert(tk.END,
                               "Chi tiết tính toán sẽ hiển thị sau khi thực hiện kiểm tra.")
-
-    def _build_etabs_tab(self):
-        """Tab import nội lực ETABS và kiểm tra tất cả tổ hợp."""
-        f = self.tab_etabs
-        bar = ttk.Frame(f)
-        bar.pack(fill=tk.X, padx=6, pady=6)
-        ttk.Button(bar, text="📂 Import Excel ETABS...",
-                   command=self.on_import_etabs).pack(side=tk.LEFT, padx=4)
-        ttk.Label(bar, text="Ánh xạ:").pack(side=tk.LEFT, padx=(12, 2))
-        self.cb_map = ttk.Combobox(bar, state="readonly", width=16,
-                                   values=["M2→Mx, M3→My", "M2→My, M3→Mx"])
-        self.cb_map.set("M2→Mx, M3→My")
-        self.cb_map.pack(side=tk.LEFT, padx=2)
-        self.var_comb = tk.BooleanVar(value=True)
-        ttk.Checkbutton(bar, text="Chỉ tổ hợp (Combination)",
-                        variable=self.var_comb).pack(side=tk.LEFT, padx=8)
-        ttk.Button(bar, text="▶ Kiểm tra tất cả",
-                   command=self.on_check_etabs).pack(side=tk.LEFT, padx=4)
-        self.etabs_info = tk.StringVar(value="Chưa import file.")
-        ttk.Label(f, textvariable=self.etabs_info,
-                  foreground="#0a4d8c").pack(padx=6, pady=2, anchor=tk.W)
-
-        cols = ("story", "col", "case", "station", "N", "Mx", "My", "dc", "kl")
-        self.etabs_tree = ttk.Treeview(f, columns=cols, show="headings",
-                                       height=18)
-        headers = {"story": "Tầng", "col": "Cột", "case": "Tổ hợp",
-                   "station": "Vị trí (m)", "N": "N (kN)",
-                   "Mx": "Mx", "My": "My", "dc": "D/C", "kl": "Kết luận"}
-        widths = {"story": 70, "col": 70, "case": 90, "station": 80,
-                  "N": 80, "Mx": 80, "My": 80, "dc": 70, "kl": 90}
-        for c in cols:
-            self.etabs_tree.heading(c, text=headers[c])
-            self.etabs_tree.column(c, width=widths[c], anchor=tk.CENTER)
-        sb = ttk.Scrollbar(f, orient=tk.VERTICAL,
-                           command=self.etabs_tree.yview)
-        self.etabs_tree.configure(yscrollcommand=sb.set)
-        self.etabs_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
-                             padx=(6, 0), pady=4)
-        sb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 6), pady=4)
-        self.etabs_tree.tag_configure("ng", background="#fee2e2")
-        self.etabs_tree.tag_configure("worst", background="#fecaca",
-                                      font=("", 9, "bold"))
-        self.etabs_forces = []
-        self.etabs_file = ""
 
     def _frame(self, title):
         f = ttk.LabelFrame(self.left, text=title, padding=6)
@@ -255,21 +209,44 @@ class App(tk.Tk):
     # ---- 5. Nội lực ----
     def _sec_loads(self):
         f = self._frame("5. Nội lực kiểm tra")
-        self.en_N = ttk.Entry(f, width=18); self.en_N.insert(0, "1500")
-        self._row(f, "Lực dọc N (kN) — N > 0 là nén", self.en_N, 0)
-        self.en_Mx = ttk.Entry(f, width=18); self.en_Mx.insert(0, "80")
-        self._row(f, "Momen Mx (kN·m) — quanh trục x", self.en_Mx, 1)
-        self.en_My = ttk.Entry(f, width=18); self.en_My.insert(0, "60")
-        self._row(f, "Momen My (kN·m) — quanh trục y", self.en_My, 2)
+        # Chọn chế độ: nhập tay / import Excel
+        self.var_load_mode = tk.StringVar(value="manual")
+        mode_bar = ttk.Frame(f)
+        mode_bar.grid(row=0, column=0, columnspan=2, sticky=tk.W,
+                      padx=4, pady=4)
+        ttk.Radiobutton(mode_bar, text="Nhập tay",
+                        variable=self.var_load_mode, value="manual",
+                        command=self._toggle_load_mode).pack(side=tk.LEFT,
+                                                            padx=6)
+        ttk.Radiobutton(mode_bar, text="Import Excel ETABS",
+                        variable=self.var_load_mode, value="etabs",
+                        command=self._toggle_load_mode).pack(side=tk.LEFT,
+                                                            padx=6)
+
+        # ---- Chế độ nhập tay ----
+        self.manual_frame = ttk.Frame(f)
+        self.manual_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW)
+        self.en_N = ttk.Entry(self.manual_frame, width=18)
+        self.en_N.insert(0, "1500")
+        self._row(self.manual_frame, "Lực dọc N (kN) — N > 0 là nén",
+                  self.en_N, 0)
+        self.en_Mx = ttk.Entry(self.manual_frame, width=18)
+        self.en_Mx.insert(0, "80")
+        self._row(self.manual_frame, "Momen Mx (kN·m) — quanh trục x",
+                  self.en_Mx, 1)
+        self.en_My = ttk.Entry(self.manual_frame, width=18)
+        self.en_My.insert(0, "60")
+        self._row(self.manual_frame, "Momen My (kN·m) — quanh trục y",
+                  self.en_My, 2)
         self.var_lt = tk.BooleanVar(value=False)
-        ttk.Checkbutton(f, text="Khai báo thành phần tải dài hạn",
+        ttk.Checkbutton(self.manual_frame, text="Khai báo thành phần tải dài hạn",
                         variable=self.var_lt,
                         command=self._toggle_lt).grid(row=3, column=0,
                                                      columnspan=2, sticky=tk.W,
                                                      padx=4, pady=4)
-        self.lt_frame = ttk.Frame(f)
+        self.lt_frame = ttk.Frame(self.manual_frame)
         self.lt_frame.grid(row=4, column=0, columnspan=2, sticky=tk.EW, padx=4)
-        self.lt_frame.grid_remove()  # ẩn ban đầu
+        self.lt_frame.grid_remove()
         self.en_Nlt = ttk.Entry(self.lt_frame, width=18); self.en_Nlt.insert(0, "0")
         self._row(self.lt_frame, "N dài hạn (kN)", self.en_Nlt, 0)
         self.en_Mxlt = ttk.Entry(self.lt_frame, width=18); self.en_Mxlt.insert(0, "0")
@@ -281,6 +258,62 @@ class App(tk.Tk):
                        "xác định φLx, φLy theo Công thức (48), 1.00 ≤ φL ≤ 2.00."
                   ).grid(row=3, column=0, columnspan=2, padx=4, pady=2,
                          sticky=tk.W)
+
+        # ---- Chế độ import Excel ----
+        self.etabs_frame = ttk.Frame(f)
+        self.etabs_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW)
+        self.etabs_frame.grid_remove()
+        ttk.Button(self.etabs_frame, text="📂 Chọn file Excel ETABS...",
+                   command=self.on_import_etabs).grid(row=0, column=0,
+                                                     padx=4, pady=4, sticky=tk.W)
+        ttk.Label(self.etabs_frame, text="Ánh xạ:").grid(row=1, column=0,
+                                                        sticky=tk.W, padx=4)
+        self.cb_map = ttk.Combobox(self.etabs_frame, state="readonly", width=16,
+                                   values=["M2→Mx, M3→My", "M2→My, M3→Mx"])
+        self.cb_map.set("M2→Mx, M3→My")
+        self.cb_map.grid(row=1, column=1, padx=4, pady=2, sticky=tk.W)
+        self.var_comb = tk.BooleanVar(value=True)
+        ttk.Checkbutton(self.etabs_frame, text="Chỉ tổ hợp (Combination)",
+                        variable=self.var_comb).grid(row=2, column=0,
+                                                    columnspan=2, sticky=tk.W,
+                                                    padx=4)
+        ttk.Button(self.etabs_frame, text="▶ Kiểm tra tất cả tổ hợp",
+                   command=self.on_check_etabs).grid(row=3, column=0,
+                                                    columnspan=2, padx=4,
+                                                    pady=6, sticky=tk.EW)
+        self.etabs_info = tk.StringVar(value="Chưa chọn file.")
+        ttk.Label(self.etabs_frame, textvariable=self.etabs_info,
+                  foreground="#0a4d8c", wraplength=360,
+                  justify=tk.LEFT).grid(row=4, column=0, columnspan=2,
+                                        padx=4, sticky=tk.W)
+        # Bảng kết quả (gọn cho panel trái)
+        cols = ("case", "N", "Mx", "My", "dc", "kl")
+        self.etabs_tree = ttk.Treeview(self.etabs_frame, columns=cols,
+                                       show="headings", height=12)
+        hd = {"case": "Tổ hợp", "N": "N", "Mx": "Mx", "My": "My",
+              "dc": "D/C", "kl": "KQ"}
+        wd = {"case": 80, "N": 65, "Mx": 65, "My": 65, "dc": 55, "kl": 60}
+        for c in cols:
+            self.etabs_tree.heading(c, text=hd[c])
+            self.etabs_tree.column(c, width=wd[c], anchor=tk.CENTER)
+        self.etabs_tree.grid(row=5, column=0, columnspan=2, padx=4, pady=4,
+                             sticky=tk.EW)
+        vsb = ttk.Scrollbar(self.etabs_frame, orient=tk.VERTICAL,
+                            command=self.etabs_tree.yview)
+        vsb.grid(row=5, column=2, sticky=tk.NS)
+        self.etabs_tree.configure(yscrollcommand=vsb.set)
+        self.etabs_tree.tag_configure("ng", background="#fee2e2")
+        self.etabs_tree.tag_configure("worst", background="#fecaca",
+                                      font=("", 9, "bold"))
+        self.etabs_forces = []
+
+    def _toggle_load_mode(self):
+        if self.var_load_mode.get() == "etabs":
+            self.manual_frame.grid_remove()
+            self.etabs_frame.grid()
+        else:
+            self.etabs_frame.grid_remove()
+            self.manual_frame.grid()
 
     def _toggle_lt(self):
         if self.var_lt.get():
@@ -422,10 +455,10 @@ class App(tk.Tk):
         t.delete(*t.get_children())
         for f, r in rows:
             dc = r["dc"] if r else None
-            vals = (f.story, f.column, f.case, f"{f.station:.2f}",
-                    f"{f.N:.1f}", f"{f.Mx:.1f}", f"{f.My:.1f}",
+            vals = (f"{f.case}@{f.station:.2f}",
+                    f"{f.N:.0f}", f"{f.Mx:.0f}", f"{f.My:.0f}",
                     f"{dc:.3f}" if dc is not None and dc == dc else "—",
-                    ("KHÔNG ĐẠT" if dc and dc > 1 else
+                    ("NG" if dc and dc > 1 else
                      "ĐẠT" if dc else "—"))
             tag = ()
             if r and dc == dc:
@@ -454,15 +487,13 @@ class App(tk.Tk):
         # sắp xếp theo D/C giảm dần (nguy hiểm nhất lên đầu)
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
-        # highlight dòng nguy hiểm nhất
+        # highlight dòng nguy hiểm nhất (dòng đầu sau sắp xếp)
         self._fill_etabs_table(rows)
         worst_f, worst_r = rows[0]
-        for item in self.etabs_tree.get_children():
-            vals = self.etabs_tree.item(item, "values")
-            if vals[2] == worst_f.case and vals[3] == f"{worst_f.station:.2f}":
-                self.etabs_tree.item(item, tags=("worst",))
-                self.etabs_tree.see(item)
-                break
+        children = self.etabs_tree.get_children()
+        if children:
+            self.etabs_tree.item(children[0], tags=("worst",))
+            self.etabs_tree.see(children[0])
         n_ng = sum(1 for _, r in rows if r["dc"] > 1)
         dt = time.time() - t0
         self.etabs_info.set(
