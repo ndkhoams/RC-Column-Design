@@ -285,7 +285,7 @@ class App(tk.Tk):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
         self.rebar_info = tk.StringVar(value="")
         ttk.Label(f, textvariable=self.rebar_info, font=("", 10),
-                  justify=tk.LEFT).grid(row=4, column=0, columnspan=2,
+                  justify=tk.LEFT).grid(row=7, column=0, columnspan=2,
                                         padx=4, pady=4, sticky=tk.W)
 
     # ---- 4. Chiều dài tính toán ----
@@ -372,6 +372,14 @@ class App(tk.Tk):
         self.en_My.insert(0, "60")
         self._row(self.manual_frame, "Mô men M3 (kN·m) — quanh trục 3",
                   self.en_My, 2)
+        self.en_Q2 = ttk.Entry(self.manual_frame, width=18)
+        self.en_Q2.insert(0, "0")
+        self._row(self.manual_frame, "Lực cắt Q2 (kN)",
+                  self.en_Q2, 3)
+        self.en_Q3 = ttk.Entry(self.manual_frame, width=18)
+        self.en_Q3.insert(0, "0")
+        self._row(self.manual_frame, "Lực cắt Q3 (kN)",
+                  self.en_Q3, 4)
         self.var_lt = tk.BooleanVar(value=False)
         ttk.Checkbutton(self.manual_frame, text="Khai báo thành phần tải dài hạn",
                         variable=self.var_lt,
@@ -526,6 +534,7 @@ class App(tk.Tk):
         inp.psi_x = opt(self.en_psix); inp.psi_y = opt(self.en_psiy)
         inp.N = self._f(self.en_N); inp.Mx = self._f(self.en_Mx)
         inp.My = self._f(self.en_My)
+        inp.Q2 = self._f(self.en_Q2); inp.Q3 = self._f(self.en_Q3)
         inp.long_term = LongTermLoads(
             has_data=self.var_lt.get(), N_lt=self._f(self.en_Nlt),
             Mx_lt=self._f(self.en_Mxlt), My_lt=self._f(self.en_Mylt))
