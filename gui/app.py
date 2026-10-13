@@ -870,7 +870,7 @@ class App(tk.Tk):
         from tkinter import PhotoImage
         t = self.calc_text
         captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép",
-                    6: "Hình 2. Biểu đồ tương tác N-M"}
+                    6: "Hình 2. Biểu đồ tương tác N-M2 và N-M3"}
         # Frame chứa 2 cột
         frame = tk.Frame(t, bg="white")
         # Cột trái: text
@@ -956,18 +956,24 @@ class App(tk.Tk):
             a2.set_zlabel("N (kN)")
             a2.set_title("Mặt tương tác 3D N-M2-M3")
         else:
-            a2 = self.fig.add_subplot(122)
+            # 2 biểu đồ riêng: N-M2 (trên) và N-M3 (dưới)
+            from rc_column.pdf_export import _radial_limit
             fs = FiberSection(sec)
-            for th, style, lab in [(0, "b-", "N-M2 (θ=0°)"),
-                                   (90, "r--", "N-M3 (θ=90°)")]:
+            for ax_pos, th, lab, Ms in [(222, 0, "N-M2", inp.Mx),
+                                        (224, 90, "N-M3", inp.My)]:
+                ax = self.fig.add_subplot(ax_pos)
                 cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-                a2.plot([p[1] for p in cv], [p[0] for p in cv], style,
-                        label=lab, linewidth=1.5)
-            a2.scatter([math.hypot(inp.Mx, inp.My)], [inp.N], c="red", s=80,
-                       zorder=5, label="Điểm tải trọng")
-            a2.set_xlabel("M (kN·m)"); a2.set_ylabel("N (kN)")
-            a2.set_title("Biểu đồ tương tác N-M")
-            a2.legend(fontsize=8); a2.grid(True, alpha=0.3)
+                ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
+                        linewidth=1.5)
+                lim = _radial_limit(cv, inp.N, Ms)
+                ax.scatter([Ms], [inp.N], c="red", s=60, zorder=5,
+                           label="Điểm tải trọng")
+                if lim:
+                    ax.scatter([lim[1]], [lim[0]], c="orange", s=60,
+                               zorder=5, label="Giới hạn")
+                ax.set_xlabel("M (kN·m)"); ax.set_ylabel("N (kN)")
+                ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=9)
+                ax.legend(fontsize=7); ax.grid(True, alpha=0.3)
         self.fig.tight_layout()
         self.mpl.draw()
 
