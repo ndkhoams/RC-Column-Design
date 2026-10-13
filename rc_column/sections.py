@@ -26,6 +26,7 @@ class Rebar:
     y: float
     area: float
     dia: float = 0.0
+    layer: int = 1  # 1: lớp ngoài, 2: lớp trong (kiểu VietconSoft)
 
 
 @dataclass
@@ -140,6 +141,155 @@ def layout_circle_bars(sec: Section, dia: float, n_bars: int,
 def layout_custom_bars(sec: Section, bars: List[Tuple[float, float, float]]) -> List[Rebar]:
     """Bố trí tự do: list (x, y, dia)."""
     rebars = [Rebar(x, y, bar_area(d), d) for (x, y, d) in bars]
+    sec.rebars = rebars
+    return rebars
+
+
+def _inner_positions(half_len: float, n: int) -> List[float]:
+    """n điểm cách đều nằm phía trong đoạn [-half_len, half_len]
+    (không trùng 2 đầu — dùng cho thép cạnh, góc đã có thép riêng)."""
+    if n <= 0:
+        return []
+    if n == 1:
+        return [0.0]
+    return [-half_len + (i + 1) * (2.0 * half_len) / (n + 1)
+            for i in range(n)]
+
+
+def layout_vietconsoft_bars(sec: Section, inp) -> List[Rebar]:
+    """Bố trí thép kiểu VietconSoft cho tiết diện chữ nhật.
+
+    Quy ước trục app: cx = t3 (cạnh ngang), cy = t2 (cạnh đứng).
+      - "Thép cạnh t2": nằm trên 2 mặt trái/phải (mỗi mặt dài cy = t2).
+      - "Thép cạnh t3": nằm trên 2 mặt trên/dưới (mỗi mặt dài cx = t3).
+    Lớp 1: 4 thép góc + thép cạnh (không trùng góc).
+    Lớp 2 (nếu two_layer): perimeter | concentrated | bundled.
+    Mỗi Rebar mang thuộc tính layer (1/2) để vẽ màu khác nhau.
+    """
+    rebars: List[Rebar] = []
+    cx, cy = sec.cx, sec.cy
+    cover = float(getattr(inp, "cover", 30.0))
+
+    def add(x: float, y: float, dia: float, layer: int):
+        rebars.append(Rebar(x, y, bar_area(dia), dia, layer))
+
+    def off1(dia: float) -> float:
+        """Khoảng cách tim thép lớp 1 tới mép."""
+        return cover + dia / 2.0
+
+    def off2(d1: float, d2: float) -> float:
+        """Khoảng cách tim thép lớp 2 tới mép: cách mặt thép lớp 1
+        một khe s = l2_s_layer."""
+        s_layer = float(getattr(inp, "l2_s_layer", 30.0))
+        return cover + d1 + s_layer + d2 / 2.0
+
+    # ---------------- Lớp 1 ----------------
+    cd = float(getattr(inp, "corner_dia", 20.0))
+    oc = off1(cd)
+    # 4 thép góc
+    for sx in (-1.0, 1.0):
+        for sy in (-1.0, 1.0):
+            add(sx * (cx / 2.0 - oc), sy * (cy / 2.0 - oc), cd, 1)
+
+    n2 = max(0, int(getattr(inp, "edge_t2_count", 3)))
+    d2 = float(getattr(inp, "edge_t2_dia", 20.0))
+    n3 = max(0, int(getattr(inp, "edge_t3_count", 3)))
+    d3 = float(getattr(inp, "edge_t3_dia", 20.0))
+    # Thép cạnh t2: 2 mặt trái/phải, phân bố theo y (trừ vị trí góc)
+    if n2 > 0:
+        o2 = off1(d2)
+        for sx in (-1.0, 1.0):
+            for y in _inner_positions(cy / 2.0 - oc, n2):
+                add(sx * (cx / 2.0 - o2), y, d2, 1)
+    # Thép cạnh t3: 2 mặt trên/dưới, phân bố theo x (trừ vị trí góc)
+    if n3 > 0:
+        o3 = off1(d3)
+        for sy in (-1.0, 1.0):
+            for x in _inner_positions(cx / 2.0 - oc, n3):
+                add(x, sy * (cy / 2.0 - o3), d3, 1)
+
+    # ---------------- Lớp 2 ----------------
+    if bool(getattr(inp, "two_layer", False)) and sec.kind == "rect":
+        mode = str(getattr(inp, "layer2_mode", "perimeter"))
+        if mode == "perimeter":
+            l2d2 = float(getattr(inp, "l2_t2_dia", 20.0))
+            l2d3 = float(getattr(inp, "l2_t3_dia", 20.0))
+            oc2 = off2(cd, l2d3)
+            for sx in (-1.0, 1.0):
+                for sy in (-1.0, 1.0):
+                    add(sx * (cx / 2.0 - oc2), sy * (cy / 2.0 - oc2),
+                        l2d3, 2)
+            if n2 > 0:
+                o2b = off2(d2, l2d2)
+                for sx in (-1.0, 1.0):
+                    for y in _inner_positions(cy / 2.0 - oc2, n2):
+                        add(sx * (cx / 2.0 - o2b), y, l2d2, 2)
+            if n3 > 0:
+                o3b = off2(d3, l2d3)
+                for sy in (-1.0, 1.0):
+                    for x in _inner_positions(cx / 2.0 - oc2, n3):
+                        add(x, sy * (cy / 2.0 - o3b), l2d3, 2)
+        elif mode == "concentrated":
+            side = str(getattr(inp, "l2_side", "t2"))
+            cnt = max(0, int(getattr(inp, "l2_count", 5)))
+            dd = float(getattr(inp, "l2_dia", 25.0))
+            if cnt > 0:
+                if side == "t2":
+                    # thêm mỗi mặt trái/phải
+                    ob = off2(d2, dd)
+                    for sx in (-1.0, 1.0):
+                        for y in _inner_positions(cy / 2.0 - oc, cnt):
+                            add(sx * (cx / 2.0 - ob), y, dd, 2)
+                else:
+                    # thêm mỗi mặt trên/dưới
+                    ob = off2(d3, dd)
+                    for sy in (-1.0, 1.0):
+                        for x in _inner_positions(cx / 2.0 - oc, cnt):
+                            add(x, sy * (cy / 2.0 - ob), dd, 2)
+        elif mode == "bundled":
+            pos = str(getattr(inp, "bundle_pos", "inner"))
+            b_edge = max(1, int(getattr(inp, "bundle_size", 2)))
+            b_cor = max(1, int(getattr(inp, "bundle_corner", 2)))
+            gap = max(0.0, float(getattr(inp, "bundle_gap", 0.0)))
+
+            def bundle_cx(x0: float, y0: float, k: int, dia: float,
+                          layer: int, offv: float, horizontal: bool):
+                """Xếp k thanh thành cụm quanh (x0, y0) theo phương ngang/dọc."""
+                step = dia + gap
+                start = -((k - 1) / 2.0) * step
+                for i in range(k):
+                    d = start + i * step
+                    if horizontal:
+                        add(x0 + d, y0, dia, layer)
+                    else:
+                        add(x0, y0 + d, dia, layer)
+
+            # vị trí lớp 1 (để đặt bó)
+            if pos == "inner":
+                ocb = off2(cd, cd)
+                edge_off = lambda d1, d2b: off2(d1, d2b)
+                lay = 2
+            else:  # "outer": cùng lớp ngoài, xếp cụm quanh vị trí lớp 1
+                ocb = oc
+                edge_off = lambda d1, d2b: off1(d2b)
+                lay = 2
+            for sx in (-1.0, 1.0):
+                for sy in (-1.0, 1.0):
+                    bundle_cx(sx * (cx / 2.0 - ocb), sy * (cy / 2.0 - ocb),
+                              b_cor, cd, lay, ocb, True)
+            if n2 > 0:
+                o2b = edge_off(d2, d2)
+                for sx in (-1.0, 1.0):
+                    for y in _inner_positions(cy / 2.0 - oc, n2):
+                        bundle_cx(sx * (cx / 2.0 - o2b), y,
+                                  b_edge, d2, lay, o2b, False)
+            if n3 > 0:
+                o3b = edge_off(d3, d3)
+                for sy in (-1.0, 1.0):
+                    for x in _inner_positions(cx / 2.0 - oc, n3):
+                        bundle_cx(x, sy * (cy / 2.0 - o3b),
+                                  b_edge, d3, lay, o3b, True)
+
     sec.rebars = rebars
     return rebars
 
