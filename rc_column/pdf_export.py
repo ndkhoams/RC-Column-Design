@@ -155,7 +155,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
         if lim:
             import math
             fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms_abs, res.N)
-            ax.text(0.5, -0.22, f"Tỉ số an toàn FS = {fs_dir:.2f}",
+            ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {fs_dir:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=9,
                     color="darkred", weight="bold")
     fig.tight_layout()
@@ -197,9 +197,10 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
         if lim:
             import math
             fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms_abs, res.N)
-            ax.text(0.5, -0.20, f"Tỉ số an toàn FS = {fs_dir:.2f}",
+            ax.text(0.5, -0.30, f"Tỉ số an toàn FS = {fs_dir:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
+        fig.subplots_adjust(bottom=0.22)
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
         plt.close(fig)
