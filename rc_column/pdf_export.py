@@ -144,7 +144,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     lim = (res.BN, Mb)
     ax.scatter([Ma], [res.N], c="green", s=80, zorder=5,
                label="A (tải trọng)")
-    ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
+    lc = "green" if res.fs > 1 else "red"
+    ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=lc,
+            ls="--", lw=1.5, alpha=0.9)
     ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
                label="B (giới hạn)")
     ax.set_xlabel("M (kN·m)")
@@ -177,6 +179,9 @@ def surface_3d_image(sec, inp, res, width_in=4.0, dpi=100) -> bytes:
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
     N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
+    mxg = np.concatenate([mxg, mxg[:, :1]], axis=1)
+    myg = np.concatenate([myg, myg[:, :1]], axis=1)
+    N3 = np.concatenate([N3, N3[:, :1]], axis=1)
     ax.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
                     edgecolor="none")
     ax.scatter([res.Mx_star], [res.My_star], [res.N], c="red", s=60,
