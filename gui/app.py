@@ -405,7 +405,7 @@ class App(tk.Tk):
         ttk.Button(self.etabs_frame, text="📋 Paste từ Clipboard",
                    command=self.on_paste_etabs).grid(row=0, column=1,
                                                     padx=2, pady=4, sticky=tk.W)
-        ttk.Button(self.etabs_frame, text="🗑️ DELETE",
+        ttk.Button(self.etabs_frame, text="🗑️ DELETE", width=10,
                    command=self.on_delete_forces).grid(row=0, column=2,
                                                        padx=(2, 0), pady=4, sticky=tk.E)
         self.etabs_frame.grid_columnconfigure(2, weight=1)
@@ -1008,7 +1008,14 @@ class App(tk.Tk):
             try:
                 from rc_column.pdf_export import interaction_image
                 # Bỏ 3D, chỉ giữ biểu đồ N-M full-width
-                img_m6 = interaction_image(sec, inp, res)
+                # Rộng linh động theo Text widget (mặc định 6 inch)
+                try:
+                    px = self.calc_text.winfo_width()
+                    w_in = max(4.0, min(9.0, px / 100)) if px > 1 else 6.0
+                except Exception:
+                    w_in = 6.0
+                img_m6 = interaction_image(sec, inp, res, width_in=w_in,
+                                           dpi=100)
             except Exception:
                 pass
 
