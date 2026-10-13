@@ -71,7 +71,8 @@ def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
     ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
     fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
     draw_section_ax(ax, sec)
-    ax.grid(True, alpha=0.3)
+    ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
+    ax.set_axisbelow(True)
     for sp in ax.spines.values():
         sp.set_visible(False)
     buf = io.BytesIO()
@@ -116,27 +117,51 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     fs = FiberSection(sec)
     alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star))
     cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
-    ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-    ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
+    GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
+    BLUE_DASH = "#3B82F6"
+    m_pos = [p[1] for p in cv]
+    n_pos = [p[0] for p in cv]
+    m_neg = [-p[1] for p in cv]
+    ax.plot(m_pos, n_pos, color=GREEN, lw=2.0, zorder=3)
+    ax.plot(m_neg, n_pos, color=GREEN, lw=2.0, zorder=3)
+    ax.fill_betweenx(n_pos, 0, m_pos, color=GREEN, alpha=0.08, zorder=1)
+    ax.fill_betweenx(n_pos, m_neg, 0, color=GREEN, alpha=0.08, zorder=1)
     Ma = math.hypot(res.Mx_star, res.My_star)
     Mb = math.hypot(res.Bx, res.By)
     lim = (res.BN, Mb)
-    ax.scatter([Ma], [res.N], c="red", s=80, zorder=5,
-               label="Điểm tải trọng")
-    lc = "green" if res.fs > 1 else "red"
-    ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=lc,
-            ls="--", lw=1.5, alpha=0.9)
-    ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
-               label="Giới hạn")
-    ax.set_xlabel("M (kN·m)", fontsize=9)
-    ax.set_ylabel("N (kN)", fontsize=9)
+    ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=RED,
+            ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+    ax.plot([Ma, Ma], [0, res.N], color=BLUE_DASH, ls="--",
+            lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
+    ax.plot([0, Ma], [res.N, res.N], color=BLUE_DASH, ls="--",
+            lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
+    ax.scatter([lim[1]], [lim[0]], c=ORANGE, s=60, zorder=5,
+               edgecolors="white", linewidths=1.0, label="Giới hạn")
+    ax.scatter([Ma], [res.N], c=GREEN, s=60, zorder=6,
+               edgecolors="white", linewidths=1.0, label="Điểm tải trọng")
+    ax.text(Ma, res.N, "  A", fontsize=8, color=GREEN,
+            weight="bold", va="center", zorder=7)
+    ax.text(lim[1], lim[0], "  B", fontsize=8, color=ORANGE,
+            weight="bold", va="center", zorder=7)
+    ax.set_xlabel("Mα (kN·m)", fontsize=9, fontweight="bold")
+    ax.set_ylabel("N (kN)", fontsize=9, fontweight="bold")
     ax.tick_params(labelsize=8)
+    ax.text(0.05, 0.95, f"α = {alpha_deg:.1f}°",
+            transform=ax.transAxes, fontsize=8, color="#4B5563",
+            va="top", ha="left",
+            bbox=dict(boxstyle="round,pad=0.3", fc="white",
+                      ec="#E5E7EB", alpha=0.9))
     if right_half:
         # Chỉ hiện nửa phải (M >= 0)
         ax.set_xlim(left=0)
     ax.legend(fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.22), ncol=2)
-    ax.grid(True, alpha=0.3)
+    ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
+    ax.set_axisbelow(True)
+    for _sp in ("top", "right"):
+        ax.spines[_sp].set_visible(False)
+    for _sp in ("left", "bottom"):
+        ax.spines[_sp].set_color("#9CA3AF")
     fig.subplots_adjust(bottom=0.32)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi)
@@ -153,21 +178,33 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     from .interaction import BiaxialCapacity
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     pts = cap.mx_my_curve(res.N)
-    ax.plot([p[0] for p in pts], [p[1] for p in pts], "b-", lw=1.5)
-    ax.scatter([res.Mx_star], [res.My_star], c="red", s=80, zorder=5,
-               label="Điểm tải trọng")
-    lc = "green" if res.fs > 1 else "red"
-    ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=lc,
-            ls="--", lw=1.5, alpha=0.9)
-    ax.scatter([res.Bx], [res.By], c="orange", s=80, zorder=5,
-               label="Giới hạn")
-    ax.set_xlabel("M2 (kN·m)", fontsize=9)
-    ax.set_ylabel("M3 (kN·m)", fontsize=9)
+    BLUE, GREEN, RED, ORANGE = "#2563EB", "#059669", "#DC2626", "#F97316"
+    xs = [p[0] for p in pts] + [pts[0][0]]
+    ys = [p[1] for p in pts] + [pts[0][1]]
+    ax.plot(xs, ys, color=BLUE, lw=2.0, zorder=3)
+    ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
+    ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
+            ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+    ax.scatter([res.Bx], [res.By], c=ORANGE, s=60, zorder=5,
+               edgecolors="white", linewidths=1.0, label="Giới hạn")
+    ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=60, zorder=6,
+               edgecolors="white", linewidths=1.0, label="Điểm tải trọng")
+    ax.text(res.Mx_star, res.My_star, "  A", fontsize=8, color=GREEN,
+            weight="bold", va="center", zorder=7)
+    ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
+    ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
+    ax.set_xlabel("M2 (kN·m)", fontsize=9, fontweight="bold")
+    ax.set_ylabel("M3 (kN·m)", fontsize=9, fontweight="bold")
     ax.tick_params(labelsize=8)
     ax.legend(fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.22), ncol=2)
-    ax.grid(True, alpha=0.3)
+    ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
+    ax.set_axisbelow(True)
     ax.set_aspect("equal", adjustable="datalim")
+    for _sp in ("top", "right"):
+        ax.spines[_sp].set_visible(False)
+    for _sp in ("left", "bottom"):
+        ax.spines[_sp].set_color("#9CA3AF")
     fig.subplots_adjust(bottom=0.32)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi)
@@ -231,7 +268,8 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
         ax.set_ylabel("N (kN)")
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
         ax.legend(fontsize=9)
-        ax.grid(True, alpha=0.3)
+        ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
+        ax.set_axisbelow(True)
         ax.text(0.5, -0.30, f"Tỉ số an toàn FS = {res.fs:.2f}",
                 transform=ax.transAxes, ha="center", fontsize=10,
                 color="darkred", weight="bold")
