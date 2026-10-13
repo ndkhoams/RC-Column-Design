@@ -1895,7 +1895,7 @@ class App(tk.Tk):
             # Bảng Phương 2 | Phương 3
             tf = tk.Frame(parent, bg="white")
             tf.pack(fill=tk.X, padx=8, pady=(4, 2))
-            headers = ["Thông số", "Phương 2", "Phương 3"]
+            headers = ["Thông số", "Phương V2", "Phương V3"]
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=1, relief="solid",
