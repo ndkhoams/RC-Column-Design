@@ -53,17 +53,14 @@ class App(tk.Tk):
         canvas.configure(yscrollcommand=scr.set)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scr.pack(side=tk.RIGHT, fill=tk.Y)
-        # Cuộn chuột: 1 handler chung cho cả app (theo vị trí con trỏ),
-        # không dùng Enter/Leave vì mất tác dụng khi đè lên widget con
-        self.bind_all("<MouseWheel>", self._on_wheel_global)
-        self.bind_all("<Button-4>", self._on_wheel_global)
-        self.bind_all("<Button-5>", self._on_wheel_global)
 
         self._sec_materials()
         self._sec_section()
         self._sec_rebar()
         self._sec_stability()
         self._sec_loads()
+        # Cuộn chuột cho panel trái (đệ quy, bắt cả khi đè lên widget con)
+        self._bind_wheel(self.left, self._left_canvas)
 
         # Hàng nút lưu/mở dữ liệu
         data_bar = ttk.Frame(self.left)
@@ -93,11 +90,31 @@ class App(tk.Tk):
         self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text="Tóm tắt")
         self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text="Thuyết minh tính toán")
 
-        self.sum_text = tk.Text(self.tab_sum, wrap=tk.WORD, font=("Consolas", 10),
+        # Tab Tóm tắt bọc trong canvas cuộn được
+        sum_canvas = tk.Canvas(self.tab_sum, highlightthickness=0)
+        sum_scr = ttk.Scrollbar(self.tab_sum, orient=tk.VERTICAL,
+                                command=sum_canvas.yview)
+        self._sum_inner = ttk.Frame(sum_canvas)
+        self._sum_inner.bind(
+            "<Configure>",
+            lambda e: sum_canvas.configure(
+                scrollregion=sum_canvas.bbox("all")))
+        sum_canvas.create_window((0, 0), window=self._sum_inner,
+                                 anchor=tk.NW)
+        sum_canvas.configure(yscrollcommand=sum_scr.set)
+        sum_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        sum_scr.pack(side=tk.RIGHT, fill=tk.Y)
+        self._sum_canvas = sum_canvas
+        # co giãn theo chiều rộng tab
+        def _sum_width(e):
+            sum_canvas.itemconfig(1, width=e.width)
+        sum_canvas.bind("<Configure>", _sum_width)
+
+        self.sum_text = tk.Text(self._sum_inner, wrap=tk.WORD, font=("Consolas", 10),
                                 height=10)
         self.sum_text.pack(fill=tk.X, padx=4, pady=4)
         # Chọn loại biểu đồ
-        plot_bar = ttk.Frame(self.tab_sum)
+        plot_bar = ttk.Frame(self._sum_inner)
         plot_bar.pack(fill=tk.X, padx=4, pady=2)
         ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
         self.cb_plot = ttk.Combobox(plot_bar, state="readonly", width=28,
@@ -108,8 +125,10 @@ class App(tk.Tk):
         self.cb_plot.bind("<<ComboboxSelected>>", lambda e: self._redraw())
         if HAS_MPL:
             self.fig = Figure(figsize=(5.4, 4.6), dpi=100)
-            self.mpl = FigureCanvasTkAgg(self.fig, master=self.tab_sum)
+            self.mpl = FigureCanvasTkAgg(self.fig, master=self._sum_inner)
             self.mpl.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        # cuộn chuột cho tab Tóm tắt (đệ quy, trừ combobox đang mở)
+        self._bind_wheel(self._sum_inner, self._sum_canvas)
         # lưu để vẽ lại khi đổi loại
         self._last_sec = None
         self._last_inp = None
@@ -148,36 +167,36 @@ class App(tk.Tk):
             self.calc_text.yview_scroll(delta * 2, "units")
         return "break"
 
-    def _on_wheel_global(self, event):
-        """Cuộn theo vùng dưới con trỏ: panel trái -> canvas trái,
-        các vùng khác giữ hành vi mặc định (thuyết minh đã có bind riêng)."""
-        # Thuyết minh có bind riêng trả về "break" nên không tới đây;
-        # chỉ xử lý panel trái
-        w = self.winfo_containing(event.x_root, event.y_root)
-        node = w
-        in_left = False
-        while node is not None and node is not self:
-            if node is self.left or node is self._left_canvas:
-                in_left = True
-                break
-            # Treeview/bảng tự cuộn riêng, không cướp
-            if node is getattr(self, "etabs_tree", None):
-                return None
-            try:
-                node = node.master
-            except Exception:
-                break
-        if not in_left:
-            return None
-        c = self._left_canvas
+    def _bind_wheel(self, root_widget, canvas):
+        """Gắn cuộn chuột đệ quy cho root_widget và mọi con cháu,
+        cuộn canvas chỉ định. Bỏ qua Treeview (giữ cuộn riêng)."""
+        def _rec(w):
+            if w is getattr(self, "etabs_tree", None):
+                return
+            w.bind("<MouseWheel>",
+                   lambda e, c=canvas: self._scroll_canvas(e, c))
+            w.bind("<Button-4>",
+                   lambda e, c=canvas: self._scroll_canvas(e, c))
+            w.bind("<Button-5>",
+                   lambda e, c=canvas: self._scroll_canvas(e, c))
+            for ch in w.winfo_children():
+                _rec(ch)
+        _rec(root_widget)
+
+    def _scroll_canvas(self, event, canvas):
+        """Cuộn canvas 3 units/nấc."""
         if getattr(event, "num", None) == 4:
-            c.yview_scroll(-3, "units")
+            canvas.yview_scroll(-3, "units")
         elif getattr(event, "num", None) == 5:
-            c.yview_scroll(3, "units")
+            canvas.yview_scroll(3, "units")
         else:
             delta = int(-event.delta / 120) if event.delta else 0
-            c.yview_scroll(delta * 3, "units")
+            canvas.yview_scroll(delta * 3, "units")
         return "break"
+
+    def _on_wheel_global(self, event):
+        """(Giữ để tương thích — đã chuyển sang _bind_wheel.)"""
+        return None
 
     def _wheel_on(self):
         """(Giữ để tương thích — không còn dùng.)"""
