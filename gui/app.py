@@ -76,6 +76,8 @@ class App(tk.Tk):
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text="Tóm tắt")
         self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text="Thuyết minh tính toán")
+        self.tab_etabs = ttk.Frame(nb); nb.add(self.tab_etabs, text="Tổ hợp ETABS")
+        self._build_etabs_tab()
 
         self.sum_text = tk.Text(self.tab_sum, wrap=tk.WORD, font=("Consolas", 10),
                                 height=10)
@@ -104,6 +106,50 @@ class App(tk.Tk):
         self.calc_text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.calc_text.insert(tk.END,
                               "Chi tiết tính toán sẽ hiển thị sau khi thực hiện kiểm tra.")
+
+    def _build_etabs_tab(self):
+        """Tab import nội lực ETABS và kiểm tra tất cả tổ hợp."""
+        f = self.tab_etabs
+        bar = ttk.Frame(f)
+        bar.pack(fill=tk.X, padx=6, pady=6)
+        ttk.Button(bar, text="📂 Import Excel ETABS...",
+                   command=self.on_import_etabs).pack(side=tk.LEFT, padx=4)
+        ttk.Label(bar, text="Ánh xạ:").pack(side=tk.LEFT, padx=(12, 2))
+        self.cb_map = ttk.Combobox(bar, state="readonly", width=16,
+                                   values=["M2→Mx, M3→My", "M2→My, M3→Mx"])
+        self.cb_map.set("M2→Mx, M3→My")
+        self.cb_map.pack(side=tk.LEFT, padx=2)
+        self.var_comb = tk.BooleanVar(value=True)
+        ttk.Checkbutton(bar, text="Chỉ tổ hợp (Combination)",
+                        variable=self.var_comb).pack(side=tk.LEFT, padx=8)
+        ttk.Button(bar, text="▶ Kiểm tra tất cả",
+                   command=self.on_check_etabs).pack(side=tk.LEFT, padx=4)
+        self.etabs_info = tk.StringVar(value="Chưa import file.")
+        ttk.Label(f, textvariable=self.etabs_info,
+                  foreground="#0a4d8c").pack(padx=6, pady=2, anchor=tk.W)
+
+        cols = ("story", "col", "case", "station", "N", "Mx", "My", "dc", "kl")
+        self.etabs_tree = ttk.Treeview(f, columns=cols, show="headings",
+                                       height=18)
+        headers = {"story": "Tầng", "col": "Cột", "case": "Tổ hợp",
+                   "station": "Vị trí (m)", "N": "N (kN)",
+                   "Mx": "Mx", "My": "My", "dc": "D/C", "kl": "Kết luận"}
+        widths = {"story": 70, "col": 70, "case": 90, "station": 80,
+                  "N": 80, "Mx": 80, "My": 80, "dc": 70, "kl": 90}
+        for c in cols:
+            self.etabs_tree.heading(c, text=headers[c])
+            self.etabs_tree.column(c, width=widths[c], anchor=tk.CENTER)
+        sb = ttk.Scrollbar(f, orient=tk.VERTICAL,
+                           command=self.etabs_tree.yview)
+        self.etabs_tree.configure(yscrollcommand=sb.set)
+        self.etabs_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
+                             padx=(6, 0), pady=4)
+        sb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 6), pady=4)
+        self.etabs_tree.tag_configure("ng", background="#fee2e2")
+        self.etabs_tree.tag_configure("worst", background="#fecaca",
+                                      font=("", 9, "bold"))
+        self.etabs_forces = []
+        self.etabs_file = ""
 
     def _frame(self, title):
         f = ttk.LabelFrame(self.left, text=title, padding=6)
@@ -345,6 +391,93 @@ class App(tk.Tk):
             self._last_inp = inp
             self._last_res = res
             self._redraw()
+
+    # ---------------- ETABS ----------------
+    def on_import_etabs(self):
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(
+            title="Chọn file Excel ETABS",
+            filetypes=[("Excel", "*.xlsx *.xls"), ("All", "*.*")])
+        if not path:
+            return
+        try:
+            from rc_column.etabs_import import read_etabs_excel
+            m2_to = "Mx" if self.cb_map.get().startswith("M2→Mx") else "My"
+            forces = read_etabs_excel(path, m2_to=m2_to,
+                                      only_combinations=self.var_comb.get())
+        except Exception as ex:
+            messagebox.showerror("Lỗi đọc file", str(ex))
+            return
+        self.etabs_forces = forces
+        self.etabs_file = path
+        n_case = len(set(f.case for f in forces))
+        self.etabs_info.set(
+            f"Đã đọc {len(forces)} dòng, {n_case} tổ hợp từ: "
+            f"{path.split('/')[-1].split(chr(92))[-1]} — "
+            f"Bấm 'Kiểm tra tất cả' để tính.")
+        self._fill_etabs_table([(f, None) for f in forces])
+
+    def _fill_etabs_table(self, rows):
+        t = self.etabs_tree
+        t.delete(*t.get_children())
+        for f, r in rows:
+            dc = r["dc"] if r else None
+            vals = (f.story, f.column, f.case, f"{f.station:.2f}",
+                    f"{f.N:.1f}", f"{f.Mx:.1f}", f"{f.My:.1f}",
+                    f"{dc:.3f}" if dc is not None and dc == dc else "—",
+                    ("KHÔNG ĐẠT" if dc and dc > 1 else
+                     "ĐẠT" if dc else "—"))
+            tag = ()
+            if r and dc == dc:
+                tag = ("ng",) if dc > 1 else ()
+            t.insert("", tk.END, values=vals, tags=tag)
+
+    def on_check_etabs(self):
+        if not self.etabs_forces:
+            messagebox.showinfo("ETABS", "Hãy import file Excel trước.")
+            return
+        try:
+            inp = self.collect()
+        except Exception as ex:
+            messagebox.showerror("Lỗi", str(ex))
+            return
+        from rc_column.checker import BatchChecker
+        self.etabs_info.set("Đang kiểm tra, vui lòng đợi...")
+        self.update_idletasks()
+        import time
+        t0 = time.time()
+        bc = BatchChecker(inp, n_angles=12)
+        rows = []
+        for f in self.etabs_forces:
+            r = bc.check_one(f.N, f.Mx, f.My, inp.long_term)
+            rows.append((f, r))
+        # sắp xếp theo D/C giảm dần (nguy hiểm nhất lên đầu)
+        rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
+                  else float("inf"))
+        # highlight dòng nguy hiểm nhất
+        self._fill_etabs_table(rows)
+        worst_f, worst_r = rows[0]
+        for item in self.etabs_tree.get_children():
+            vals = self.etabs_tree.item(item, "values")
+            if vals[2] == worst_f.case and vals[3] == f"{worst_f.station:.2f}":
+                self.etabs_tree.item(item, tags=("worst",))
+                self.etabs_tree.see(item)
+                break
+        n_ng = sum(1 for _, r in rows if r["dc"] > 1)
+        dt = time.time() - t0
+        self.etabs_info.set(
+            f"Xong {len(rows)} tổ hợp trong {dt:.1f}s — "
+            f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
+            f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
+        # hiện thuyết minh của tổ hợp nguy hiểm nhất
+        inp_w = self.collect()
+        inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
+        res_w = check_column(inp_w, n_angles=24)
+        self._render_report(generate_report(inp_w, res_w))
+        self.result_var.set(
+            f"Tổ hợp nguy hiểm nhất: {worst_f.case} — "
+            f"{'KHÔNG ĐẠT ✗' if worst_r['dc'] > 1 else 'ĐẠT ✓'} "
+            f"(D/C = {worst_r['dc']:.3f})")
 
     def _render_report(self, segs):
         """Hiển thị thuyết minh với format VietconSoft."""
