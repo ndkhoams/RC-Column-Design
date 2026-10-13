@@ -935,10 +935,8 @@ class App(tk.Tk):
         """
         if not HAS_MPL or self._last_sec is None:
             return
-        import matplotlib.pyplot as plt
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
         kind = self.cb_plot.get()
-        self.fig.clear()
         from rc_column.pdf_export import draw_section_ax, _radial_limit
         from rc_column.interaction import (BiaxialCapacity, FiberSection,
                                            uniaxial_curve_fs)
@@ -946,10 +944,13 @@ class App(tk.Tk):
 
         def _nm_ax(ax, th, lab, Ms, Nv, title_sz=12):
             cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-            ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
+            # Lấy giá trị tuyệt đối các điểm trên đường cong để đối xứng
+            cv_pos = [(n, abs(m)) for n, m in cv]
+            ax.plot([p[1] for p in cv_pos], [p[0] for p in cv_pos], "b-",
                     linewidth=1.5)
-            lim = _radial_limit(cv, Nv, Ms)
-            ax.scatter([Ms], [Nv], c="red", s=90, zorder=5,
+            Ms_abs = abs(Ms)
+            lim = _radial_limit(cv_pos, Nv, Ms_abs)
+            ax.scatter([Ms_abs], [Nv], c="red", s=90, zorder=5,
                        label="Điểm tải trọng")
             if lim:
                 ax.scatter([lim[1]], [lim[0]], c="orange", s=90,
@@ -960,24 +961,29 @@ class App(tk.Tk):
             ax.legend(fontsize=9)
             ax.grid(True, alpha=0.3)
 
+        # Xóa triệt để axes cũ (tránh sót khi đổi loại biểu đồ)
+        for ax in list(self.fig.axes):
+            self.fig.delaxes(ax)
         if kind.startswith("N-M"):
             # Mặt cắt trên, 2 biểu đồ lớn cạnh nhau dưới
             self.fig.set_size_inches(7.0, 8.5)
-            a1 = plt.subplot2grid((5, 2), (0, 0), colspan=2, fig=self.fig)
+            gs = self.fig.add_gridspec(5, 2)
+            a1 = self.fig.add_subplot(gs[0, :])
             draw_section_ax(a1, sec)
             a1.set_title("Sơ đồ mặt cắt", fontsize=12)
             a1.grid(True, alpha=0.3)
-            a2 = plt.subplot2grid((5, 2), (1, 0), rowspan=4, fig=self.fig)
+            a2 = self.fig.add_subplot(gs[1:, 0])
             _nm_ax(a2, 0, "N-M2", inp.Mx, inp.N)
-            a3 = plt.subplot2grid((5, 2), (1, 1), rowspan=4, fig=self.fig)
+            a3 = self.fig.add_subplot(gs[1:, 1])
             _nm_ax(a3, 90, "N-M3", inp.My, inp.N)
         elif kind.startswith("M2-M3"):
             self.fig.set_size_inches(7.0, 8.5)
-            a1 = plt.subplot2grid((5, 1), (0, 0), fig=self.fig)
+            gs = self.fig.add_gridspec(5, 1)
+            a1 = self.fig.add_subplot(gs[0, 0])
             draw_section_ax(a1, sec)
             a1.set_title("Sơ đồ mặt cắt", fontsize=12)
             a1.grid(True, alpha=0.3)
-            a2 = plt.subplot2grid((5, 1), (1, 0), rowspan=4, fig=self.fig)
+            a2 = self.fig.add_subplot(gs[1:, 0])
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             pts = cap.mx_my_curve(inp.N)
             a2.plot([p[0] for p in pts], [p[1] for p in pts], "b-",
@@ -993,12 +999,12 @@ class App(tk.Tk):
         else:  # 3D
             from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
             self.fig.set_size_inches(7.0, 8.5)
-            a1 = plt.subplot2grid((5, 1), (0, 0), fig=self.fig)
+            gs = self.fig.add_gridspec(5, 1)
+            a1 = self.fig.add_subplot(gs[0, 0])
             draw_section_ax(a1, sec)
             a1.set_title("Sơ đồ mặt cắt", fontsize=12)
             a1.grid(True, alpha=0.3)
-            a2 = plt.subplot2grid((5, 1), (1, 0), rowspan=4, fig=self.fig,
-                                  projection="3d")
+            a2 = self.fig.add_subplot(gs[1:, 0], projection="3d")
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
             import numpy as np
