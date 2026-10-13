@@ -392,13 +392,18 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None):
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
 
+    # Gộp text mục 2+3 để hiển thị chung với ảnh bên phải
+    flows_2 = cvt(sections[2]["segs"]) if 2 in sections else []
+    flows_3 = cvt(sections[3]["segs"]) if 3 in sections else []
+    flows_23 = flows_2 + flows_3
+
     for num in sorted(sections.keys()):
         info = sections[num]
         flows = cvt(info["segs"])
         if num == 2 and img_side.get(2) is not None:
-            # Mục 2: text trái, hình phải
+            # Mục 2+3: text 2 mục bên trái, hình mặt cắt bên phải
             right_col = [img_side[2], P(captions[2], st_cap)]
-            tbl = Table([[flows, right_col]],
+            tbl = Table([[flows_23, right_col]],
                         colWidths=[108*mm, 68*mm])
             tbl.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -408,6 +413,9 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None):
             ]))
             S.append(KeepTogether(tbl))
             S.append(Spacer(1, 1))
+        elif num == 3:
+            # Đã gộp vào mục 2, bỏ qua
+            continue
         elif num == 6 and img_m6:
             from reportlab.platypus import PageBreak
             S.append(PageBreak())
