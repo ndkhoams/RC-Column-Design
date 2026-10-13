@@ -191,23 +191,45 @@ def _build_report(inp: ColumnInput, res: CheckResult,
         A("  ✗ KHÔNG ĐẠT — D/C > 1.000", "ng")
     b.nl(2)
 
-    # --- Mục 7: Kiểm tra cấu tạo cốt đai (TCVN 5574:2018 10.3.4) ---
-    from .stirrup import StirrupInput, check_stirrup
+    # --- Mục 7: Kiểm tra cốt thép đai (TCVN 5574:2018 10.3.4 & 8.1.3) ---
+    from .stirrup import StirrupInput, check_stirrup, check_shear
+    import math as _m
     stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
                            legs=inp.sw_legs)
     stir_res = check_stirrup(sec, stir_in, inp.concrete_grade)
-    b.section(7, "KIỂM TRA CẤU TẠO CỐT THÉP ĐAI",
-              "TCVN 5574:2018 Mục 10.3.4")
+    b.section(7, "KIỂM TRA CỐT THÉP ĐAI",
+              "TCVN 5574:2018 Mục 10.3.4 & 8.1.3")
     A(f"  ▪ Cốt đai: φ{stir_in.dia:.0f}, bước s = {stir_in.spacing:.0f} mm, "
       f"{stir_in.legs} nhánh\n", "card")
+    A("  — Cấu tạo (10.3.4):\n", "card")
     for chk in stir_res.checks:
         mark = "✓" if chk.ok else "✗"
         A(f"  {mark} {chk.item}: yêu cầu {chk.required}, "
           f"chọn {chk.provided}\n", "card")
-    if stir_res.ok:
-        A("  ✓ ĐẠT — Cấu tạo cốt đai thỏa TCVN 5574:2018", "ok")
+    # — Chịu cắt (8.1.3): Q ≤ Qb + Qsw
+    A("  — Chịu cắt (8.1.3): Q ≤ Qb + Qsw\n", "card")
+    Rbt = conc.Rbt
+    Rsw = steel.Rs
+    Asw_1 = _m.pi * stir_in.dia ** 2 / 4  # 1 nhánh
+    # Phương 2: b = t3 (cx), h0 = t2 - cover - sw_dia - bar_dia/2
+    h0_2 = sec.cy - inp.cover - stir_in.dia - inp.bar_dia / 2
+    # Phương 3: b = t2 (cy), h0 = t3 - cover - sw_dia - bar_dia/2
+    h0_3 = sec.cx - inp.cover - stir_in.dia - inp.bar_dia / 2
+    shear_ok = True
+    for Q, b_w, h0, dnum in ((inp.Q2, sec.cx, h0_2, "2"),
+                             (inp.Q3, sec.cy, h0_3, "3")):
+        Asw = Asw_1 * stir_in.legs
+        sh = check_shear(Q, b_w, max(h0, 1), Rbt, Asw, Rsw,
+                         stir_in.spacing, direction=dnum)
+        mark = "✓" if sh.ok else "✗"
+        A(f"  {mark} Phương {dnum}: Q = {_f(Q, 1)} kN ≤ "
+          f"Qb + Qsw = {_f(sh.Qb, 1)} + {_f(sh.Qsw, 1)} = "
+          f"{_f(sh.Qb + sh.Qsw, 1)} kN\n", "card")
+        shear_ok &= sh.ok
+    if stir_res.ok and shear_ok:
+        A("  ✓ ĐẠT — Cốt đai thỏa TCVN 5574:2018", "ok")
     else:
-        A("  ✗ KHÔNG ĐẠT — Xem lại cấu tạo cốt đai", "ng")
+        A("  ✗ KHÔNG ĐẠT — Xem lại cốt đai", "ng")
     b.nl(2)
     return b
 
