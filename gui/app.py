@@ -1185,8 +1185,10 @@ class App(tk.Tk):
                     if _sec_fig is not None:
                         _sec_png = os.path.join(
                             tempfile.gettempdir(), "_sec_app.png")
-                        # Không dùng bbox_inches tight để giữ đúng tỉ lệ
-                        _sec_fig.savefig(_sec_png, dpi=150)
+                        # Tight sát nội dung, giữ đúng tỉ lệ
+                        _sec_fig.savefig(_sec_png, dpi=150,
+                                         bbox_inches="tight",
+                                         pad_inches=0.05)
                 except Exception:
                     _sec_png = None
                 export_summary_pdf(self._last_sec, self._last_inp,
