@@ -84,3 +84,68 @@ def magnified_moment(M: float, N: float, L0: float, EI: float) -> float:
     if abs(N) >= 0.9 * Ncr:
         return M * 10.0  # mất ổn định
     return M / (1.0 - abs(N) / Ncr)
+
+
+# ---------------------------------------------------------------------------
+# Độ lệch tâm & hiệu ứng uốn dọc (TCVN 5574:2018 Mục 8.1.2)
+# ---------------------------------------------------------------------------
+@dataclass
+class EccentricityResult:
+    e1x: float; e1y: float      # độ lệch tâm tĩnh học (mm)
+    eax: float; eay: float      # độ lệch tâm ngẫu nhiên (mm)
+    e0x: float; e0y: float      # độ lệch tâm ban đầu (mm)
+
+
+def eccentricities(N: float, Mx: float, My: float,
+                   Lx: float, Ly: float, cx: float, cy: float) -> EccentricityResult:
+    """Độ lệch tâm theo Mục 8.1.2.2.4.
+
+    N (kN), M (kN·m), L (m), c (mm). Trả về mm.
+    e1x = |My|/N; e1y = |Mx|/N
+    ea = max(L/600, c/30, 10mm)
+    e0 = max(e1, ea)
+    """
+    e1x = abs(My) * 1e6 / max(abs(N) * 1000.0, 1e-12) if abs(N) > 1e-12 else 0.0
+    e1y = abs(Mx) * 1e6 / max(abs(N) * 1000.0, 1e-12) if abs(N) > 1e-12 else 0.0
+    eax = max(Lx * 1000.0 / 600.0, cx / 30.0, 10.0)
+    eay = max(Ly * 1000.0 / 600.0, cy / 30.0, 10.0)
+    return EccentricityResult(e1x, e1y, eax, eay,
+                              max(e1x, eax), max(e1y, eay))
+
+
+@dataclass
+class BucklingResult:
+    delta_ex: float; delta_ey: float  # độ lệch tâm tương đối
+    kbx: float; kby: float            # hệ số độ cứng bê tông
+    Dx: float; Dy: float              # độ cứng chống uốn (kN·m²)
+    Ncrx: float; Ncry: float          # lực tới hạn Euler (kN)
+    etax: float; etay: float          # hệ số uốn dọc η
+    Mx_star: float; My_star: float    # mô men đã phóng đại (kN·m)
+
+
+def buckling_factors(e0x: float, e0y: float, cx: float, cy: float,
+                     phiL: float, Eb: float, Ix: float, Iy: float,
+                     Isx: float, Isy: float, L0x: float, L0y: float,
+                     N: float, Mx: float, My: float) -> BucklingResult:
+    """Tính hệ số uốn dọc theo CT (44)-(48).
+
+    Eb (MPa), I (mm⁴), L0 (m), N (kN), M (kN·m).
+    δe = e0/h ∈ [0.15, 1.5]; kb = 0.15/[φL·(0.3+δe)]
+    D = kb·Eb·Ib + ks·Es·Is (ks=0.7); Ncr = π²·D/L0²; η = 1/(1-N/Ncr)
+    """
+    # δe: e0y cho phương X (uốn trong mặt phẳng y), e0x cho phương Y
+    d_ex = min(max(e0y / max(cy, 1e-9), 0.15), 1.5)
+    d_ey = min(max(e0x / max(cx, 1e-9), 0.15), 1.5)
+    kbx = 0.15 / (phiL * (0.3 + d_ex))
+    kby = 0.15 / (phiL * (0.3 + d_ey))
+    Es = 2.0e5  # MPa
+    ks = 0.7
+    # Đổi đơn vị: Eb(MPa=N/mm²)·I(mm⁴) = N·mm² → kN·m²: /1e9
+    Dx = (kbx * Eb * Ix + ks * Es * Isx) / 1e9
+    Dy = (kby * Eb * Iy + ks * Es * Isy) / 1e9
+    Ncrx = math.pi ** 2 * Dx / max(L0x, 1e-9) ** 2
+    Ncry = math.pi ** 2 * Dy / max(L0y, 1e-9) ** 2
+    etax = 1.0 / (1.0 - abs(N) / Ncrx) if Ncrx > abs(N) else 10.0
+    etay = 1.0 / (1.0 - abs(N) / Ncry) if Ncry > abs(N) else 10.0
+    return BucklingResult(d_ex, d_ey, kbx, kby, Dx, Dy, Ncrx, Ncry,
+                          etax, etay, etax * Mx, etay * My)
