@@ -1098,9 +1098,9 @@ class App(tk.Tk):
             ax.set_title(f"Biểu đồ N-M (α = {alpha_deg:.1f}°)",
                          fontsize=title_sz)
             ax.legend(fontsize=8, loc="upper center",
-                      bbox_to_anchor=(0.5, -0.20), ncol=2)
+                      bbox_to_anchor=(0.5, -0.16), ncol=2)
             ax.grid(True, alpha=0.3)
-            ax.text(0.5, -0.38, f"Tỉ số an toàn FS = {res.fs:.2f}",
+            ax.text(0.5, -0.42, f"Tỉ số an toàn FS = {res.fs:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
@@ -1138,10 +1138,10 @@ class App(tk.Tk):
             ax.set_ylabel("M3 (kN·m)")
             ax.set_title(f"M2-M3 (tại N = {res.N:.0f} kN)", fontsize=12)
             ax.legend(fontsize=8, loc="upper center",
-                      bbox_to_anchor=(0.5, -0.20), ncol=2)
+                      bbox_to_anchor=(0.5, -0.16), ncol=2)
             ax.grid(True, alpha=0.3)
             ax.set_aspect("equal", adjustable="datalim")
-            ax.text(0.5, -0.38, f"Tỉ số an toàn FS = {res.fs:.2f}",
+            ax.text(0.5, -0.42, f"Tỉ số an toàn FS = {res.fs:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
@@ -1167,7 +1167,7 @@ class App(tk.Tk):
             _m2m3_ax(a3)
         self.fig.tight_layout()
         # Chừa chỗ dưới cho legend + dòng "Tỉ số an toàn"
-        self.fig.subplots_adjust(bottom=0.22)
+        self.fig.subplots_adjust(bottom=0.30)
         self.mpl.draw()
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
