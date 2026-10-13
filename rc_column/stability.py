@@ -47,11 +47,19 @@ BOUNDARY_NAMES = {
     "ngam_han_che": "Ngàm di động hạn chế",
 }
 
+# Alias tương thích ngược: "ngam" cũ -> "ngam_cung"
+BOUNDARY_ALIASES = {"ngam": "ngam_cung"}
+
+
+def _norm_bkey(k: str) -> str:
+    return BOUNDARY_ALIASES.get(k, k)
+
 
 def effective_length(L: float, top: str, bottom: str, psi: float = None) -> float:
     """Chiều dài tính toán L0 (m). Ưu tiên psi do người dùng nhập."""
     if psi is not None and psi > 0:
         return psi * L
+    top, bottom = _norm_bkey(top), _norm_bkey(bottom)
     key = (top, bottom)
     p = PSI_TABLE.get(key, PSI_TABLE.get((bottom, top), 1.0))
     return p * L
