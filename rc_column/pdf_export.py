@@ -33,7 +33,10 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
     import matplotlib.patches as mpatches
     from matplotlib.lines import Line2D
     cx, cy = sec.cx, sec.cy
-    L1, L2 = "#DC2626", "#16A34A"  # đỏ: lớp 1, xanh lá: lớp 2
+    # Palette màu theo đường kính (phân biệt rõ khi nhiều loại thép)
+    DIA_COLORS = ["#DC2626", "#2563EB", "#16A34A", "#9333EA",
+                  "#EA580C", "#0891B2", "#BE123C", "#65A30D"]
+    L2_COLOR = "#16A34A"  # lớp 2 luôn xanh lá
 
     # Nền lưới ô vuông nhạt
     ax.set_axisbelow(True)
@@ -52,9 +55,13 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
     for r in sec.rebars:
         groups.setdefault((r.layer, r.dia), []).append(r)
     legend_handles = []
+    # Map dia -> màu (lớp 1); lớp 2 dùng xanh lá
+    dias_l1 = sorted(set(d for (ly, d) in groups if ly == 1), reverse=True)
+    dia_color = {d: DIA_COLORS[i % len(DIA_COLORS)]
+                 for i, d in enumerate(dias_l1)}
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
-        color = L1 if layer == 1 else L2
+        color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
         ax.scatter([p.x for p in pts], [p.y for p in pts],
                    s=max(12.0, 0.15 * dia * dia), c=color, zorder=4,
                    edgecolors="white", linewidths=0.8)
