@@ -123,9 +123,9 @@ class App(tk.Tk):
         plot_bar.pack(fill=tk.X, padx=4, pady=2)
         ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
         self.cb_plot = ttk.Combobox(plot_bar, state="readonly", width=28,
-                                    values=["N-M (2 phương)", "M2-M3 (tại N)",
+                                    values=["3D + N-M (góc α)", "M2-M3 (tại N)",
                                             "3D (N-M2-M3)"])
-        self.cb_plot.set("N-M (2 phương)")
+        self.cb_plot.set("3D + N-M (góc α)")
         self.cb_plot.pack(side=tk.LEFT, padx=4)
         self.cb_plot.bind("<<ComboboxSelected>>", lambda e: self._redraw())
         if HAS_MPL:
@@ -826,8 +826,10 @@ class App(tk.Tk):
             except Exception:
                 pass
             try:
-                from rc_column.pdf_export import interaction_images
-                img_m6 = interaction_images(sec, inp, res, small=True)
+                from rc_column.pdf_export import (surface_3d_image,
+                                                  interaction_image)
+                img_m6 = (surface_3d_image(sec, inp, res),
+                          interaction_image(sec, inp, res, small=True))
             except Exception:
                 pass
 
@@ -885,7 +887,7 @@ class App(tk.Tk):
         t.insert(tk.END, "\n\n")
 
     def _insert_charts_fullwidth(self, num, info, pngs: tuple):
-        """Mục 6: text full-width, 2 biểu đồ lớn cạnh nhau bên dưới."""
+        """Mục 6: text full-width, 3D trái + N-M(α) phải bên dưới."""
         import base64
         from tkinter import PhotoImage
         t = self.calc_text
@@ -893,10 +895,11 @@ class App(tk.Tk):
         for text, tags in info["segs"]:
             t.insert(tk.END, text, tags if tags else ())
         t.insert(tk.END, "\n")
-        # Khung 2 biểu đồ cạnh nhau
+        # Khung 2 biểu đồ cạnh nhau: 3D trái, N-M(α) phải
         frame = tk.Frame(t, bg="white")
         for i, (png, cap) in enumerate(
-                zip(pngs, ["Biểu đồ N-M2", "Biểu đồ N-M3"])):
+                zip(pngs, ["Mặt tương tác 3D N-M2-M3",
+                           "Biểu đồ N-M (góc α)"])):
             b64 = base64.b64encode(png).decode("ascii")
             img = PhotoImage(data=b64)
             self._report_images.append(img)
@@ -909,7 +912,8 @@ class App(tk.Tk):
         self._bind_wheel_to_calc(frame)
         t.window_create(tk.END, window=frame)
         t.insert(tk.END, "\n")
-        t.insert(tk.END, "Hình 2. Biểu đồ tương tác N-M2 và N-M3\n",
+        t.insert(tk.END,
+                 "Hình 2. Mặt tương tác 3D và biểu đồ N-M (góc α)\n",
                  "sec_ref")
         t.insert(tk.END, "\n")
 
@@ -935,6 +939,7 @@ class App(tk.Tk):
         """
         if not HAS_MPL or self._last_sec is None:
             return
+        import math
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
         kind = self.cb_plot.get()
         # Tạo Figure mới hoàn toàn mỗi lần vẽ -> không bao giờ sót axes cũ
@@ -950,43 +955,59 @@ class App(tk.Tk):
                                            uniaxial_curve_fs)
         fs = FiberSection(sec)
 
-        def _nm_ax(ax, th, lab, Ms, Nv, lim, fs_val, title_sz=12):
-            # lim: điểm B song trục chiếu lên mặt phẳng (N, M)
-            cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-            # Đường cong full từ -Mmax đến +Mmax (đối xứng qua trục N)
+        def _nm_alpha_ax(ax, title_sz=12):
+            # Biểu đồ N-M tại góc uốn xiên α (dùng điểm B song trục)
+            alpha_deg = math.degrees(
+                math.atan2(res.My_star, res.Mx_star))
+            cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
             ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
                     linewidth=1.5)
             ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-",
                     linewidth=1.5)
-            ax.scatter([Ms], [Nv], c="red", s=90, zorder=5,
+            Ma = math.hypot(res.Mx_star, res.My_star)
+            Mb = math.hypot(res.Bx, res.By)
+            lim = (res.BN, Mb)
+            ax.scatter([Ma], [res.N], c="red", s=90, zorder=5,
                        label="Điểm tải trọng")
-            if lim:
-                ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
-                ax.scatter([lim[1]], [lim[0]], c="orange", s=90,
-                           zorder=5, label="Giới hạn")
+            ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
+            ax.scatter([lim[1]], [lim[0]], c="orange", s=90,
+                       zorder=5, label="Giới hạn")
             ax.set_xlabel("M (kN·m)")
             ax.set_ylabel("N (kN)")
-            ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=title_sz)
+            ax.set_title(f"Biểu đồ N-M (α = {alpha_deg:.1f}°)",
+                         fontsize=title_sz)
             ax.legend(fontsize=9)
             ax.grid(True, alpha=0.3)
-            ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {fs_val:.2f}",
+            ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {res.fs:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
-        if kind.startswith("N-M"):
-            # Mặt cắt lớn trên, 2 biểu đồ cạnh nhau dưới
+        if kind.startswith("3D +"):
+            # Mặt cắt trên, dưới: 3D trái + N-M(α) phải
+            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+            import numpy as np
             self.fig.set_size_inches(7.0, 8.5)
             gs = self.fig.add_gridspec(5, 2)
             a1 = self.fig.add_subplot(gs[0:2, :])
             draw_section_ax(a1, sec)
             a1.set_title("Sơ đồ mặt cắt", fontsize=13)
             a1.grid(True, alpha=0.3)
-            a2 = self.fig.add_subplot(gs[2:, 0])
-            _nm_ax(a2, 0, "N-M2", res.Mx_star, res.N,
-                   (res.BN, res.Bx), res.fs)
+            # 3D bên trái
+            a2 = self.fig.add_subplot(gs[2:, 0], projection="3d")
+            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+            n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
+            N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
+            a2.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
+                            edgecolor="none")
+            a2.scatter([res.Mx_star], [res.My_star], [res.N], c="red", s=70,
+                       label="Điểm tải trọng")
+            a2.set_xlabel("M2 (kN·m)")
+            a2.set_ylabel("M3 (kN·m)")
+            a2.set_zlabel("N (kN)")
+            a2.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
+            # N-M(α) bên phải
             a3 = self.fig.add_subplot(gs[2:, 1])
-            _nm_ax(a3, 90, "N-M3", res.My_star, res.N,
-                   (res.BN, res.By), res.fs)
+            _nm_alpha_ax(a3)
         elif kind.startswith("M2-M3"):
             self.fig.set_size_inches(7.0, 8.5)
             gs = self.fig.add_gridspec(5, 1)
