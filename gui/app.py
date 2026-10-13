@@ -13,7 +13,7 @@ from tkinter import ttk, messagebox
 
 from rc_column.checker import ColumnInput, build_section, check_column
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
-from rc_column.report import generate_report
+from rc_column.report import generate_report, generate_report_sections
 from rc_column.sections import clear_spacing
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
 
@@ -435,8 +435,8 @@ class App(tk.Tk):
         sec = build_section(inp)
         self._show_summary(sec, inp, res)
         # Thuyết minh (có format màu sắc) + nhúng hình
-        self._render_report(generate_report(inp, res))
-        self._embed_report_images(sec, inp, res)
+        self._render_report_sections(generate_report_sections(inp, res),
+                                      sec, inp, res)
         self._pdf_inp, self._pdf_res = inp, res
 
     # ---------------- ETABS ----------------
@@ -519,8 +519,8 @@ class App(tk.Tk):
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
         res_w = check_column(inp_w, n_angles=24)
         sec_w = build_section(inp_w)
-        self._render_report(generate_report(inp_w, res_w))
-        self._embed_report_images(sec_w, inp_w, res_w)
+        self._render_report_sections(generate_report_sections(inp_w, res_w),
+                                      sec_w, inp_w, res_w)
         self._pdf_inp, self._pdf_res = inp_w, res_w
         # cập nhật cả tab Tóm tắt + biểu đồ cho tổ hợp nguy hiểm nhất
         self._show_summary(sec_w, inp_w, res_w,
@@ -577,10 +577,16 @@ class App(tk.Tk):
             messagebox.showerror("Lỗi xuất PDF", str(ex))
 
     def _render_report(self, segs):
-        """Hiển thị thuyết minh với format VietconSoft."""
+        """Hiển thị thuyết minh với format VietconSoft (giữ để tương thích)."""
         t = self.calc_text
         t.delete("1.0", tk.END)
-        # Định nghĩa tags (màu sắc theo Tailwind của web mẫu)
+        self._setup_report_tags(t)
+        for text, tags in segs:
+            t.insert(tk.END, text, tags if tags else ())
+        self._report_images = []
+
+    def _setup_report_tags(self, t):
+        """Định nghĩa tags màu sắc theo Tailwind của web mẫu."""
         t.tag_configure("title", font=("", 13, "bold"),
                         foreground="#0f172a")
         t.tag_configure("sec_title", font=("", 11, "bold"),
@@ -601,46 +607,91 @@ class App(tk.Tk):
         t.tag_configure("ng", font=("", 12, "bold"),
                         foreground="#991b1b", background="#fee2e2",
                         borderwidth=1, relief="solid")
-        for text, tags in segs:
-            t.insert(tk.END, text, tags if tags else ())
-        # Nhúng hình sau khi có text (gọi từ on_check)
-        self._report_images = []
 
-    def _embed_report_images(self, sec, inp, res):
-        """Chèn preview mặt cắt (mục 2) và biểu đồ tương tác (mục 6)."""
-        if not HAS_MPL:
-            return
+    def _render_report_sections(self, sections, sec, inp, res):
+        """Hiển thị thuyết minh theo từng mục; mục 2 & 6: text trái, hình phải."""
         import base64
         from tkinter import PhotoImage
         from rc_column.pdf_export import section_image, interaction_image
         t = self.calc_text
+        t.delete("1.0", tk.END)
+        self._setup_report_tags(t)
         self._report_images = []
+        self._report_frames = []  # giữ tham chiếu frame nhúng
 
-        def _insert_after(marker: str, png: bytes, caption: str):
-            idx = t.search(marker, "1.0", tk.END)
-            if not idx:
-                return
-            # xuống cuối dòng chứa marker
-            line_end = t.index(f"{idx} lineend")
-            # tìm vị trí sau khối text của mục (trước mục kế tiếp) - đơn giản: chèn ngay sau dòng
-            b64 = base64.b64encode(png).decode("ascii")
-            img = PhotoImage(data=b64)
-            self._report_images.append(img)  # giữ tham chiếu
-            t.insert(f"{line_end} + 1 line", f"\n{caption}\n")
-            t.image_create(f"{line_end} + 2 lines", image=img)
-            t.insert(f"{line_end} + 3 lines", "\n")
+        # Tiêu đề chung (nằm ngoài sections)
+        t.insert(tk.END, "THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT\n",
+                 "title")
+        t.insert(tk.END,
+                 "Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
+                 "(Điều 8.1.2.7)\n\n", "sec_ref")
 
-        try:
-            _insert_after("2. ĐẶC TRƯNG HÌNH HỌC", section_image(sec),
-                          "Hình 1. Mặt cắt cột và bố trí cốt thép")
-        except Exception:
-            pass
-        try:
-            _insert_after("6. KIỂM TRA THEO MÔ HÌNH",
-                          interaction_image(sec, inp, res),
-                          "Hình 2. Biểu đồ tương tác N-M")
-        except Exception:
-            pass
+        # Ảnh nhỏ cho bố cục side-by-side
+        img_map = {}
+        if HAS_MPL:
+            try:
+                img_map[2] = section_image(sec, small=True)
+            except Exception:
+                pass
+            try:
+                img_map[6] = interaction_image(sec, inp, res, small=True)
+            except Exception:
+                pass
+
+        for num in sorted(sections.keys()):
+            info = sections[num]
+            png = img_map.get(num)
+            if png and num in (2, 6):
+                self._insert_side_by_side(num, info, png)
+            else:
+                # Hiển thị text thường
+                for text, tags in info["segs"]:
+                    t.insert(tk.END, text, tags if tags else ())
+        # Phần kết quả cuối (nằm sau mục 6 trong flat segs)
+        # -> lấy từ generate_report để đảm bảo đầy đủ
+        from rc_column.report import generate_report, generate_report_sections
+        flat = generate_report(inp, res)
+        # Tìm vị trí sau mục 6: chèn phần còn lại (D/C, badge)
+        # Đơn giản: tìm segment có tag 'dc'/'ok'/'ng' chưa được chèn
+        # (vì sections đã bao gồm hết, ta chỉ cần đảm bảo không trùng)
+        # Thực tế build_sections đã bao gồm toàn bộ -> không cần thêm
+
+    def _insert_side_by_side(self, num, info, png: bytes):
+        """Chèn mục text-trái hình-phải vào Text widget."""
+        import base64
+        from tkinter import PhotoImage
+        t = self.calc_text
+        captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép",
+                    6: "Hình 2. Biểu đồ tương tác N-M"}
+        # Frame chứa 2 cột
+        frame = tk.Frame(t, bg="white")
+        # Cột trái: text
+        left_txt = tk.Text(frame, wrap=tk.WORD, font=("", 10),
+                           bg="white", relief=tk.FLAT, height=14, width=52)
+        self._setup_report_tags(left_txt)
+        for text, tags in info["segs"]:
+            left_txt.insert(tk.END, text, tags if tags else ())
+        left_txt.configure(state=tk.DISABLED)
+        left_txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
+                      padx=(0, 8), anchor=tk.N)
+        # Cột phải: hình
+        b64 = base64.b64encode(png).decode("ascii")
+        img = PhotoImage(data=b64)
+        self._report_images.append(img)
+        right = tk.Frame(frame, bg="white")
+        tk.Label(right, image=img, bg="white").pack()
+        tk.Label(right, text=captions.get(num, ""), font=("", 8),
+                 fg="#64748b", bg="white", wraplength=280).pack()
+        right.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 4))
+        self._report_frames.append(frame)
+        t.insert(tk.END, "\n")
+        t.window_create(tk.END, window=frame)
+        t.insert(tk.END, "\n\n")
+
+    def _embed_report_images(self, sec, inp, res):
+        """(Không dùng nữa — giữ để tương thích, logic đã chuyển vào
+        _render_report_sections.)"""
+        pass
 
     def _redraw(self):
         """Vẽ lại theo loại biểu đồ đang chọn."""
