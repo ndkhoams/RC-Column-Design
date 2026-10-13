@@ -175,9 +175,8 @@ def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
       f"{_f(res.BN, 1)}) trên mặt tương tác\n", "card")
     A(f"  ▪ Góc uốn xiên α = {_f(alpha, 1)}°, Mα = {_f(Ma, 1)} kN·m\n", "card")
     b.nl()
-    A("  TỶ SỐ SỬ DỤNG (D/C) = ", "result")
-    A(f"{_f(res.dc, 3)}", "dc")
-    A(f"  (FS = {_f(res.fs, 2)})\n", "dc")
+    A(f"  TỶ SỐ SỬ DỤNG (D/C) = {_f(res.dc, 3)}  "
+      f"(FS = {_f(res.fs, 2)})\n", "dc")
     b.nl()
     if res.ok:
         A("  ✓ ĐẠT — D/C ≤ 1.000", "ok")
