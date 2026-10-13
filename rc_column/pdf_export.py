@@ -767,7 +767,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
         [img_sec],
-        [Spacer(1, 15 * mm)],
+        [Spacer(1, 40 * mm)],
         [t_box],
     ]
     _left_tbl = Table(_left_content, colWidths=[80 * mm])
