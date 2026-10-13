@@ -166,11 +166,12 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=4)
         ttk.Label(hdr, textvariable=self.result_var,
                   font=("", 12, "bold")).pack(side=tk.LEFT, expand=True)
-        ttk.Button(hdr, text="🖨️ In tóm tắt",
-                   command=self._print_summary).pack(side=tk.RIGHT, padx=4)
+        ttk.Button(hdr, text="📄 XUẤT PDF",
+                   command=self._export_pdf).pack(side=tk.RIGHT, padx=4)
 
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        self.nb = nb
         self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text="Tóm tắt")
         self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text="Thuyết minh tính toán")
 
@@ -1113,28 +1114,38 @@ class App(tk.Tk):
             f"{'KHÔNG ĐẠT ✗' if worst_r['dc'] > 1 else 'ĐẠT ✓'} "
             f"(D/C = {worst_r['dc']:.3f})")
 
-    def _print_summary(self):
-        """In tab Tóm tắt ra PDF khổ A4 (định dạng đẹp)."""
+    def _export_pdf(self):
+        """Xuất PDF theo tab đang mở: Tóm tắt hoặc Thuyết minh."""
         try:
             from tkinter import filedialog, messagebox
             if self._last_sec is None:
-                messagebox.showwarning("In tóm tắt",
-                                       "Chưa có kết quả để in.")
+                messagebox.showwarning("Xuất PDF",
+                                       "Chưa có kết quả để xuất.")
                 return
+            # Tab đang chọn
+            cur = self.nb.select()
+            is_summary = (cur == str(self.tab_sum))
             path = filedialog.asksaveasfilename(
-                title="In tóm tắt",
+                title="Xuất PDF",
                 defaultextension=".pdf",
                 filetypes=[("PDF", "*.pdf")],
-                initialfile="TomTat.pdf")
+                initialfile="TomTat.pdf" if is_summary else "ThuyetMinh.pdf")
             if not path:
                 return
-            from rc_column.pdf_export import export_summary_pdf
-            export_summary_pdf(self._last_sec, self._last_inp,
-                               self._last_res, path)
-            messagebox.showinfo("In tóm tắt", f"Đã xuất: {path}")
+            if is_summary:
+                from rc_column.pdf_export import export_summary_pdf
+                export_summary_pdf(self._last_sec, self._last_inp,
+                                   self._last_res, path)
+            else:
+                from rc_column.pdf_export import export_pdf
+                export_pdf(self._last_inp, self._last_res, path,
+                           batch_rows=getattr(self, "_pdf_batch", None),
+                           case_info=getattr(self, "_pdf_case", None),
+                           shear_info=getattr(self, "_pdf_shear", None))
+            messagebox.showinfo("Xuất PDF", f"Đã xuất: {path}")
         except Exception as e:
             from tkinter import messagebox
-            messagebox.showerror("Lỗi", f"Không in được: {e}")
+            messagebox.showerror("Lỗi", f"Không xuất được: {e}")
 
     def _show_summary(self, sec, inp, res, prefix=""):
         """Cập nhật biểu đồ + L0 (ô text tóm tắt đã bỏ theo yêu cầu)."""
