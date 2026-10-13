@@ -150,11 +150,6 @@ class App(tk.Tk):
             sum_canvas.itemconfig(1, width=e.width)
         sum_canvas.bind("<Configure>", _sum_width)
 
-        # Layout 2x2 cố định: không còn dropdown chọn biểu đồ
-        if HAS_MPL:
-            self.fig = Figure(figsize=(6.5, 8.0), dpi=100)
-            self.mpl = FigureCanvasTkAgg(self.fig, master=self._sum_inner)
-            self.mpl.get_tk_widget().pack(fill=tk.X)
         # cuộn chuột cho tab Tóm tắt (đệ quy, trừ combobox đang mở)
         self._bind_wheel(self._sum_inner, self._sum_canvas)
         # lưu để vẽ lại khi đổi loại
@@ -804,7 +799,7 @@ class App(tk.Tk):
         self._live_update_section(sec, inp)
 
     def _live_update_section(self, sec, inp):
-        """Vẽ lại sơ đồ mặt cắt + bảng tổng hợp khi đổi nhập liệu."""
+        """Vẽ lại sơ đồ mặt cắt + thẻ thống kê khi đổi nhập liệu."""
         ax1 = getattr(self, "_sec_ax", None)
         if ax1 is None:
             return
@@ -812,67 +807,17 @@ class App(tk.Tk):
             from rc_column.pdf_export import draw_section_ax
             ax1.clear()
             draw_section_ax(ax1, sec, show_stats=False)
-            ax2 = getattr(self, "_sumtab_ax", None)
-            fn = getattr(self, "_sumtab_fn", None)
-            if ax2 is not None and fn is not None:
-                # Vẽ lại bảng với sec mới: cần closure mới
-                # Đơn giản: clear và gọi lại với sec hiện tại
-                ax2.clear()
-                # Tạo hàm wrapper với sec mới
-                import types
-                # fn là closure, ta tạo lại bằng cách lưu sec vào
-                self._redraw_summary_table(ax2, sec, inp)
-            self.mpl.draw_idle()
+            self._sec_fig.tight_layout()
+            self._sec_canvas.draw_idle()
+            # Cập nhật text các thẻ thống kê
+            varmap = getattr(self, "_sec_card_vars", None)
+            if varmap:
+                vals = self._section_card_values(sec)
+                for k, var in varmap.items():
+                    if k in vals:
+                        var.set(vals[k])
         except Exception:
             pass
-
-    def _redraw_summary_table(self, ax, sec, inp):
-        """Vẽ lại bảng tổng hợp mặt cắt với số liệu mới."""
-        import math
-        import matplotlib.pyplot as plt
-        from rc_column.sections import clear_spacing
-        n = len(sec.rebars)
-        ax.set_xlim(0, 10)
-        ax.set_ylim(0, 10)
-        ax.axis("off")
-        # Tính số liệu
-        compo_parts = []
-        from collections import Counter
-        cnt = Counter((r.layer, r.dia) for r in sec.rebars)
-        for (layer, dia) in sorted(cnt, key=lambda k: (k[0], -k[1])):
-            compo_parts.append(f"{cnt[(layer, dia)]}d{dia:.0f}")
-        compo = " + ".join(compo_parts)
-        ccx, ccy = clear_spacing(sec)
-        dias = sorted(set(r.dia for r in sec.rebars))
-        d_avg = sum(dias) / len(dias) if dias else 0
-        # Vẽ 5 thẻ đơn giản
-        cards = [
-            ("Số thanh", f"{n} thanh\n{compo}"),
-            ("Tổng As", f"{sec.steel_area:.0f} mm²"),
-            ("Hàm lượng μ", f"{sec.reinforcement_ratio*100:.2f}%"),
-        ]
-        if math.isfinite(ccx):
-            cards.append(("Khoảng hở thông thủy",
-                         f"t3 = {ccx:.1f} mm\nt2 = {ccy:.1f} mm"))
-            cards.append(("Khoảng cách tim",
-                         f"t3 = {ccx+d_avg:.1f} mm\nt2 = {ccy+d_avg:.1f} mm"))
-        # Layout: 3 thẻ trên, 2 thẻ dưới
-        for i, (title, val) in enumerate(cards):
-            if i < 3:
-                x, y, w, h = 0.5 + i*3.2, 5.5, 2.9, 4.0
-            else:
-                x, y, w, h = 0.5 + (i-3)*4.8, 0.5, 4.5, 4.5
-            from matplotlib.patches import FancyBboxPatch
-            box = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
-                                facecolor="white", edgecolor="#E5E7EB",
-                                linewidth=1.2)
-            ax.add_patch(box)
-            ax.text(x+w/2, y+h-0.7, title, ha="center", va="top",
-                    fontsize=8, color="#6B7280")
-            ax.text(x+w/2, y+h/2-0.3, val, ha="center", va="center",
-                    fontsize=9, weight="bold", color="#111827")
-        ax.set_title("Tổng hợp mặt cắt", fontsize=11, weight="bold",
-                     color="#111827")
 
     def collect(self) -> ColumnInput:
         inp = self._draft_input()
@@ -1555,23 +1500,191 @@ class App(tk.Tk):
         _render_report_sections.)"""
         pass
 
-    def _redraw(self):
-        """Vẽ lại theo loại biểu đồ đang chọn.
+    # ============ Helpers cho tab Tóm tắt (layout 2x2) ============
+    def _section_card_values(self, sec):
+        """Số liệu cho các thẻ thống kê dưới sơ đồ mặt cắt."""
+        import math
+        from collections import Counter
+        from rc_column.sections import clear_spacing
+        n = len(sec.rebars)
+        cnt = Counter((getattr(r, "layer", 1), r.dia) for r in sec.rebars)
+        parts = [f"{cnt[k]}d{k[1]:.0f}"
+                 for k in sorted(cnt, key=lambda k: (k[0], -k[1]))]
+        ccx, ccy = clear_spacing(sec)
+        dias = sorted(set(r.dia for r in sec.rebars))
+        d_avg = sum(dias) / len(dias) if dias else 0.0
+        vals = {
+            "n": f"{n} thanh",
+            "nsub": " + ".join(parts),
+            "as": f"{sec.steel_area:.0f} mm\u00b2",
+            "mu": f"{sec.reinforcement_ratio * 100:.2f}%",
+        }
+        if math.isfinite(ccx):
+            vals["clear"] = f"t3 = {ccx:.1f} mm, t2 = {ccy:.1f} mm"
+            vals["tim"] = (f"t3 = {ccx + d_avg:.1f} mm, "
+                           f"t2 = {ccy + d_avg:.1f} mm")
+        else:
+            vals["clear"] = vals["tim"] = "\u2014"
+        return vals
 
-        Layout: sơ đồ mặt cắt trên, biểu đồ tương tác lớn phía dưới.
-        """
+    def _build_section_cards(self, parent, sec):
+        """3 thẻ TK + 2 thẻ khoảng cách dưới sơ đồ mặt cắt. Trả về dict var."""
+        vals = self._section_card_values(sec)
+        varmap = {}
+
+        def _card(prow, title, vkey, subkey=None):
+            cell = tk.Frame(prow, bg="white",
+                            highlightbackground="#E5E7EB",
+                            highlightthickness=1)
+            cell.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3, pady=2)
+            tk.Label(cell, text=title, font=("", 8), fg="#6B7280",
+                     bg="white").pack(pady=(4, 0))
+            var = tk.StringVar(value=vals[vkey])
+            tk.Label(cell, textvariable=var, font=("", 10, "bold"),
+                     bg="white").pack()
+            varmap[vkey] = var
+            if subkey:
+                svar = tk.StringVar(value=vals[subkey])
+                tk.Label(cell, textvariable=svar, font=("", 8),
+                         fg="#6B7280", bg="white").pack(pady=(0, 4))
+                varmap[subkey] = svar
+            else:
+                tk.Label(cell, text="", font=("", 4),
+                         bg="white").pack()
+
+        row1 = tk.Frame(parent, bg="#F9FAFB")
+        row1.pack(fill=tk.X, padx=2, pady=(2, 1))
+        _card(row1, "S\u1ed1 thanh", "n", "nsub")
+        _card(row1, "T\u1ed5ng As", "as")
+        _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
+        row2 = tk.Frame(parent, bg="#F9FAFB")
+        row2.pack(fill=tk.X, padx=2, pady=(1, 4))
+        _card(row2, "Kho\u1ea3ng h\u1edf gi\u1eefa c\u00e1c b\u00f3",
+              "clear")
+        _card(row2, "Kho\u1ea3ng c\u00e1ch tim gi\u1eefa c\u00e1c b\u00f3",
+              "tim")
+        return varmap
+
+    def _build_param_table(self, parent, inp, res):
+        """B\u1ea3ng th\u00f4ng s\u1ed1 t\u00ednh to\u00e1n (Treeview 3 c\u1ed9t)."""
+        import math
+        ttk.Label(parent, text="B\u1ea3ng th\u00f4ng s\u1ed1 t\u00ednh to\u00e1n",
+                  font=("", 11, "bold")).pack(pady=(2, 6))
+        cols = ("sym", "desc", "val")
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=17)
+        tree.heading("sym", text="K\u00fd hi\u1ec7u")
+        tree.heading("desc", text="Th\u00f4ng s\u1ed1")
+        tree.heading("val", text="Gi\u00e1 tr\u1ecb")
+        tree.column("sym", width=64, anchor="center", stretch=False)
+        tree.column("desc", width=200, anchor="w")
+        tree.column("val", width=150, anchor="e", stretch=False)
+        tree.tag_configure("odd", background="#F9FAFB")
+        tree.tag_configure("dc", background="#D1FAE5")
+        alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+            if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
+        Ma = math.hypot(res.Mx_star, res.My_star)
+        rows = [
+            ("N", "L\u1ef1c d\u1ecdc t\u00ednh to\u00e1n",
+             f"{res.N:+.1f} kN"),
+            ("M2", "M\u00f4 men ban \u0111\u1ea7u ph\u01b0\u01a1ng 2",
+             f"{res.Mx:.1f} kN\u00b7m"),
+            ("M3", "M\u00f4 men ban \u0111\u1ea7u ph\u01b0\u01a1ng 3",
+             f"{res.My:.1f} kN\u00b7m"),
+            ("e02", "\u0110\u1ed9 l\u1ec7ch t\u00e2m ban \u0111\u1ea7u ph\u01b0\u01a1ng 2",
+             f"{res.e0x:.1f} mm"),
+            ("e03", "\u0110\u1ed9 l\u1ec7ch t\u00e2m ban \u0111\u1ea7u ph\u01b0\u01a1ng 3",
+             f"{res.e0y:.1f} mm"),
+            ("\u03bb2", "\u0110\u1ed9 m\u1ea3nh c\u1ed9t ph\u01b0\u01a1ng 2",
+             f"{res.lambda_x:.1f}"),
+            ("\u03bb3", "\u0110\u1ed9 m\u1ea3nh c\u1ed9t ph\u01b0\u01a1ng 3",
+             f"{res.lambda_y:.1f}"),
+            ("Ncr,2", "L\u1ef1c t\u1edbi h\u1ea1n Euler ph\u01b0\u01a1ng 2",
+             f"{res.Ncrx:.1f} kN"),
+            ("Ncr,3", "L\u1ef1c t\u1edbi h\u1ea1n Euler ph\u01b0\u01a1ng 3",
+             f"{res.Ncry:.1f} kN"),
+            ("\u03b1", "G\u00f3c t\u00e1c d\u1ee5ng m\u00f4 men",
+             f"{alpha_deg:.1f} \u00b0"),
+            ("\u03b72", "H\u1ec7 s\u1ed1 u\u1ed1n d\u1ecdc ph\u01b0\u01a1ng 2",
+             f"{res.etax:.3f}"),
+            ("\u03b73", "H\u1ec7 s\u1ed1 u\u1ed1n d\u1ecdc ph\u01b0\u01a1ng 3",
+             f"{res.etay:.3f}"),
+            ("M2*", "M\u00f4 men t\u00ednh to\u00e1n ph\u01b0\u01a1ng 2",
+             f"{res.Mx_star:.1f} kN\u00b7m"),
+            ("M3*", "M\u00f4 men t\u00ednh to\u00e1n ph\u01b0\u01a1ng 3",
+             f"{res.My_star:.1f} kN\u00b7m"),
+            ("M\u03b1", "M\u00f4 men t\u1ed5ng theo ph\u01b0\u01a1ng ki\u1ec3m tra",
+             f"{Ma:.1f} kN\u00b7m"),
+        ]
+        for i, (a, b, c) in enumerate(rows):
+            tree.insert("", "end", values=(a, b, c),
+                        tags=("odd",) if i % 2 else ())
+        ok_txt = "\u0110\u1ea0T" if res.ok else "KH\u00d4NG \u0110\u1ea0T"
+        tree.insert("", "end",
+                    values=("D/C", "T\u1ef7 s\u1ed1 s\u1eed d\u1ee5ng kh\u1ea3 n\u0103ng ch\u1ecbu l\u1ef1c",
+                            f"{res.dc:.3f} (FS = {res.fs:.2f})  {ok_txt}"),
+                    tags=("dc",))
+        tree.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+
+    def _build_nm_notes(self, parent, inp, res):
+        """3 d\u00f2ng ch\u00fa th\u00edch d\u01b0\u1edbi bi\u1ec3u \u0111\u1ed3 N-M."""
+        import math
+        mono = ("TkFixedFont", 8)
+        alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+            if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
+        Ma = math.hypot(res.Mx_star, res.My_star)
+        Mb = math.hypot(res.Bx, res.By)
+        box = ttk.Frame(parent)
+        box.pack(fill=tk.X, padx=4, pady=(0, 4))
+        r1 = ttk.Frame(box)
+        r1.pack(fill=tk.X, pady=1)
+        tk.Label(r1, text=f"\u25cf \u0110\u01b0\u1eddng bao ki\u1ec3m tra: "
+                          f"N-M\u03b1 (\u03b1 = {alpha_deg:.1f}\u00b0)",
+                 font=mono, fg="#059669").pack(side=tk.LEFT)
+        okc = "#059669" if res.ok else "#DC2626"
+        okt = "\u0110\u1ea0T" if res.ok else "KH\u00d4NG \u0110\u1ea0T"
+        tk.Label(r1, text=f"  D/C = OA / OB = {res.dc:.3f} \u2192 {okt}  ",
+                 font=("", 8, "bold"), fg="#065F46",
+                 bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
+        tk.Label(box,
+                 text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i):  N = {res.N:+.1f} kN,  "
+                      f"M\u03b1 = {Ma:.1f} kN\u00b7m  "
+                      f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})",
+                 font=mono, fg="#047857").pack(anchor="w", pady=1)
+        tk.Label(box,
+                 text=f"\u25c6 B (\u0111i\u1ec3m gi\u1edbi h\u1ea1n):  "
+                      f"Nu = {res.BN:+.1f} kN,  M\u03b1,u = {Mb:.1f} kN\u00b7m  "
+                      f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})",
+                 font=mono, fg="#C2410C").pack(anchor="w", pady=1)
+
+    def _build_m2m3_header(self, parent, res):
+        """Header tr\u00ean bi\u1ec3u \u0111\u1ed3 M2-M3."""
+        hdr = ttk.Frame(parent)
+        hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
+        left = ttk.Frame(hdr)
+        left.pack(side=tk.LEFT)
+        tk.Label(left, text="\u25cf M\u1eb7t c\u1eaft M2-M3",
+                 font=("", 10, "bold")).pack(side=tk.LEFT)
+        tk.Label(left, text=f"  N = {res.N:+.1f} kN  ",
+                 font=("", 8, "bold"), fg="#1D4ED8",
+                 bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
+        tk.Label(hdr, text="\u2014 \u0110\u01b0\u1eddng bao M2-M3    "
+                           "\u25cf \u0110i\u1ec3m t\u1ea3i A",
+                 font=("", 8), fg="#4B5563").pack(side=tk.RIGHT)
+
+    def _redraw(self):
+        """Layout 2x2: [mặt cắt + thẻ TK | bảng thông số] /
+        [N-M + chú thích | header + M2-M3]."""
         if not HAS_MPL or self._last_sec is None:
             return
         import math
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
-        # Tạo Figure mới hoàn toàn mỗi lần vẽ -> không bao giờ sót axes cũ
-        try:
-            self.mpl.get_tk_widget().destroy()
-        except Exception:
-            pass
-        self.fig = Figure(figsize=(7.0, 8.5), dpi=100)
-        self.mpl = FigureCanvasTkAgg(self.fig, master=self._sum_inner)
-        self.mpl.get_tk_widget().pack(fill=tk.X)
+        # Xóa toàn bộ nội dung cũ trong _sum_inner
+        for w in self._sum_inner.winfo_children():
+            w.destroy()
+        self._sec_ax = None
+        self._sec_fig = None
+        self._sec_canvas = None
+        self._sec_card_vars = {}
         from rc_column.pdf_export import draw_section_ax, _radial_limit
         from rc_column.interaction import (BiaxialCapacity, FiberSection,
                                            uniaxial_curve_fs)
@@ -1637,52 +1750,6 @@ class App(tk.Tk):
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
-        def _summary_table_ax(ax):
-            """Bảng tổng hợp thông tin mặt cắt (thay ô 3D)."""
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis("off")
-            ax.set_title("Tổng hợp mặt cắt", fontsize=12, pad=10)
-            n = len(sec.rebars)
-            As = sec.steel_area
-            mu = sec.reinforcement_ratio * 100.0
-            try:
-                from rc_column.sections import clear_spacing as _cs
-                ccx, ccy = _cs(sec)
-            except Exception:
-                ccx = ccy = float("inf")
-            if math.isfinite(ccx) and sec.rebars:
-                dias = sorted(set(r.dia for r in sec.rebars))
-                d_avg = sum(dias) / len(dias) if dias else 0.0
-                clear_txt = f"t3 = {ccx:.1f} mm\nt2 = {ccy:.1f} mm"
-                tim_txt = (f"t3 = {ccx + d_avg:.1f} mm\n"
-                           f"t2 = {ccy + d_avg:.1f} mm")
-            else:
-                clear_txt = tim_txt = "—"
-            card = dict(boxstyle="round,pad=0.3", fc="white",
-                       ec="#D1D5DB", lw=1.2)
-            # Hàng 1: 3 thẻ
-            for i, (t, v) in enumerate(
-                    [("Số thanh", f"{n} thanh"),
-                     ("Tổng As", f"{As:.0f} mm²"),
-                     ("Hàm lượng μ", f"{mu:.2f}%")]):
-                x = (i + 0.5) / 3.0
-                ax.text(x, 0.78, t, ha="center", va="center",
-                        fontsize=8, color="#6B7280")
-                ax.text(x, 0.62, v, ha="center", va="center",
-                        fontsize=10, weight="bold", color="#1F2937",
-                        bbox=card)
-            # Hàng 2: 2 thẻ
-            for i, (t, v) in enumerate(
-                    [("Khoảng hở thông thủy", clear_txt),
-                     ("Khoảng cách tim", tim_txt)]):
-                x = (i + 0.5) / 2.0
-                ax.text(x, 0.36, t, ha="center", va="center",
-                        fontsize=8, color="#6B7280")
-                ax.text(x, 0.20, v, ha="center", va="center",
-                        fontsize=10, weight="bold", color="#1F2937",
-                        bbox=card)
-
         def _m2m3_ax(ax):
             # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
             # Style theo mẫu: đường xanh dương, fill nhạt
@@ -1724,27 +1791,57 @@ class App(tk.Tk):
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
-        self.fig.set_size_inches(8.0, 8.0)
-        gs = self.fig.add_gridspec(2, 2, hspace=0.5,
-                                 height_ratios=[1.0, 1.15])
-        # Hàng 1: Sơ đồ mặt cắt | Bảng tổng hợp mặt cắt
-        a1 = self.fig.add_subplot(gs[0, 0])
+        def _new_fig(parent, figsize):
+            fig = Figure(figsize=figsize, dpi=100)
+            cv = FigureCanvasTkAgg(fig, master=parent)
+            cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            return fig, cv
+
+        # Grid 2x2 trong _sum_inner
+        self._sum_inner.columnconfigure(0, weight=1)
+        self._sum_inner.columnconfigure(1, weight=1)
+        self._sum_inner.rowconfigure(0, weight=1)
+        self._sum_inner.rowconfigure(1, weight=1)
+
+        # ===== Ô trên-trái: sơ đồ mặt cắt + thẻ thống kê =====
+        f_tl = ttk.Frame(self._sum_inner)
+        f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
+        a1 = fig_sec.add_subplot(111)
         draw_section_ax(a1, sec, show_stats=False)
-        a2 = self.fig.add_subplot(gs[0, 1])
-        _summary_table_ax(a2)
-        # Lưu ref để live update khi đổi nhập liệu
-        self._sec_ax = a1
-        self._sumtab_ax = a2
-        self._sumtab_fn = _summary_table_ax
-        # Hàng 2: Biểu đồ N-M | Biểu đồ M2-M3 tại N
-        a3 = self.fig.add_subplot(gs[1, 0])
+        fig_sec.tight_layout()
+        cv_sec.draw()
+        self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
+        self._sec_card_vars = self._build_section_cards(f_tl, sec)
+
+        # ===== Ô trên-phải: bảng thông số tính toán =====
+        f_tr = ttk.Frame(self._sum_inner)
+        f_tr.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        self._build_param_table(f_tr, inp, res)
+
+        # ===== Ô dưới-trái: biểu đồ N-M + chú thích =====
+        f_bl = ttk.Frame(self._sum_inner)
+        f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        fig_nm, cv_nm = _new_fig(f_bl, (3.9, 2.9))
+        a3 = fig_nm.add_subplot(111)
         _nm_alpha_ax(a3)
-        a4 = self.fig.add_subplot(gs[1, 1])
-        _m2m3_ax(a4)
-        self.fig.tight_layout()
+        fig_nm.tight_layout()
         # Chừa chỗ dưới cho legend + dòng "Tỉ số an toàn"
-        self.fig.subplots_adjust(bottom=0.38)
-        self.mpl.draw()
+        fig_nm.subplots_adjust(bottom=0.34)
+        cv_nm.draw()
+        self._build_nm_notes(f_bl, inp, res)
+
+        # ===== Ô dưới-phải: header + biểu đồ M2-M3 =====
+        f_br = ttk.Frame(self._sum_inner)
+        f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        self._build_m2m3_header(f_br, res)
+        fig_mm, cv_mm = _new_fig(f_br, (3.9, 2.9))
+        a4 = fig_mm.add_subplot(111)
+        _m2m3_ax(a4)
+        fig_mm.tight_layout()
+        fig_mm.subplots_adjust(bottom=0.34)
+        cv_mm.draw()
+
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
             try:
