@@ -741,7 +741,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                   Paragraph("Tỷ số sử dụng khả năng chịu lực", st_cell),
                   Paragraph(f"<b>{res.dc:.3f} (FS = {res.fs:.2f}) {ok_txt}</b>",
                             st_cell_b)])
-    t_param = Table(pdata, colWidths=[11 * mm, 42 * mm, 27 * mm])
+    t_param = Table(pdata, colWidths=[11 * mm, 45 * mm, 24 * mm])
     ts = [("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
           ("FONTSIZE", (0, 0), (-1, -1), 8),
           ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -777,7 +777,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     # wrap để lấy chiều cao thực tế
     _lw, _lh = _left_no_spacer.wrap(80 * mm, 1000)
     _rw, _rh = _right_tmp.wrap(80 * mm, 1000)
-    _dyn_spacer = max(0, _rh - _lh)
+    _dyn_spacer = max(0, _rh - _lh - 7 * mm)  # Trừ 1 hàng
     _left_content = [
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
