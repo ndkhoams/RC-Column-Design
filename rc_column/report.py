@@ -206,10 +206,14 @@ def _build_report(inp: ColumnInput, res: CheckResult,
         mark = "✓" if chk.ok else "✗"
         A(f"  {mark} {chk.item}: yêu cầu {chk.required}, "
           f"chọn {chk.provided}\n", "card")
-    # — Chịu cắt (8.1.3): Q ≤ Qb + Qsw
-    A("  — Chịu cắt (8.1.3): Q ≤ Qb + Qsw\n", "card")
+    # — Chịu cắt (TCVN 5574:2018, như bảng Excel mẫu) —
+    from .materials import STEEL_GRADES
+    sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
+    A(f"  — Chịu cắt: thép đai {sw_grade.name} (Rsw = {sw_grade.Rsw:.0f} MPa)\n",
+      "card")
+    Rb = conc.Rb
     Rbt = conc.Rbt
-    Rsw = steel.Rs
+    Rsw = sw_grade.Rsw * inp.gamma_s
     Asw_1 = _m.pi * stir_in.dia ** 2 / 4  # 1 nhánh
     # Phương 2: b = t3 (cx), h0 = t2 - cover - sw_dia - bar_dia/2
     h0_2 = sec.cy - inp.cover - stir_in.dia - inp.bar_dia / 2
@@ -219,12 +223,16 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     for Q, b_w, h0, dnum in ((inp.Q2, sec.cx, h0_2, "2"),
                              (inp.Q3, sec.cy, h0_3, "3")):
         Asw = Asw_1 * stir_in.legs
-        sh = check_shear(Q, b_w, max(h0, 1), Rbt, Asw, Rsw,
+        sh = check_shear(Q, b_w, max(h0, 1), Rb, Rbt, Asw, Rsw,
                          stir_in.spacing, direction=dnum)
-        mark = "✓" if sh.ok else "✗"
-        A(f"  {mark} Phương {dnum}: Q = {_f(Q, 1)} kN ≤ "
-          f"Qb + Qsw = {_f(sh.Qb, 1)} + {_f(sh.Qsw, 1)} = "
-          f"{_f(sh.Qb + sh.Qsw, 1)} kN\n", "card")
+        m1 = "✓" if sh.ok1 else "✗"
+        m2 = "✓" if sh.ok2 else "✗"
+        A(f"  Phương {dnum}: Q = {_f(Q, 1)} kN\n", "card")
+        A(f"    {m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h0 = "
+          f"{_f(sh.Qcap1, 1)} kN\n", "card")
+        A(f"    {m2} ĐK2 (vết nứt xiên): Q ≤ Qb + Qsw = "
+          f"{_f(sh.Qb_opt, 1)} + {_f(sh.Qsw_opt, 1)} = "
+          f"{_f(sh.Qcap2, 1)} kN (C = {sh.C_opt:.0f} mm)\n", "card")
         shear_ok &= sh.ok
     if stir_res.ok and shear_ok:
         A("  ✓ ĐẠT — Cốt đai thỏa TCVN 5574:2018", "ok")
