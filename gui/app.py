@@ -1200,8 +1200,8 @@ class App(tk.Tk):
 
         from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         import numpy as np
-        self.fig.set_size_inches(8.0, 8.0)
-        gs = self.fig.add_gridspec(2, 2)
+        self.fig.set_size_inches(8.0, 8.5)
+        gs = self.fig.add_gridspec(2, 2, hspace=0.45)
         # Hàng 1: Sơ đồ mặt cắt | Biểu đồ 3D
         a1 = self.fig.add_subplot(gs[0, 0])
         draw_section_ax(a1, sec)
