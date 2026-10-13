@@ -26,39 +26,115 @@ def _find_font_bold():
 
 
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
-def draw_section_ax(ax, sec, show_dims: bool = True):
-    """Vẽ mặt cắt lên axes: thép, trục 2/3, nét dim t2/t3 (kiểu ETABS)."""
+def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
+    """Vẽ mặt cắt kiểu VietconSoft: nền lưới, khung đen, thép lớp 1 đỏ /
+    lớp 2 xanh lá (cỡ chấm theo đường kính), trục t2/t3 tại tâm, dim t3/t2,
+    thẻ thống kê bên dưới."""
     import matplotlib.patches as mpatches
+    from matplotlib.lines import Line2D
     cx, cy = sec.cx, sec.cy
+    L1, L2 = "#DC2626", "#16A34A"  # đỏ: lớp 1, xanh lá: lớp 2
+
+    # Nền lưới ô vuông nhạt
+    ax.set_axisbelow(True)
+    ax.grid(True, color="#E8EDF3", linewidth=0.7)
+    # Khung cột viền đen đậm, nền xanh-xám rất nhạt
     if sec.kind == "rect":
-        ax.add_patch(mpatches.Rectangle((-cx/2, -cy/2), cx, cy,
-                                        fill=False, edgecolor="black", lw=1.5))
+        ax.add_patch(mpatches.Rectangle(
+            (-cx/2, -cy/2), cx, cy, fill=True, facecolor="#F4F7FB",
+            edgecolor="black", lw=2.0, zorder=2))
     else:
-        ax.add_patch(mpatches.Circle((0, 0), cx/2, fill=False,
-                                     edgecolor="black", lw=1.5))
-    ax.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
-               s=15, c="red", zorder=3, edgecolors="darkred",
-               linewidths=0.5)
-    # Trục 2 (ngang →), trục 3 (đứng ↑)
-    L = max(cx, cy) * 0.75
-    ax.annotate("", xy=(L, 0), xytext=(0, 0),
-                arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
-
-    ax.annotate("", xy=(0, L), xytext=(0, 0),
-                arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
-
-    # Chỉ hiện text t2=/t3= (không vẽ đường line dim)
-    if sec.kind == "rect":
-        off = max(cx, cy) * 0.12
-        ax.text(0, -cy/2 - off, f"t3={cx:.0f}", fontsize=7, color="blue",
-                ha="center", va="top")
-        ax.text(cx/2 + off, 0, f"t2={cy:.0f}", fontsize=7, color="blue",
-                va="center", rotation=90)
-
+        ax.add_patch(mpatches.Circle(
+            (0, 0), cx/2, fill=True, facecolor="#F4F7FB",
+            edgecolor="black", lw=2.0, zorder=2))
+    # Chấm thép theo (layer, dia)
+    groups = {}
+    for r in sec.rebars:
+        groups.setdefault((r.layer, r.dia), []).append(r)
+    legend_handles = []
+    for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
+        pts = groups[(layer, dia)]
+        color = L1 if layer == 1 else L2
+        ax.scatter([p.x for p in pts], [p.y for p in pts],
+                   s=max(12.0, 0.15 * dia * dia), c=color, zorder=4,
+                   edgecolors="white", linewidths=0.8)
+        legend_handles.append(Line2D(
+            [0], [0], marker="o", color="none", markerfacecolor=color,
+            markeredgecolor="white", markersize=max(5.0, dia * 0.32),
+            label=f"d{dia:.0f}"))
+    if legend_handles:
+        leg = ax.legend(handles=legend_handles, loc="upper center",
+                        bbox_to_anchor=(0.5, 0.985), ncol=len(legend_handles),
+                        frameon=False, fontsize=8)
+        for txt in leg.get_texts():
+            txt.set_fontweight("bold")
+    # Trục t2/t3 tại tâm (mũi tên xanh dương): t3 ngang, t2 đứng
+    alen = max(cx, cy) * 0.32
+    ax.annotate("", xy=(alen, 0), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
+    ax.annotate("", xy=(0, alen), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
+    ax.text(alen * 1.08, 0, "t3", fontsize=9, color="#1D4ED8",
+            weight="bold", va="center", ha="left")
+    ax.text(0, alen * 1.08, "t2", fontsize=9, color="#1D4ED8",
+            weight="bold", va="bottom", ha="center")
+    # Dim t3 (dưới đáy), t2 (bên trái)
+    if show_dims and sec.kind == "rect":
+        doff = max(cx, cy) * 0.10
+        # đường dim mảnh
+        ax.plot([-cx/2, cx/2], [-cy/2 - doff*0.55]*2, color="black", lw=0.8)
+        for xx in (-cx/2, cx/2):
+            ax.plot([xx, xx], [-cy/2 - doff*0.75, -cy/2 - doff*0.35],
+                    color="black", lw=0.8)
+        ax.text(0, -cy/2 - doff, f"t3 = {cx:.0f}", fontsize=8,
+                weight="bold", ha="center", va="top")
+        ax.plot([-cx/2 - doff*0.55]*2, [-cy/2, cy/2], color="black", lw=0.8)
+        for yy in (-cy/2, cy/2):
+            ax.plot([-cx/2 - doff*0.75, -cx/2 - doff*0.35], [yy, yy],
+                    color="black", lw=0.8)
+        ax.text(-cx/2 - doff, 0, f"t2 = {cy:.0f}", fontsize=8,
+                weight="bold", ha="right", va="center", rotation=90)
+    elif show_dims:
+        ax.text(0, -cy/2 - max(cx, cy)*0.10, f"D = {cx:.0f}", fontsize=8,
+                weight="bold", ha="center", va="top")
+    # Thẻ thống kê bên dưới
+    if show_stats and sec.rebars:
+        from collections import Counter
+        cnt = Counter((r.layer, r.dia) for r in sec.rebars)
+        compo = " + ".join(
+            f"{cnt[k]}d{k[1]:.0f}" for k in sorted(cnt, key=lambda k: (k[0], -k[1])))
+        n = len(sec.rebars)
+        mu = sec.reinforcement_ratio * 100.0
+        stat1 = (f"{n} thanh ({compo})    As = {sec.steel_area:.0f} mm²"
+                 f"    μ = {mu:.2f}%")
+        try:
+            from .sections import clear_spacing as _cs
+            ccx, ccy = _cs(sec)
+            dias = sorted(set(r.dia for r in sec.rebars))
+            d_avg = sum(dias) / len(dias)
+            if math.isfinite(ccx):
+                stat2 = (f"Khoảng hở: t3 = {ccx:.1f}, t2 = {ccy:.1f} mm"
+                         f"    Tim: t3 = {ccx + d_avg:.1f}, t2 = {ccy + d_avg:.1f} mm")
+            else:
+                stat2 = ""
+        except Exception:
+            stat2 = ""
+        txt = stat1 + ("\n" + stat2 if stat2 else "")
+        ax.text(0.5, -0.20, txt, transform=ax.transAxes, fontsize=7.5,
+                ha="center", va="top", color="#1F2937",
+                bbox=dict(boxstyle="round,pad=0.4", fc="#F9FAFB",
+                          ec="#E5E7EB"))
+    # Giới hạn trục + tỉ lệ
+    m = max(cx, cy) * 0.22
+    ax.set_xlim(-cx/2 - m, cx/2 + m)
+    ax.set_ylim(-cy/2 - m, cy/2 + m * 1.35)
     ax.set_aspect("equal")
-    # Ẩn vạch tọa độ (đã có dim t2/t3)
     ax.set_xticks([])
     ax.set_yticks([])
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.set_title("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", fontsize=10,
+                 fontweight="bold", pad=10)
 
 
 def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
