@@ -192,9 +192,27 @@ def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
     return _build_report(inp, res).build()
 
 
-def generate_report_sections(inp: ColumnInput, res: CheckResult) -> dict:
-    """Trả về dict {num: {title, ref, segs}} cho từng mục."""
-    return _build_report(inp, res).build_sections()
+def generate_report_sections(inp: ColumnInput, res: CheckResult,
+                             batch_rows=None) -> dict:
+    """Trả về dict {num: {title, ref, segs}} cho từng mục.
+    batch_rows: list of (force, result_dict) cho mục 7 (tùy chọn)."""
+    builder = _build_report(inp, res)
+    if batch_rows:
+        _build_section7(builder, batch_rows)
+    return builder.build_sections()
+
+
+def _build_section7(b: "ReportBuilder", batch_rows):
+    """Mục 7: Bảng tổng hợp kết quả tất cả tổ hợp."""
+    b.section(7, "BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", "Tất cả tổ hợp")
+    b.add("  Tổ hợp | N (kN) | M2 (kN·m) | M3 (kN·m) | D/C | KQ\n", "card")
+    b.add("  " + "-" * 60 + "\n", "sec_ref")
+    for f, r in batch_rows:
+        dc = r["dc"]
+        ok = "ĐẠT" if dc <= 1 else "KHÔNG ĐẠT"
+        b.add(f"  {f.case}@{f.station:.2f} | {f.N:.0f} | {f.Mx:.0f} | "
+              f"{f.My:.0f} | {dc:.3f} | {ok}\n", "card")
+    b.nl()
 
 
 def generate_report_text(inp: ColumnInput, res: CheckResult) -> str:
