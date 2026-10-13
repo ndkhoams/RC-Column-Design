@@ -56,10 +56,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
         ax.add_patch(mpatches.Circle((0, 0), cx/2, fill=False,
                                      edgecolor="black", lw=1.5))
     ax.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
-               s=80, c="red", zorder=3)
-    for r in sec.rebars:
-        ax.text(r.x, r.y, f"{r.dia:.0f}", fontsize=6, ha="center",
-                va="center", color="white")
+               s=110, c="red", zorder=3, edgecolors="darkred",
+               linewidths=0.5)
     # Trục 2 (ngang →), trục 3 (đứng ↑)
     L = max(cx, cy) * 0.75
     ax.annotate("", xy=(L, 0), xytext=(0, 0),
@@ -148,6 +146,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
         ax.scatter([Ms_abs], [res.N], c="green", s=70, zorder=5,
                    label="A (tải trọng)")
         if lim:
+            ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
             ax.scatter([lim[1]], [lim[0]], c="orange", s=70, zorder=5,
                        label="B (giới hạn)")
         ax.set_xlabel("M (kN·m)")
@@ -183,6 +182,7 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
         ax.scatter([Ms_abs], [res.N], c="green", s=80, zorder=5,
                    label="A (tải trọng)")
         if lim:
+            ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
             ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
                        label="B (giới hạn)")
         ax.set_xlabel("M (kN·m)")
