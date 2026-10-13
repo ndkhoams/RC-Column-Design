@@ -50,13 +50,15 @@ class ReportBuilder:
         self.nl()
 
     def line(self, label: str, formula: str, value: str, result: str = ""):
-        self.add(f"  ▪ {label}\n", "card")
+        # Gọn 1 hàng: ▪ Label: formula = value (result)
+        txt = f"  ▪ {label}"
         if formula:
-            self.add(f"    {formula}\n", "mono")
-        self.add(f"    = {value}", "result")
+            txt += f": {formula}"
+        if value:
+            txt += f" = {value}"
         if result:
-            self.add(f"  {result}", "result")
-        self.nl()
+            txt += f"  {result}"
+        self.add(txt + "\n", "card")
 
     def build(self) -> List[Seg]:
         return self.segs
