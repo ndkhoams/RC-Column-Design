@@ -952,9 +952,13 @@ class App(tk.Tk):
 
         def _nm_ax(ax, th, lab, Ms, Nv, title_sz=12):
             cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
+            # Đường cong full từ -Mmax đến +Mmax (đối xứng qua trục N)
             ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
                     linewidth=1.5)
-            lim = _radial_limit(cv, Nv, Ms)
+            ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-",
+                    linewidth=1.5)
+            cv_full = cv + [(n, -m) for n, m in reversed(cv)]
+            lim = _radial_limit(cv_full, Nv, Ms)
             ax.scatter([Ms], [Nv], c="red", s=90, zorder=5,
                        label="Điểm tải trọng")
             if lim:
