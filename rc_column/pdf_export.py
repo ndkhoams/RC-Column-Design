@@ -740,32 +740,41 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
         backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
     _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
-    left_stack = Table(
-        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
-         [_ck_para],
-         [img_sec],
-         [t_box]],
-        colWidths=[82 * mm])
-    left_stack.setStyle(TableStyle([
+    # BẢNG THỐNG NHẤT: 2 cột, kẻ thẳng hàng
+    # Cột trái: tiêu đề + cấu kiện + mặt cắt + boxes
+    # Cột phải: bảng thông số
+    _left_content = [
+        [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
+        [_ck_para],
+        [img_sec],
+        [t_box],
+    ]
+    _left_tbl = Table(_left_content, colWidths=[80 * mm])
+    _left_tbl.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOX", (0, 0), (-1, -1), 0.6, HexColor("#D1D5DB"))]))
-    right_stack = Table(
-        [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
-         [t_param]],
-        colWidths=[82 * mm])
-    right_stack.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    _right_content = [
+        [Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
+        [t_param],
+    ]
+    _right_tbl = Table(_right_content, colWidths=[80 * mm])
+    _right_tbl.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    # Bảng ngoài đơn giản: 2 cột riêng biệt, không nested phức tạp
-    _outer = Table([[left_stack, right_stack]],
-                   colWidths=[82 * mm, 82 * mm])
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    # Bảng ngoài thống nhất với BOX bao quanh
+    _outer = Table([[_left_tbl, _right_tbl]], colWidths=[84 * mm, 84 * mm])
     _outer.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 1),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 1),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("BOX", (0, 0), (-1, -1), 0.6, HexColor("#D1D5DB")),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.6, HexColor("#D1D5DB")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
     story.append(_outer)
     story.append(Spacer(1, 1))
