@@ -145,6 +145,11 @@ def _build_report(inp: ColumnInput, res: CheckResult,
 
     # ---- 4. Độ lệch tâm ----
     b.section(4, "ĐỘ LỆCH TÂM", "TCVN 5574:2018 Mục 8.1.2.2.4")
+    if case_info:
+        A(f"  ▪ Tổ hợp tính toán: {case_info['case']}@{case_info['station']:.2f} — "
+          f"N = {_f(case_info['N'], 1)} kN, "
+          f"M2 = {_f(case_info['M2'], 1)} kN·m, "
+          f"M3 = {_f(case_info['M3'], 1)} kN·m\n", "card")
     b.line("e12 = |M2|/N", f"= {_f(abs(res.My) * 1000 / max(abs(res.N), 1e-9), 1)} mm",
            f"{_f(res.e1x, 1)} mm")
     b.line("e13 = |M3|/N", "", f"{_f(res.e1y, 1)} mm")
@@ -168,11 +173,6 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     # ---- 6. NDM ----
     b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
               "TCVN 5574:2018 Điều 8.1.2.7")
-    if case_info:
-        A(f"  ▪ Tổ hợp tính toán: {case_info['case']}@{case_info['station']:.2f} — "
-          f"N = {_f(case_info['N'], 1)} kN, "
-          f"M2 = {_f(case_info['M2'], 1)} kN·m, "
-          f"M3 = {_f(case_info['M3'], 1)} kN·m\n", "card")
     Ma = math.hypot(res.Mx_star, res.My_star)
     alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0
     A(f"  ▪ Điểm tải trọng A = (M2*, M3*, N) = "
