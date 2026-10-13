@@ -131,7 +131,7 @@ class App(tk.Tk):
         if HAS_MPL:
             self.fig = Figure(figsize=(6.5, 8.0), dpi=100)
             self.mpl = FigureCanvasTkAgg(self.fig, master=self._sum_inner)
-            self.mpl.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            self.mpl.get_tk_widget().pack(fill=tk.X)
         # cuộn chuột cho tab Tóm tắt (đệ quy, trừ combobox đang mở)
         self._bind_wheel(self._sum_inner, self._sum_canvas)
         # lưu để vẽ lại khi đổi loại
@@ -961,6 +961,12 @@ class App(tk.Tk):
             ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=title_sz)
             ax.legend(fontsize=9)
             ax.grid(True, alpha=0.3)
+            if lim:
+                import math
+                fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms_abs, Nv)
+                ax.text(0.5, -0.22, f"Tỉ số an toàn FS = {fs_dir:.2f}",
+                        transform=ax.transAxes, ha="center", fontsize=10,
+                        color="darkred", weight="bold")
 
         # Xóa triệt để axes cũ (tránh sót khi đổi loại biểu đồ)
         for ax in list(self.fig.axes):
@@ -1020,6 +1026,11 @@ class App(tk.Tk):
             a2.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
         self.fig.tight_layout()
         self.mpl.draw()
+        # Đẩy nội dung lên đầu, xóa vùng trống thừa
+        self._sum_inner.update_idletasks()
+        self._sum_canvas.configure(
+            scrollregion=self._sum_canvas.bbox("all"))
+        self._sum_canvas.yview_moveto(0)
 
 def main():
     app = App()
