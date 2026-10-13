@@ -239,9 +239,13 @@ class App(tk.Tk):
         self.cb_steel = ttk.Combobox(f, values=list(STEEL_GRADES),
                                      state="readonly", width=18)
         self.cb_steel.set("CB400-V")
-        self._row(f, "Cấp độ bền thép", self.cb_steel, 2)
+        self._row(f, "Cấp độ bền thép dọc", self.cb_steel, 2)
+        self.cb_sw_steel = ttk.Combobox(f, values=list(STEEL_GRADES),
+                                        state="readonly", width=18)
+        self.cb_sw_steel.set("CB400-V")
+        self._row(f, "Cấp độ bền thép đai", self.cb_sw_steel, 3)
         self.en_gs = ttk.Entry(f, width=18); self.en_gs.insert(0, "1.0")
-        self._row(f, "Hệ số điều kiện làm việc thép γs", self.en_gs, 3)
+        self._row(f, "Hệ số điều kiện làm việc thép γs", self.en_gs, 4)
         self.cb_model = ttk.Combobox(
             f, values=["3 đoạn thẳng (MH3ĐT)", "2 đoạn thẳng (MH2ĐT)"],
             state="readonly", width=18)
@@ -484,7 +488,9 @@ class App(tk.Tk):
         model = "3line" if self.cb_model.get().startswith("3") else "2line"
         return ColumnInput(
             concrete_grade=self.cb_conc.get(), gamma_b=self._f(self.en_gb, 0.85),
-            steel_grade=self.cb_steel.get(), gamma_s=self._f(self.en_gs, 1.0),
+            steel_grade=self.cb_steel.get(),
+            sw_steel_grade=self.cb_sw_steel.get(),
+            gamma_s=self._f(self.en_gs, 1.0),
             concrete_model=model,
             section_type="rect" if is_rect else "circle",
             cx=self._f(self.en_cx, 400.0), cy=self._f(self.en_cy, 400.0),
@@ -833,7 +839,8 @@ class App(tk.Tk):
             "version": 1,
             # 1. Vật liệu
             "concrete": self.cb_conc.get(), "gamma_b": ev(self.en_gb),
-            "steel": self.cb_steel.get(), "gamma_s": ev(self.en_gs),
+            "steel": self.cb_steel.get(), "sw_steel": self.cb_sw_steel.get(),
+            "gamma_s": ev(self.en_gs),
             "model": self.cb_model.get(),
             # 2. Tiết diện
             "kind": self.cb_kind.get(),
@@ -870,7 +877,9 @@ class App(tk.Tk):
             e.delete(0, tk.END); e.insert(0, str(v))
         try:
             self.cb_conc.set(d.get("concrete", "B25")); se(self.en_gb, d.get("gamma_b", "0.85"))
-            self.cb_steel.set(d.get("steel", "CB400-V")); se(self.en_gs, d.get("gamma_s", "1.0"))
+            self.cb_steel.set(d.get("steel", "CB400-V"))
+            self.cb_sw_steel.set(d.get("sw_steel", "CB400-V"))
+            se(self.en_gs, d.get("gamma_s", "1.0"))
             self.cb_model.set(d.get("model", self.cb_model.get()))
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
