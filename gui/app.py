@@ -140,7 +140,7 @@ class App(tk.Tk):
         ttk.Button(calc_bar, text="🖨️ Xuất PDF thuyết minh",
                    command=self.on_export_pdf).pack(side=tk.LEFT, padx=4)
         self.var_export_table = tk.BooleanVar(value=False)
-        ttk.Checkbutton(calc_bar, text="Kèm bảng tổng hợp (mục 7)",
+        ttk.Checkbutton(calc_bar, text="Kèm bảng tổng hợp (mục 8)",
                         variable=self.var_export_table,
                         command=self._on_toggle_table).pack(side=tk.LEFT, padx=4)
         # Cuộn chuột trên thanh nút Xuất PDF -> cuộn text thuyết minh
@@ -274,6 +274,13 @@ class App(tk.Tk):
         self._row(f, "Số thanh mỗi cạnh Y (tròn: tổng số)", self.en_ny, 2)
         self.en_cover = ttk.Entry(f, width=18); self.en_cover.insert(0, "30")
         self._row(f, "Lớp bê tông bảo vệ (mm)", self.en_cover, 3)
+        # Cốt thép đai (TCVN 5574:2018 10.3.4)
+        self.en_sw_dia = ttk.Entry(f, width=18); self.en_sw_dia.insert(0, "8")
+        self._row(f, "Đai: đường kính (mm)", self.en_sw_dia, 4)
+        self.en_sw_s = ttk.Entry(f, width=18); self.en_sw_s.insert(0, "200")
+        self._row(f, "Đai: bước đai s (mm)", self.en_sw_s, 5)
+        self.en_sw_legs = ttk.Entry(f, width=18); self.en_sw_legs.insert(0, "2")
+        self._row(f, "Đai: số nhánh", self.en_sw_legs, 6)
         for w in (self.en_dia, self.en_nx, self.en_ny, self.en_cover):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
         self.rebar_info = tk.StringVar(value="")
@@ -478,6 +485,9 @@ class App(tk.Tk):
             ny=max(2, int(self._f(self.en_ny, 3))),
             n_bars=max(4, int(self._f(self.en_ny, 8))),
             cover=self._f(self.en_cover, 30.0),
+            sw_dia=self._f(self.en_sw_dia, 8.0),
+            sw_spacing=self._f(self.en_sw_s, 200.0),
+            sw_legs=max(2, int(self._f(self.en_sw_legs, 2))),
         )
 
     def _refresh_rebar(self):
@@ -725,7 +735,7 @@ class App(tk.Tk):
             f"Xong {len(rows)} tổ hợp trong {dt:.1f}s — "
             f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
             f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
-        # Lưu kết quả tất cả tổ hợp cho mục 7
+        # Lưu kết quả tất cả tổ hợp cho mục 8
         self._batch_rows = rows
         # hiện thuyết minh của tổ hợp nguy hiểm nhất
         inp_w = self.collect()
@@ -765,7 +775,7 @@ class App(tk.Tk):
             self._redraw()
 
     def _on_toggle_table(self):
-        """Bật/tắt bảng tổng hợp (mục 7) -> render lại thuyết minh."""
+        """Bật/tắt bảng tổng hợp (mục 8) -> render lại thuyết minh."""
         if not getattr(self, "_pdf_inp", None):
             return
         from rc_column.report import generate_report_sections
