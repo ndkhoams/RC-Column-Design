@@ -1001,10 +1001,10 @@ class App(tk.Tk):
                 pass
             try:
                 from rc_column.pdf_export import interaction_image, m2m3_image
-                # 2 biểu đồ: M2-M3 (trái) và N-M nửa phải (phải)
-                img_m6 = (m2m3_image(sec, inp, res, width_in=4.0, dpi=100),
-                          interaction_image(sec, inp, res, width_in=4.0,
-                                            dpi=100, right_half=True))
+                # 2 biểu đồ như tab Tóm tắt: N-M full (trái), M2-M3 (phải)
+                img_m6 = (interaction_image(sec, inp, res, width_in=4.0,
+                                            dpi=100),
+                          m2m3_image(sec, inp, res, width_in=4.0, dpi=100))
             except Exception:
                 pass
 
@@ -1070,10 +1070,10 @@ class App(tk.Tk):
         for text, tags in info["segs"]:
             t.insert(tk.END, text, tags if tags else ())
         t.insert(tk.END, "\n")
-        # 2 biểu đồ cạnh nhau: M2-M3 trái, N-M nửa phải
+        # 2 biểu đồ cạnh nhau như tab Tóm tắt: N-M trái, M2-M3 phải
         frame = tk.Frame(t, bg="white")
-        for png, cap in zip(pngs, ["Biểu đồ M2-M3 (tại N)",
-                                   "Biểu đồ N-M (nửa phải)"]):
+        for png, cap in zip(pngs, ["Biểu đồ N-M (góc α)",
+                                   "Biểu đồ M2-M3 (tại N)"]):
             b64 = base64.b64encode(png).decode("ascii")
             img = PhotoImage(data=b64)
             self._report_images.append(img)
@@ -1153,7 +1153,7 @@ class App(tk.Tk):
             ax.legend(fontsize=8, loc="upper center",
                       bbox_to_anchor=(0.5, -0.22), ncol=2)
             ax.grid(True, alpha=0.3)
-            ax.text(0.5, -0.42, f"Tỉ số an toàn FS = {res.fs:.2f}",
+            ax.text(0.5, -0.52, f"Tỉ số an toàn FS = {res.fs:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
@@ -1194,7 +1194,7 @@ class App(tk.Tk):
                       bbox_to_anchor=(0.5, -0.22), ncol=2)
             ax.grid(True, alpha=0.3)
             ax.set_aspect("equal", adjustable="datalim")
-            ax.text(0.5, -0.42, f"Tỉ số an toàn FS = {res.fs:.2f}",
+            ax.text(0.5, -0.52, f"Tỉ số an toàn FS = {res.fs:.2f}",
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
@@ -1216,7 +1216,7 @@ class App(tk.Tk):
         _m2m3_ax(a4)
         self.fig.tight_layout()
         # Chừa chỗ dưới cho legend + dòng "Tỉ số an toàn"
-        self.fig.subplots_adjust(bottom=0.34)
+        self.fig.subplots_adjust(bottom=0.38)
         self.mpl.draw()
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
