@@ -85,8 +85,10 @@ def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     if small:
-        width_in, dpi = 2.6, 200
-    fig, ax = plt.subplots(figsize=(width_in, width_in))
+        width_in, dpi = 2.0, 200
+    # Figure theo đúng tỉ lệ t2/t3 (cao = rộng × cy/cx)
+    ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
+    fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
     draw_section_ax(ax, sec)
     ax.grid(True, alpha=0.3)
     for sp in ax.spines.values():
@@ -333,8 +335,10 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
     # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
     img_side = {}
     try:
+        _w = 62*mm
+        _h = _w * (sec.cy / sec.cx) if sec.cx > 0 else _w
         img_side[2] = Image(io.BytesIO(section_image(sec, small=True)),
-                            width=62*mm, height=62*mm)
+                            width=_w, height=_h)
     except Exception:
         pass
     img_m6 = None
