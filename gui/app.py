@@ -950,15 +950,14 @@ class App(tk.Tk):
                                            uniaxial_curve_fs)
         fs = FiberSection(sec)
 
-        def _nm_ax(ax, th, lab, Ms, Nv, title_sz=12):
+        def _nm_ax(ax, th, lab, Ms, Nv, lim, fs_val, title_sz=12):
+            # lim: điểm B song trục chiếu lên mặt phẳng (N, M)
             cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
             # Đường cong full từ -Mmax đến +Mmax (đối xứng qua trục N)
             ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
                     linewidth=1.5)
             ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-",
                     linewidth=1.5)
-            cv_full = cv + [(n, -m) for n, m in reversed(cv)]
-            lim = _radial_limit(cv_full, Nv, Ms)
             ax.scatter([Ms], [Nv], c="red", s=90, zorder=5,
                        label="Điểm tải trọng")
             if lim:
@@ -970,12 +969,9 @@ class App(tk.Tk):
             ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=title_sz)
             ax.legend(fontsize=9)
             ax.grid(True, alpha=0.3)
-            if lim:
-                import math
-                fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms, Nv)
-                ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {fs_dir:.2f}",
-                        transform=ax.transAxes, ha="center", fontsize=10,
-                        color="darkred", weight="bold")
+            ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {fs_val:.2f}",
+                    transform=ax.transAxes, ha="center", fontsize=10,
+                    color="darkred", weight="bold")
 
         if kind.startswith("N-M"):
             # Mặt cắt lớn trên, 2 biểu đồ cạnh nhau dưới
@@ -986,9 +982,11 @@ class App(tk.Tk):
             a1.set_title("Sơ đồ mặt cắt", fontsize=13)
             a1.grid(True, alpha=0.3)
             a2 = self.fig.add_subplot(gs[2:, 0])
-            _nm_ax(a2, 0, "N-M2", inp.Mx, inp.N)
+            _nm_ax(a2, 0, "N-M2", res.Mx_star, res.N,
+                   (res.BN, res.Bx), res.fs)
             a3 = self.fig.add_subplot(gs[2:, 1])
-            _nm_ax(a3, 90, "N-M3", inp.My, inp.N)
+            _nm_ax(a3, 90, "N-M3", res.My_star, res.N,
+                   (res.BN, res.By), res.fs)
         elif kind.startswith("M2-M3"):
             self.fig.set_size_inches(7.0, 8.5)
             gs = self.fig.add_gridspec(5, 1)
