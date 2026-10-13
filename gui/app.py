@@ -43,9 +43,13 @@ class App(tk.Tk):
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
         main.add(left_outer, weight=1)
-        canvas = tk.Canvas(left_outer, highlightthickness=0)
+        # Vùng cuộn
+        scroll_area = ttk.Frame(left_outer)
+        scroll_area.pack(fill=tk.BOTH, expand=True)
+        canvas = tk.Canvas(scroll_area, highlightthickness=0)
         self._left_canvas = canvas
-        scr = ttk.Scrollbar(left_outer, orient=tk.VERTICAL, command=canvas.yview)
+        scr = ttk.Scrollbar(scroll_area, orient=tk.VERTICAL,
+                            command=canvas.yview)
         self.left = ttk.Frame(canvas)
         self.left.bind("<Configure>",
                        lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
@@ -59,21 +63,25 @@ class App(tk.Tk):
         self._sec_rebar()
         self._sec_stability()
         self._sec_loads()
-        # Cuộn chuột cho panel trái (đệ quy, bắt cả khi đè lên widget con)
+        # Cuộn chuột cho vùng nhập liệu
         self._bind_wheel(self.left, self._left_canvas)
 
-        # Hàng nút lưu/mở dữ liệu
-        data_bar = ttk.Frame(self.left)
-        data_bar.pack(fill=tk.X, padx=8, pady=(10, 0))
+        # Cụm nút cố định đáy (không bị cuộn theo)
+        bottom_bar = ttk.Frame(left_outer, relief=tk.RAISED, borderwidth=1)
+        bottom_bar.pack(fill=tk.X, side=tk.BOTTOM, padx=2, pady=2)
+        data_bar = ttk.Frame(bottom_bar)
+        data_bar.pack(fill=tk.X, padx=8, pady=(8, 0))
         ttk.Button(data_bar, text="💾 Lưu dữ liệu",
                    command=self.on_save_data).pack(side=tk.LEFT, expand=True,
                                                    fill=tk.X, padx=(0, 4))
         ttk.Button(data_bar, text="📂 Mở dữ liệu",
                    command=self.on_load_data).pack(side=tk.LEFT, expand=True,
                                                    fill=tk.X, padx=(4, 0))
-
-        ttk.Button(self.left, text="KIỂM TRA KHẢ NĂNG CHỊU LỰC",
-                   command=self.on_check).pack(fill=tk.X, padx=8, pady=10, ipady=8)
+        ttk.Button(bottom_bar, text="KIỂM TRA KHẢ NĂNG CHỊU LỰC",
+                   command=self.on_check).pack(fill=tk.X, padx=8, pady=8,
+                                               ipady=8)
+        # Cuộn chuột trên cụm nút cố định -> cuộn vùng nhập liệu
+        self._bind_wheel(bottom_bar, self._left_canvas)
 
         # ---- Phải: kết quả ----
         right = ttk.Frame(main)
@@ -118,7 +126,7 @@ class App(tk.Tk):
         plot_bar.pack(fill=tk.X, padx=4, pady=2)
         ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
         self.cb_plot = ttk.Combobox(plot_bar, state="readonly", width=28,
-                                    values=["N-M (2 phương)", "Mx-My (tại N)",
+                                    values=["N-M (2 phương)", "M2-M3 (tại N)",
                                             "3D (N-Mx-My)"])
         self.cb_plot.set("N-M (2 phương)")
         self.cb_plot.pack(side=tk.LEFT, padx=4)
@@ -139,6 +147,8 @@ class App(tk.Tk):
         calc_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
         ttk.Button(calc_bar, text="🖨️ Xuất PDF thuyết minh",
                    command=self.on_export_pdf).pack(side=tk.LEFT, padx=4)
+        # Cuộn chuột trên thanh nút Xuất PDF -> cuộn text thuyết minh
+        self._bind_wheel_to_calc(calc_bar)
         # Khung text + thanh cuộn
         calc_frame = ttk.Frame(self.tab_calc)
         calc_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -251,9 +261,9 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>", lambda e: self._refresh_rebar())
         self._row(f, "Loại tiết diện", self.cb_kind, 0)
         self.en_cx = ttk.Entry(f, width=18); self.en_cx.insert(0, "400")
-        self._row(f, "Cạnh Cx (mm)", self.en_cx, 1)
+        self._row(f, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
         self.en_cy = ttk.Entry(f, width=18); self.en_cy.insert(0, "400")
-        self._row(f, "Cạnh Cy (mm)", self.en_cy, 2)
+        self._row(f, "Cạnh t2 (mm) — đứng", self.en_cy, 2)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
@@ -278,7 +288,7 @@ class App(tk.Tk):
     # ---- 4. Chiều dài tính toán ----
     def _sec_stability(self):
         f = self._frame("4. Chiều dài tính toán")
-        hdr = ["Tham số", "Phương X", "Phương Y"]
+        hdr = ["Tham số", "Trục 2", "Trục 3"]
         for c, h in enumerate(hdr):
             ttk.Label(f, text=h, font=("", 9, "bold")).grid(
                 row=0, column=c, padx=4, pady=2, sticky=tk.W)
@@ -337,11 +347,11 @@ class App(tk.Tk):
                   self.en_N, 0)
         self.en_Mx = ttk.Entry(self.manual_frame, width=18)
         self.en_Mx.insert(0, "80")
-        self._row(self.manual_frame, "Momen Mx (kN·m) — quanh trục x",
+        self._row(self.manual_frame, "Mô men M2 (kN·m) — quanh trục 2",
                   self.en_Mx, 1)
         self.en_My = ttk.Entry(self.manual_frame, width=18)
         self.en_My.insert(0, "60")
-        self._row(self.manual_frame, "Momen My (kN·m) — quanh trục y",
+        self._row(self.manual_frame, "Mô men M3 (kN·m) — quanh trục 3",
                   self.en_My, 2)
         self.var_lt = tk.BooleanVar(value=False)
         ttk.Checkbutton(self.manual_frame, text="Khai báo thành phần tải dài hạn",
@@ -355,9 +365,9 @@ class App(tk.Tk):
         self.en_Nlt = ttk.Entry(self.lt_frame, width=18); self.en_Nlt.insert(0, "0")
         self._row(self.lt_frame, "N dài hạn (kN)", self.en_Nlt, 0)
         self.en_Mxlt = ttk.Entry(self.lt_frame, width=18); self.en_Mxlt.insert(0, "0")
-        self._row(self.lt_frame, "Mx dài hạn (kN·m)", self.en_Mxlt, 1)
+        self._row(self.lt_frame, "M2 dài hạn (kN·m)", self.en_Mxlt, 1)
         self.en_Mylt = ttk.Entry(self.lt_frame, width=18); self.en_Mylt.insert(0, "0")
-        self._row(self.lt_frame, "My dài hạn (kN·m)", self.en_Mylt, 2)
+        self._row(self.lt_frame, "M3 dài hạn (kN·m)", self.en_Mylt, 2)
         ttk.Label(self.lt_frame, foreground="gray", wraplength=380,
                   text="Nếu bỏ chọn: φL = 2.00 (thiên về an toàn). Nếu chọn: "
                        "xác định φLx, φLy theo Công thức (48), 1.00 ≤ φL ≤ 2.00."
@@ -371,12 +381,10 @@ class App(tk.Tk):
         ttk.Button(self.etabs_frame, text="📂 Chọn file Excel ETABS...",
                    command=self.on_import_etabs).grid(row=0, column=0,
                                                      padx=4, pady=4, sticky=tk.W)
-        ttk.Label(self.etabs_frame, text="Ánh xạ:").grid(row=1, column=0,
-                                                        sticky=tk.W, padx=4)
-        self.cb_map = ttk.Combobox(self.etabs_frame, state="readonly", width=16,
-                                   values=["M2→Mx, M3→My", "M2→My, M3→Mx"])
-        self.cb_map.set("M2→Mx, M3→My")
-        self.cb_map.grid(row=1, column=1, padx=4, pady=2, sticky=tk.W)
+        ttk.Label(self.etabs_frame,
+                  text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
+                  foreground="gray", font=("", 8)).grid(
+                      row=1, column=0, columnspan=2, sticky=tk.W, padx=4)
         self.var_comb = tk.BooleanVar(value=True)
         ttk.Checkbutton(self.etabs_frame, text="Chỉ tổ hợp (Combination)",
                         variable=self.var_comb).grid(row=2, column=0,
@@ -391,7 +399,7 @@ class App(tk.Tk):
         cols = ("case", "N", "Mx", "My", "dc", "kl")
         self.etabs_tree = ttk.Treeview(self.etabs_frame, columns=cols,
                                        show="headings", height=12)
-        hd = {"case": "Tổ hợp", "N": "N", "Mx": "Mx", "My": "My",
+        hd = {"case": "Tổ hợp", "N": "N", "Mx": "M2", "My": "M3",
               "dc": "D/C", "kl": "KQ"}
         wd = {"case": 80, "N": 65, "Mx": 65, "My": 65, "dc": 55, "kl": 60}
         for c in cols:
@@ -530,9 +538,8 @@ class App(tk.Tk):
         """Nạp file Excel ETABS (dùng chung cho import tay và mở dữ liệu)."""
         try:
             from rc_column.etabs_import import read_etabs_excel
-            m2_to = "Mx" if self.cb_map.get().startswith("M2→Mx") else "My"
-            forces = read_etabs_excel(path, m2_to=m2_to,
-                                      only_combinations=self.var_comb.get())
+            forces = read_etabs_excel(
+                path, only_combinations=self.var_comb.get())
         except Exception as ex:
             messagebox.showerror("Lỗi đọc file", str(ex))
             return False
@@ -620,8 +627,8 @@ class App(tk.Tk):
         summ = [
             f"{prefix}{n} thanh d{dia_txt} — As = {res.steel_area:.0f} mm², "
             f"μ = {res.reinforcement_ratio * 100:.2f}%",
-            f"N = {res.N:.1f} kN, Mx = {res.Mx_star:.1f}, "
-            f"My = {res.My_star:.1f} kN·m (đã phóng đại η)",
+            f"N = {res.N:.1f} kN, M2 = {res.Mx_star:.1f}, "
+            f"M3 = {res.My_star:.1f} kN·m (đã phóng đại η)",
             f"M = {res.M_resultant:.1f} kN·m | D/C = {res.dc:.3f} "
             f"(FS = {res.fs:.2f})",
             f"φL = {res.phi_L:.2f}; L0x = {res.L0x:.2f} m, "
@@ -689,7 +696,6 @@ class App(tk.Tk):
             "N_lt": ev(self.en_Nlt), "Mx_lt": ev(self.en_Mxlt),
             "My_lt": ev(self.en_Mylt),
             "etabs_path": getattr(self, "etabs_file", ""),
-            "etabs_map": self.cb_map.get(),
             "etabs_comb": bv(self.var_comb),
             # Lưu luôn nội lực đã import (không cần link lại file Excel)
             "etabs_forces": [
@@ -723,7 +729,6 @@ class App(tk.Tk):
             self.var_lt.set(bool(d.get("long_term", False)))
             se(self.en_Nlt, d.get("N_lt", "")); se(self.en_Mxlt, d.get("Mx_lt", ""))
             se(self.en_Mylt, d.get("My_lt", ""))
-            self.cb_map.set(d.get("etabs_map", "M2→Mx, M3→My"))
             self.var_comb.set(bool(d.get("etabs_comb", True)))
             self.etabs_file = d.get("etabs_path", "")
             # cập nhật giao diện theo chế độ
@@ -915,23 +920,16 @@ class App(tk.Tk):
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
         kind = self.cb_plot.get()
         self.fig.clear()
-        # Trái: luôn là sơ đồ tiết diện
+        # Trái: luôn là sơ đồ tiết diện (trục 2/3 + dim t2/t3 kiểu ETABS)
+        from rc_column.pdf_export import draw_section_ax
         a1 = self.fig.add_subplot(121)
-        if sec.kind == "rect":
-            a1.add_patch(mpatches.Rectangle(
-                (-sec.cx/2, -sec.cy/2), sec.cx, sec.cy,
-                fill=False, edgecolor="black", linewidth=1.5))
-        else:
-            a1.add_patch(mpatches.Circle(
-                (0, 0), sec.cx/2, fill=False, edgecolor="black", linewidth=1.5))
-        a1.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
-                   s=70, c="red", zorder=3)
-        a1.set_aspect("equal"); a1.set_title("Sơ đồ mặt cắt")
+        draw_section_ax(a1, sec)
+        a1.set_title("Sơ đồ mặt cắt")
         a1.grid(True, alpha=0.3)
 
         from rc_column.interaction import (BiaxialCapacity, FiberSection,
                                            uniaxial_curve_fs)
-        if kind.startswith("Mx-My"):
+        if kind.startswith("M2-M3"):
             a2 = self.fig.add_subplot(122)
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             pts = cap.mx_my_curve(inp.N)
@@ -939,8 +937,8 @@ class App(tk.Tk):
                     linewidth=1.5, label=f"Tại N = {inp.N:.0f} kN")
             a2.scatter([inp.Mx], [inp.My], c="red", s=80, zorder=5,
                        label="Điểm tải trọng")
-            a2.set_xlabel("Mx (kN·m)"); a2.set_ylabel("My (kN·m)")
-            a2.set_title("Tương tác Mx-My")
+            a2.set_xlabel("M2 (kN·m)"); a2.set_ylabel("M3 (kN·m)")
+            a2.set_title("Tương tác M2-M3")
             a2.legend(fontsize=8); a2.grid(True, alpha=0.3)
             a2.set_aspect("equal", adjustable="datalim")
         elif kind.startswith("3D"):
@@ -954,14 +952,14 @@ class App(tk.Tk):
                             edgecolor="none")
             a2.scatter([inp.Mx], [inp.My], [inp.N], c="red", s=60,
                        label="Điểm tải trọng")
-            a2.set_xlabel("Mx (kN·m)"); a2.set_ylabel("My (kN·m)")
+            a2.set_xlabel("M2 (kN·m)"); a2.set_ylabel("M3 (kN·m)")
             a2.set_zlabel("N (kN)")
             a2.set_title("Mặt tương tác 3D N-Mx-My")
         else:
             a2 = self.fig.add_subplot(122)
             fs = FiberSection(sec)
-            for th, style, lab in [(0, "b-", "N-Mx (θ=0°)"),
-                                   (90, "r--", "N-My (θ=90°)")]:
+            for th, style, lab in [(0, "b-", "N-M2 (θ=0°)"),
+                                   (90, "r--", "N-M3 (θ=90°)")]:
                 cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
                 a2.plot([p[1] for p in cv], [p[0] for p in cv], style,
                         label=lab, linewidth=1.5)
