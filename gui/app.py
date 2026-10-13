@@ -1139,6 +1139,11 @@ class App(tk.Tk):
                 return
             if is_summary:
                 from rc_column.pdf_export import export_summary_pdf
+                # Gán tên file vào inp để hiển thị "Cấu kiện"
+                try:
+                    self._last_inp._filename =                         getattr(self, "current_save_path", "") or ""
+                except Exception:
+                    pass
                 export_summary_pdf(self._last_sec, self._last_inp,
                                    self._last_res, path)
             else:
