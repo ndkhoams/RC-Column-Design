@@ -56,18 +56,16 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
         ax.add_patch(mpatches.Circle((0, 0), cx/2, fill=False,
                                      edgecolor="black", lw=1.5))
     ax.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
-               s=110, c="red", zorder=3, edgecolors="darkred",
+               s=45, c="red", zorder=3, edgecolors="darkred",
                linewidths=0.5)
     # Trục 2 (ngang →), trục 3 (đứng ↑)
     L = max(cx, cy) * 0.75
     ax.annotate("", xy=(L, 0), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
-    ax.text(L*1.05, 0, "2", fontsize=11, color="green", weight="bold",
-            va="center")
+
     ax.annotate("", xy=(0, L), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
-    ax.text(0, L*1.05, "3", fontsize=11, color="green", weight="bold",
-            ha="center")
+
     if show_dims and sec.kind == "rect":
         off = max(cx, cy) * 0.12
         # dim t3 (ngang, dưới)
@@ -154,6 +152,12 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=10)
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.3)
+        if lim:
+            import math
+            fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms_abs, res.N)
+            ax.text(0.5, -0.22, f"Tỉ số an toàn FS = {fs_dir:.2f}",
+                    transform=ax.transAxes, ha="center", fontsize=9,
+                    color="darkred", weight="bold")
     fig.tight_layout()
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
@@ -190,6 +194,12 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.3)
+        if lim:
+            import math
+            fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms_abs, res.N)
+            ax.text(0.5, -0.20, f"Tỉ số an toàn FS = {fs_dir:.2f}",
+                    transform=ax.transAxes, ha="center", fontsize=10,
+                    color="darkred", weight="bold")
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
         plt.close(fig)
