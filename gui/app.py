@@ -35,6 +35,14 @@ class App(tk.Tk):
         self.geometry("1360x860")
         self._setup_styles()
         self._build()
+        self.after(100, self._fix_left_width)
+
+    def _fix_left_width(self):
+        try:
+            self.update_idletasks()
+            self._paned.sashpos(0, self._left_width)
+        except Exception:
+            pass
 
     def _setup_styles(self):
         """Style giống web VietconSoft: thanh thoát, gọn gàng."""
@@ -94,12 +102,15 @@ class App(tk.Tk):
 
     # ============================ UI ============================
     def _build(self):
-        main = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+        # Fix cứng panel trái 380px sau khi build xong
+        self._left_width = 380
 
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
-        main.add(left_outer, weight=1)
+        main.add(left_outer, weight=0)
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
         scroll_area.pack(fill=tk.BOTH, expand=True)
@@ -1550,42 +1561,44 @@ class App(tk.Tk):
             vals["clear"] = vals["tim"] = "\u2014"
         return vals
 
-    def _build_section_cards(self, parent, sec):
-        """3 thẻ TK + 2 thẻ khoảng cách dưới sơ đồ mặt cắt. Trả về dict var."""
+    def _build_section_cards(self, parent, sec, inp=None):
+        """3 thẻ TK bằng nhau + thông tin vật liệu. Trả về dict var."""
         vals = self._section_card_values(sec)
         varmap = {}
 
         def _card(prow, title, vkey, subkey=None):
+            # Chiều cao cố định để 3 box bằng nhau
             cell = tk.Frame(prow, bg="white",
                             highlightbackground="#E5E7EB",
-                            highlightthickness=1)
+                            highlightthickness=1, height=72)
             cell.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3, pady=2)
+            cell.pack_propagate(False)
             tk.Label(cell, text=title, font=("", 8), fg="#6B7280",
-                     bg="white").pack(pady=(4, 0))
+                     bg="white").pack(pady=(6, 0))
             var = tk.StringVar(value=vals[vkey])
-            tk.Label(cell, textvariable=var, font=("", 10, "bold"),
-                     bg="white").pack()
+            tk.Label(cell, textvariable=var, font=("", 11, "bold"),
+                     bg="white").pack(pady=2)
             varmap[vkey] = var
             if subkey:
                 svar = tk.StringVar(value=vals[subkey])
                 tk.Label(cell, textvariable=svar, font=("", 8),
-                         fg="#6B7280", bg="white").pack(pady=(0, 4))
+                         fg="#6B7280", bg="white").pack()
                 varmap[subkey] = svar
-            else:
-                tk.Label(cell, text="", font=("", 4),
-                         bg="white").pack()
 
         row1 = tk.Frame(parent, bg="#F9FAFB")
-        row1.pack(fill=tk.X, padx=2, pady=(2, 1))
+        row1.pack(fill=tk.X, padx=2, pady=2)
         _card(row1, "S\u1ed1 thanh", "n", "nsub")
         _card(row1, "T\u1ed5ng As", "as")
         _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
-        row2 = tk.Frame(parent, bg="#F9FAFB")
-        row2.pack(fill=tk.X, padx=2, pady=(1, 4))
-        _card(row2, "Kho\u1ea3ng h\u1edf gi\u1eefa c\u00e1c b\u00f3",
-              "clear")
-        _card(row2, "Kho\u1ea3ng c\u00e1ch tim gi\u1eefa c\u00e1c b\u00f3",
-              "tim")
+        # Dòng vật liệu
+        if inp is not None:
+            mat = tk.Label(parent,
+                          text=f"Bê tông {inp.concrete_grade}  |  "
+                               f"Thép dọc {inp.steel_grade}  |  "
+                               f"Thép đai {inp.sw_steel_grade}",
+                          font=("", 9), fg="#4B5563", bg="#F9FAFB")
+            mat.pack(pady=(2, 4))
+            varmap["_mat"] = None  # không live update
         return varmap
 
     def _build_param_table(self, parent, inp, res):
@@ -1694,6 +1707,53 @@ class App(tk.Tk):
                            "\u25cf \u0110i\u1ec3m t\u1ea3i A",
                  font=("", 8), fg="#4B5563").pack(side=tk.RIGHT)
 
+    def _build_stirrup_summary(self, parent, inp, res):
+        """Tóm tắt kết quả kiểm tra cốt thép đai."""
+        ttk.Label(parent, text="Tóm tắt kiểm tra cốt thép đai",
+                  font=("", 11, "bold")).pack(anchor="w", padx=8, pady=(6, 2))
+        try:
+            from rc_column.stirrup import (StirrupInput, check_stirrup,
+                                          check_shear)
+            from rc_column.sections import bar_area
+            stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
+                                   legs=inp.sw_legs)
+            # Cấu tạo
+            sr = check_stirrup(self._last_sec, stir_in, inp.cover)
+            # Chịu cắt (lấy Q2/Q3 từ inp)
+            from rc_column.materials import (get_concrete, get_steel,
+                                            STEEL_GRADES)
+            conc = get_concrete(inp.concrete_grade, inp.gamma_b)
+            swg = STEEL_GRADES.get(inp.sw_steel_grade)
+            lines = []
+            ok_all = True
+            for name, ok, msg in sr.checks:
+                mark = "✓" if ok else "✗"
+                lines.append(f"{mark} {name}: {msg}")
+                ok_all = ok_all and ok
+            # Chịu cắt 2 phương (tóm tắt)
+            for Q, lbl in ((inp.Q2, "Q2"), (inp.Q3, "Q3")):
+                if abs(Q) > 1e-9:
+                    b_w = inp.cx if lbl == "Q2" else inp.cy
+                    h0 = (inp.cy if lbl == "Q2" else inp.cx) - inp.cover - \
+                        inp.sw_dia - 12
+                    Asw = stir_in.legs * bar_area(stir_in.dia)
+                    sh = check_shear(Q, b_w, max(h0, 1), conc.Rb,
+                                     conc.Rbt, Asw, swg.Rsw,
+                                     stir_in.spacing)
+                    mark = "✓" if sh.ok else "✗"
+                    lines.append(f"{mark} Chịu cắt {lbl} = {Q:.1f} kN: "
+                                f"[Q] = {min(sh.Qcap1, sh.Qcap2):.1f} kN")
+                    ok_all = ok_all and sh.ok
+            fg = "#065F46" if ok_all else "#991B1B"
+            bg = "#D1FAE5" if ok_all else "#FEE2E2"
+            txt = "\n".join(lines) if lines else "Chưa có số liệu"
+            lbl = tk.Label(parent, text=txt, font=("TkFixedFont", 9),
+                          fg=fg, bg=bg, justify=tk.LEFT, anchor="w")
+            lbl.pack(fill=tk.X, padx=8, pady=(0, 6))
+        except Exception as e:
+            ttk.Label(parent, text=f"Không tính được: {e}",
+                      foreground="gray").pack(padx=8, pady=4)
+
     def _redraw(self):
         """Layout 2x2: [mặt cắt + thẻ TK | bảng thông số] /
         [N-M + chú thích | header + M2-M3]."""
@@ -1748,7 +1808,7 @@ class App(tk.Tk):
                        edgecolors="white", linewidths=1.2, label="Giới hạn")
             ax.scatter([Ma], [res.N], c=GREEN, s=70, zorder=6,
                        edgecolors="white", linewidths=1.2,
-                       label="Điểm tải trọng")
+                       label="Điểm tải A")
             ax.text(Ma, res.N, "  A", fontsize=9, color=GREEN,
                     weight="bold", va="center", zorder=7)
             ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
@@ -1799,7 +1859,7 @@ class App(tk.Tk):
                        edgecolors="white", linewidths=1.2, label="Giới hạn")
             ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70,
                        zorder=6, edgecolors="white", linewidths=1.2,
-                       label="Điểm tải trọng")
+                       label="Điểm tải A")
             ax.text(res.Mx_star, res.My_star, "  A", fontsize=9,
                     color=GREEN, weight="bold", va="center", zorder=7)
             # Trục qua tâm
@@ -1840,7 +1900,7 @@ class App(tk.Tk):
         fig_sec.tight_layout()
         cv_sec.draw()
         self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
-        self._sec_card_vars = self._build_section_cards(f_tl, sec)
+        self._sec_card_vars = self._build_section_cards(f_tl, sec, inp)
 
         # ===== Ô trên-phải: bảng thông số tính toán =====
         f_tr = ttk.Frame(self._sum_inner)
@@ -1873,6 +1933,13 @@ class App(tk.Tk):
         f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
                      padx=4, pady=4)
         self._build_nm_notes(f_notes, inp, res)
+
+        # ===== Hàng 4 full-width: tóm tắt thép đai =====
+        f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
+                  padx=4, pady=4)
+        self._build_stirrup_summary(f_sw, inp, res)
+        self._sum_inner.rowconfigure(3, weight=0)
 
         self._sum_inner.rowconfigure(2, weight=0)
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
