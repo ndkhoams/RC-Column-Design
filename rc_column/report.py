@@ -102,9 +102,10 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     b.line("Biến dạng giới hạn",
            f"ε_{{b1}} = {EPS_B1}, ε_{{b2}} = {EPS_B2}, ε_{{s2}} = {EPS_S2}",
            "MH3ĐT" if inp.concrete_model == "3line" else "MH2ĐT")
-    # Tóm tắt cốt đai (chuyển từ mục 7)
-    A(f"  ▪ Cốt đai: φ{inp.sw_dia:.0f}, bước s = {inp.sw_spacing:.0f} mm, "
-      f"{inp.sw_legs} nhánh\n", "card")
+    # Mác thép đai (chuyển từ mục 7)
+    from .materials import STEEL_GRADES as _SG1
+    _swg1 = _SG1.get(inp.sw_steel_grade, _SG1["CB400-V"])
+    A(f"  ▪ Mác thép đai: {_swg1.name}\n", "card")
 
     # ---- 2. Hình học ----
     b.section(2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
@@ -125,11 +126,9 @@ def _build_report(inp: ColumnInput, res: CheckResult,
            f"I_{{3}} = {_f(res.Iy, 3)} mm⁴", "")
     b.line("Bán kính quán tính i_{2} / i_{3}",
            f"i_{{2}} = {_f(res.ix, 1)} mm, i_{{3}} = {_f(res.iy, 1)} mm", "")
-    # Thép đai chịu cắt (chuyển từ mục 7)
-    from .materials import STEEL_GRADES as _SG2
-    _swg2 = _SG2.get(inp.sw_steel_grade, _SG2["CB400-V"])
-    A(f"  ▪ Thép đai chịu cắt: {_swg2.name} (R_{{sw}} = {_swg2.Rsw:.0f} MPa)\n",
-      "card")
+    # Đường kính / khoảng cách thép đai (chuyển từ mục 7)
+    A(f"  ▪ Cốt đai: φ{inp.sw_dia:.0f}, bước s = {inp.sw_spacing:.0f} mm, "
+      f"{inp.sw_legs} nhánh\n", "card")
 
     # ---- 3. Chiều dài tính toán ----
     b.section(3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
@@ -243,10 +242,10 @@ def _build_report(inp: ColumnInput, res: CheckResult,
         Qb_lim_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         A(f"  Phương {dnum}: Q = {_f(Q, 1)} kN; "
-          f"b = {b_w:.0f} mm, h0 = {h0u:.0f} mm, "
+          f"b = {b_w:.0f} mm, h_{{0}} = {h0u:.0f} mm, "
           f"A_{{sw}} = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²\n",
           "card")
-        A(f"    {m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h0\n", "card")
+        A(f"    {m1} ĐK1 (dải nén xiên): Q ≤ 0.3×R_{{b}}×b×h_{{0}}\n", "card")
         A(f"       = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
           f"= {_f(sh.Qcap1, 1)} kN\n", "card")
         A(f"    {m2} ĐK2 (vết nứt xiên): Q ≤ Q_{{b}} + Q_{{sw}}\n", "card")
