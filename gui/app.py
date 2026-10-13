@@ -41,6 +41,9 @@ class App(tk.Tk):
         try:
             self.update_idletasks()
             self._paned.sashpos(0, self._left_width)
+            # Chặn kéo: mỗi khi sash di chuyển thì đưa về vị trí cố định
+            self._paned.bind("<B1-Motion>", lambda e: self._paned.sashpos(
+                0, self._left_width), add="+")
         except Exception:
             pass
 
@@ -1314,7 +1317,18 @@ class App(tk.Tk):
             if not path:
                 return
         if self._do_save(path):
+            self._update_title()
             messagebox.showinfo("Lưu dữ liệu", f"Đã lưu: {path}")
+
+    def _update_title(self):
+        """Title bar hiện tên file đang lưu."""
+        import os
+        base = "Kiểm tra cột bê tông cốt thép — TCVN 5574:2018"
+        p = getattr(self, "current_save_path", None)
+        if p:
+            self.title(f"{base} — [{os.path.basename(p)}]")
+        else:
+            self.title(base)
 
     def on_save_as_data(self):
         """SAVE AS: luôn mở hộp thoại chọn file mới."""
@@ -1327,6 +1341,7 @@ class App(tk.Tk):
         if not path:
             return
         if self._do_save(path):
+            self._update_title()
             messagebox.showinfo("Lưu dữ liệu", f"Đã lưu: {path}")
 
     def on_load_data(self):
@@ -1671,10 +1686,11 @@ class App(tk.Tk):
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
         Mb = math.hypot(res.Bx, res.By)
-        box = ttk.Frame(parent)
-        box.pack(fill=tk.X, padx=4, pady=(0, 4))
-        r1 = ttk.Frame(box)
-        r1.pack(fill=tk.X, pady=1)
+        box = tk.Frame(parent, bg="#FEF3C7",
+                       highlightbackground="#F59E0B", highlightthickness=1)
+        box.pack(fill=tk.X, padx=4, pady=4)
+        r1 = tk.Frame(box, bg="#FEF3C7")
+        r1.pack(fill=tk.X, pady=1, padx=4)
         tk.Label(r1, text=f"\u25cf \u0110\u01b0\u1eddng bao ki\u1ec3m tra: "
                           f"N-M\u03b1 (\u03b1 = {alpha_deg:.1f}\u00b0)",
                  font=mono, fg="#059669").pack(side=tk.LEFT)
@@ -1683,16 +1699,31 @@ class App(tk.Tk):
         tk.Label(r1, text=f"  D/C = OA / OB = {res.dc:.3f} \u2192 {okt}  ",
                  font=("", 8, "bold"), fg="#065F46",
                  bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
-        tk.Label(box,
+        tk.Label(box, bg="#FEF3C7",
                  text=f"\u25cf A (\u0111i\u1ec3m t\u1ea3i):  N = {res.N:+.1f} kN,  "
                       f"M\u03b1 = {Ma:.1f} kN\u00b7m  "
                       f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})",
                  font=mono, fg="#047857").pack(anchor="w", pady=1)
-        tk.Label(box,
+        tk.Label(box, bg="#FEF3C7",
                  text=f"\u25c6 B (\u0111i\u1ec3m gi\u1edbi h\u1ea1n):  "
                       f"Nu = {res.BN:+.1f} kN,  M\u03b1,u = {Mb:.1f} kN\u00b7m  "
                       f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})",
                  font=mono, fg="#C2410C").pack(anchor="w", pady=1)
+
+    def _build_nm_header(self, parent, res):
+        """Header trên biểu đồ N-M (format giống M2-M3)."""
+        import math
+        alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+            if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
+        hdr = ttk.Frame(parent)
+        hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
+        left = ttk.Frame(hdr)
+        left.pack(side=tk.LEFT)
+        tk.Label(left, text="\u25cf Bi\u1ec3u \u0111\u1ed3 N-M",
+                 font=("", 10, "bold")).pack(side=tk.LEFT)
+        tk.Label(left, text=f"  \u03b1 = {alpha_deg:.1f}\u00b0  ",
+                 font=("", 8, "bold"), fg="#065F46",
+                 bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
 
     def _build_m2m3_header(self, parent, res):
         """Header tr\u00ean bi\u1ec3u \u0111\u1ed3 M2-M3."""
@@ -1729,10 +1760,11 @@ class App(tk.Tk):
             swg = STEEL_GRADES.get(inp.sw_steel_grade)
             lines = []
             ok_all = True
-            for name, ok, msg in sr.checks:
-                mark = "✓" if ok else "✗"
-                lines.append(f"{mark} {name}: {msg}")
-                ok_all = ok_all and ok
+            for ch in sr.checks:
+                mark = "✓" if ch.ok else "✗"
+                lines.append(f"{mark} {ch.item}: {ch.required} "
+                             f"(có {ch.provided})")
+                ok_all = ok_all and ch.ok
             # Chịu cắt 2 phương (tóm tắt)
             for Q, lbl in ((inp.Q2, "Q2"), (inp.Q3, "Q3")):
                 if abs(Q) > 1e-9:
@@ -1910,9 +1942,10 @@ class App(tk.Tk):
         f_tr.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         self._build_param_table(f_tr, inp, res)
 
-        # ===== Ô dưới-trái: biểu đồ N-M =====
+        # ===== Ô dưới-trái: header + biểu đồ N-M =====
         f_bl = ttk.Frame(self._sum_inner)
         f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_nm_header(f_bl, res)
         fig_nm, cv_nm = _new_fig(f_bl, (3.9, 2.9))
         a3 = fig_nm.add_subplot(111)
         _nm_alpha_ax(a3)
