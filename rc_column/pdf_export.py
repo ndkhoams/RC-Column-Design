@@ -668,12 +668,12 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         _pil = _PILImage.open(sec_img_path)
         _w, _h = _pil.size
         _ratio = _w / _h
-        # Scale vừa khung 80x80mm, giữ đúng tỉ lệ
-        if 80 / 80 > _ratio:
-            _hh = 80 * mm
+        # Scale vừa khung 65x65mm, giữ đúng tỉ lệ
+        if 65 / 65 > _ratio:
+            _hh = 65 * mm
             _ww = _hh * _ratio
         else:
-            _ww = 80 * mm
+            _ww = 65 * mm
             _hh = _ww / _ratio
         img_sec = _RLImage(sec_img_path, width=_ww, height=_hh)
     else:
@@ -767,7 +767,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
         [img_sec],
-        [Spacer(1, 40 * mm)],
+        [Spacer(1, 5 * mm)],
         [t_box],
     ]
     _left_tbl = Table(_left_content, colWidths=[80 * mm])
