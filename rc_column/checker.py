@@ -102,7 +102,7 @@ def build_section(inp: ColumnInput) -> Section:
 
 
 def section_inertia(sec: Section):
-    """Ix, Iy (mm⁴), ix, iy (mm), Isx, Isy của cốt thép (mm⁴)."""
+    """Ix, Iy (mm4), ix, iy (mm), Isx, Isy cua cot thep (mm4)."""
     if sec.kind == "rect":
         b, h = sec.cx, sec.cy
         Ix = b * h ** 3 / 12.0
@@ -178,3 +178,47 @@ def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
         steel_area=sec.steel_area, reinforcement_ratio=mu,
         clear_cx=ccx, clear_cy=ccy, alpha_e=alpha_e, details=details,
     )
+
+
+class BatchChecker:
+    """Kiểm tra hàng loạt tổ hợp: dựng BiaxialCapacity 1 lần rồi tái sử dụng.
+
+    Dùng cho import ETABS: mỗi tổ hợp chỉ tính uốn dọc (rẻ) + D/C tia (nội suy).
+    """
+
+    def __init__(self, inp: ColumnInput, n_angles: int = 12):
+        self.inp = inp
+        self.sec = build_section(inp)
+        self.cap = BiaxialCapacity(self.sec, model=inp.concrete_model,
+                                   n_angles=n_angles)
+        conc = self.sec.concrete
+        self.Ix, self.Iy, self.ix, self.iy, self.Isx, self.Isy = \
+            section_inertia(self.sec)
+        self.L0x = effective_length(inp.Lx, inp.top_x, inp.bottom_x, inp.psi_x)
+        self.L0y = effective_length(inp.Ly, inp.top_y, inp.bottom_y, inp.psi_y)
+        self._Eb = conc.Eb
+
+    def check_one(self, N: float, Mx: float, My: float,
+                  lt: "LongTermLoads" = None) -> dict:
+        """Kiểm tra 1 tổ hợp. Trả về dict {dc, fs, ok, Mx_star, ...}."""
+        from .stability import LongTermLoads as _LT
+        lt = lt or _LT()
+        phi = phi_L(N, Mx, My, lt)
+        ecc = eccentricities(N, Mx, My, self.inp.Lx, self.inp.Ly,
+                             self.inp.cx, self.inp.cy)
+        buck = buckling_factors(ecc.e0x, ecc.e0y, self.inp.cx, self.inp.cy,
+                                phi, self._Eb, self.Ix, self.Iy,
+                                self.Isx, self.Isy, self.L0x, self.L0y,
+                                N, Mx, My)
+        r = self.cap.dc_ratio(N, buck.Mx_star, buck.My_star)
+        dc = r["dc"]
+        return {
+            "N": N, "Mx": Mx, "My": My,
+            "Mx_star": buck.Mx_star, "My_star": buck.My_star,
+            "etax": buck.etax, "etay": buck.etay,
+            "dc": dc,
+            "fs": 1.0 / dc if dc > 1e-12 else float("inf"),
+            "ok": r["ok"],
+            "Bx": r["Bx"], "By": r["By"], "BN": r["BN"],
+            "lambda_max": r["lambda_max"],
+        }
