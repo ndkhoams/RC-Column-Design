@@ -56,7 +56,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
         ax.add_patch(mpatches.Circle((0, 0), cx/2, fill=False,
                                      edgecolor="black", lw=1.5))
     ax.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
-               s=45, c="red", zorder=3, edgecolors="darkred",
+               s=25, c="red", zorder=3, edgecolors="darkred",
                linewidths=0.5)
     # Trục 2 (ngang →), trục 3 (đứng ↑)
     L = max(cx, cy) * 0.75
@@ -69,9 +69,9 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
     # Chỉ hiện text t2=/t3= (không vẽ đường line dim)
     if sec.kind == "rect":
         off = max(cx, cy) * 0.12
-        ax.text(0, -cy/2 - off, f"t3={cx:.0f}", fontsize=9, color="blue",
+        ax.text(0, -cy/2 - off, f"t3={cx:.0f}", fontsize=7, color="blue",
                 ha="center", va="top")
-        ax.text(cx/2 + off, 0, f"t2={cy:.0f}", fontsize=9, color="blue",
+        ax.text(cx/2 + off, 0, f"t2={cy:.0f}", fontsize=7, color="blue",
                 va="center", rotation=90)
 
     ax.set_aspect("equal")
@@ -85,7 +85,7 @@ def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     if small:
-        width_in, dpi = 1.6, 200
+        width_in, dpi = 1.3, 200
     # Figure theo đúng tỉ lệ t2/t3 (cao = rộng × cy/cx)
     ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
     fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
@@ -335,7 +335,7 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
     # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
     img_side = {}
     try:
-        _w = 62*mm
+        _w = 50*mm
         _h = _w * (sec.cy / sec.cx) if sec.cx > 0 else _w
         img_side[2] = Image(io.BytesIO(section_image(sec, small=True)),
                             width=_w, height=_h)
@@ -364,7 +364,7 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
                 ("RIGHTPADDING", (1, 0), (1, 0), 0),
             ]))
             S.append(KeepTogether(tbl))
-            S.append(Spacer(1, 6))
+            S.append(Spacer(1, 2))
         elif num == 6 and img_m6:
             from reportlab.platypus import PageBreak
             S.append(PageBreak())
