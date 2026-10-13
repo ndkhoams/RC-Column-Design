@@ -32,36 +32,65 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Kiểm tra cột bê tông cốt thép — TCVN 5574:2018")
-        self.geometry("1220x780")
+        self.geometry("1360x860")
         self._setup_styles()
         self._build()
 
     def _setup_styles(self):
-        """Style giống web VietconSoft: card trắng, viền nhạt, accent xanh lá."""
+        """Style giống web VietconSoft: thanh thoát, gọn gàng."""
         st = ttk.Style(self)
-        # Dùng clam để custom được nhiều hơn
         try:
             st.theme_use("clam")
         except Exception:
             pass
         GREEN = "#059669"
+        GREEN_DARK = "#047857"
         BORDER = "#E5E7EB"
-        # LabelFrame kiểu card
+        BG = "#F9FAFB"
+        TEXT = "#111827"
+        MUTED = "#6B7280"
+        # Nền chung
+        st.configure(".", background=BG, font=("", 10))
+        st.configure("TFrame", background=BG)
+        st.configure("TLabel", background=BG, foreground=TEXT, font=("", 10))
+        # Label mô tả nhỏ màu xám
+        st.configure("Muted.TLabel", foreground=MUTED, font=("", 9))
+        # Tiêu đề mục: số xanh lá + chữ đậm
+        st.configure("Section.TLabel", foreground=TEXT,
+                     font=("", 11, "bold"))
+        # Card trắng
         st.configure("Card.TLabelframe", background="white",
                      bordercolor=BORDER, relief="solid", borderwidth=1)
         st.configure("Card.TLabelframe.Label", background="white",
-                     foreground="#111827", font=("", 10, "bold"))
-        # Entry/Combobox/Spinbox viền nhạt
+                     foreground=TEXT, font=("", 11, "bold"))
+        # Input hiện đại: cao ráo, viền nhạt bo nhẹ
         for w in ("TEntry", "TCombobox", "TSpinbox"):
             st.configure(w, fieldbackground="white", bordercolor=BORDER,
                          lightcolor=BORDER, darkcolor=BORDER,
-                         borderwidth=1, padding=4)
-            st.map(w, bordercolor=[("focus", GREEN)])
-        # Nút accent xanh lá
+                         borderwidth=1, padding=(8, 6))
+            st.map(w, bordercolor=[("focus", GREEN)],
+                   fieldbackground=[("readonly", "white")])
+        # Nút chính xanh lá
         st.configure("Accent.TButton", background=GREEN, foreground="white",
-                     font=("", 10, "bold"), padding=6)
+                     font=("", 11, "bold"), padding=(12, 10),
+                     borderwidth=0)
         st.map("Accent.TButton",
-               background=[("active", "#047857"), ("pressed", "#065F46")])
+               background=[("active", GREEN_DARK), ("pressed", "#065F46")])
+        # Nút phụ viền xám
+        st.configure("Ghost.TButton", background="white", foreground=TEXT,
+                     font=("", 10), padding=(10, 6), borderwidth=1,
+                     relief="solid", bordercolor=BORDER)
+        # Treeview bảng thông số
+        st.configure("Treeview", background="white",
+                     fieldbackground="white", foreground=TEXT,
+                     font=("", 10), rowheight=28, borderwidth=1,
+                     relief="solid")
+        st.configure("Treeview.Heading", background="#F3F4F6",
+                     foreground=MUTED, font=("", 10, "bold"),
+                     padding=6)
+        st.map("Treeview",
+               background=[("selected", "#D1FAE5")],
+               foreground=[("selected", TEXT)])
 
     # ============================ UI ============================
     def _build(self):
@@ -99,19 +128,19 @@ class App(tk.Tk):
         bottom_bar.pack(fill=tk.X, side=tk.BOTTOM, padx=2, pady=2)
         data_bar = ttk.Frame(bottom_bar)
         data_bar.pack(fill=tk.X, padx=8, pady=(8, 0))
-        ttk.Button(data_bar, text="💾 SAVE",
+        ttk.Button(data_bar, text="💾 SAVE", style="Ghost.TButton",
                    command=self.on_save_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(0, 2))
-        ttk.Button(data_bar, text="💾 SAVE AS",
+                                                   fill=tk.X, padx=(0, 4))
+        ttk.Button(data_bar, text="💾 SAVE AS", style="Ghost.TButton",
                    command=self.on_save_as_data).pack(side=tk.LEFT,
                                                       expand=True, fill=tk.X,
                                                       padx=(2, 2))
-        ttk.Button(data_bar, text="📂 OPEN",
+        ttk.Button(data_bar, text="📂 OPEN", style="Ghost.TButton",
                    command=self.on_load_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(2, 0))
-        ttk.Button(bottom_bar, text="KIỂM TRA KHẢ NĂNG CHỊU LỰC",
-                   command=self.on_check).pack(fill=tk.X, padx=8, pady=8,
-                                               ipady=8)
+                                                   fill=tk.X, padx=(4, 0))
+        ttk.Button(bottom_bar, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
+                   style="Accent.TButton",
+                   command=self.on_check).pack(fill=tk.X, padx=10, pady=10)
         # Cuộn chuột trên cụm nút cố định -> cuộn vùng nhập liệu
         self._bind_wheel(bottom_bar, self._left_canvas)
 
@@ -240,20 +269,17 @@ class App(tk.Tk):
         return None
 
     def _frame(self, title):
-        f = ttk.LabelFrame(self.left, text=title, padding=8,
+        # Title dạng "1. Vật liệu" -> số xanh lá
+        f = ttk.LabelFrame(self.left, text=title, padding=(12, 10),
                            style="Card.TLabelframe")
-        f.pack(fill=tk.X, padx=8, pady=6)
-        # Nền trắng cho nội dung trong card
-        try:
-            f.configure(background="white")
-        except Exception:
-            pass
+        f.pack(fill=tk.X, padx=10, pady=8)
         return f
 
     def _row(self, parent, label, widget, r, c0=0):
-        ttk.Label(parent, text=label).grid(row=r, column=c0, sticky=tk.W,
-                                           padx=4, pady=2)
-        widget.grid(row=r, column=c0 + 1, sticky=tk.EW, padx=4, pady=2)
+        # Label xám nhỏ, widget thoáng
+        ttk.Label(parent, text=label, style="Muted.TLabel").grid(
+            row=r, column=c0, sticky=tk.W, padx=(4, 8), pady=5)
+        widget.grid(row=r, column=c0 + 1, sticky=tk.EW, padx=4, pady=5)
         parent.columnconfigure(c0 + 1, weight=1)
 
     # ---- 1. Vật liệu ----
