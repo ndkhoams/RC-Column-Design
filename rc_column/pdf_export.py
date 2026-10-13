@@ -638,9 +638,13 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     story = []
 
     # ===== Tiêu đề =====
+    story.append(Paragraph("KIỂM TRA CỘT BTCT", st_title))
+    st_sub = ParagraphStyle("sub", fontName=FNB, fontSize=11,
+                            alignment=TA_CENTER, spaceAfter=4,
+                            textColor=HexColor("#065F46" if ok
+                                               else "#991B1B"))
     story.append(Paragraph(
-        f"TÓM TẮT KIỂM TRA CỘT BTCT — {ok_txt} (D/C = {res.dc:.3f})",
-        st_title))
+        f"TÓM TẮT — {ok_txt} (D/C = {res.dc:.3f})", st_sub))
     story.append(Spacer(1, 2))
 
     # ===== Mặt cắt =====
@@ -720,12 +724,28 @@ def export_summary_pdf(sec, inp, res, filepath: str):
            [HexColor("#FFFFFF"), HexColor("#F9FAFB")])]
     t_param.setStyle(TableStyle(ts))
 
-    story.append(Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h))
-    story.append(Table([[img_sec, t_box]], colWidths=[66 * mm, 118 * mm],
-                       style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
-    story.append(Spacer(1, 3))
-    story.append(Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h))
-    story.append(t_param)
+    # Hàng trên: [mặt cắt + box | bảng thông số] như app
+    left_stack = Table(
+        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
+         [img_sec],
+         [t_box]],
+        colWidths=[88 * mm])
+    left_stack.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    right_stack = Table(
+        [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
+         [t_param]],
+        colWidths=[96 * mm])
+    right_stack.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    story.append(Table([[left_stack, right_stack]],
+                       colWidths=[92 * mm, 100 * mm],
+                       style=TableStyle([
+                           ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                           ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                           ("RIGHTPADDING", (0, 0), (-1, -1), 2)])))
     story.append(Spacer(1, 2))
 
     # ===== Biểu đồ =====
