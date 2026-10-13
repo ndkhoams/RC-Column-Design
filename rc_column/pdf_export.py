@@ -259,8 +259,9 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
     return out
 
 
-def export_pdf(inp, res, filepath: str):
-    """Xuất thuyết minh ra file PDF (bố cục giống trong phần mềm)."""
+def export_pdf(inp, res, filepath: str, batch_rows=None):
+    """Xuất thuyết minh ra file PDF (bố cục giống trong phần mềm).
+    batch_rows: list (force, result) cho mục 7 (tùy chọn)."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib.colors import HexColor
@@ -326,7 +327,7 @@ def export_pdf(inp, res, filepath: str):
                "(Điều 8.1.2.7)", st_sub))
 
     from .report import generate_report_sections
-    sections = generate_report_sections(inp, res)
+    sections = generate_report_sections(inp, res, batch_rows=batch_rows)
 
     # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
     img_side = {}
@@ -335,16 +336,11 @@ def export_pdf(inp, res, filepath: str):
                             width=62*mm, height=62*mm)
     except Exception:
         pass
-    img_m6 = []
+    img_m6 = None
     try:
-        from .pdf_export import surface_3d_image  # noqa
-    except Exception:
-        pass
-    try:
-        png_3d = surface_3d_image(sec, inp, res)
-        png_nm = interaction_image(sec, inp, res, small=True)
-        img_m6 = [Image(io.BytesIO(png_3d), width=82*mm, height=70*mm),
-                  Image(io.BytesIO(png_nm), width=82*mm, height=70*mm)]
+        png_nm = interaction_image(sec, inp, res)
+        # Bỏ 3D, biểu đồ N-M full bề ngang trang
+        img_m6 = Image(io.BytesIO(png_nm), width=170*mm, height=128*mm)
     except Exception:
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
@@ -367,20 +363,13 @@ def export_pdf(inp, res, filepath: str):
         elif num == 6 and img_m6:
             from reportlab.platypus import PageBreak
             S.append(PageBreak())
-            # Mục 6: text full-width, 2 biểu đồ lớn cạnh nhau bên dưới
+            # Mục 6: text full-width, biểu đồ N-M full bề ngang (bỏ 3D)
             S.extend(flows)
             S.append(Spacer(1, 4))
-            tbl6 = Table([[
-                [img_m6[0], P("Mặt tương tác 3D N-M2-M3", st_cap)],
-                [img_m6[1], P("Biểu đồ N-M (góc α)", st_cap)],
-            ]], colWidths=[88*mm, 88*mm])
-            tbl6.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ]))
+            S.append(img_m6)
+            S.append(P("Biểu đồ N-M (góc α)", st_cap))
             S.append(tbl6)
-            S.append(P("Hình 2. Mặt tương tác 3D và biểu đồ N-M (góc α)",
-                       st_cap))
+            S.append(P("Hình 2. Biểu đồ N-M (góc α)", st_cap))
             S.append(Spacer(1, 6))
         else:
             S.extend(flows)
