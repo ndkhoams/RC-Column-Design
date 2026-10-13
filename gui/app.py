@@ -44,6 +44,7 @@ class App(tk.Tk):
         left_outer = ttk.Frame(main)
         main.add(left_outer, weight=1)
         canvas = tk.Canvas(left_outer, highlightthickness=0)
+        self._left_canvas = canvas
         scr = ttk.Scrollbar(left_outer, orient=tk.VERTICAL, command=canvas.yview)
         self.left = ttk.Frame(canvas)
         self.left.bind("<Configure>",
@@ -52,6 +53,9 @@ class App(tk.Tk):
         canvas.configure(yscrollcommand=scr.set)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scr.pack(side=tk.RIGHT, fill=tk.Y)
+        # Cuộn chuột cho panel trái
+        self.left.bind("<Enter>", lambda e: self._wheel_on())
+        self.left.bind("<Leave>", lambda e: self._wheel_off())
 
         self._sec_materials()
         self._sec_section()
@@ -104,6 +108,27 @@ class App(tk.Tk):
         self.calc_text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.calc_text.insert(tk.END,
                               "Chi tiết tính toán sẽ hiển thị sau khi thực hiện kiểm tra.")
+
+    def _wheel_on(self):
+        self.bind_all("<MouseWheel>", self._on_wheel)
+        self.bind_all("<Button-4>", self._on_wheel)
+        self.bind_all("<Button-5>", self._on_wheel)
+
+    def _wheel_off(self):
+        self.unbind_all("<MouseWheel>")
+        self.unbind_all("<Button-4>")
+        self.unbind_all("<Button-5>")
+
+    def _on_wheel(self, event):
+        c = self._left_canvas
+        if getattr(event, "num", None) == 4:
+            c.yview_scroll(-3, "units")
+        elif getattr(event, "num", None) == 5:
+            c.yview_scroll(3, "units")
+        else:
+            delta = int(-event.delta / 120) if event.delta else 0
+            c.yview_scroll(delta * 3, "units")
+        return "break"
 
     def _frame(self, title):
         f = ttk.LabelFrame(self.left, text=title, padding=6)
@@ -277,14 +302,10 @@ class App(tk.Tk):
                         variable=self.var_comb).grid(row=2, column=0,
                                                     columnspan=2, sticky=tk.W,
                                                     padx=4)
-        ttk.Button(self.etabs_frame, text="▶ Kiểm tra tất cả tổ hợp",
-                   command=self.on_check_etabs).grid(row=3, column=0,
-                                                    columnspan=2, padx=4,
-                                                    pady=6, sticky=tk.EW)
         self.etabs_info = tk.StringVar(value="Chưa chọn file.")
         ttk.Label(self.etabs_frame, textvariable=self.etabs_info,
                   foreground="#0a4d8c", wraplength=360,
-                  justify=tk.LEFT).grid(row=4, column=0, columnspan=2,
+                  justify=tk.LEFT).grid(row=3, column=0, columnspan=2,
                                         padx=4, sticky=tk.W)
         # Bảng kết quả (gọn cho panel trái)
         cols = ("case", "N", "Mx", "My", "dc", "kl")
@@ -296,11 +317,11 @@ class App(tk.Tk):
         for c in cols:
             self.etabs_tree.heading(c, text=hd[c])
             self.etabs_tree.column(c, width=wd[c], anchor=tk.CENTER)
-        self.etabs_tree.grid(row=5, column=0, columnspan=2, padx=4, pady=4,
+        self.etabs_tree.grid(row=4, column=0, columnspan=2, padx=4, pady=4,
                              sticky=tk.EW)
         vsb = ttk.Scrollbar(self.etabs_frame, orient=tk.VERTICAL,
                             command=self.etabs_tree.yview)
-        vsb.grid(row=5, column=2, sticky=tk.NS)
+        vsb.grid(row=4, column=2, sticky=tk.NS)
         self.etabs_tree.configure(yscrollcommand=vsb.set)
         self.etabs_tree.tag_configure("ng", background="#fee2e2")
         self.etabs_tree.tag_configure("worst", background="#fecaca",
@@ -391,6 +412,11 @@ class App(tk.Tk):
         return inp
 
     def on_check(self):
+        # Chế độ ETABS: kiểm tra tất cả tổ hợp
+        if self.var_load_mode.get() == "etabs":
+            self.on_check_etabs()
+            return
+        # Chế độ nhập tay: kiểm tra 1 bộ nội lực
         try:
             inp = self.collect()
             res = check_column(inp, n_angles=24)
@@ -399,7 +425,7 @@ class App(tk.Tk):
             return
         ok_txt = "ĐẠT ✓" if res.ok else "KHÔNG ĐẠT ✗"
         self.result_var.set(
-            f"Kết quả: {ok_txt} — Hệ số sử dụng η = {res.utilization:.3f}")
+            f"Kết quả: {ok_txt} — D/C = {res.dc:.3f}")
         # Tóm tắt
         sec = build_section(inp)
         n = len(sec.rebars)
