@@ -378,6 +378,9 @@ class App(tk.Tk):
         ttk.Button(self.etabs_frame, text="📂 Chọn file Excel ETABS...",
                    command=self.on_import_etabs).grid(row=0, column=0,
                                                      padx=4, pady=4, sticky=tk.W)
+        ttk.Button(self.etabs_frame, text="📋 Paste từ Clipboard",
+                   command=self.on_paste_etabs).grid(row=0, column=1,
+                                                    padx=4, pady=4, sticky=tk.W)
         ttk.Label(self.etabs_frame,
                   text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
                   foreground="gray", font=("", 8)).grid(
@@ -530,6 +533,34 @@ class App(tk.Tk):
         if not path:
             return
         self._load_etabs_file(path)
+
+    def on_paste_etabs(self):
+        """Dán nội lực ETABS từ clipboard (copy từ bảng Element Forces)."""
+        try:
+            text = self.clipboard_get()
+        except Exception:
+            from tkinter import messagebox
+            messagebox.showwarning("Clipboard", "Clipboard trống.")
+            return
+        if not text or not text.strip():
+            from tkinter import messagebox
+            messagebox.showwarning("Clipboard", "Clipboard trống.")
+            return
+        try:
+            from rc_column.etabs_import import parse_etabs_clipboard
+            forces = parse_etabs_clipboard(
+                text, only_combinations=self.var_comb.get())
+        except Exception as ex:
+            from tkinter import messagebox
+            messagebox.showerror("Lỗi đọc clipboard", str(ex))
+            return
+        self.etabs_forces = forces
+        self.etabs_file = "<clipboard>"
+        n_case = len(set(f.case for f in forces))
+        self.etabs_info.set(
+            f"Đã dán {len(forces)} dòng, {n_case} tổ hợp từ clipboard — "
+            f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
+        self._fill_etabs_table([(f, None) for f in forces])
 
     def _load_etabs_file(self, path: str) -> bool:
         """Nạp file Excel ETABS (dùng chung cho import tay và mở dữ liệu)."""
