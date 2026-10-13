@@ -33,7 +33,35 @@ class App(tk.Tk):
         super().__init__()
         self.title("Kiểm tra cột bê tông cốt thép — TCVN 5574:2018")
         self.geometry("1220x780")
+        self._setup_styles()
         self._build()
+
+    def _setup_styles(self):
+        """Style giống web VietconSoft: card trắng, viền nhạt, accent xanh lá."""
+        st = ttk.Style(self)
+        # Dùng clam để custom được nhiều hơn
+        try:
+            st.theme_use("clam")
+        except Exception:
+            pass
+        GREEN = "#059669"
+        BORDER = "#E5E7EB"
+        # LabelFrame kiểu card
+        st.configure("Card.TLabelframe", background="white",
+                     bordercolor=BORDER, relief="solid", borderwidth=1)
+        st.configure("Card.TLabelframe.Label", background="white",
+                     foreground="#111827", font=("", 10, "bold"))
+        # Entry/Combobox/Spinbox viền nhạt
+        for w in ("TEntry", "TCombobox", "TSpinbox"):
+            st.configure(w, fieldbackground="white", bordercolor=BORDER,
+                         lightcolor=BORDER, darkcolor=BORDER,
+                         borderwidth=1, padding=4)
+            st.map(w, bordercolor=[("focus", GREEN)])
+        # Nút accent xanh lá
+        st.configure("Accent.TButton", background=GREEN, foreground="white",
+                     font=("", 10, "bold"), padding=6)
+        st.map("Accent.TButton",
+               background=[("active", "#047857"), ("pressed", "#065F46")])
 
     # ============================ UI ============================
     def _build(self):
@@ -217,8 +245,14 @@ class App(tk.Tk):
         return None
 
     def _frame(self, title):
-        f = ttk.LabelFrame(self.left, text=title, padding=6)
+        f = ttk.LabelFrame(self.left, text=title, padding=8,
+                           style="Card.TLabelframe")
         f.pack(fill=tk.X, padx=8, pady=6)
+        # Nền trắng cho nội dung trong card
+        try:
+            f.configure(background="white")
+        except Exception:
+            pass
         return f
 
     def _row(self, parent, label, widget, r, c0=0):
@@ -491,13 +525,13 @@ class App(tk.Tk):
         self.en_Lx = ttk.Entry(f, width=12); self.en_Lx.insert(0, "4.0")
         self.en_Ly = ttk.Entry(f, width=12); self.en_Ly.insert(0, "4.0")
         self.cb_tx = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_tx.set("Ngàm")
+        self.cb_tx.set("Ngàm nửa cứng")
         self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_bx.set("Ngàm")
+        self.cb_bx.set("Ngàm nửa cứng")
         self.cb_ty = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_ty.set("Ngàm")
+        self.cb_ty.set("Ngàm nửa cứng")
         self.cb_by = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_by.set("Ngàm")
+        self.cb_by.set("Ngàm nửa cứng")
         self.en_psix = ttk.Entry(f, width=12)
         self.en_psiy = ttk.Entry(f, width=12)
         rows = [
@@ -766,6 +800,79 @@ class App(tk.Tk):
                 f"góc: 4)")
         except Exception:
             pass
+        # Live update sơ đồ mặt cắt + bảng tổng hợp (nếu đã có figure)
+        self._live_update_section(sec, inp)
+
+    def _live_update_section(self, sec, inp):
+        """Vẽ lại sơ đồ mặt cắt + bảng tổng hợp khi đổi nhập liệu."""
+        ax1 = getattr(self, "_sec_ax", None)
+        if ax1 is None:
+            return
+        try:
+            from rc_column.pdf_export import draw_section_ax
+            ax1.clear()
+            draw_section_ax(ax1, sec, show_stats=False)
+            ax2 = getattr(self, "_sumtab_ax", None)
+            fn = getattr(self, "_sumtab_fn", None)
+            if ax2 is not None and fn is not None:
+                # Vẽ lại bảng với sec mới: cần closure mới
+                # Đơn giản: clear và gọi lại với sec hiện tại
+                ax2.clear()
+                # Tạo hàm wrapper với sec mới
+                import types
+                # fn là closure, ta tạo lại bằng cách lưu sec vào
+                self._redraw_summary_table(ax2, sec, inp)
+            self.mpl.draw_idle()
+        except Exception:
+            pass
+
+    def _redraw_summary_table(self, ax, sec, inp):
+        """Vẽ lại bảng tổng hợp mặt cắt với số liệu mới."""
+        import math
+        import matplotlib.pyplot as plt
+        from rc_column.sections import clear_spacing
+        n = len(sec.rebars)
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 10)
+        ax.axis("off")
+        # Tính số liệu
+        compo_parts = []
+        from collections import Counter
+        cnt = Counter((r.layer, r.dia) for r in sec.rebars)
+        for (layer, dia) in sorted(cnt, key=lambda k: (k[0], -k[1])):
+            compo_parts.append(f"{cnt[(layer, dia)]}d{dia:.0f}")
+        compo = " + ".join(compo_parts)
+        ccx, ccy = clear_spacing(sec)
+        dias = sorted(set(r.dia for r in sec.rebars))
+        d_avg = sum(dias) / len(dias) if dias else 0
+        # Vẽ 5 thẻ đơn giản
+        cards = [
+            ("Số thanh", f"{n} thanh\n{compo}"),
+            ("Tổng As", f"{sec.steel_area:.0f} mm²"),
+            ("Hàm lượng μ", f"{sec.reinforcement_ratio*100:.2f}%"),
+        ]
+        if math.isfinite(ccx):
+            cards.append(("Khoảng hở thông thủy",
+                         f"t3 = {ccx:.1f} mm\nt2 = {ccy:.1f} mm"))
+            cards.append(("Khoảng cách tim",
+                         f"t3 = {ccx+d_avg:.1f} mm\nt2 = {ccy+d_avg:.1f} mm"))
+        # Layout: 3 thẻ trên, 2 thẻ dưới
+        for i, (title, val) in enumerate(cards):
+            if i < 3:
+                x, y, w, h = 0.5 + i*3.2, 5.5, 2.9, 4.0
+            else:
+                x, y, w, h = 0.5 + (i-3)*4.8, 0.5, 4.5, 4.5
+            from matplotlib.patches import FancyBboxPatch
+            box = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
+                                facecolor="white", edgecolor="#E5E7EB",
+                                linewidth=1.2)
+            ax.add_patch(box)
+            ax.text(x+w/2, y+h-0.7, title, ha="center", va="top",
+                    fontsize=8, color="#6B7280")
+            ax.text(x+w/2, y+h/2-0.3, val, ha="center", va="center",
+                    fontsize=9, weight="bold", color="#111827")
+        ax.set_title("Tổng hợp mặt cắt", fontsize=11, weight="bold",
+                     color="#111827")
 
     def collect(self) -> ColumnInput:
         inp = self._draft_input()
@@ -1185,8 +1292,8 @@ class App(tk.Tk):
             se(self.en_sw_s, d.get("sw_s", "200"))
             se(self.en_sw_legs, d.get("sw_legs", "2"))
             se(self.en_Lx, d.get("Lx", "4.0")); se(self.en_Ly, d.get("Ly", "4.0"))
-            self.cb_tx.set(d.get("top_x", "Ngàm")); self.cb_bx.set(d.get("bot_x", "Ngàm"))
-            self.cb_ty.set(d.get("top_y", "Ngàm")); self.cb_by.set(d.get("bot_y", "Ngàm"))
+            self.cb_tx.set(d.get("top_x", "Ngàm nửa cứng")); self.cb_bx.set(d.get("bot_x", "Ngàm nửa cứng"))
+            self.cb_ty.set(d.get("top_y", "Ngàm nửa cứng")); self.cb_by.set(d.get("bot_y", "Ngàm nửa cứng"))
             se(self.en_psix, d.get("psi_x", "")); se(self.en_psiy, d.get("psi_y", ""))
             self.var_load_mode.set(d.get("load_mode", "etabs"))
             se(self.en_N, d.get("N", "")); se(self.en_Mx, d.get("Mx", ""))
@@ -1530,41 +1637,51 @@ class App(tk.Tk):
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
-        def _plot_3d(ax3d):
-            # Mặt tương tác 3D: wireframe xám + mặt xanh lá mờ
-            GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
-            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
-            n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
-            N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
-            # Đóng kín mặt: thêm cột đầu vào cuối (fill góc thiếu)
-            mxg = np.concatenate([mxg, mxg[:, :1]], axis=1)
-            myg = np.concatenate([myg, myg[:, :1]], axis=1)
-            N3 = np.concatenate([N3, N3[:, :1]], axis=1)
-            # Wireframe xám nhạt
-            ax3d.plot_wireframe(mxg, myg, N3, color="#D1D5DB",
-                                linewidth=0.4, alpha=0.5, rstride=2,
-                                cstride=2)
-            # Mặt xanh lá mờ
-            ax3d.plot_surface(mxg, myg, N3, alpha=0.35, color=GREEN,
-                              edgecolor="none", shade=True)
-            # Điểm B (giới hạn) và A (tải trọng)
-            ax3d.scatter([res.Bx], [res.By], [res.BN], c=ORANGE, s=60,
-                         edgecolors="white", linewidths=1.0, depthshade=False)
-            ax3d.scatter([res.Mx_star], [res.My_star], [res.N], c=GREEN,
-                         s=60, edgecolors="white", linewidths=1.0,
-                         label="Điểm tải trọng", depthshade=False)
-            # Nét đứt đỏ từ tâm qua A tới B
-            ax3d.plot([0, res.Bx * 1.1], [0, res.By * 1.1],
-                      [0, res.BN * 1.1], color=RED, ls="--", lw=1.5)
-            ax3d.set_xlabel("M2 (kN·m)", fontsize=9)
-            ax3d.set_ylabel("M3 (kN·m)", fontsize=9)
-            ax3d.set_zlabel("N (kN)", fontsize=9)
-            ax3d.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
-            # Nền trắng, lưới nhạt
-            ax3d.xaxis.pane.fill = False
-            ax3d.yaxis.pane.fill = False
-            ax3d.zaxis.pane.fill = False
-            ax3d.grid(True, alpha=0.25)
+        def _summary_table_ax(ax):
+            """Bảng tổng hợp thông tin mặt cắt (thay ô 3D)."""
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.axis("off")
+            ax.set_title("Tổng hợp mặt cắt", fontsize=12, pad=10)
+            n = len(sec.rebars)
+            As = sec.steel_area
+            mu = sec.reinforcement_ratio * 100.0
+            try:
+                from rc_column.sections import clear_spacing as _cs
+                ccx, ccy = _cs(sec)
+            except Exception:
+                ccx = ccy = float("inf")
+            if math.isfinite(ccx) and sec.rebars:
+                dias = sorted(set(r.dia for r in sec.rebars))
+                d_avg = sum(dias) / len(dias) if dias else 0.0
+                clear_txt = f"t3 = {ccx:.1f} mm\nt2 = {ccy:.1f} mm"
+                tim_txt = (f"t3 = {ccx + d_avg:.1f} mm\n"
+                           f"t2 = {ccy + d_avg:.1f} mm")
+            else:
+                clear_txt = tim_txt = "—"
+            card = dict(boxstyle="round,pad=0.3", fc="white",
+                       ec="#D1D5DB", lw=1.2)
+            # Hàng 1: 3 thẻ
+            for i, (t, v) in enumerate(
+                    [("Số thanh", f"{n} thanh"),
+                     ("Tổng As", f"{As:.0f} mm²"),
+                     ("Hàm lượng μ", f"{mu:.2f}%")]):
+                x = (i + 0.5) / 3.0
+                ax.text(x, 0.78, t, ha="center", va="center",
+                        fontsize=8, color="#6B7280")
+                ax.text(x, 0.62, v, ha="center", va="center",
+                        fontsize=10, weight="bold", color="#1F2937",
+                        bbox=card)
+            # Hàng 2: 2 thẻ
+            for i, (t, v) in enumerate(
+                    [("Khoảng hở thông thủy", clear_txt),
+                     ("Khoảng cách tim", tim_txt)]):
+                x = (i + 0.5) / 2.0
+                ax.text(x, 0.36, t, ha="center", va="center",
+                        fontsize=8, color="#6B7280")
+                ax.text(x, 0.20, v, ha="center", va="center",
+                        fontsize=10, weight="bold", color="#1F2937",
+                        bbox=card)
 
         def _m2m3_ax(ax):
             # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
@@ -1607,15 +1724,18 @@ class App(tk.Tk):
                     transform=ax.transAxes, ha="center", fontsize=10,
                     color="darkred", weight="bold")
 
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-        import numpy as np
-        self.fig.set_size_inches(8.0, 8.5)
-        gs = self.fig.add_gridspec(2, 2, hspace=0.45)
-        # Hàng 1: Sơ đồ mặt cắt | Biểu đồ 3D
+        self.fig.set_size_inches(8.0, 8.0)
+        gs = self.fig.add_gridspec(2, 2, hspace=0.5,
+                                 height_ratios=[1.0, 1.15])
+        # Hàng 1: Sơ đồ mặt cắt | Bảng tổng hợp mặt cắt
         a1 = self.fig.add_subplot(gs[0, 0])
-        draw_section_ax(a1, sec)
-        a2 = self.fig.add_subplot(gs[0, 1], projection="3d")
-        _plot_3d(a2)
+        draw_section_ax(a1, sec, show_stats=False)
+        a2 = self.fig.add_subplot(gs[0, 1])
+        _summary_table_ax(a2)
+        # Lưu ref để live update khi đổi nhập liệu
+        self._sec_ax = a1
+        self._sumtab_ax = a2
+        self._sumtab_fn = _summary_table_ax
         # Hàng 2: Biểu đồ N-M | Biểu đồ M2-M3 tại N
         a3 = self.fig.add_subplot(gs[1, 0])
         _nm_alpha_ax(a3)
