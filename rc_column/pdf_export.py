@@ -56,7 +56,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
         ax.add_patch(mpatches.Circle((0, 0), cx/2, fill=False,
                                      edgecolor="black", lw=1.5))
     ax.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
-               s=25, c="red", zorder=3, edgecolors="darkred",
+               s=15, c="red", zorder=3, edgecolors="darkred",
                linewidths=0.5)
     # Trục 2 (ngang →), trục 3 (đứng ↑)
     L = max(cx, cy) * 0.75
@@ -140,13 +140,13 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     Ma = math.hypot(res.Mx_star, res.My_star)
     Mb = math.hypot(res.Bx, res.By)
     lim = (res.BN, Mb)
-    ax.scatter([Ma], [res.N], c="green", s=80, zorder=5,
-               label="A (tải trọng)")
+    ax.scatter([Ma], [res.N], c="red", s=80, zorder=5,
+               label="Điểm tải trọng")
     lc = "green" if res.fs > 1 else "red"
     ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=lc,
             ls="--", lw=1.5, alpha=0.9)
     ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
-               label="B (giới hạn)")
+               label="Giới hạn")
     ax.set_xlabel("M (kN·m)", fontsize=9)
     ax.set_ylabel("N (kN)", fontsize=9)
     ax.tick_params(labelsize=8)
@@ -154,9 +154,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
         # Chỉ hiện nửa phải (M >= 0)
         ax.set_xlim(left=0)
     ax.legend(fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.28), ncol=2)
+              bbox_to_anchor=(0.5, -0.22), ncol=2)
     ax.grid(True, alpha=0.3)
-    fig.subplots_adjust(bottom=0.38)
+    fig.subplots_adjust(bottom=0.32)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi)
     plt.close(fig)
@@ -241,11 +241,11 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
         ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
         ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
         lim = (res.BN, Mb)
-        ax.scatter([Ms], [res.N], c="green", s=80, zorder=5,
-                   label="A (tải trọng)")
+        ax.scatter([Ms], [res.N], c="red", s=80, zorder=5,
+                   label="Điểm tải trọng")
         ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
         ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
-                   label="B (giới hạn)")
+                   label="Giới hạn")
         ax.set_xlabel("M (kN·m)")
         ax.set_ylabel("N (kN)")
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
