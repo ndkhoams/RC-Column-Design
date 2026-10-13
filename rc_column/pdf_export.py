@@ -763,11 +763,26 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     # BẢNG THỐNG NHẤT: 2 cột, kẻ thẳng hàng
     # Cột trái: tiêu đề + cấu kiện + mặt cắt + boxes
     # Cột phải: bảng thông số
+    # Đo chiều cao để tính spacer động (đáy box = đáy bảng)
+    _left_no_spacer = Table(
+        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
+         [_ck_para],
+         [img_sec],
+         [t_box]],
+        colWidths=[80 * mm])
+    _right_tmp = Table(
+        [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
+         [t_param]],
+        colWidths=[80 * mm])
+    # wrap để lấy chiều cao thực tế
+    _lw, _lh = _left_no_spacer.wrap(80 * mm, 1000)
+    _rw, _rh = _right_tmp.wrap(80 * mm, 1000)
+    _dyn_spacer = max(0, _rh - _lh)
     _left_content = [
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
         [img_sec],
-        [Spacer(1, 5 * mm)],
+        [Spacer(1, _dyn_spacer)],
         [t_box],
     ]
     _left_tbl = Table(_left_content, colWidths=[80 * mm])
