@@ -190,6 +190,25 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     else:
         A("  ✗ KHÔNG ĐẠT — D/C > 1.000", "ng")
     b.nl(2)
+
+    # --- Mục 7: Kiểm tra cấu tạo cốt đai (TCVN 5574:2018 10.3.4) ---
+    from .stirrup import StirrupInput, check_stirrup
+    stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
+                           legs=inp.sw_legs)
+    stir_res = check_stirrup(sec, stir_in, inp.concrete_grade)
+    b.section(7, "KIỂM TRA CẤU TẠO CỐT THÉP ĐAI",
+              "TCVN 5574:2018 Mục 10.3.4")
+    A(f"  ▪ Cốt đai: φ{stir_in.dia:.0f}, bước s = {stir_in.spacing:.0f} mm, "
+      f"{stir_in.legs} nhánh\n", "card")
+    for chk in stir_res.checks:
+        mark = "✓" if chk.ok else "✗"
+        A(f"  {mark} {chk.item}: yêu cầu {chk.required}, "
+          f"chọn {chk.provided}\n", "card")
+    if stir_res.ok:
+        A("  ✓ ĐẠT — Cấu tạo cốt đai thỏa TCVN 5574:2018", "ok")
+    else:
+        A("  ✗ KHÔNG ĐẠT — Xem lại cấu tạo cốt đai", "ng")
+    b.nl(2)
     return b
 
 
@@ -202,7 +221,7 @@ def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
 def generate_report_sections(inp: ColumnInput, res: CheckResult,
                              batch_rows=None, case_info=None) -> dict:
     """Trả về dict {num: {title, ref, segs}} cho từng mục.
-    batch_rows: list of (force, result_dict) cho mục 7 (tùy chọn).
+    batch_rows: list of (force, result_dict) cho mục 8 (tùy chọn).
     case_info: dict {case, station, N, M2, M3} cho dòng tổ hợp tính toán."""
     builder = _build_report(inp, res, case_info)
     if batch_rows:
@@ -211,8 +230,8 @@ def generate_report_sections(inp: ColumnInput, res: CheckResult,
 
 
 def _build_section7(b: "ReportBuilder", batch_rows):
-    """Mục 7: Bảng tổng hợp kết quả tất cả tổ hợp (có lưới)."""
-    b.section(7, "BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", "Tất cả tổ hợp")
+    """Mục 8: Bảng tổng hợp kết quả tất cả tổ hợp (có lưới)."""
+    b.section(8, "BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", "Tất cả tổ hợp")
     # Header
     hdr = ("Tổ hợp", "N (kN)", "M2 (kN·m)", "M3 (kN·m)", "D/C", "KQ")
     rows = []
