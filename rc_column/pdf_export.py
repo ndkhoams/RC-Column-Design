@@ -368,8 +368,34 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
             S.append(Spacer(1, 4))
             S.append(img_m6)
             S.append(P("Biểu đồ N-M (góc α)", st_cap))
-            S.append(tbl6)
             S.append(P("Hình 2. Biểu đồ N-M (góc α)", st_cap))
+            S.append(Spacer(1, 6))
+        elif num == 7 and batch_rows:
+            # Mục 7: Table có lưới thật
+            from reportlab.platypus import PageBreak
+            S.append(PageBreak())
+            S.append(P("7. BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", st_h))
+            S.append(P("Tất cả tổ hợp", st_ref))
+            S.append(Spacer(1, 6))
+            hdr = ["Tổ hợp", "N (kN)", "M2 (kN·m)", "M3 (kN·m)", "D/C", "KQ"]
+            data = [hdr]
+            for f, r in batch_rows:
+                dc = r["dc"]
+                ok = "ĐẠT" if dc <= 1 else "KHÔNG ĐẠT"
+                data.append([f"{f.case}@{f.station:.2f}", f"{f.N:.0f}",
+                             f"{f.Mx:.0f}", f"{f.My:.0f}",
+                             f"{dc:.3f}", ok])
+            t7 = Table(data, colWidths=[32*mm, 22*mm, 24*mm, 24*mm,
+                                        20*mm, 28*mm])
+            t7.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#000000")),
+                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#e2e8f0")),
+                ("FONTNAME", (0, 0), (-1, 0), "VN-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+            S.append(t7)
             S.append(Spacer(1, 6))
         else:
             S.extend(flows)
