@@ -213,7 +213,7 @@ def _build_report(inp: ColumnInput, res: CheckResult,
       "card")
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
-        A(f"  ▪ Lực cắt tính toán (độc lập với combo N-M): "
+        A(f"  ▪ Lực cắt tính toán: "
           f"Q2 = {_f(q2i['Q'], 1)} kN ({q2i['case']}@{q2i['station']:.2f}), "
           f"Q3 = {_f(q3i['Q'], 1)} kN ({q3i['case']}@{q3i['station']:.2f})\n",
           "card")
