@@ -40,31 +40,66 @@ class StirrupResult:
 
 @dataclass
 class ShearResult:
-    """Kết quả kiểm tra chịu cắt theo TCVN 5574:2018 8.1.3."""
+    """Kết quả kiểm tra chịu cắt theo TCVN 5574:2018.
+
+    Điều kiện 1 (dải nén xiên): Q ≤ 0.3 × Rb × b × h0
+    Điều kiện 2 (vết nứt xiên): Q ≤ Qb + Qsw, khảo sát C ∈ [h0, 2h0]
+      - Qb = φb2 × Rbt × b × h0² / C (φb2 = 1.5),
+             giới hạn [0.5×Rbt×b×h0, 2.5×Rbt×b×h0]
+      - Qsw = φsw × qsw × C (φsw = 0.75), qsw = Rsw × Asw / s
+    """
     ok: bool
-    Q: float = 0.0          # lực cắt tính toán (kN)
-    Qb: float = 0.0         # khả năng bê tông (kN)
-    Qsw: float = 0.0        # khả năng cốt đai (kN)
-    direction: str = ""     # "2" hoặc "3"
+    Q: float = 0.0            # lực cắt tính toán (kN)
+    # Điều kiện 1
+    Qcap1: float = 0.0         # = 0.3×Rb×b×h0 (kN)
+    ok1: bool = True
+    # Điều kiện 2
+    Qcap2: float = 0.0         # = min(Qb+Qsw) khi khảo sát C (kN)
+    C_opt: float = 0.0         # C cho [Q]min (mm)
+    Qb_opt: float = 0.0
+    Qsw_opt: float = 0.0
+    ok2: bool = True
+    direction: str = ""        # "2" hoặc "3"
 
 
-def check_shear(Q: float, b: float, h0: float, Rbt: float,
+def check_shear(Q: float, b: float, h0: float,
+                Rb: float, Rbt: float,
                 Asw: float, Rsw: float, s: float,
                 direction: str = "") -> ShearResult:
-    """Kiểm tra chịu cắt theo TCVN 5574:2018 8.1.3.
+    """Kiểm tra chịu cắt theo TCVN 5574:2018 (như file Excel mẫu).
 
-    Q ≤ Qb + Qsw
-    - Qb = 0.75 × Rbt × b × h0 (bê tông, với c = 2h0, φb2 = 1.5)
-    - Qsw = 2 × Rsw × Asw × h0 / s (cốt đai, với c0 = 2h0)
-
-    Đơn vị: Q (kN), b/h0 (mm), Rbt/Rsw (MPa), Asw (mm²), s (mm)
+    Đơn vị: Q (kN), b/h0/s (mm), Rb/Rbt/Rsw (MPa), Asw (mm²).
+    Trả về kN.
     """
-    # Đổi đơn vị: MPa × mm² = N → /1000 = kN
-    Qb = 0.75 * Rbt * b * h0 / 1000.0
-    Qsw = 2.0 * Rsw * Asw * h0 / s / 1000.0 if s > 0 else 0.0
-    Qcap = Qb + Qsw
-    ok = abs(Q) <= Qcap + 1e-9
-    return ShearResult(ok=ok, Q=Q, Qb=Qb, Qsw=Qsw, direction=direction)
+    res = ShearResult(ok=True, Q=Q, direction=direction)
+
+    # --- Điều kiện 1: độ bền trên dải nén xiên ---
+    # Q ≤ [Q] = 0.3 × Rb × b × h0
+    res.Qcap1 = 0.3 * Rb * b * h0 / 1000.0
+    res.ok1 = abs(Q) <= res.Qcap1 + 1e-9
+
+    # --- Điều kiện 2: độ bền trên vết nứt xiên ---
+    # qsw = Rsw × Asw / s (N/mm)
+    qsw = Rsw * Asw / s if s > 0 else 0.0
+    # Giới hạn Qb
+    Qb_min = 0.5 * Rbt * b * h0 / 1000.0
+    Qb_max = 2.5 * Rbt * b * h0 / 1000.0
+    # Khảo sát C từ h0 đến 2h0 (11 điểm như Excel)
+    best = None
+    n_pts = 11
+    for i in range(n_pts):
+        C = h0 + (2 * h0 - h0) * i / (n_pts - 1)
+        Qb_tt = 1.5 * Rbt * b * h0 * h0 / C / 1000.0
+        Qb = min(max(Qb_tt, Qb_min), Qb_max)
+        Qsw = 0.75 * qsw * C / 1000.0
+        Qcap = Qb + Qsw
+        if best is None or Qcap < best[0]:
+            best = (Qcap, C, Qb, Qsw)
+    res.Qcap2, res.C_opt, res.Qb_opt, res.Qsw_opt = best
+    res.ok2 = abs(Q) <= res.Qcap2 + 1e-9
+
+    res.ok = res.ok1 and res.ok2
+    return res
 
 
 def _is_high_grade(concrete_grade: str) -> bool:
