@@ -45,6 +45,8 @@ class ColumnInput:
     N: float = 1000.0              # kN (nén dương)
     Mx: float = 50.0               # kN·m
     My: float = 50.0               # kN·m
+    Q2: float = 0.0                # kN (lực cắt theo phương 2)
+    Q3: float = 0.0                # kN (lực cắt theo phương 3)
     long_term: LongTermLoads = field(default_factory=LongTermLoads)
     # Cốt thép đai (TCVN 5574:2018 10.3.4)
     sw_dia: float = 8.0            # đường kính đai (mm)
