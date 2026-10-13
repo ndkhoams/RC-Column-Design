@@ -96,10 +96,12 @@ def section_image(sec, width_in=3.2, dpi=150, small=False) -> bytes:
         width_in, dpi = 2.6, 100
     fig, ax = plt.subplots(figsize=(width_in, width_in))
     draw_section_ax(ax, sec)
-    ax.set_title("Mặt cắt cột và bố trí thép", fontsize=10)
     ax.grid(True, alpha=0.3)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight",
+                pad_inches=0.1)
     plt.close(fig)
     return buf.getvalue()
 
@@ -154,12 +156,12 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     ax.set_title(f"Biểu đồ tương tác N-M (α = {alpha_deg:.1f}°)",
                  fontsize=12)
     ax.legend(fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.16), ncol=2)
+              bbox_to_anchor=(0.5, -0.14), ncol=2)
     ax.grid(True, alpha=0.3)
-    ax.text(0.5, -0.42, f"Tỉ số an toàn FS = {res.fs:.2f}",
+    ax.text(0.5, -0.48, f"Tỉ số an toàn FS = {res.fs:.2f}",
             transform=ax.transAxes, ha="center", fontsize=10,
             color="darkred", weight="bold")
-    fig.subplots_adjust(bottom=0.34)
+    fig.subplots_adjust(bottom=0.38)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -376,6 +378,8 @@ def export_pdf(inp, res, filepath: str):
             S.append(KeepTogether(tbl))
             S.append(Spacer(1, 6))
         elif num == 6 and img_m6:
+            from reportlab.platypus import PageBreak
+            S.append(PageBreak())
             # Mục 6: text full-width, 2 biểu đồ lớn cạnh nhau bên dưới
             S.extend(flows)
             S.append(Spacer(1, 4))
