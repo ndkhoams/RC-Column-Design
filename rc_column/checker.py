@@ -19,7 +19,8 @@ class ColumnInput:
     # Vật liệu
     concrete_grade: str = "B25"
     gamma_b: float = 1.0
-    steel_grade: str = "CB400-V"
+    steel_grade: str = "CB400-V"      # thép dọc
+    sw_steel_grade: str = "CB400-V"  # thép đai
     gamma_s: float = 1.0
     concrete_model: str = "3line"  # "3line" | "2line"
     # Tiết diện
