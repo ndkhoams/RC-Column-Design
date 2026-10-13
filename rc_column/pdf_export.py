@@ -633,7 +633,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
     st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
     st_box_t = ParagraphStyle("bt", fontName=FN, fontSize=7,
-                              textColor=HexColor("#6B7280"),
+                              textColor=HexColor("#111827"),
                               alignment=TA_CENTER)
     st_box_v = ParagraphStyle("bv", fontName=FN, fontSize=7,
                               alignment=TA_CENTER, leading=9,
