@@ -66,22 +66,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
     ax.annotate("", xy=(0, L), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
 
-    if show_dims and sec.kind == "rect":
-        off = max(cx, cy) * 0.12
-        # dim t3 (ngang, dưới)
-        y0 = -cy/2 - off
-        ax.plot([-cx/2, cx/2], [y0, y0], color="blue", lw=1)
-        ax.plot([-cx/2, -cx/2], [y0-4, y0+4], color="blue", lw=1)
-        ax.plot([cx/2, cx/2], [y0-4, y0+4], color="blue", lw=1)
-        ax.text(0, y0-8, f"t3={cx:.0f}", fontsize=8, color="blue",
-                ha="center", va="top")
-        # dim t2 (đứng, phải)
-        x0 = cx/2 + off
-        ax.plot([x0, x0], [-cy/2, cy/2], color="blue", lw=1)
-        ax.plot([x0-4, x0+4], [-cy/2, -cy/2], color="blue", lw=1)
-        ax.plot([x0-4, x0+4], [cy/2, cy/2], color="blue", lw=1)
-        ax.text(x0+8, 0, f"t2={cy:.0f}", fontsize=8, color="blue",
-                va="center", rotation=90)
+
     ax.set_aspect("equal")
     # Ẩn vạch tọa độ (đã có dim t2/t3)
     ax.set_xticks([])
@@ -153,15 +138,10 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
                label="B (giới hạn)")
     ax.set_xlabel("M (kN·m)")
     ax.set_ylabel("N (kN)")
-    ax.set_title(f"Biểu đồ tương tác N-M (α = {alpha_deg:.1f}°)",
-                 fontsize=12)
     ax.legend(fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.14), ncol=2)
     ax.grid(True, alpha=0.3)
-    ax.text(0.5, -0.48, f"Tỉ số an toàn FS = {res.fs:.2f}",
-            transform=ax.transAxes, ha="center", fontsize=10,
-            color="darkred", weight="bold")
-    fig.subplots_adjust(bottom=0.38)
+    fig.subplots_adjust(bottom=0.24)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -191,7 +171,6 @@ def surface_3d_image(sec, inp, res, width_in=4.0, dpi=100) -> bytes:
     ax.set_xlabel("M2 (kN·m)")
     ax.set_ylabel("M3 (kN·m)")
     ax.set_zlabel("N (kN)")
-    ax.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -258,7 +237,7 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
             out.append(P(t.strip(), st_ref))
         elif "dc" in tags:
             flush()
-            out.append(P(f"TỶ SỐ SỬ DỤNG (D/C) = {t}", st_dc))
+            out.append(P(t, st_dc))
         elif "ok" in tags:
             flush()
             out.append(P("✓ ĐẠT — D/C ≤ 1.000", st_badge_ok))
