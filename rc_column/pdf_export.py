@@ -63,7 +63,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        dot_s = max(6.0, 0.08 * dia * dia) if small_dots else \
+        dot_s = max(4.0, 0.05 * dia * dia) if small_dots else \
             max(12.0, 0.15 * dia * dia)
         ax.scatter([p.x for p in pts], [p.y for p in pts],
                    s=dot_s, c=color, zorder=4,
@@ -642,19 +642,15 @@ def export_summary_pdf(sec, inp, res, filepath: str):
 
     # ===== Tiêu đề =====
     story.append(Paragraph("KIỂM TRA CỘT BTCT", st_title))
-    # Tên file (cấu kiện)
+    # Tên cấu kiện: IN HOA, bỏ đuôi .json (hiển thị dưới title mặt cắt)
     import os as _os
-    fname = ""
+    _ck_name = ""
     try:
-        # Lấy từ inp nếu có
-        fname = getattr(inp, "_filename", "") or ""
+        _fn = getattr(inp, "_filename", "") or ""
+        if _fn:
+            _ck_name = _os.path.splitext(_os.path.basename(_fn))[0].upper()
     except Exception:
         pass
-    if fname:
-        st_ck = ParagraphStyle("ck", fontName=FN, fontSize=10,
-                               alignment=TA_CENTER, spaceAfter=4)
-        story.append(Paragraph(
-            f"Cấu kiện: \"{_os.path.basename(fname)}\"", st_ck))
     story.append(Spacer(1, 2))
 
     # ===== Mặt cắt =====
@@ -736,8 +732,12 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     t_param.setStyle(TableStyle(ts))
 
     # Hàng trên: [mặt cắt + box | bảng thông số] như app
+    _ck_para = Paragraph(f"Cấu kiện: {_ck_name}", ParagraphStyle(
+        "ck", fontName=FNB, fontSize=10, alignment=TA_CENTER,
+        textColor=HexColor("#92400E"), spaceAfter=2)) if _ck_name else Spacer(1, 1)
     left_stack = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
+         [_ck_para],
          [img_sec],
          [t_box]],
         colWidths=[88 * mm])
@@ -770,6 +770,8 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     ax2.plot([p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
     ax2.plot([-p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
     ax2.fill_betweenx([p[0] for p in cv], 0, [p[1] for p in cv],
+                      color=GREEN, alpha=0.08)
+    ax2.fill_betweenx([p[0] for p in cv], [-p[1] for p in cv], 0,
                       color=GREEN, alpha=0.08)
     Mb = _m.hypot(res.Bx, res.By)
     ax2.plot([0, Mb * 1.18], [0, res.BN * 1.18], color=RED, ls="--",
@@ -836,6 +838,8 @@ def export_summary_pdf(sec, inp, res, filepath: str):
 
     # ===== Kiểm tra thép đai =====
     story.append(Paragraph("KIỂM TRA THÉP ĐAI", st_h))
+    _sw_ok_all = True
+    _sw_done = False
     try:
         from .stirrup import StirrupInput, check_stirrup, check_shear
         from .sections import bar_area
@@ -848,6 +852,7 @@ def export_summary_pdf(sec, inp, res, filepath: str):
         sr = check_stirrup(sec, stir_in, inp.cover)
         for ch in sr.checks:
             mk = "✓" if ch.ok else "✗"
+            _sw_ok_all = _sw_ok_all and ch.ok
             story.append(Paragraph(
                 f"{mk} {ch.item}: {ch.required} (có {ch.provided})", st_b))
         for Q, lbl in ((inp.Q2, "Q2"), (inp.Q3, "Q3")):
@@ -859,12 +864,22 @@ def export_summary_pdf(sec, inp, res, filepath: str):
                 sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt,
                                  Asw, swg.Rsw, stir_in.spacing)
                 mk = "✓" if sh.ok else "✗"
+                _sw_ok_all = _sw_ok_all and sh.ok
                 story.append(Paragraph(
                     f"{mk} Chịu cắt {lbl} = {Q:.1f} kN: [Q] = Qb + Qsw = "
                     f"{sh.Qb_opt:.1f} + {sh.Qsw_opt:.1f} = {sh.Qcap2:.1f} kN",
                     st_b))
+        _sw_done = True
     except Exception as e:
         story.append(Paragraph(f"Không tính được thép đai: {e}", st_b))
+    if _sw_done:
+        _kl = "ĐẠT" if _sw_ok_all else "KHÔNG ĐẠT"
+        story.append(Spacer(1, 3))
+        story.append(Paragraph(
+            f"Kết luận thép đai: {_kl}",
+            ParagraphStyle("kl", fontName=FNB, fontSize=10, spaceBefore=2,
+                           textColor=HexColor("#065F46" if _sw_ok_all
+                                              else "#991B1B"))))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=12 * mm, rightMargin=12 * mm,
