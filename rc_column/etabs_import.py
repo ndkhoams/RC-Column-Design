@@ -25,6 +25,8 @@ class EtabsForce:
     N: float    # kN, nén dương
     Mx: float   # kN·m
     My: float   # kN·m
+    Q2: float = 0.0  # kN, lực cắt V2
+    Q3: float = 0.0  # kN, lực cắt V3
 
 
 def read_etabs_excel(path: str,
@@ -86,6 +88,8 @@ def read_etabs_excel(path: str,
         p = num(r, "p")
         m2 = num(r, "m2")
         m3 = num(r, "m3")
+        v2 = num(r, "v2", "shear 2-2", "v2-2")
+        v3 = num(r, "v3", "shear 3-3", "v3-3")
         mx, my = m2, m3  # M2->M2, M3->M3 (không ánh xạ)
         forces.append(EtabsForce(
             story=str(val(r, "story") or ""),
@@ -96,6 +100,8 @@ def read_etabs_excel(path: str,
             N=-p,  # ETABS: nén âm -> đổi sang nén dương
             Mx=mx,
             My=my,
+            Q2=v2,
+            Q3=v3,
         ))
     return forces
 
@@ -123,6 +129,7 @@ def parse_etabs_clipboard(text: str,
     # Vị trí cột cố định theo format ETABS Element Forces - Columns
     C_CASE, C_TYPE, C_STATION = 3, 4, 6
     C_P, C_M2, C_M3 = 7, 11, 12
+    C_V2, C_V3 = 8, 9
     C_STORY, C_COL = 0, 1
 
     def num(parts, idx):
@@ -152,6 +159,8 @@ def parse_etabs_clipboard(text: str,
             N=-p,
             Mx=num(parts, C_M2),
             My=num(parts, C_M3),
+            Q2=num(parts, C_V2),
+            Q3=num(parts, C_V3),
         ))
     if not forces:
         raise ValueError("Không đọc được dòng nội lực nào từ clipboard.")
