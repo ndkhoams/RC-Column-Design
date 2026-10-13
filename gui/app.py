@@ -999,7 +999,7 @@ class App(tk.Tk):
         t.delete("1.0", tk.END)
         self._setup_report_tags(t)
         for text, tags in segs:
-            t.insert(tk.END, text, tags if tags else ())
+            t.insert(tk.END, self._clean_math(text), tags if tags else ())
         self._report_images = []
 
     def _setup_report_tags(self, t):
@@ -1024,6 +1024,11 @@ class App(tk.Tk):
         t.tag_configure("ng", font=("", 12, "bold"),
                         foreground="#991b1b", background="#fee2e2",
                         borderwidth=1, relief="solid")
+
+    def _clean_math(self, text: str) -> str:
+        """Chuyển _{xx} thành xx cho hiển thị trong app."""
+        import re
+        return re.sub(r"_\{([^}]+)\}", r"\1", text)
 
     def _render_report_sections(self, sections, sec, inp, res):
         """Hiển thị thuyết minh theo từng mục; mục 2 & 6: text trái, hình phải."""
@@ -1075,7 +1080,7 @@ class App(tk.Tk):
             else:
                 # Hiển thị text thường
                 for text, tags in info["segs"]:
-                    t.insert(tk.END, text, tags if tags else ())
+                    t.insert(tk.END, self._clean_math(text), tags if tags else ())
         # Phần kết quả cuối (nằm sau mục 6 trong flat segs)
         # -> lấy từ generate_report để đảm bảo đầy đủ
         from rc_column.report import generate_report, generate_report_sections
@@ -1099,7 +1104,7 @@ class App(tk.Tk):
                            bg="white", relief=tk.FLAT, height=14, width=52)
         self._setup_report_tags(left_txt)
         for text, tags in info["segs"]:
-            left_txt.insert(tk.END, text, tags if tags else ())
+            left_txt.insert(tk.END, self._clean_math(text), tags if tags else ())
         left_txt.configure(state=tk.DISABLED)
         left_txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
                       padx=(0, 8), anchor=tk.N)
@@ -1126,7 +1131,7 @@ class App(tk.Tk):
         t = self.calc_text
         # Text full-width
         for text, tags in info["segs"]:
-            t.insert(tk.END, text, tags if tags else ())
+            t.insert(tk.END, self._clean_math(text), tags if tags else ())
         t.insert(tk.END, "\n")
         # 2 biểu đồ cạnh nhau như tab Tóm tắt: N-M trái, M2-M3 phải
         frame = tk.Frame(t, bg="white")
