@@ -598,10 +598,12 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     # Font
     try:
         pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
-        pdfmetrics.registerFont(TTFont("DejaVu-B", "DejaVuSans-Bold.ttf"))
+        pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSans-Bold.ttf"))
+        pdfmetrics.registerFontFamily("DejaVu", normal="DejaVu",
+                                      bold="DejaVu-Bold")
     except Exception:
         pass
-    FN, FNB = "DejaVu", "DejaVu-B"
+    FN, FNB = "DejaVu", "DejaVu-Bold"
 
     def fig_to_img(fig, w_mm):
         buf = _io.BytesIO()
