@@ -630,20 +630,20 @@ class App(tk.Tk):
                   self.en_My, 2)
         self.en_Q2 = ttk.Entry(self.manual_frame, width=18)
         self.en_Q2.insert(0, "0")
-        self._row(self.manual_frame, "Lực cắt Q2 (kN)",
+        self._row(self.manual_frame, "Lực cắt Q2/V2 (kN)",
                   self.en_Q2, 3)
         self.en_Q3 = ttk.Entry(self.manual_frame, width=18)
         self.en_Q3.insert(0, "0")
-        self._row(self.manual_frame, "Lực cắt Q3 (kN)",
+        self._row(self.manual_frame, "Lực cắt Q3/V3 (kN)",
                   self.en_Q3, 4)
         self.var_lt = tk.BooleanVar(value=False)
         ttk.Checkbutton(self.manual_frame, text="Khai báo thành phần tải dài hạn",
                         variable=self.var_lt,
-                        command=self._toggle_lt).grid(row=3, column=0,
+                        command=self._toggle_lt).grid(row=5, column=0,
                                                      columnspan=2, sticky=tk.W,
                                                      padx=4, pady=4)
         self.lt_frame = ttk.Frame(self.manual_frame)
-        self.lt_frame.grid(row=4, column=0, columnspan=2, sticky=tk.EW, padx=4)
+        self.lt_frame.grid(row=6, column=0, columnspan=2, sticky=tk.EW, padx=4)
         self.lt_frame.grid_remove()
         self.en_Nlt = ttk.Entry(self.lt_frame, width=18); self.en_Nlt.insert(0, "0")
         self._row(self.lt_frame, "N dài hạn (kN)", self.en_Nlt, 0)
