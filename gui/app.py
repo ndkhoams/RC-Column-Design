@@ -103,14 +103,21 @@ class App(tk.Tk):
         self._last_inp = None
         self._last_res = None
 
-        self.calc_text = tk.Text(self.tab_calc, wrap=tk.WORD,
-                                 font=("", 10))
         # Thanh công cụ thuyết minh
         calc_bar = ttk.Frame(self.tab_calc)
         calc_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
         ttk.Button(calc_bar, text="🖨️ Xuất PDF thuyết minh",
                    command=self.on_export_pdf).pack(side=tk.LEFT, padx=4)
-        self.calc_text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        # Khung text + thanh cuộn
+        calc_frame = ttk.Frame(self.tab_calc)
+        calc_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        calc_scroll = ttk.Scrollbar(calc_frame)
+        calc_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.calc_text = tk.Text(calc_frame, wrap=tk.WORD,
+                                 font=("", 10),
+                                 yscrollcommand=calc_scroll.set)
+        self.calc_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        calc_scroll.config(command=self.calc_text.yview)
         self.calc_text.insert(tk.END,
                               "Chi tiết tính toán sẽ hiển thị sau khi thực hiện kiểm tra.")
 
@@ -211,13 +218,13 @@ class App(tk.Tk):
         self.en_Lx = ttk.Entry(f, width=12); self.en_Lx.insert(0, "4.0")
         self.en_Ly = ttk.Entry(f, width=12); self.en_Ly.insert(0, "4.0")
         self.cb_tx = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_tx.set("Khớp")
+        self.cb_tx.set("Ngàm")
         self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_bx.set("Khớp")
+        self.cb_bx.set("Ngàm")
         self.cb_ty = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_ty.set("Khớp")
+        self.cb_ty.set("Ngàm")
         self.cb_by = ttk.Combobox(f, values=bn, state="readonly", width=10)
-        self.cb_by.set("Khớp")
+        self.cb_by.set("Ngàm")
         self.en_psix = ttk.Entry(f, width=12)
         self.en_psiy = ttk.Entry(f, width=12)
         rows = [
@@ -240,7 +247,7 @@ class App(tk.Tk):
     def _sec_loads(self):
         f = self._frame("5. Nội lực kiểm tra")
         # Chọn chế độ: nhập tay / import Excel
-        self.var_load_mode = tk.StringVar(value="manual")
+        self.var_load_mode = tk.StringVar(value="etabs")
         mode_bar = ttk.Frame(f)
         mode_bar.grid(row=0, column=0, columnspan=2, sticky=tk.W,
                       padx=4, pady=4)
@@ -332,6 +339,8 @@ class App(tk.Tk):
         self.etabs_tree.tag_configure("worst", background="#fecaca",
                                       font=("", 9, "bold"))
         self.etabs_forces = []
+        # Áp dụng trạng thái mặc định (Ngàm / Import Excel)
+        self._toggle_load_mode()
 
     def _toggle_load_mode(self):
         if self.var_load_mode.get() == "etabs":
