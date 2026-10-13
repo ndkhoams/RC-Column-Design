@@ -6,45 +6,23 @@ import os
 from typing import List, Tuple
 
 # --- Font hỗ trợ tiếng Việt ---
+def _mpl_font(name: str):
+    """Đường dẫn font DejaVu Sans của matplotlib (có đủ glyph toán học)."""
+    import matplotlib, os
+    p = os.path.join(os.path.dirname(matplotlib.__file__),
+                     "mpl-data", "fonts", "ttf", name)
+    if not os.path.exists(p):
+        raise FileNotFoundError(f"Không tìm thấy font {name} của matplotlib")
+    return p
+
+
 def _find_font():
-    """Tìm font TTF hỗ trợ tiếng Việt và glyph ₂₃.
-    Ưu tiên DejaVu Sans của matplotlib (chắc chắn có ₂₃)."""
-    candidates = []
-    # DejaVu từ matplotlib trước (có đủ glyph ₂₃)
-    try:
-        import matplotlib
-        mpl_font = os.path.join(os.path.dirname(matplotlib.__file__),
-                                "mpl-data", "fonts", "ttf", "DejaVuSans.ttf")
-        candidates.append(mpl_font)
-    except Exception:
-        pass
-    candidates += [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-        "C:/Windows/Fonts/Arial.ttf",
-    ]
-    for p in candidates:
-        if os.path.exists(p):
-            return p
-    return None
+    """DejaVu Sans của matplotlib cho toàn bộ thuyết minh."""
+    return _mpl_font("DejaVuSans.ttf")
+
 
 def _find_font_bold():
-    cands = []
-    try:
-        import matplotlib
-        cands.append(os.path.join(os.path.dirname(matplotlib.__file__),
-                                  "mpl-data", "fonts", "ttf",
-                                  "DejaVuSans-Bold.ttf"))
-    except Exception:
-        pass
-    cands += [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "C:/Windows/Fonts/arialbd.ttf",
-    ]
-    for p in cands:
-        if os.path.exists(p):
-            return p
-    return _find_font()
+    return _mpl_font("DejaVuSans-Bold.ttf")
 
 
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
@@ -301,10 +279,12 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
     return out
 
 
-def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None):
+def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
+               shear_info=None):
     """Xuất thuyết minh ra file PDF (bố cục giống trong phần mềm).
-    batch_rows: list (force, result) cho mục 7 (tùy chọn).
-    case_info: dict {case, station, N, M2, M3} cho tổ hợp tính toán."""
+    batch_rows: list (force, result) cho mục 8 (tùy chọn).
+    case_info: dict {case, station, N, M2, M3} cho tổ hợp tính toán.
+    shear_info: dict {q2: {...}, q3: {...}} cho lực cắt."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib.colors import HexColor
@@ -371,7 +351,8 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None):
 
     from .report import generate_report_sections
     sections = generate_report_sections(inp, res, batch_rows=batch_rows,
-                                        case_info=case_info)
+                                        case_info=case_info,
+                                        shear_info=shear_info)
 
     # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
     img_side = {}
