@@ -1018,7 +1018,12 @@ class App(tk.Tk):
         for num in sorted(sections.keys()):
             info = sections[num]
             if num == 2 and img_map.get(2):
-                self._insert_side_by_side(num, info, img_map[2])
+                # Gộp mục 2+3: text 2 mục bên trái, ảnh bên phải
+                info23 = {"segs": info["segs"] + sections[3]["segs"]}
+                self._insert_side_by_side(num, info23, img_map[2])
+            elif num == 3:
+                # Đã gộp vào mục 2, bỏ qua
+                continue
             elif num == 6 and img_m6:
                 self._insert_charts_fullwidth(num, info, img_m6)
             else:
