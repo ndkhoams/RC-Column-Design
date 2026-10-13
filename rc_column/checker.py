@@ -62,8 +62,8 @@ class ColumnInput:
     # Ổn định
     Lx: float = 4.0                # m
     Ly: float = 4.0
-    top_x: str = "khop"; bottom_x: str = "khop"
-    top_y: str = "khop"; bottom_y: str = "khop"
+    top_x: str = "ngam_nua_cung"; bottom_x: str = "ngam_nua_cung"
+    top_y: str = "ngam_nua_cung"; bottom_y: str = "ngam_nua_cung"
     psi_x: Optional[float] = None
     psi_y: Optional[float] = None
     # Nội lực
