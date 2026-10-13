@@ -203,15 +203,31 @@ def generate_report_sections(inp: ColumnInput, res: CheckResult,
 
 
 def _build_section7(b: "ReportBuilder", batch_rows):
-    """Mục 7: Bảng tổng hợp kết quả tất cả tổ hợp."""
+    """Mục 7: Bảng tổng hợp kết quả tất cả tổ hợp (có lưới)."""
     b.section(7, "BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", "Tất cả tổ hợp")
-    b.add("  Tổ hợp | N (kN) | M2 (kN·m) | M3 (kN·m) | D/C | KQ\n", "card")
-    b.add("  " + "-" * 60 + "\n", "sec_ref")
+    # Header
+    hdr = ("Tổ hợp", "N (kN)", "M2 (kN·m)", "M3 (kN·m)", "D/C", "KQ")
+    rows = []
     for f, r in batch_rows:
         dc = r["dc"]
         ok = "ĐẠT" if dc <= 1 else "KHÔNG ĐẠT"
-        b.add(f"  {f.case}@{f.station:.2f} | {f.N:.0f} | {f.Mx:.0f} | "
-              f"{f.My:.0f} | {dc:.3f} | {ok}\n", "card")
+        rows.append((f"{f.case}@{f.station:.2f}", f"{f.N:.0f}",
+                     f"{f.Mx:.0f}", f"{f.My:.0f}", f"{dc:.3f}", ok))
+    # Tính độ rộng cột
+    widths = [len(h) for h in hdr]
+    for row in rows:
+        for i, c in enumerate(row):
+            widths[i] = max(widths[i], len(c))
+    def line(ch="-"):
+        return "+" + "+".join(ch * (w + 2) for w in widths) + "+\n"
+    def fmt_row(cells):
+        return "|" + "|".join(f" {c:<{w}} " for c, w in zip(cells, widths)) + "|\n"
+    b.add(line("="), "mono")
+    b.add(fmt_row(hdr), "mono")
+    b.add(line("="), "mono")
+    for row in rows:
+        b.add(fmt_row(row), "mono")
+        b.add(line("-"), "mono")
     b.nl()
 
 
