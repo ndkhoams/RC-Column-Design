@@ -952,13 +952,10 @@ class App(tk.Tk):
 
         def _nm_ax(ax, th, lab, Ms, Nv, title_sz=12):
             cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-            # Lấy giá trị tuyệt đối các điểm trên đường cong để đối xứng
-            cv_pos = [(n, abs(m)) for n, m in cv]
-            ax.plot([p[1] for p in cv_pos], [p[0] for p in cv_pos], "b-",
+            ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
                     linewidth=1.5)
-            Ms_abs = abs(Ms)
-            lim = _radial_limit(cv_pos, Nv, Ms_abs)
-            ax.scatter([Ms_abs], [Nv], c="red", s=90, zorder=5,
+            lim = _radial_limit(cv, Nv, Ms)
+            ax.scatter([Ms], [Nv], c="red", s=90, zorder=5,
                        label="Điểm tải trọng")
             if lim:
                 ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
@@ -971,7 +968,7 @@ class App(tk.Tk):
             ax.grid(True, alpha=0.3)
             if lim:
                 import math
-                fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms_abs, Nv)
+                fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms, Nv)
                 ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {fs_dir:.2f}",
                         transform=ax.transAxes, ha="center", fontsize=10,
                         color="darkred", weight="bold")
