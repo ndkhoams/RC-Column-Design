@@ -68,7 +68,7 @@ class ReportBuilder:
 
 
 def _build_report(inp: ColumnInput, res: CheckResult,
-                  case_info=None) -> ReportBuilder:
+                  case_info=None, shear_info=None) -> ReportBuilder:
     sec = build_section(inp)
     conc = sec.concrete
     steel = sec.steel
@@ -211,6 +211,12 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
     A(f"  — Chịu cắt: thép đai {sw_grade.name} (Rsw = {sw_grade.Rsw:.0f} MPa)\n",
       "card")
+    if shear_info:
+        q2i, q3i = shear_info["q2"], shear_info["q3"]
+        A(f"  ▪ Lực cắt tính toán (độc lập với combo N-M): "
+          f"Q2 = {_f(q2i['Q'], 1)} kN ({q2i['case']}@{q2i['station']:.2f}), "
+          f"Q3 = {_f(q3i['Q'], 1)} kN ({q3i['case']}@{q3i['station']:.2f})\n",
+          "card")
     Rb = conc.Rb
     Rbt = conc.Rbt
     Rsw = sw_grade.Rsw * inp.gamma_s
@@ -266,11 +272,13 @@ def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
 
 
 def generate_report_sections(inp: ColumnInput, res: CheckResult,
-                             batch_rows=None, case_info=None) -> dict:
+                             batch_rows=None, case_info=None,
+                             shear_info=None) -> dict:
     """Trả về dict {num: {title, ref, segs}} cho từng mục.
     batch_rows: list of (force, result_dict) cho mục 8 (tùy chọn).
-    case_info: dict {case, station, N, M2, M3} cho dòng tổ hợp tính toán."""
-    builder = _build_report(inp, res, case_info)
+    case_info: dict {case, station, N, M2, M3} cho dòng tổ hợp tính toán.
+    shear_info: dict {q2: {case, station, Q}, q3: {...}} cho lực cắt."""
+    builder = _build_report(inp, res, case_info, shear_info)
     if batch_rows:
         _build_section7(builder, batch_rows)
     return builder.build_sections()
