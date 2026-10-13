@@ -1111,10 +1111,10 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     story.append(Spacer(1, 2))
 
     # ===== Mặt cắt =====
-    fig1, ax1 = plt.subplots(figsize=(2.6, 2.6))
+    fig1, ax1 = plt.subplots(figsize=(2.2, 2.2))
     draw_section_ax(ax1, sec, show_dims=True, show_stats=False,
                     small_dots=True)
-    img_sec = fig_to_img(fig1, 50, 50)
+    img_sec = fig_to_img(fig1, 42, 42)
 
     # Box vật liệu + thống kê (giống app)
     from collections import Counter
@@ -1200,7 +1200,8 @@ def export_summary_pdf(sec, inp, res, filepath: str):
         colWidths=[88 * mm])
     left_stack.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOX", (0, 0), (-1, -1), 0.6, HexColor("#D1D5DB"))]))
     right_stack = Table(
         [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
          [t_param]],
@@ -1209,7 +1210,7 @@ def export_summary_pdf(sec, inp, res, filepath: str):
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP")]))
     story.append(Table([[left_stack, right_stack]],
-                       colWidths=[92 * mm, 100 * mm],
+                       colWidths=[80 * mm, 88 * mm],
                        style=TableStyle([
                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
                            ("LEFTPADDING", (0, 0), (-1, -1), 2),
@@ -1250,7 +1251,7 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     ax2.grid(True, color="#E5E7EB", ls="--", lw=0.7, alpha=0.9)
     for sp in ("top", "right"):
         ax2.spines[sp].set_visible(False)
-    img_nm = fig_to_img(fig2, 85, 68)
+    img_nm = fig_to_img(fig2, 78, 62)
     # M2-M3
     fig3, ax3 = plt.subplots(figsize=(3.6, 2.9))
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
@@ -1275,7 +1276,7 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     ax3.grid(True, color="#E5E7EB", ls="--", lw=0.7, alpha=0.9)
     for sp in ("top", "right"):
         ax3.spines[sp].set_visible(False)
-    img_mm = fig_to_img(fig3, 85, 68)
+    img_mm = fig_to_img(fig3, 78, 62)
     story.append(Table([[img_nm, img_mm]], colWidths=[90 * mm, 90 * mm],
                        style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
     story.append(Spacer(1, 2))
@@ -1285,16 +1286,13 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     story.append(Paragraph(
         f"• Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) &nbsp;&nbsp; "
         f"<b>D/C = OA/OB = {res.dc:.3f} → {ok_txt}</b>", st_b))
-    st_b_blue = ParagraphStyle("bb", parent=st_b,
-                               textColor=HexColor("#2563EB"))
-    st_b_orange = ParagraphStyle("bo", parent=st_b,
-                                 textColor=HexColor("#EA580C"))
+    # PDF: text đen (không màu như app)
     story.append(Paragraph(
         f"• A (điểm tải): N = {res.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
-        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b_blue))
+        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b))
     story.append(Paragraph(
         f"• B (điểm giới hạn): Nu = {res.BN:+.1f} kN, Mα,u = {Mb:.1f} kN·m "
-        f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b_orange))
+        f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b))
     story.append(Spacer(1, 2))
 
     # ===== Kiểm tra thép đai =====
@@ -1343,8 +1341,8 @@ def export_summary_pdf(sec, inp, res, filepath: str):
                                               else "#991B1B"))))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
-                            leftMargin=12 * mm, rightMargin=12 * mm,
-                            topMargin=12 * mm, bottomMargin=12 * mm,
+                            leftMargin=20 * mm, rightMargin=20 * mm,
+                            topMargin=15 * mm, bottomMargin=15 * mm,
                             title="Tóm tắt kiểm tra cột BTCT")
     doc.build(story)
     return filepath
