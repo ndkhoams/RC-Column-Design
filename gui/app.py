@@ -104,7 +104,12 @@ class App(tk.Tk):
         self._last_res = None
 
         self.calc_text = tk.Text(self.tab_calc, wrap=tk.WORD,
-                                 font=("Consolas", 10))
+                                 font=("", 10))
+        # Thanh công cụ thuyết minh
+        calc_bar = ttk.Frame(self.tab_calc)
+        calc_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
+        ttk.Button(calc_bar, text="🖨️ Xuất PDF thuyết minh",
+                   command=self.on_export_pdf).pack(side=tk.LEFT, padx=4)
         self.calc_text.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.calc_text.insert(tk.END,
                               "Chi tiết tính toán sẽ hiển thị sau khi thực hiện kiểm tra.")
@@ -440,8 +445,10 @@ class App(tk.Tk):
         ]
         self.sum_text.delete("1.0", tk.END)
         self.sum_text.insert(tk.END, "\n".join(summ))
-        # Thuyết minh (có format màu sắc)
+        # Thuyết minh (có format màu sắc) + nhúng hình
         self._render_report(generate_report(inp, res))
+        self._embed_report_images(sec, inp, res)
+        self._pdf_inp, self._pdf_res = inp, res
         # L0 preview
         self.l0_var.set(
             f"Chiều dài tính toán: L0x = {res.L0x:.2f} m, L0y = {res.L0y:.2f} m")
@@ -530,11 +537,34 @@ class App(tk.Tk):
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
         res_w = check_column(inp_w, n_angles=24)
+        sec_w = build_section(inp_w)
         self._render_report(generate_report(inp_w, res_w))
+        self._embed_report_images(sec_w, inp_w, res_w)
+        self._pdf_inp, self._pdf_res = inp_w, res_w
         self.result_var.set(
             f"Tổ hợp nguy hiểm nhất: {worst_f.case} — "
             f"{'KHÔNG ĐẠT ✗' if worst_r['dc'] > 1 else 'ĐẠT ✓'} "
             f"(D/C = {worst_r['dc']:.3f})")
+
+    def on_export_pdf(self):
+        """Xuất thuyết minh ra PDF."""
+        if not getattr(self, "_pdf_inp", None):
+            messagebox.showinfo("Xuất PDF", "Hãy kiểm tra trước khi xuất PDF.")
+            return
+        from tkinter import filedialog
+        path = filedialog.asksaveasfilename(
+            title="Lưu thuyết minh PDF",
+            defaultextension=".pdf",
+            filetypes=[("PDF", "*.pdf")],
+            initialfile="ThuyetMinhCotBTCT.pdf")
+        if not path:
+            return
+        try:
+            from rc_column.pdf_export import export_pdf
+            export_pdf(self._pdf_inp, self._pdf_res, path)
+            messagebox.showinfo("Xuất PDF", f"Đã lưu: {path}")
+        except Exception as ex:
+            messagebox.showerror("Lỗi xuất PDF", str(ex))
 
     def _render_report(self, segs):
         """Hiển thị thuyết minh với format VietconSoft."""
@@ -563,6 +593,44 @@ class App(tk.Tk):
                         borderwidth=1, relief="solid")
         for text, tags in segs:
             t.insert(tk.END, text, tags if tags else ())
+        # Nhúng hình sau khi có text (gọi từ on_check)
+        self._report_images = []
+
+    def _embed_report_images(self, sec, inp, res):
+        """Chèn preview mặt cắt (mục 2) và biểu đồ tương tác (mục 6)."""
+        if not HAS_MPL:
+            return
+        import base64
+        from tkinter import PhotoImage
+        from rc_column.pdf_export import section_image, interaction_image
+        t = self.calc_text
+        self._report_images = []
+
+        def _insert_after(marker: str, png: bytes, caption: str):
+            idx = t.search(marker, "1.0", tk.END)
+            if not idx:
+                return
+            # xuống cuối dòng chứa marker
+            line_end = t.index(f"{idx} lineend")
+            # tìm vị trí sau khối text của mục (trước mục kế tiếp) - đơn giản: chèn ngay sau dòng
+            b64 = base64.b64encode(png).decode("ascii")
+            img = PhotoImage(data=b64)
+            self._report_images.append(img)  # giữ tham chiếu
+            t.insert(f"{line_end} + 1 line", f"\n{caption}\n")
+            t.image_create(f"{line_end} + 2 lines", image=img)
+            t.insert(f"{line_end} + 3 lines", "\n")
+
+        try:
+            _insert_after("2. ĐẶC TRƯNG HÌNH HỌC", section_image(sec),
+                          "Hình 1. Mặt cắt cột và bố trí cốt thép")
+        except Exception:
+            pass
+        try:
+            _insert_after("6. KIỂM TRA THEO MÔ HÌNH",
+                          interaction_image(sec, inp, res),
+                          "Hình 2. Biểu đồ tương tác N-M")
+        except Exception:
+            pass
 
     def _redraw(self):
         """Vẽ lại theo loại biểu đồ đang chọn."""
