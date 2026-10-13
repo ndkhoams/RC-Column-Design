@@ -753,12 +753,17 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     right_stack.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    story.append(Table([[left_stack, right_stack]],
-                       colWidths=[80 * mm, 88 * mm],
-                       style=TableStyle([
-                           ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                           ("LEFTPADDING", (0, 0), (-1, -1), 2),
-                           ("RIGHTPADDING", (0, 0), (-1, -1), 2)])))
+    # Bảng ngoài đơn giản: 2 cột riêng biệt, không nested phức tạp
+    _outer = Table([[left_stack, right_stack]],
+                   colWidths=[78 * mm, 86 * mm])
+    _outer.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 1),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+    ]))
+    story.append(_outer)
     story.append(Spacer(1, 1))
 
     # ===== Biểu đồ =====
@@ -844,9 +849,12 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
             _parts.append(f"{case_info.get('case')}{_st_txt}")
         if _parts:
             _combo = f" [{', '.join(_parts)}]"
+    # Format như user: A (...) [info]: xuống dòng chi tiết
+    story.append(Paragraph(f"• A (điểm tải){_combo}:", st_b))
     story.append(Paragraph(
-        f"• A (điểm tải){_combo}: N = {res.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
-        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b))
+        f"N = {res.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
+        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})",
+        ParagraphStyle("a2", parent=st_b, leftIndent=12)))
     story.append(Paragraph(
         f"• B (điểm giới hạn): Nu = {res.BN:+.1f} kN, Mα,u = {Mb:.1f} kN·m "
         f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b))
@@ -883,8 +891,8 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
             st = st_cell_b if bold else st_cell
             return Paragraph(str(t), st)
 
-        tdata = [[_pc("Thông số", True), _pc("Phương 2", True),
-                  _pc("Phương 3", True)]]
+        tdata = [[_pc("Thông số", True), _pc("Phương V2", True),
+                  _pc("Phương V3", True)]]
         _sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
                    f"a{stir_in.spacing:.0f}")
         _rows = [
