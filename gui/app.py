@@ -1114,7 +1114,7 @@ class App(tk.Tk):
             f"(D/C = {worst_r['dc']:.3f})")
 
     def _print_summary(self):
-        """In phần tóm tắt: xuất PDF từ các biểu đồ hiện tại."""
+        """In toàn bộ tab Tóm tắt: chụp màn hình tab ra PDF."""
         try:
             from tkinter import filedialog, messagebox
             path = filedialog.asksaveasfilename(
@@ -1124,10 +1124,23 @@ class App(tk.Tk):
                 initialfile="TomTat.pdf")
             if not path:
                 return
-            # Dùng pdf_export có sẵn để xuất
-            from rc_column.pdf_export import export_pdf
-            export_pdf(self._last_inp, self._last_res, path)
+            # Chụp tab Tóm tắt
+            self.update_idletasks()
+            x = self.tab_sum.winfo_rootx()
+            y = self.tab_sum.winfo_rooty()
+            w = self.tab_sum.winfo_width()
+            h = self.tab_sum.winfo_height()
+            from PIL import ImageGrab
+            img = ImageGrab.grab(bbox=(x, y, x + w, y + h))
+            # Lưu ra PDF
+            if img.mode == "RGBA":
+                img = img.convert("RGB")
+            img.save(path, "PDF", resolution=150)
             messagebox.showinfo("In tóm tắt", f"Đã xuất: {path}")
+        except ImportError:
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Lỗi", "Cần cài Pillow: pip install pillow")
         except Exception as e:
             from tkinter import messagebox
             messagebox.showerror("Lỗi", f"Không in được: {e}")
