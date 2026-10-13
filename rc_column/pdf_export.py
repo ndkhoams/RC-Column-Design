@@ -747,7 +747,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
          [img_sec],
          [Spacer(1, _spacer_h)],
          [t_box]],
-        colWidths=[80 * mm])
+        colWidths=[78 * mm])
     left_stack.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -755,7 +755,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     right_stack = Table(
         [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
          [t_param]],
-        colWidths=[88 * mm])
+        colWidths=[86 * mm])
     right_stack.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP")]))
