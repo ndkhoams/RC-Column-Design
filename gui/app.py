@@ -155,7 +155,8 @@ class App(tk.Tk):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
         self.rebar_info = tk.StringVar(value="")
         ttk.Label(f, textvariable=self.rebar_info, font=("", 10),
-                  justify=tk.LEFT).pack(padx=4, pady=4, anchor=tk.W)
+                  justify=tk.LEFT).grid(row=4, column=0, columnspan=2,
+                                        padx=4, pady=4, sticky=tk.W)
 
     # ---- 4. Chiều dài tính toán ----
     def _sec_stability(self):
@@ -205,8 +206,12 @@ class App(tk.Tk):
         self.var_lt = tk.BooleanVar(value=False)
         ttk.Checkbutton(f, text="Khai báo thành phần tải dài hạn",
                         variable=self.var_lt,
-                        command=self._toggle_lt).pack(anchor=tk.W, padx=4, pady=4)
+                        command=self._toggle_lt).grid(row=3, column=0,
+                                                     columnspan=2, sticky=tk.W,
+                                                     padx=4, pady=4)
         self.lt_frame = ttk.Frame(f)
+        self.lt_frame.grid(row=4, column=0, columnspan=2, sticky=tk.EW, padx=4)
+        self.lt_frame.grid_remove()  # ẩn ban đầu
         self.en_Nlt = ttk.Entry(self.lt_frame, width=18); self.en_Nlt.insert(0, "0")
         self._row(self.lt_frame, "N dài hạn (kN)", self.en_Nlt, 0)
         self.en_Mxlt = ttk.Entry(self.lt_frame, width=18); self.en_Mxlt.insert(0, "0")
@@ -216,13 +221,14 @@ class App(tk.Tk):
         ttk.Label(self.lt_frame, foreground="gray", wraplength=380,
                   text="Nếu bỏ chọn: φL = 2.00 (thiên về an toàn). Nếu chọn: "
                        "xác định φLx, φLy theo Công thức (48), 1.00 ≤ φL ≤ 2.00."
-                  ).pack(padx=4, pady=2)
+                  ).grid(row=3, column=0, columnspan=2, padx=4, pady=2,
+                         sticky=tk.W)
 
     def _toggle_lt(self):
         if self.var_lt.get():
-            self.lt_frame.pack(fill=tk.X, padx=4)
+            self.lt_frame.grid()
         else:
-            self.lt_frame.pack_forget()
+            self.lt_frame.grid_remove()
 
     # ============================ Logic ============================
     def _f(self, entry, default=0.0):
