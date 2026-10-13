@@ -1838,25 +1838,36 @@ class App(tk.Tk):
 
 
     def _build_stirrup_summary(self, parent, inp, res):
-        """Tóm tắt kết quả kiểm tra cốt thép đai."""
-        ttk.Label(parent, text="Kiểm tra thép đai",
-                  font=("", 11, "bold")).pack(anchor="w", padx=8, pady=(6, 2))
+        """Bảng kiểm tra thép đai: Phương 2 | Phương 3."""
+        from rc_column.stirrup import (StirrupInput, check_stirrup,
+                                      check_shear)
+        from rc_column.sections import bar_area
+        from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
+                                        ConcreteMaterial)
         try:
-            from rc_column.stirrup import (StirrupInput, check_stirrup,
-                                          check_shear)
-            from rc_column.sections import bar_area
+            # Lấy đai bao (dùng chung) — có thể mở rộng theo t2/t3 sau
             stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
                                    legs=inp.sw_legs)
-            # Cấu tạo
-            sr = check_stirrup(self._last_sec, stir_in, inp.cover)
-            # Chịu cắt (lấy Q2/Q3 từ inp)
-            from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
-                                            ConcreteMaterial)
             conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade],
                                     inp.gamma_b)
             swg = STEEL_GRADES.get(inp.sw_steel_grade)
-            lines = []
-            ok_all = True
+            sr = check_stirrup(self._last_sec, stir_in, inp.cover)
+
+            # Tính chi tiết từng phương
+            cols = {}
+            for Q, lbl, b_w, h_dim in (
+                    (inp.Q2, "2", inp.cx, inp.cy),
+                    (inp.Q3, "3", inp.cy, inp.cx)):
+                h0 = h_dim - inp.cover - inp.sw_dia - 12
+                Asw = stir_in.legs * bar_area(stir_in.dia)
+                sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt,
+                                 Asw, swg.Rsw, stir_in.spacing)
+                qsw = swg.Rsw * Asw / stir_in.spacing
+                cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh)
+
+            # Header cấu tạo
+            hdr = tk.Frame(parent, bg="white")
+            hdr.pack(fill=tk.X, padx=8, pady=(4, 2))
             for ch in sr.checks:
                 mark = "✓" if ch.ok else "✗"
                 extra = ""
@@ -1866,40 +1877,71 @@ class App(tk.Tk):
                     extra = (f" (bố trí khoảng cách a = "
                              f"{stir_in.spacing:.0f} mm)")
                 tm = "thỏa mãn" if ch.ok else "không đạt"
-                lines.append(f"{mark} {ch.item}: {ch.required} "
-                             f"(có {ch.provided}){extra} — {tm}")
-                ok_all = ok_all and ch.ok
-            # Chịu cắt 2 phương (tóm tắt)
-            for Q, lbl in ((inp.Q2, "Q2"), (inp.Q3, "Q3")):
-                if abs(Q) > 1e-9:
-                    b_w = inp.cx if lbl == "Q2" else inp.cy
-                    h0 = (inp.cy if lbl == "Q2" else inp.cx) - inp.cover - \
-                        inp.sw_dia - 12
-                    Asw = stir_in.legs * bar_area(stir_in.dia)
-                    sh = check_shear(Q, b_w, max(h0, 1), conc.Rb,
-                                     conc.Rbt, Asw, swg.Rsw,
-                                     stir_in.spacing)
-                    mark = "✓" if sh.ok else "✗"
-                    lines.append(f"{mark} Chịu cắt {lbl} = {Q:.1f} kN: "
-                                f"[Q] = Qb + Qsw = {sh.Qb_opt:.1f} + "
-                                f"{sh.Qsw_opt:.1f} = {sh.Qcap2:.1f} kN")
-                    ok_all = ok_all and sh.ok
-            fg = "#065F46" if ok_all else "#991B1B"
-            bg = "#D1FAE5" if ok_all else "#FEE2E2"
-            txt = "\n".join(lines) if lines else "Chưa có số liệu"
-            lbl = tk.Label(parent, text=txt, font=("TkFixedFont", 10),
-                          fg="#1F2937", bg="white", justify=tk.LEFT,
-                          anchor="w")
-            lbl.pack(fill=tk.X, padx=8, pady=(0, 2))
+                tk.Label(hdr, text=f"{mark} {ch.item}: {ch.required} "
+                                  f"(có {ch.provided}){extra} — {tm}",
+                         font=("", 9), fg="#1F2937", bg="white",
+                         anchor="w", justify=tk.LEFT).pack(
+                             fill=tk.X, pady=1)
+
+            # Bảng Phương 2 | Phương 3
+            tf = tk.Frame(parent, bg="white")
+            tf.pack(fill=tk.X, padx=8, pady=(4, 2))
+            headers = ["Thông số", "Phương 2", "Phương 3"]
+            for j, h in enumerate(headers):
+                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
+                         fg="#111827", borderwidth=1, relief="solid",
+                         padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
+                tf.columnconfigure(j, weight=1 if j else 2)
+            rows = [
+                ("Q (kN)",
+                 f"{cols['2']['Q']:.1f}", f"{cols['3']['Q']:.1f}"),
+                ("b × h0 (mm)",
+                 f"{cols['2']['b']:.0f} × {cols['2']['h0']:.0f}",
+                 f"{cols['3']['b']:.0f} × {cols['3']['h0']:.0f}"),
+                (f"Asw = n×φ{stir_in.dia:.0f} (mm²)",
+                 f"{cols['2']['Asw']:.0f}", f"{cols['3']['Asw']:.0f}"),
+                ("qsw = Rsw×Asw/s (N/mm)",
+                 f"{cols['2']['qsw']:.1f}", f"{cols['3']['qsw']:.1f}"),
+                ("ĐK1: 0.3×Rb×b×h0 (kN)",
+                 f"{cols['2']['sh'].Qcap1:.1f}",
+                 f"{cols['3']['sh'].Qcap1:.1f}"),
+                ("Qb (kN) tại C",
+                 f"{cols['2']['sh'].Qb_opt:.1f}",
+                 f"{cols['3']['sh'].Qb_opt:.1f}"),
+                ("Qsw (kN) tại C",
+                 f"{cols['2']['sh'].Qsw_opt:.1f}",
+                 f"{cols['3']['sh'].Qsw_opt:.1f}"),
+                ("C cho [Q]min (mm)",
+                 f"{cols['2']['sh'].C_opt:.0f}",
+                 f"{cols['3']['sh'].C_opt:.0f}"),
+                ("[Q] = Qb+Qsw (kN)",
+                 f"{cols['2']['sh'].Qcap2:.1f}",
+                 f"{cols['3']['sh'].Qcap2:.1f}"),
+            ]
+            ok_all = all(ch.ok for ch in sr.checks)
+            for i, (a, b, c) in enumerate(rows):
+                bg = "#F9FAFB" if i % 2 else "white"
+                for j, t in enumerate((a, b, c)):
+                    fw = ("", 9, "bold") if j == 0 else ("", 9)
+                    tk.Label(tf, text=t, font=fw, bg=bg, fg="#1F2937",
+                             borderwidth=1, relief="solid",
+                             padx=6, pady=2, anchor="w" if j == 0
+                             else "center").grid(row=i + 1, column=j,
+                                                 sticky="nsew")
+            # Đánh dấu ĐK
+            for lbl in ("2", "3"):
+                sh = cols[lbl]["sh"]
+                ok_all = ok_all and sh.ok
             # Kết luận
             kl = "ĐẠT" if ok_all else "KHÔNG ĐẠT"
             fgk = "#065F46" if ok_all else "#991B1B"
             tk.Label(parent, text=f"Kết luận thép đai: {kl}",
                      font=("", 10, "bold"), fg=fgk, bg="white",
-                     anchor="w").pack(fill=tk.X, padx=8, pady=(0, 6))
+                     anchor="w").pack(fill=tk.X, padx=8, pady=(4, 6))
         except Exception as e:
-            ttk.Label(parent, text=f"Không tính được: {e}",
-                      foreground="gray").pack(padx=8, pady=4)
+            tk.Label(parent, text=f"Không tính được thép đai: {e}",
+                     fg="#991B1B", bg="white").pack(padx=8, pady=4)
+
 
     def _redraw(self):
         """Layout 2x2: [mặt cắt + thẻ TK | bảng thông số] /
