@@ -102,29 +102,16 @@ def uniaxial_curve_fs(fs: FiberSection, theta_deg: float,
     if h <= 0:
         return [(0.0, 0.0)]
     y_top = float(np.max(yp_f))
+    y_bot = float(np.min(yp_f))
     eps_cu = EPS_B2
     pts: List[Tuple[float, float]] = []
 
-    # Nén đúng tâm
-    eps_c = EPS_B2 * 0.8
-    ef = np.full_like(yp_f, eps_c)
-    sf = fs.concrete_stress(ef, model)
-    N0 = (np.sum(sf * fs.fa)) / 1000.0
-    if fs.ra.size:
-        sr = fs.steel_stress(np.full_like(yp_r, eps_c))
-        N0 += np.sum(sr * fs.ra) / 1000.0
-    pts.append((N0, 0.0))
-
-    for i in range(1, n_points):
-        t = i / n_points * 2.4
-        c = h / max(t, 1e-9)
-        kx_p = eps_cu / c          # độ cong trong hệ xoay
-        eps0 = eps_cu - kx_p * y_top
+    def add_point(eps0: float, kx_p: float):
         # kiểm tra biến dạng thép
         if yp_r.size:
             er = eps0 + kx_p * yp_r
             if np.any(np.abs(er) > EPS_S2 + 1e-9):
-                continue
+                return
         ef = eps0 + kx_p * yp_f
         sf = fs.concrete_stress(ef, model)
         Nf = np.sum(sf * fs.fa)
@@ -138,18 +125,32 @@ def uniaxial_curve_fs(fs: FiberSection, theta_deg: float,
             Nr = Mr = 0.0
         pts.append(((Nf + Nr) / 1000.0, abs(Mf + Mr) / 1e6))
 
-    # Kéo đúng tâm
-    eps_s = min(0.9 * EPS_S2, 3.0 * fs.eps_y)
-    ef = np.full_like(yp_f, -eps_s)
-    sf = fs.concrete_stress(ef, model)  # = 0 (bỏ qua kéo)
-    Nt = np.sum(sf * fs.fa) / 1000.0
-    if fs.ra.size:
-        sr = fs.steel_stress(np.full_like(yp_r, -eps_s))
-        Nt += np.sum(sr * fs.ra) / 1000.0
-    pts.append((Nt, 0.0))
+    # Nén đúng tâm (biến dạng đều = eps_cu)
+    add_point(eps_cu, 0.0)
 
+    # Quét: giữ mép nén đạt eps_cu, biến dạng mép kia (eps_bot) giảm dần
+    # từ eps_cu về -eps_s_max. Tham số hóa đều theo eps_bot để đường cong mượt.
+    eps_s_max = min(0.9 * EPS_S2, 10.0 * fs.eps_y)
+    for i in range(1, n_points):
+        frac = i / n_points
+        # phân bố dày hơn gần vùng chuyển tiếp (dùng frac^0.8)
+        f2 = frac ** 0.8
+        eps_bot = eps_cu - f2 * (eps_cu + eps_s_max)
+        kx_p = (eps_cu - eps_bot) / h
+        eps0 = eps_cu - kx_p * y_top
+        add_point(eps0, kx_p)
+
+    # Kéo đúng tâm
+    add_point(-eps_s_max, 0.0)
+
+    # Loại bỏ điểm trùng lặp gần nhau để đường cong sạch
     pts.sort(key=lambda p: -p[0])
-    return pts
+    clean: List[Tuple[float, float]] = []
+    for p in pts:
+        if not clean or (abs(p[0] - clean[-1][0]) > 1e-6
+                         or abs(p[1] - clean[-1][1]) > 1e-6):
+            clean.append(p)
+    return clean
 
 
 def capacity_at_N(curve: List[Tuple[float, float]], N: float) -> float:
@@ -205,6 +206,41 @@ class BiaxialCapacity:
         # fallback: góc gần nhất
         best = min(angs, key=lambda a: abs((a - phi + 180) % 360 - 180))
         return capacity_at_N(self.curves[best], N)
+
+    def mx_my_curve(self, N: float, n_angles: int = 72) -> List[Tuple[float, float]]:
+        """Đường cong tương tác Mx-My tại lực dọc N cho trước.
+
+        Trả về list (Mx, My) khép kín.
+        """
+        pts: List[Tuple[float, float]] = []
+        for k in range(n_angles):
+            th = 360.0 * k / n_angles
+            m = self.moment_capacity(N, th)
+            rad = math.radians(th)
+            pts.append((m * math.cos(rad), m * math.sin(rad)))
+        pts.append(pts[0])
+        return pts
+
+    def surface_grid(self, n_n: int = 25, n_angles: int = 48):
+        """Lưới mặt tương tác 3D (N, Mx, My) để vẽ.
+
+        Trả về (N_vals, Theta_vals, Mx_grid, My_grid).
+        """
+        # biên N: từ kéo max đến nén max (lấy từ đường cong θ=0)
+        curve0 = self.curves[self.angles[0]]
+        n_min = curve0[-1][0]
+        n_max = curve0[0][0]
+        n_vals = np.linspace(n_min, n_max, n_n)
+        th_vals = np.linspace(0, 360, n_angles, endpoint=False)
+        mx_grid = np.zeros((n_n, n_angles))
+        my_grid = np.zeros((n_n, n_angles))
+        for i, nn in enumerate(n_vals):
+            for j, th in enumerate(th_vals):
+                m = self.moment_capacity(float(nn), float(th))
+                rad = math.radians(th)
+                mx_grid[i, j] = m * math.cos(rad)
+                my_grid[i, j] = m * math.sin(rad)
+        return n_vals, th_vals, mx_grid, my_grid
 
     def check(self, N: float, Mx: float, My: float) -> dict:
         """Kiểm tra (N kN, Mx, My kN·m). Trả về dict kết quả."""
