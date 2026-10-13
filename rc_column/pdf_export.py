@@ -628,8 +628,8 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
                           spaceAfter=3)
     st_b = ParagraphStyle("b", fontName=FN, fontSize=8.5, spaceAfter=1.5,
                           leading=11)
-    st_cell = ParagraphStyle("c", fontName=FN, fontSize=8, leading=10)
-    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=8, leading=10)
+    st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
+    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
     st_box_t = ParagraphStyle("bt", fontName=FN, fontSize=7,
                               textColor=HexColor("#6B7280"),
                               alignment=TA_CENTER)
@@ -652,13 +652,13 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
             _ck_name = _os.path.splitext(_os.path.basename(_fn))[0].upper()
     except Exception:
         pass
-    story.append(Spacer(1, 2))
+    story.append(Spacer(1, 1))
 
     # ===== Mặt cắt =====
     fig1, ax1 = plt.subplots(figsize=(2.2, 2.2))
     draw_section_ax(ax1, sec, show_dims=True, show_stats=False,
                     small_dots=True)
-    img_sec = fig_to_img(fig1, 42, 42)
+    img_sec = fig_to_img(fig1, 35, 35)
 
     # Box vật liệu + thống kê (giống app)
     from collections import Counter
@@ -720,7 +720,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
                   Paragraph("Tỷ số sử dụng khả năng chịu lực", st_cell),
                   Paragraph(f"<b>{res.dc:.3f} (FS = {res.fs:.2f}) {ok_txt}</b>",
                             st_cell_b)])
-    t_param = Table(pdata, colWidths=[14 * mm, 52 * mm, 34 * mm])
+    t_param = Table(pdata, colWidths=[12 * mm, 44 * mm, 28 * mm])
     ts = [("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
           ("FONTSIZE", (0, 0), (-1, -1), 8),
           ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -759,7 +759,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
                            ("LEFTPADDING", (0, 0), (-1, -1), 2),
                            ("RIGHTPADDING", (0, 0), (-1, -1), 2)])))
-    story.append(Spacer(1, 2))
+    story.append(Spacer(1, 1))
 
     # ===== Biểu đồ =====
     story.append(Paragraph("BIỂU ĐỒ TƯƠNG TÁC", st_h))
@@ -795,7 +795,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     ax2.grid(True, color="#E5E7EB", ls="--", lw=0.7, alpha=0.9)
     for sp in ("top", "right"):
         ax2.spines[sp].set_visible(False)
-    img_nm = fig_to_img(fig2, 78, 62)
+    img_nm = fig_to_img(fig2, 70, 52)
     # M2-M3
     fig3, ax3 = plt.subplots(figsize=(3.6, 2.9))
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
@@ -820,10 +820,10 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
     ax3.grid(True, color="#E5E7EB", ls="--", lw=0.7, alpha=0.9)
     for sp in ("top", "right"):
         ax3.spines[sp].set_visible(False)
-    img_mm = fig_to_img(fig3, 78, 62)
+    img_mm = fig_to_img(fig3, 70, 52)
     story.append(Table([[img_nm, img_mm]], colWidths=[90 * mm, 90 * mm],
                        style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
-    story.append(Spacer(1, 2))
+    story.append(Spacer(1, 1))
 
     # ===== Chi tiết A/B =====
     story.append(Paragraph("CHI TIẾT ĐIỂM TẢI & GIỚI HẠN", st_h))
@@ -832,15 +832,25 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
         f"<b>D/C = OA/OB = {res.dc:.3f} → {ok_txt}</b>", st_b))
     # PDF: text đen (không màu như app)
     _combo = ""
-    if case_info and case_info.get("case"):
-        _combo = f" [{case_info.get('case')}@{case_info.get('station', '')}]"
+    if case_info:
+        _parts = []
+        if case_info.get("story"):
+            _parts.append(str(case_info.get("story")))
+        if case_info.get("column"):
+            _parts.append(str(case_info.get("column")))
+        if case_info.get("case"):
+            _st = case_info.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{case_info.get('case')}{_st_txt}")
+        if _parts:
+            _combo = f" [{', '.join(_parts)}]"
     story.append(Paragraph(
         f"• A (điểm tải){_combo}: N = {res.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
         f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b))
     story.append(Paragraph(
         f"• B (điểm giới hạn): Nu = {res.BN:+.1f} kN, Mα,u = {Mb:.1f} kN·m "
         f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b))
-    story.append(Spacer(1, 2))
+    story.append(Spacer(1, 1))
 
     # ===== Kiểm tra thép đai =====
     story.append(Paragraph("KIỂM TRA THÉP ĐAI", st_h))
@@ -857,9 +867,10 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None):
         swg = STEEL_GRADES.get(inp.sw_steel_grade)
         # Bảng chi tiết 2 phương (bỏ check cấu tạo)
         cols = {}
+        # Q2: b = t2 = cy; Q3: b = t3 = cx
         for Q, lbl, b_w, h_dim in (
-                (inp.Q2, "2", inp.cx, inp.cy),
-                (inp.Q3, "3", inp.cy, inp.cx)):
+                (inp.Q2, "2", inp.cy, inp.cx),
+                (inp.Q3, "3", inp.cx, inp.cy)):
             h0 = h_dim - inp.cover - inp.sw_dia - 12
             Asw = stir_in.legs * bar_area(stir_in.dia)
             sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt,
