@@ -29,14 +29,21 @@ def _f(x: float, nd: int = 2) -> str:
 class ReportBuilder:
     def __init__(self):
         self.segs: List[Seg] = []
+        self.sections: dict = {}  # num -> {"title":, "ref":, "segs": []}
+        self._cur = None
 
     def add(self, text: str, *tags: str):
-        self.segs.append((text, tags))
+        seg = (text, tags)
+        self.segs.append(seg)
+        if self._cur is not None:
+            self.sections[self._cur]["segs"].append(seg)
 
     def nl(self, n: int = 1):
         self.add("\n" * n)
 
     def section(self, num: int, title: str, ref: str):
+        self._cur = num
+        self.sections[num] = {"title": title, "ref": ref, "segs": []}
         self.nl(2)
         self.add(f"● {num}. {title}", "sec_title")
         self.add(f"  {ref}", "sec_ref")
@@ -54,8 +61,11 @@ class ReportBuilder:
     def build(self) -> List[Seg]:
         return self.segs
 
+    def build_sections(self) -> dict:
+        return self.sections
 
-def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
+
+def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
     sec = build_section(inp)
     conc = sec.concrete
     steel = sec.steel
@@ -172,9 +182,20 @@ def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
     else:
         A("  ✗ KHÔNG ĐẠT — D/C > 1.000", "ng")
     b.nl(2)
-    return b.build()
+    return b
 
 
-# Tương thích ngược: trả về text thuần
+
+def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
+    """Trả về list segments phẳng (dùng cho PDF, text thuần)."""
+    return _build_report(inp, res).build()
+
+
+def generate_report_sections(inp: ColumnInput, res: CheckResult) -> dict:
+    """Trả về dict {num: {title, ref, segs}} cho từng mục."""
+    return _build_report(inp, res).build_sections()
+
+
 def generate_report_text(inp: ColumnInput, res: CheckResult) -> str:
+    """Tương thích ngược: trả về text thuần."""
     return "".join(t for t, _ in generate_report(inp, res))
