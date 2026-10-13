@@ -109,7 +109,7 @@ class App(tk.Tk):
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         # Fix cứng panel trái 380px sau khi build xong
-        self._left_width = 460
+        self._left_width = 500
 
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
@@ -162,8 +162,12 @@ class App(tk.Tk):
         right = ttk.Frame(main)
         main.add(right, weight=1)
         self.result_var = tk.StringVar(value="Chưa có kết quả")
-        ttk.Label(right, textvariable=self.result_var,
-                  font=("", 12, "bold")).pack(pady=4)
+        hdr = ttk.Frame(right)
+        hdr.pack(fill=tk.X, padx=4, pady=4)
+        ttk.Label(hdr, textvariable=self.result_var,
+                  font=("", 12, "bold")).pack(side=tk.LEFT, expand=True)
+        ttk.Button(hdr, text="🖨️ In tóm tắt",
+                   command=self._print_summary).pack(side=tk.RIGHT, padx=4)
 
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -1108,6 +1112,25 @@ class App(tk.Tk):
             f"Tổ hợp nguy hiểm nhất: {worst_f.case} — "
             f"{'KHÔNG ĐẠT ✗' if worst_r['dc'] > 1 else 'ĐẠT ✓'} "
             f"(D/C = {worst_r['dc']:.3f})")
+
+    def _print_summary(self):
+        """In phần tóm tắt: xuất PDF từ các biểu đồ hiện tại."""
+        try:
+            from tkinter import filedialog, messagebox
+            path = filedialog.asksaveasfilename(
+                title="In tóm tắt",
+                defaultextension=".pdf",
+                filetypes=[("PDF", "*.pdf")],
+                initialfile="TomTat.pdf")
+            if not path:
+                return
+            # Dùng pdf_export có sẵn để xuất
+            from rc_column.pdf_export import export_pdf
+            export_pdf(self._last_inp, self._last_res, path)
+            messagebox.showinfo("In tóm tắt", f"Đã xuất: {path}")
+        except Exception as e:
+            from tkinter import messagebox
+            messagebox.showerror("Lỗi", f"Không in được: {e}")
 
     def _show_summary(self, sec, inp, res, prefix=""):
         """Cập nhật biểu đồ + L0 (ô text tóm tắt đã bỏ theo yêu cầu)."""
