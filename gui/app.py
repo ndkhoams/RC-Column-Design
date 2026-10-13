@@ -972,7 +972,7 @@ class App(tk.Tk):
             if lim:
                 import math
                 fs_dir = math.hypot(lim[1], lim[0]) / math.hypot(Ms_abs, Nv)
-                ax.text(0.5, -0.22, f"Tỉ số an toàn FS = {fs_dir:.2f}",
+                ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {fs_dir:.2f}",
                         transform=ax.transAxes, ha="center", fontsize=10,
                         color="darkred", weight="bold")
 
@@ -1030,6 +1030,8 @@ class App(tk.Tk):
             a2.set_zlabel("N (kN)")
             a2.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
         self.fig.tight_layout()
+        # Chừa chỗ dưới cho dòng "Tỉ số an toàn" (tránh đè nhãn trục)
+        self.fig.subplots_adjust(bottom=0.18)
         self.mpl.draw()
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
