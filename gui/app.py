@@ -53,9 +53,11 @@ class App(tk.Tk):
         canvas.configure(yscrollcommand=scr.set)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scr.pack(side=tk.RIGHT, fill=tk.Y)
-        # Cuộn chuột cho panel trái
-        self.left.bind("<Enter>", lambda e: self._wheel_on())
-        self.left.bind("<Leave>", lambda e: self._wheel_off())
+        # Cuộn chuột: 1 handler chung cho cả app (theo vị trí con trỏ),
+        # không dùng Enter/Leave vì mất tác dụng khi đè lên widget con
+        self.bind_all("<MouseWheel>", self._on_wheel_global)
+        self.bind_all("<Button-4>", self._on_wheel_global)
+        self.bind_all("<Button-5>", self._on_wheel_global)
 
         self._sec_materials()
         self._sec_section()
@@ -146,17 +148,27 @@ class App(tk.Tk):
             self.calc_text.yview_scroll(delta * 2, "units")
         return "break"
 
-    def _wheel_on(self):
-        self.bind_all("<MouseWheel>", self._on_wheel)
-        self.bind_all("<Button-4>", self._on_wheel)
-        self.bind_all("<Button-5>", self._on_wheel)
-
-    def _wheel_off(self):
-        self.unbind_all("<MouseWheel>")
-        self.unbind_all("<Button-4>")
-        self.unbind_all("<Button-5>")
-
-    def _on_wheel(self, event):
+    def _on_wheel_global(self, event):
+        """Cuộn theo vùng dưới con trỏ: panel trái -> canvas trái,
+        các vùng khác giữ hành vi mặc định (thuyết minh đã có bind riêng)."""
+        # Thuyết minh có bind riêng trả về "break" nên không tới đây;
+        # chỉ xử lý panel trái
+        w = self.winfo_containing(event.x_root, event.y_root)
+        node = w
+        in_left = False
+        while node is not None and node is not self:
+            if node is self.left or node is self._left_canvas:
+                in_left = True
+                break
+            # Treeview/bảng tự cuộn riêng, không cướp
+            if node is getattr(self, "etabs_tree", None):
+                return None
+            try:
+                node = node.master
+            except Exception:
+                break
+        if not in_left:
+            return None
         c = self._left_canvas
         if getattr(event, "num", None) == 4:
             c.yview_scroll(-3, "units")
@@ -166,6 +178,18 @@ class App(tk.Tk):
             delta = int(-event.delta / 120) if event.delta else 0
             c.yview_scroll(delta * 3, "units")
         return "break"
+
+    def _wheel_on(self):
+        """(Giữ để tương thích — không còn dùng.)"""
+        pass
+
+    def _wheel_off(self):
+        """(Giữ để tương thích — không còn dùng.)"""
+        pass
+
+    def _on_wheel(self, event):
+        """(Giữ để tương thích — không còn dùng.)"""
+        return None
 
     def _frame(self, title):
         f = ttk.LabelFrame(self.left, text=title, padding=6)
