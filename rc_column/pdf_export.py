@@ -120,8 +120,10 @@ def _radial_limit(curve, N_load: float, M_load: float):
     return best
 
 
-def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False) -> bytes:
-    """Biểu đồ tương tác N-M tại góc uốn xiên α (1 biểu đồ duy nhất)."""
+def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
+                      right_half=False) -> bytes:
+    """Biểu đồ tương tác N-M tại góc uốn xiên α.
+    right_half=True: chỉ hiện nửa phải (M>=0) có đường nội lực."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -148,10 +150,44 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False) -> byte
     ax.set_xlabel("M (kN·m)", fontsize=9)
     ax.set_ylabel("N (kN)", fontsize=9)
     ax.tick_params(labelsize=8)
+    if right_half:
+        # Chỉ hiện nửa phải (M >= 0)
+        ax.set_xlim(left=0)
     ax.legend(fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.28), ncol=2)
     ax.grid(True, alpha=0.3)
     fig.subplots_adjust(bottom=0.38)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi)
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
+    """Biểu đồ tương tác M2-M3 tại N."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
+    from .interaction import BiaxialCapacity
+    cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+    pts = cap.mx_my_curve(res.N)
+    ax.plot([p[0] for p in pts], [p[1] for p in pts], "b-", lw=1.5)
+    ax.scatter([res.Mx_star], [res.My_star], c="red", s=80, zorder=5,
+               label="Điểm tải trọng")
+    lc = "green" if res.fs > 1 else "red"
+    ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=lc,
+            ls="--", lw=1.5, alpha=0.9)
+    ax.scatter([res.Bx], [res.By], c="orange", s=80, zorder=5,
+               label="Giới hạn")
+    ax.set_xlabel("M2 (kN·m)", fontsize=9)
+    ax.set_ylabel("M3 (kN·m)", fontsize=9)
+    ax.tick_params(labelsize=8)
+    ax.legend(fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, -0.22), ncol=2)
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect("equal", adjustable="datalim")
+    fig.subplots_adjust(bottom=0.32)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi)
     plt.close(fig)
@@ -341,11 +377,14 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
                             width=_w, height=_h)
     except Exception:
         pass
-    img_m6 = None
+    img_m6 = []
     try:
-        png_nm = interaction_image(sec, inp, res)
-        # Bỏ 3D, biểu đồ N-M full bề ngang trang
-        img_m6 = Image(io.BytesIO(png_nm), width=170*mm, height=128*mm)
+        from .pdf_export import m2m3_image  # noqa
+        png_m2m3 = m2m3_image(sec, inp, res)
+        # N-M chỉ hiện nửa phải có đường nội lực
+        png_nm = interaction_image(sec, inp, res, right_half=True)
+        img_m6 = [Image(io.BytesIO(png_m2m3), width=85*mm, height=72*mm),
+                  Image(io.BytesIO(png_nm), width=85*mm, height=64*mm)]
     except Exception:
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
@@ -368,12 +407,20 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
         elif num == 6 and img_m6:
             from reportlab.platypus import PageBreak
             S.append(PageBreak())
-            # Mục 6: text full-width, biểu đồ N-M full bề ngang (bỏ 3D)
+            # Mục 6: text full-width, 2 biểu đồ cạnh nhau
+            # (M2-M3 trái, N-M nửa phải có đường nội lực)
             S.extend(flows)
             S.append(Spacer(1, 4))
-            S.append(img_m6)
-            S.append(P("Biểu đồ N-M (góc α)", st_cap))
-            S.append(P("Hình 2. Biểu đồ N-M (góc α)", st_cap))
+            tbl6 = Table([[
+                [img_m6[0], P("Biểu đồ M2-M3 (tại N)", st_cap)],
+                [img_m6[1], P("Biểu đồ N-M (nửa phải)", st_cap)],
+            ]], colWidths=[88*mm, 88*mm])
+            tbl6.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]))
+            S.append(tbl6)
+            S.append(P("Hình 2. Biểu đồ M2-M3 và N-M (góc α)", st_cap))
             S.append(Spacer(1, 6))
         elif num == 7 and batch_rows:
             # Mục 7: Table có lưới thật
