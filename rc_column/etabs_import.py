@@ -28,11 +28,10 @@ class EtabsForce:
 
 
 def read_etabs_excel(path: str,
-                     m2_to: str = "Mx",
                      only_combinations: bool = True) -> List[EtabsForce]:
     """Đọc file Excel ETABS.
 
-    m2_to: "Mx" (M2->Mx, M3->My) hoặc "My" (M2->My, M3->Mx).
+    Quy ước trục 2/3 thống nhất: M2 (Excel) -> M2, M3 (Excel) -> M3.
     """
     if not HAS_OPENPYXL:
         raise ImportError("Cần cài openpyxl: pip install openpyxl")
@@ -87,10 +86,7 @@ def read_etabs_excel(path: str,
         p = num(r, "p")
         m2 = num(r, "m2")
         m3 = num(r, "m3")
-        if m2_to == "Mx":
-            mx, my = m2, m3
-        else:
-            mx, my = m3, m2
+        mx, my = m2, m3  # M2->M2, M3->M3 (không ánh xạ)
         forces.append(EtabsForce(
             story=str(val(r, "story") or ""),
             column=str(val(r, "column") or ""),
