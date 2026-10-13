@@ -641,8 +641,8 @@ def export_summary_pdf(sec, inp, res, filepath: str):
         ["N", f"{res.N:+.1f} kN"],
         ["M2", f"{res.Mx_star:.1f} kN·m"],
         ["M3", f"{res.My_star:.1f} kN·m"],
-        ["λ2 / λ3", f"{res.lam2:.1f} / {res.lam3:.1f}"],
-        ["η2 / η3", f"{res.eta2:.3f} / {res.eta3:.3f}"],
+        ["λ2 / λ3", f"{res.lambda_x:.1f} / {res.lambda_y:.1f}"],
+        ["η2 / η3", f"{res.etax:.3f} / {res.etay:.3f}"],
         ["M2* / M3*", f"{res.Mx_star:.1f} / {res.My_star:.1f}"],
         ["D/C", f"{res.dc:.3f} ({ok_txt})"],
     ]
