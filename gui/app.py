@@ -318,6 +318,9 @@ class App(tk.Tk):
             wx.grid(row=i, column=1, padx=4, pady=2, sticky=tk.EW)
             wy.grid(row=i, column=2, padx=4, pady=2, sticky=tk.EW)
         self.l0_var = tk.StringVar(value="")
+        ttk.Label(f, textvariable=self.l0_var, font=("", 9, "italic"),
+                  foreground="#0a4d8c").grid(row=5, column=0, columnspan=3,
+                                             sticky=tk.W, padx=4, pady=4)
         # Tự điền hệ số ψ theo điều kiện biên
         for cb in (self.cb_tx, self.cb_bx, self.cb_ty, self.cb_by):
             cb.bind("<<ComboboxSelected>>", lambda e: self._auto_psi())
@@ -334,9 +337,6 @@ class App(tk.Tk):
             p = PSI_TABLE.get((t, b), PSI_TABLE.get((b, t), 1.0))
             en.delete(0, tk.END)
             en.insert(0, f"{p:g}")
-        ttk.Label(f, textvariable=self.l0_var, font=("", 9, "italic"),
-                  foreground="#0a4d8c").grid(row=5, column=0, columnspan=3,
-                                             sticky=tk.W, padx=4, pady=4)
 
     # ---- 5. Nội lực ----
     def _sec_loads(self):
