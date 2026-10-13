@@ -80,12 +80,12 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
     ax.set_yticks([])
 
 
-def section_image(sec, width_in=3.2, dpi=150, small=False) -> bytes:
+def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     if small:
-        width_in, dpi = 2.6, 100
+        width_in, dpi = 2.6, 200
     fig, ax = plt.subplots(figsize=(width_in, width_in))
     draw_section_ax(ax, sec)
     ax.grid(True, alpha=0.3)
@@ -118,14 +118,14 @@ def _radial_limit(curve, N_load: float, M_load: float):
     return best
 
 
-def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> bytes:
+def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False) -> bytes:
     """Biểu đồ tương tác N-M tại góc uốn xiên α (1 biểu đồ duy nhất)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import math
     if small:
-        width_in, dpi = 4.0, 100
+        width_in, dpi = 4.0, 200
     fig, ax = plt.subplots(figsize=(width_in, width_in * 0.75))
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
@@ -143,8 +143,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
             ls="--", lw=1.5, alpha=0.9)
     ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
                label="B (giới hạn)")
-    ax.set_xlabel("M (kN·m)")
-    ax.set_ylabel("N (kN)")
+    ax.set_xlabel("M (kN·m)", fontsize=9)
+    ax.set_ylabel("N (kN)", fontsize=9)
+    ax.tick_params(labelsize=8)
     ax.legend(fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.28), ncol=2)
     ax.grid(True, alpha=0.3)
@@ -155,7 +156,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     return buf.getvalue()
 
 
-def surface_3d_image(sec, inp, res, width_in=4.0, dpi=100) -> bytes:
+def surface_3d_image(sec, inp, res, width_in=4.0, dpi=200) -> bytes:
     """Mặt tương tác 3D N-M2-M3."""
     import matplotlib
     matplotlib.use("Agg")
@@ -184,7 +185,7 @@ def surface_3d_image(sec, inp, res, width_in=4.0, dpi=100) -> bytes:
     return buf.getvalue()
 
 
-def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
+def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
                        small=False) -> tuple:
     """Trả về (png_NM2, png_NM3) — 2 ảnh riêng cho layout lớn."""
     import matplotlib
