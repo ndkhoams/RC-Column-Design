@@ -837,6 +837,474 @@ def export_summary_pdf(sec, inp, res, filepath: str):
         f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b))
     story.append(Spacer(1, 2))
 
+    # ===== Kiểm tra thép đai: dạng bảng Phương 2 | Phương 3 =====
+    story.append(Paragraph("KIỂM TRA THÉP ĐAI", st_h))
+    _sw_ok_all = True
+    _sw_done = False
+    try:
+        from .stirrup import StirrupInput, check_stirrup, check_shear
+        from .sections import bar_area
+        from .materials import CONCRETE_GRADES, STEEL_GRADES, ConcreteMaterial
+        stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
+                               legs=inp.sw_legs)
+        conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade],
+                                inp.gamma_b)
+        swg = STEEL_GRADES.get(inp.sw_steel_grade)
+        sr = check_stirrup(sec, stir_in, inp.cover)
+        for ch in sr.checks:
+            mk = "✓" if ch.ok else "✗"
+            _sw_ok_all = _sw_ok_all and ch.ok
+            extra = ""
+            if "kính đai" in ch.item:
+                extra = f" (bố trí phi{stir_in.dia:.0f})"
+            elif "Bước đai" in ch.item:
+                extra = (f" (bố trí khoảng cách a = "
+                         f"{stir_in.spacing:.0f} mm)")
+            tm = "thỏa mãn" if ch.ok else "không đạt"
+            story.append(Paragraph(
+                f"{mk} {ch.item}: {ch.required} (có {ch.provided})"
+                f"{extra} — {tm}", st_b))
+
+        # Bảng chi tiết 2 phương
+        cols = {}
+        for Q, lbl, b_w, h_dim in (
+                (inp.Q2, "2", inp.cx, inp.cy),
+                (inp.Q3, "3", inp.cy, inp.cx)):
+            h0 = h_dim - inp.cover - inp.sw_dia - 12
+            Asw = stir_in.legs * bar_area(stir_in.dia)
+            sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt,
+                             Asw, swg.Rsw, stir_in.spacing)
+            qsw = swg.Rsw * Asw / stir_in.spacing
+            cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh)
+            _sw_ok_all = _sw_ok_all and sh.ok
+
+        def _pc(t, bold=False):
+            st = st_cell_b if bold else st_cell
+            return Paragraph(str(t), st)
+
+        tdata = [[_pc("Thông số", True), _pc("Phương 2", True),
+                  _pc("Phương 3", True)]]
+        _rows = [
+            ("Q (kN)", f"{cols['2']['Q']:.1f}", f"{cols['3']['Q']:.1f}"),
+            ("b × h0 (mm)",
+             f"{cols['2']['b']:.0f} × {cols['2']['h0']:.0f}",
+             f"{cols['3']['b']:.0f} × {cols['3']['h0']:.0f}"),
+            (f"Asw = n×φ{stir_in.dia:.0f} (mm²)",
+             f"{cols['2']['Asw']:.0f}", f"{cols['3']['Asw']:.0f}"),
+            ("qsw = Rsw×Asw/s (N/mm)",
+             f"{cols['2']['qsw']:.1f}", f"{cols['3']['qsw']:.1f}"),
+            ("ĐK1: 0.3×Rb×b×h0 (kN)",
+             f"{cols['2']['sh'].Qcap1:.1f}",
+             f"{cols['3']['sh'].Qcap1:.1f}"),
+            ("Qb (kN) tại C",
+             f"{cols['2']['sh'].Qb_opt:.1f}",
+             f"{cols['3']['sh'].Qb_opt:.1f}"),
+            ("Qsw (kN) tại C",
+             f"{cols['2']['sh'].Qsw_opt:.1f}",
+             f"{cols['3']['sh'].Qsw_opt:.1f}"),
+            ("C cho [Q]min (mm)",
+             f"{cols['2']['sh'].C_opt:.0f}",
+             f"{cols['3']['sh'].C_opt:.0f}"),
+            ("[Q] = Qb+Qsw (kN)",
+             f"{cols['2']['sh'].Qcap2:.1f}",
+             f"{cols['3']['sh'].Qcap2:.1f}"),
+        ]
+        for a, b, c in _rows:
+            tdata.append([_pc(a, True), _pc(b), _pc(c)])
+        t_sw = Table(tdata, colWidths=[62 * mm, 56 * mm, 56 * mm])
+        t_sw.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
+            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+             [HexColor("#FFFFFF"), HexColor("#F9FAFB")]),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        story.append(Spacer(1, 3))
+        story.append(t_sw)
+        _sw_done = True
+    except Exception as e:
+        story.append(Paragraph(f"Không tính được thép đai: {e}", st_b))
+    if _sw_done:
+        _kl = "ĐẠT" if _sw_ok_all else "KHÔNG ĐẠT"
+        story.append(Spacer(1, 3))
+        story.append(Paragraph(
+            f"Kết luận thép đai: {_kl}",
+            ParagraphStyle("kl", fontName=FNB, fontSize=10, spaceBefore=2,
+                           textColor=HexColor("#065F46" if _sw_ok_all
+                                              else "#991B1B"))))
+
+    doc = SimpleDocTemplate(filepath, pagesize=A4,
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=12*mm, bottomMargin=12*mm)
+    S: list = []
+    P = Paragraph
+    cvt = lambda segs: _segs_to_flowables(
+        segs, P, st_body, st_h, st_ref, st_dc, st_badge_ok, st_badge_ng)
+
+    S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st_title))
+    S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
+               "(Điều 8.1.2.7)", st_sub))
+
+    from .report import generate_report_sections
+    sections = generate_report_sections(inp, res, batch_rows=batch_rows,
+                                        case_info=case_info,
+                                        shear_info=shear_info)
+
+    # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
+    img_side = {}
+    try:
+        _w = 50*mm
+        _h = _w * (sec.cy / sec.cx) if sec.cx > 0 else _w
+        img_side[2] = Image(io.BytesIO(section_image(sec, small=True)),
+                            width=_w, height=_h)
+    except Exception:
+        pass
+    img_m6 = []
+    try:
+        from .pdf_export import m2m3_image  # noqa
+        # N-M full (trái) như tab Tóm tắt, M2-M3 (phải)
+        png_nm = interaction_image(sec, inp, res, width_in=4.0)
+        png_m2m3 = m2m3_image(sec, inp, res, width_in=4.0)
+        _h = 64*mm
+        img_m6 = [Image(io.BytesIO(png_nm), width=85*mm, height=_h),
+                  Image(io.BytesIO(png_m2m3), width=85*mm, height=_h)]
+    except Exception:
+        pass
+    captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
+
+    # Gộp text mục 2+3 để hiển thị chung với ảnh bên phải
+    flows_2 = cvt(sections[2]["segs"]) if 2 in sections else []
+    flows_3 = cvt(sections[3]["segs"]) if 3 in sections else []
+    flows_23 = flows_2 + flows_3
+
+    for num in sorted(sections.keys()):
+        info = sections[num]
+        flows = cvt(info["segs"])
+        if num == 2 and img_side.get(2) is not None:
+            # Mục 2+3: text 2 mục bên trái, hình mặt cắt bên phải
+            right_col = [img_side[2], P(captions[2], st_cap)]
+            tbl = Table([[flows_23, right_col]],
+                        colWidths=[108*mm, 68*mm])
+            tbl.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (0, 0), 0),
+                ("RIGHTPADDING", (1, 0), (1, 0), 0),
+            ]))
+            S.append(KeepTogether(tbl))
+            S.append(Spacer(1, 1))
+        elif num == 3:
+            # Đã gộp vào mục 2, bỏ qua
+            continue
+        elif num == 6 and img_m6:
+            from reportlab.platypus import PageBreak
+            S.append(PageBreak())
+            # Mục 6: text full-width, 2 biểu đồ cạnh nhau
+            # (M2-M3 trái, N-M nửa phải có đường nội lực)
+            S.extend(flows)
+            S.append(Spacer(1, 4))
+            tbl6 = Table([[
+                [img_m6[0], P("Biểu đồ N-M (góc α)", st_cap)],
+                [img_m6[1], P("Biểu đồ M2-M3 (tại N)", st_cap)],
+            ]], colWidths=[88*mm, 88*mm])
+            tbl6.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]))
+            S.append(tbl6)
+            S.append(P("Hình 2. Biểu đồ M2-M3 và N-M (góc α)", st_cap))
+            S.append(Spacer(1, 6))
+        elif num == 7 and batch_rows:
+            # Mục 7: Table có lưới thật
+            from reportlab.platypus import PageBreak
+            S.append(PageBreak())
+            S.append(P("7. BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", st_h))
+            S.append(P("Tất cả tổ hợp", st_ref))
+            S.append(Spacer(1, 6))
+            hdr = ["Tổ hợp", "N (kN)", "M2 (kN·m)", "M3 (kN·m)", "D/C", "KQ"]
+            data = [hdr]
+            for f, r in batch_rows:
+                dc = r["dc"]
+                ok = "ĐẠT" if dc <= 1 else "KHÔNG ĐẠT"
+                data.append([f"{f.case}@{f.station:.2f}", f"{f.N:.0f}",
+                             f"{f.Mx:.0f}", f"{f.My:.0f}",
+                             f"{dc:.3f}", ok])
+            t7 = Table(data, colWidths=[32*mm, 22*mm, 24*mm, 24*mm,
+                                        20*mm, 28*mm])
+            t7.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#000000")),
+                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#e2e8f0")),
+                ("FONTNAME", (0, 0), (-1, 0), "VN-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "VN"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+            S.append(t7)
+            S.append(Spacer(1, 6))
+        else:
+            S.extend(flows)
+
+    doc.build(S)
+    return filepath
+
+def export_summary_pdf(sec, inp, res, filepath: str):
+    """Xuất tab Tóm tắt ra PDF khổ A4 — đầy đủ nội dung như trong app."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import math as _m
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    Image, Table, TableStyle)
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    import io as _io
+
+    # Font
+    FN, FNB = "Helvetica", "Helvetica-Bold"
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVu", _find_font()))
+        FN = "DejaVu"
+    except Exception:
+        pass
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVuB", _find_font_bold()))
+        FNB = "DejaVuB"
+    except Exception:
+        pass
+
+    def fig_to_img(fig, w_mm, h_mm=None):
+        buf = _io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                    facecolor="white")
+        plt.close(fig)
+        buf.seek(0)
+        if h_mm is None:
+            h_mm = w_mm * 0.8
+        return Image(buf, width=w_mm * mm, height=h_mm * mm)
+
+    st_title = ParagraphStyle("t", fontName=FNB, fontSize=13,
+                              alignment=TA_CENTER, spaceAfter=4)
+    st_h = ParagraphStyle("h", fontName=FNB, fontSize=10, spaceBefore=6,
+                          spaceAfter=3)
+    st_b = ParagraphStyle("b", fontName=FN, fontSize=8.5, spaceAfter=1.5,
+                          leading=11)
+    st_cell = ParagraphStyle("c", fontName=FN, fontSize=8, leading=10)
+    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=8, leading=10)
+    st_box_t = ParagraphStyle("bt", fontName=FN, fontSize=7,
+                              textColor=HexColor("#6B7280"),
+                              alignment=TA_CENTER)
+    st_box_v = ParagraphStyle("bv", fontName=FNB, fontSize=9,
+                              alignment=TA_CENTER)
+
+    ok = res.ok
+    ok_txt = "ĐẠT" if ok else "KHÔNG ĐẠT"
+    dc_bg = HexColor("#D1FAE5") if ok else HexColor("#FEE2E2")
+    story = []
+
+    # ===== Tiêu đề =====
+    story.append(Paragraph("KIỂM TRA CỘT BTCT", st_title))
+    # Tên cấu kiện: IN HOA, bỏ đuôi .json (hiển thị dưới title mặt cắt)
+    import os as _os
+    _ck_name = ""
+    try:
+        _fn = getattr(inp, "_filename", "") or ""
+        if _fn:
+            _ck_name = _os.path.splitext(_os.path.basename(_fn))[0].upper()
+    except Exception:
+        pass
+    story.append(Spacer(1, 2))
+
+    # ===== Mặt cắt =====
+    fig1, ax1 = plt.subplots(figsize=(2.6, 2.6))
+    draw_section_ax(ax1, sec, show_dims=True, show_stats=False,
+                    small_dots=True)
+    img_sec = fig_to_img(fig1, 50, 50)
+
+    # Box vật liệu + thống kê (giống app)
+    from collections import Counter
+    n = len(sec.rebars)
+    cnt = Counter(r.dia for r in sec.rebars)
+    parts = [f"{cnt[d]}d{d:.0f}" for d in sorted(cnt, reverse=True)]
+    box_data = [
+        [Paragraph("Bê tông", st_box_t),
+         Paragraph("Thép dọc", st_box_t),
+         Paragraph("Thép đai", st_box_t)],
+        [Paragraph(inp.concrete_grade, st_box_v),
+         Paragraph(inp.steel_grade, st_box_v),
+         Paragraph(inp.sw_steel_grade, st_box_v)],
+        [Paragraph("Số thanh", st_box_t),
+         Paragraph("Tổng As", st_box_t),
+         Paragraph("Hàm lượng μ", st_box_t)],
+        [Paragraph(" + ".join(parts), st_box_v),
+         Paragraph(f"{sec.steel_area:.0f} mm²", st_box_v),
+         Paragraph(f"{sec.reinforcement_ratio*100:.2f}%", st_box_v)],
+    ]
+    t_box = Table(box_data, colWidths=[28 * mm, 28 * mm, 28 * mm])
+    t_box.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#E5E7EB")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+
+    # Bảng thông số đầy đủ (giống app)
+    alpha_deg = _m.degrees(_m.atan2(res.My_star, res.Mx_star)) \
+        if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
+    Ma = _m.hypot(res.Mx_star, res.My_star)
+    prows = [
+        ("N", "Lực dọc tính toán", f"{res.N:+.1f} kN"),
+        ("M2", "Mô men ban đầu phương 2", f"{res.Mx:.1f} kN·m"),
+        ("M3", "Mô men ban đầu phương 3", f"{res.My:.1f} kN·m"),
+        ("e02", "Độ lệch tâm ban đầu phương 2", f"{res.e0x:.1f} mm"),
+        ("e03", "Độ lệch tâm ban đầu phương 3", f"{res.e0y:.1f} mm"),
+        ("λ2", "Độ mảnh cột phương 2", f"{res.lambda_x:.1f}"),
+        ("λ3", "Độ mảnh cột phương 3", f"{res.lambda_y:.1f}"),
+        ("Ncr,2", "Lực tới hạn Euler phương 2", f"{res.Ncrx:.1f} kN"),
+        ("Ncr,3", "Lực tới hạn Euler phương 3", f"{res.Ncry:.1f} kN"),
+        ("α", "Góc tác dụng mô men", f"{alpha_deg:.1f} °"),
+        ("η2", "Hệ số uốn dọc phương 2", f"{res.etax:.3f}"),
+        ("η3", "Hệ số uốn dọc phương 3", f"{res.etay:.3f}"),
+        ("M2*", "Mô men tính toán phương 2", f"{res.Mx_star:.1f} kN·m"),
+        ("M3*", "Mô men tính toán phương 3", f"{res.My_star:.1f} kN·m"),
+        ("Mα", "Mô men tổng theo phương kiểm tra", f"{Ma:.1f} kN·m"),
+    ]
+    pdata = [[Paragraph("<b>Ký hiệu</b>", st_cell_b),
+              Paragraph("<b>Thông số</b>", st_cell_b),
+              Paragraph("<b>Giá trị</b>", st_cell_b)]]
+    for i, (a, b, c) in enumerate(prows):
+        bg = HexColor("#F9FAFB") if i % 2 else HexColor("#FFFFFF")
+        pdata.append([Paragraph(a, st_cell), Paragraph(b, st_cell),
+                      Paragraph(c, st_cell)])
+    # Dòng D/C highlight
+    pdata.append([Paragraph("<b>D/C</b>", st_cell_b),
+                  Paragraph("Tỷ số sử dụng khả năng chịu lực", st_cell),
+                  Paragraph(f"<b>{res.dc:.3f} (FS = {res.fs:.2f}) {ok_txt}</b>",
+                            st_cell_b)])
+    t_param = Table(pdata, colWidths=[14 * mm, 52 * mm, 34 * mm])
+    ts = [("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
+          ("FONTSIZE", (0, 0), (-1, -1), 8),
+          ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+          ("TOPPADDING", (0, 0), (-1, -1), 2),
+          ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+          ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
+          ("BACKGROUND", (0, -1), (-1, -1), dc_bg),
+          ("ROWBACKGROUNDS", (0, 1), (-1, -2),
+           [HexColor("#FFFFFF"), HexColor("#F9FAFB")])]
+    t_param.setStyle(TableStyle(ts))
+
+    # Hàng trên: [mặt cắt + box | bảng thông số] như app
+    _ck_para = Paragraph(f"Cấu kiện: {_ck_name}", ParagraphStyle(
+        "ck", fontName=FNB, fontSize=10, alignment=TA_CENTER,
+        textColor=HexColor("#92400E"), spaceAfter=2)) if _ck_name else Spacer(1, 1)
+    left_stack = Table(
+        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
+         [_ck_para],
+         [img_sec],
+         [t_box]],
+        colWidths=[88 * mm])
+    left_stack.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    right_stack = Table(
+        [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
+         [t_param]],
+        colWidths=[96 * mm])
+    right_stack.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    story.append(Table([[left_stack, right_stack]],
+                       colWidths=[92 * mm, 100 * mm],
+                       style=TableStyle([
+                           ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                           ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                           ("RIGHTPADDING", (0, 0), (-1, -1), 2)])))
+    story.append(Spacer(1, 2))
+
+    # ===== Biểu đồ =====
+    story.append(Paragraph("BIỂU ĐỒ TƯƠNG TÁC", st_h))
+    from .interaction import FiberSection, uniaxial_curve_fs, BiaxialCapacity
+    fs = FiberSection(sec)
+    GREEN, ORANGE, RED, BLUE = "#059669", "#F97316", "#DC2626", "#2563EB"
+    # N-Mα
+    fig2, ax2 = plt.subplots(figsize=(3.6, 2.9))
+    cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
+    ax2.plot([p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
+    ax2.plot([-p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
+    ax2.fill_betweenx([p[0] for p in cv], 0, [p[1] for p in cv],
+                      color=GREEN, alpha=0.08)
+    ax2.fill_betweenx([p[0] for p in cv], [-p[1] for p in cv], 0,
+                      color=GREEN, alpha=0.08)
+    Mb = _m.hypot(res.Bx, res.By)
+    ax2.plot([0, Mb * 1.18], [0, res.BN * 1.18], color=RED, ls="--",
+             lw=1.2, dashes=(4, 3))
+    ax2.plot([Ma, Ma], [0, res.N], color=BLUE, ls="--", lw=1, alpha=0.7)
+    ax2.plot([0, Ma], [res.N, res.N], color=BLUE, ls="--", lw=1, alpha=0.7)
+    ax2.scatter([Ma], [res.N], c=GREEN, s=60, zorder=5,
+                edgecolors="white", linewidths=1.2)
+    ax2.scatter([Mb], [res.BN], c=ORANGE, s=60, zorder=5,
+                edgecolors="white", linewidths=1.2)
+    ax2.text(Ma, res.N, "  A", fontsize=9, color=GREEN, weight="bold",
+             va="center")
+    ax2.text(Mb, res.BN, "  B", fontsize=9, color=ORANGE, weight="bold",
+             va="center")
+    ax2.set_xlabel("Mα (kN·m)", fontsize=9)
+    ax2.set_ylabel("N (kN)", fontsize=9)
+    ax2.set_title(f"Biểu đồ tương tác N–Mα (α = {alpha_deg:.1f}°)",
+                  fontsize=10)
+    ax2.grid(True, color="#E5E7EB", ls="--", lw=0.7, alpha=0.9)
+    for sp in ("top", "right"):
+        ax2.spines[sp].set_visible(False)
+    img_nm = fig_to_img(fig2, 85, 68)
+    # M2-M3
+    fig3, ax3 = plt.subplots(figsize=(3.6, 2.9))
+    cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+    pts = cap.mx_my_curve(res.N)
+    xs = [p[0] for p in pts] + [pts[0][0]]
+    ys = [p[1] for p in pts] + [pts[0][1]]
+    ax3.plot(xs, ys, color=BLUE, lw=2)
+    ax3.fill(xs, ys, color=BLUE, alpha=0.08)
+    ax3.plot([0, res.Bx * 1.15], [0, res.By * 1.15], color=RED, ls="--",
+             lw=1.2, dashes=(4, 3))
+    ax3.scatter([res.Mx_star], [res.My_star], c=GREEN, s=60, zorder=5,
+                edgecolors="white", linewidths=1.2)
+    ax3.scatter([res.Bx], [res.By], c=ORANGE, s=60, zorder=5,
+                edgecolors="white", linewidths=1.2)
+    ax3.text(res.Mx_star, res.My_star, "  A", fontsize=9, color=GREEN,
+             weight="bold", va="center")
+    ax3.text(res.Bx, res.By, "  B", fontsize=9, color=ORANGE,
+             weight="bold", va="center")
+    ax3.set_xlabel("M2 (kN·m)", fontsize=9)
+    ax3.set_ylabel("M3 (kN·m)", fontsize=9)
+    ax3.set_title(f"Mặt cắt M2-M3 (N = {res.N:+.1f} kN)", fontsize=10)
+    ax3.grid(True, color="#E5E7EB", ls="--", lw=0.7, alpha=0.9)
+    for sp in ("top", "right"):
+        ax3.spines[sp].set_visible(False)
+    img_mm = fig_to_img(fig3, 85, 68)
+    story.append(Table([[img_nm, img_mm]], colWidths=[90 * mm, 90 * mm],
+                       style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
+    story.append(Spacer(1, 2))
+
+    # ===== Chi tiết A/B =====
+    story.append(Paragraph("CHI TIẾT ĐIỂM TẢI & GIỚI HẠN", st_h))
+    story.append(Paragraph(
+        f"• Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) &nbsp;&nbsp; "
+        f"<b>D/C = OA/OB = {res.dc:.3f} → {ok_txt}</b>", st_b))
+    story.append(Paragraph(
+        f"• A (điểm tải): N = {res.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
+        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b))
+    story.append(Paragraph(
+        f"• B (điểm giới hạn): Nu = {res.BN:+.1f} kN, Mα,u = {Mb:.1f} kN·m "
+        f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b))
+    story.append(Spacer(1, 2))
+
     # ===== Kiểm tra thép đai =====
     story.append(Paragraph("KIỂM TRA THÉP ĐAI", st_h))
     _sw_ok_all = True
