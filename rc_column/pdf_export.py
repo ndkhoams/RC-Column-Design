@@ -160,6 +160,39 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     return buf.getvalue()
 
 
+def interaction_images(sec, inp, res, width_in=3.4, dpi=150,
+                       small=False) -> tuple:
+    """Trả về (png_NM2, png_NM3) — 2 ảnh riêng cho layout lớn."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    if small:
+        width_in, dpi = 3.2, 100
+    from .interaction import FiberSection, uniaxial_curve_fs
+    fs = FiberSection(sec)
+    out = []
+    for th, lab, Ms in [(0, "N-M2", res.Mx_star), (90, "N-M3", res.My_star)]:
+        fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
+        cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
+        ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
+        lim = _radial_limit(cv, res.N, Ms)
+        ax.scatter([Ms], [res.N], c="green", s=80, zorder=5,
+                   label="A (tải trọng)")
+        if lim:
+            ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
+                       label="B (giới hạn)")
+        ax.set_xlabel("M (kN·m)")
+        ax.set_ylabel("N (kN)")
+        ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
+        ax.legend(fontsize=9)
+        ax.grid(True, alpha=0.3)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+        plt.close(fig)
+        out.append(buf.getvalue())
+    return tuple(out)
+
+
 # --- Xuất PDF ---
 def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
                        st_badge_ok, st_badge_ng):
@@ -264,29 +297,28 @@ def export_pdf(inp, res, filepath: str):
     from .report import generate_report_sections
     sections = generate_report_sections(inp, res)
 
-    # Ảnh cho mục 2 và 6 (kích thước vừa cho cột phải)
+    # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
     img_side = {}
     try:
         img_side[2] = Image(io.BytesIO(section_image(sec, small=True)),
                             width=62*mm, height=62*mm)
     except Exception:
         pass
+    img_m6 = []
     try:
-        img_side[6] = Image(io.BytesIO(interaction_image(sec, inp, res,
-                                                         small=True)),
-                            width=68*mm, height=33*mm)
+        png_m2, png_m3 = interaction_images(sec, inp, res, small=True)
+        img_m6 = [Image(io.BytesIO(png_m2), width=82*mm, height=70*mm),
+                  Image(io.BytesIO(png_m3), width=82*mm, height=70*mm)]
     except Exception:
         pass
-    captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép",
-                6: "Hình 2. Biểu đồ tương tác N-M2 và N-M3"}
+    captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
 
     for num in sorted(sections.keys()):
         info = sections[num]
         flows = cvt(info["segs"])
-        img = img_side.get(num)
-        if img is not None:
-            # Bố cục 2 cột: text trái, hình phải
-            right_col = [img, P(captions[num], st_cap)]
+        if num == 2 and img_side.get(2) is not None:
+            # Mục 2: text trái, hình phải
+            right_col = [img_side[2], P(captions[2], st_cap)]
             tbl = Table([[flows, right_col]],
                         colWidths=[108*mm, 68*mm])
             tbl.setStyle(TableStyle([
@@ -295,6 +327,21 @@ def export_pdf(inp, res, filepath: str):
                 ("RIGHTPADDING", (1, 0), (1, 0), 0),
             ]))
             S.append(KeepTogether(tbl))
+            S.append(Spacer(1, 6))
+        elif num == 6 and img_m6:
+            # Mục 6: text full-width, 2 biểu đồ lớn cạnh nhau bên dưới
+            S.extend(flows)
+            S.append(Spacer(1, 4))
+            tbl6 = Table([[
+                [img_m6[0], P("Biểu đồ N-M2", st_cap)],
+                [img_m6[1], P("Biểu đồ N-M3", st_cap)],
+            ]], colWidths=[88*mm, 88*mm])
+            tbl6.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]))
+            S.append(tbl6)
+            S.append(P("Hình 2. Biểu đồ tương tác N-M2 và N-M3", st_cap))
             S.append(Spacer(1, 6))
         else:
             S.extend(flows)
