@@ -33,10 +33,10 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
     import matplotlib.patches as mpatches
     from matplotlib.lines import Line2D
     cx, cy = sec.cx, sec.cy
-    # Palette màu theo đường kính (phân biệt rõ khi nhiều loại thép)
-    DIA_COLORS = ["#DC2626", "#2563EB", "#16A34A", "#9333EA",
-                  "#EA580C", "#0891B2", "#BE123C", "#65A30D"]
-    L2_COLOR = "#16A34A"  # lớp 2 luôn xanh lá
+    # Palette màu theo đường kính (trừ blue/green đã dùng cho trục)
+    DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
+                  "#BE123C", "#CA8A04", "#0F766E", "#4D7C0F"]
+    L2_COLOR = "#F59E0B"  # lớp 2: cam
 
     # Nền lưới ô vuông nhạt
     ax.set_axisbelow(True)
@@ -78,10 +78,10 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
     # Trục t2/t3 tại tâm (mũi tên xanh dương): t3 đứng, t2 ngang (chuẩn CSI)
     alen = max(cx, cy) * 0.32
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
-                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
+                arrowprops=dict(arrowstyle="->", color="#16A34A", lw=1.6))
     ax.annotate("", xy=(0, alen), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
-    ax.text(alen * 1.08, 0, "t2", fontsize=9, color="#1D4ED8",
+    ax.text(alen * 1.08, 0, "t2", fontsize=9, color="#15803D",
             weight="bold", va="center", ha="left")
     ax.text(0, alen * 1.08, "t3", fontsize=9, color="#1D4ED8",
             weight="bold", va="bottom", ha="center")
