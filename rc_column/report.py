@@ -85,22 +85,22 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     # ---- 1. Vật liệu ----
     b.section(1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
               "TCVN 5574:2018 Mục 6.1 & 6.2")
-    b.line("Bê tông chịu nén Rb*",
-           f"Rb* = γb · Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
+    b.line("Bê tông chịu nén R_{b}*",
+           f"R_{{b}}* = γ_{{b}} · R_{{b}} = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
            f"{_f(conc.Rb)} MPa")
-    b.line("Mô đun đàn hồi bê tông Eb",
-           f"Eb ({inp.concrete_grade})",
+    b.line("Mô đun đàn hồi bê tông E_{b}",
+           f"E_{{b}} ({inp.concrete_grade})",
            f"{conc.Eb:.0f} MPa")
-    b.line("Thép chịu kéo Rs",
-           f"Rs = {_f(steel.grade.Rs)} × {_f(inp.gamma_s)} (γs)",
+    b.line("Thép chịu kéo R_{s}",
+           f"R_{{s}} = {_f(steel.grade.Rs)} × {_f(inp.gamma_s)} (γ_{{s}})",
            f"{_f(steel.Rs)} MPa")
-    b.line("Thép chịu nén Rsc", "", f"{_f(steel.Rsc)} MPa")
-    b.line("Mô đun đàn hồi thép Es", "", f"{steel.Es:.0f} MPa")
-    b.line("Tỷ số mô đun αe",
-           f"αe = Es / Eb = {steel.Es:.0f} / {conc.Eb:.0f}",
+    b.line("Thép chịu nén R_{sc}", "", f"{_f(steel.Rsc)} MPa")
+    b.line("Mô đun đàn hồi thép E_{s}", "", f"{steel.Es:.0f} MPa")
+    b.line("Tỷ số mô đun α_{e}",
+           f"α_{{e}} = E_{{s}} / E_{{b}} = {steel.Es:.0f} / {conc.Eb:.0f}",
            f"{_f(res.alpha_e)}")
     b.line("Biến dạng giới hạn",
-           f"εb1 = {EPS_B1}, εb2 = {EPS_B2}, εs2 = {EPS_S2}",
+           f"ε_{{b1}} = {EPS_B1}, ε_{{b2}} = {EPS_B2}, ε_{{s2}} = {EPS_S2}",
            "MH3ĐT" if inp.concrete_model == "3line" else "MH2ĐT")
 
     # ---- 2. Hình học ----
@@ -116,32 +116,32 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     b.line("Diện tích bê tông A",
            f"A = {_f(sec.gross_area, 0)} mm²",
            f"{_f(sec.gross_area / 1e6, 4)} m²")
-    b.line("Mô men quán tính I2",
-           f"Ix = {_f(res.Ix, 3)} mm⁴", "")
-    b.line("Mô men quán tính I3",
-           f"Iy = {_f(res.Iy, 3)} mm⁴", "")
-    b.line("Bán kính quán tính i2 / i3",
-           f"ix = {_f(res.ix, 1)} mm, iy = {_f(res.iy, 1)} mm", "")
+    b.line("Mô men quán tính I_{2}",
+           f"I_{{2}} = {_f(res.Ix, 3)} mm⁴", "")
+    b.line("Mô men quán tính I_{3}",
+           f"I_{{3}} = {_f(res.Iy, 3)} mm⁴", "")
+    b.line("Bán kính quán tính i_{2} / i_{3}",
+           f"i_{{2}} = {_f(res.ix, 1)} mm, i_{{3}} = {_f(res.iy, 1)} mm", "")
 
     # ---- 3. Chiều dài tính toán ----
     b.section(3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
               "TCVN 5574:2018 Mục 8.1.2.4")
-    b.line("L02", f"L0x = {_f(res.L0x)} m", "")
-    b.line("L03", f"L0y = {_f(res.L0y)} m", "")
+    b.line("L_{02}", f"L_{{02}} = {_f(res.L0x)} m", "")
+    b.line("L_{03}", f"L_{{03}} = {_f(res.L0y)} m", "")
     okx = "ĐẠT" if res.lambda_x <= 120 else "KHÔNG ĐẠT"
     oky = "ĐẠT" if res.lambda_y <= 120 else "KHÔNG ĐẠT"
-    b.line("Độ mảnh λ2",
-           f"λ2 = L02/i2 = {_f(res.lambda_x, 1)} ≤ 120",
+    b.line("Độ mảnh λ_{2}",
+           f"λ_{{2}} = L_{{02}}/i_{{2}} = {_f(res.lambda_x, 1)} ≤ 120",
            okx, "")
-    b.line("Độ mảnh λ3",
-           f"λ3 = L03/i3 = {_f(res.lambda_y, 1)} ≤ 120",
+    b.line("Độ mảnh λ_{3}",
+           f"λ_{{3}} = L_{{03}}/i_{{3}} = {_f(res.lambda_y, 1)} ≤ 120",
            oky, "")
     buck_x = res.lambda_x > 14
     buck_y = res.lambda_y > 14
     A(f"  ▪ Uốn dọc trục 2: {'BẮT BUỘC XÉT' if buck_x else 'không cần xét'} "
-      f"(λ2 {'>' if buck_x else '≤'} 14)\n", "card")
+      f"(λ_{{2}} {'>' if buck_x else '≤'} 14)\n", "card")
     A(f"  ▪ Uốn dọc trục 3: {'BẮT BUỘC XÉT' if buck_y else 'không cần xét'} "
-      f"(λ3 {'>' if buck_y else '≤'} 14)\n", "card")
+      f"(λ_{{3}} {'>' if buck_y else '≤'} 14)\n", "card")
 
     # ---- 4. Độ lệch tâm ----
     b.section(4, "ĐỘ LỆCH TÂM", "TCVN 5574:2018 Mục 8.1.2.2.4")
@@ -150,37 +150,37 @@ def _build_report(inp: ColumnInput, res: CheckResult,
           f"N = {_f(case_info['N'], 1)} kN, "
           f"M2 = {_f(case_info['M2'], 1)} kN·m, "
           f"M3 = {_f(case_info['M3'], 1)} kN·m\n", "card")
-    b.line("e12 = |M2|/N", f"= {_f(abs(res.My) * 1000 / max(abs(res.N), 1e-9), 1)} mm",
+    b.line("e_{12} = |M_{2}|/N", f"= {_f(abs(res.My) * 1000 / max(abs(res.N), 1e-9), 1)} mm",
            f"{_f(res.e1x, 1)} mm")
-    b.line("e13 = |M3|/N", "", f"{_f(res.e1y, 1)} mm")
-    b.line("ea2 / ea3 (ngẫu nhiên)", "",
+    b.line("e_{13} = |M_{3}|/N", "", f"{_f(res.e1y, 1)} mm")
+    b.line("e_{a2} / e_{a3} (ngẫu nhiên)", "",
            f"{_f(res.eax, 1)} / {_f(res.eay, 1)} mm")
-    b.line("e0x / e0y (ban đầu)", "",
+    b.line("e_{02} / e_{03} (ban đầu)", "",
            f"{_f(res.e0x, 1)} / {_f(res.e0y, 1)} mm")
 
     # ---- 5. Uốn dọc ----
     b.section(5, "UỐN DỌC & PHÓNG ĐẠI MÔ MEN", "CT (44)–(48)")
     phi_txt = "2.00 (thiên về an toàn)" if not inp.long_term.has_data else _f(res.phi_L)
-    A(f"  ▪ φ_L = {phi_txt}\n", "card")
+    A(f"  ▪ φ_{{L}} = {phi_txt}\n", "card")
     # Công thức dạng Mathtype: subscript Unicode ₂₃
-    b.line("δe₂ / δe₃", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
-    b.line("k_b₂ / k_b₃", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
-    b.line("D₂ / D₃", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
-    b.line("N_cr,₂ / N_cr,₃", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
-    b.line("η₂ / η₃", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
-    b.line("M₂* = η₂·M₂", "", f"{_f(res.Mx_star, 1)} kN·m")
-    b.line("M₃* = η₃·M₃", "", f"{_f(res.My_star, 1)} kN·m")
+    b.line("δ_{e2} / δ_{e3}", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
+    b.line("k_{b2} / k_{b3}", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
+    b.line("D_{2} / D_{3}", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
+    b.line("N_{cr,2} / N_{cr,3}", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
+    b.line("η_{2} / η_{3}", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
+    b.line("M_{2}* = η_{2}·M_{2}", "", f"{_f(res.Mx_star, 1)} kN·m")
+    b.line("M_{3}* = η_{3}·M_{3}", "", f"{_f(res.My_star, 1)} kN·m")
 
     # ---- 6. NDM ----
     b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
               "TCVN 5574:2018 Điều 8.1.2.7")
     Ma = math.hypot(res.Mx_star, res.My_star)
     alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0
-    A(f"  ▪ Điểm tải trọng A = (M2*, M3*, N) = "
+    A(f"  ▪ Điểm tải trọng A = (M_{{2}}*, M_{{3}}*, N) = "
       f"({_f(res.Mx_star, 1)}, {_f(res.My_star, 1)}, {_f(res.N, 1)})\n", "card")
     A(f"  ▪ Điểm giới hạn B = ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
       f"{_f(res.BN, 1)}) trên mặt tương tác\n", "card")
-    A(f"  ▪ Góc uốn xiên α = {_f(alpha, 1)}°, Mα = {_f(Ma, 1)} kN·m\n", "card")
+    A(f"  ▪ Góc uốn xiên α = {_f(alpha, 1)}°, M_{{α}} = {_f(Ma, 1)} kN·m\n", "card")
     b.nl()
     A(f"  TỶ SỐ SỬ DỤNG (D/C) = {_f(res.dc, 3)}  "
       f"(FS = {_f(res.fs, 2)})\n", "dc")
@@ -209,7 +209,7 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     # — Chịu cắt (TCVN 5574:2018, như bảng Excel mẫu) —
     from .materials import STEEL_GRADES
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
-    A(f"  — Chịu cắt: thép đai {sw_grade.name} (R_{sw} = {sw_grade.Rsw:.0f} MPa)\n",
+    A(f"  — Chịu cắt: thép đai {sw_grade.name} (R_{{sw}} = {sw_grade.Rsw:.0f} MPa)\n",
       "card")
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
@@ -240,19 +240,19 @@ def _build_report(inp: ColumnInput, res: CheckResult,
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         A(f"  Phương {dnum}: Q = {_f(Q, 1)} kN; "
           f"b = {b_w:.0f} mm, h0 = {h0u:.0f} mm, "
-          f"A_{sw} = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²\n",
+          f"A_{{sw}} = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²\n",
           "card")
         A(f"    {m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h0\n", "card")
         A(f"       = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
           f"= {_f(sh.Qcap1, 1)} kN\n", "card")
-        A(f"    {m2} ĐK2 (vết nứt xiên): Q ≤ Q_{b} + Q_{sw}\n", "card")
-        A(f"       q_{sw} = R_{sw}×A_{sw}/s = {_f(Rsw, 0)}×{Asw:.0f}/{stir_in.spacing:.0f}"
+        A(f"    {m2} ĐK2 (vết nứt xiên): Q ≤ Q_{{b}} + Q_{{sw}}\n", "card")
+        A(f"       q_{{sw}} = R_{{sw}}×A_{{sw}}/s = {_f(Rsw, 0)}×{Asw:.0f}/{stir_in.spacing:.0f}"
           f" = {_f(qsw, 1)} N/mm\n", "card")
-        A(f"       Q_{b} = φ_{b2}×R_{bt}×b×h_{0}²/C = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²"
+        A(f"       Q_{{b}} = φ_{{b2}}×R_{{bt}}×b×h_{{0}}²/C = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²"
           f"/{sh.C_opt:.0f}/1000 = {_f(sh.Qb_opt, 1)} kN\n", "card")
-        A(f"       (giới hạn Q_{b} ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN)\n",
+        A(f"       (giới hạn Q_{{b}} ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN)\n",
           "card")
-        A(f"       Q_{sw} = φ_{sw}×q_{sw}×C = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
+        A(f"       Q_{{sw}} = φ_{{sw}}×q_{{sw}}×C = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
           f"= {_f(sh.Qsw_opt, 1)} kN\n", "card")
         A(f"       → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm "
           f"(khảo sát C ∈ [h0, 2h0])\n", "card")
