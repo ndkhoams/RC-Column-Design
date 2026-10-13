@@ -422,10 +422,7 @@ class App(tk.Tk):
         ttk.Button(btn_row, text="🗑️ Xóa nội lực",
                    command=self.on_delete_forces).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
-        ttk.Label(self.etabs_frame,
-                  text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
-                  foreground="gray", font=("", 8)).grid(
-                      row=1, column=0, columnspan=2, sticky=tk.W, padx=4)
+
         # Luôn chỉ tính tổ hợp (Combination) - bỏ checkbox theo yêu cầu
         self.etabs_info = tk.StringVar(value="Chưa chọn file.")
         ttk.Label(self.etabs_frame, textvariable=self.etabs_info,
@@ -862,6 +859,8 @@ class App(tk.Tk):
             # 3. Cốt thép
             "dia": ev(self.en_dia), "nx": ev(self.en_nx),
             "ny": ev(self.en_ny),
+            "sw_dia": ev(self.en_sw_dia), "sw_s": ev(self.en_sw_s),
+            "sw_legs": ev(self.en_sw_legs),
             # 4. Chiều dài tính toán
             "Lx": ev(self.en_Lx), "Ly": ev(self.en_Ly),
             "top_x": self.cb_tx.get(), "bot_x": self.cb_bx.get(),
@@ -870,6 +869,7 @@ class App(tk.Tk):
             # 5. Nội lực
             "load_mode": bv(self.var_load_mode),
             "N": ev(self.en_N), "Mx": ev(self.en_Mx), "My": ev(self.en_My),
+            "Q2": ev(self.en_Q2), "Q3": ev(self.en_Q3),
             "long_term": bv(self.var_lt),
             "N_lt": ev(self.en_Nlt), "Mx_lt": ev(self.en_Mxlt),
             "My_lt": ev(self.en_Mylt),
@@ -879,7 +879,8 @@ class App(tk.Tk):
             "etabs_forces": [
                 {"story": f.story, "column": f.column, "case": f.case,
                  "case_type": f.case_type, "station": f.station,
-                 "N": f.N, "Mx": f.Mx, "My": f.My}
+                 "N": f.N, "Mx": f.Mx, "My": f.My,
+                 "Q2": f.Q2, "Q3": f.Q3}
                 for f in getattr(self, "etabs_forces", [])
             ],
         }
@@ -899,6 +900,9 @@ class App(tk.Tk):
             se(self.en_cover, d.get("cover", "30"))
             se(self.en_dia, d.get("dia", "20")); se(self.en_nx, d.get("nx", "3"))
             se(self.en_ny, d.get("ny", "3"))
+            se(self.en_sw_dia, d.get("sw_dia", "8"))
+            se(self.en_sw_s, d.get("sw_s", "200"))
+            se(self.en_sw_legs, d.get("sw_legs", "2"))
             se(self.en_Lx, d.get("Lx", "4.0")); se(self.en_Ly, d.get("Ly", "4.0"))
             self.cb_tx.set(d.get("top_x", "Ngàm")); self.cb_bx.set(d.get("bot_x", "Ngàm"))
             self.cb_ty.set(d.get("top_y", "Ngàm")); self.cb_by.set(d.get("bot_y", "Ngàm"))
@@ -906,6 +910,7 @@ class App(tk.Tk):
             self.var_load_mode.set(d.get("load_mode", "etabs"))
             se(self.en_N, d.get("N", "")); se(self.en_Mx, d.get("Mx", ""))
             se(self.en_My, d.get("My", ""))
+            se(self.en_Q2, d.get("Q2", "0")); se(self.en_Q3, d.get("Q3", "0"))
             self.var_lt.set(bool(d.get("long_term", False)))
             se(self.en_Nlt, d.get("N_lt", "")); se(self.en_Mxlt, d.get("Mx_lt", ""))
             se(self.en_Mylt, d.get("My_lt", ""))
