@@ -26,7 +26,8 @@ def _find_font_bold():
 
 
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
-def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
+def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
+                    small_dots: bool = False):
     """Vẽ mặt cắt kiểu VietconSoft: nền lưới, khung đen, thép lớp 1 đỏ /
     lớp 2 xanh lá (cỡ chấm theo đường kính), trục t2/t3 tại tâm, dim t3/t2,
     thẻ thống kê bên dưới."""
@@ -62,8 +63,10 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
+        dot_s = max(6.0, 0.08 * dia * dia) if small_dots else \
+            max(12.0, 0.15 * dia * dia)
         ax.scatter([p.x for p in pts], [p.y for p in pts],
-                   s=max(12.0, 0.15 * dia * dia), c=color, zorder=4,
+                   s=dot_s, c=color, zorder=4,
                    edgecolors="white", linewidths=0.8)
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
@@ -639,18 +642,26 @@ def export_summary_pdf(sec, inp, res, filepath: str):
 
     # ===== Tiêu đề =====
     story.append(Paragraph("KIỂM TRA CỘT BTCT", st_title))
-    st_sub = ParagraphStyle("sub", fontName=FNB, fontSize=11,
-                            alignment=TA_CENTER, spaceAfter=4,
-                            textColor=HexColor("#065F46" if ok
-                                               else "#991B1B"))
-    story.append(Paragraph(
-        f"TÓM TẮT — {ok_txt} (D/C = {res.dc:.3f})", st_sub))
+    # Tên file (cấu kiện)
+    import os as _os
+    fname = ""
+    try:
+        # Lấy từ inp nếu có
+        fname = getattr(inp, "_filename", "") or ""
+    except Exception:
+        pass
+    if fname:
+        st_ck = ParagraphStyle("ck", fontName=FN, fontSize=10,
+                               alignment=TA_CENTER, spaceAfter=4)
+        story.append(Paragraph(
+            f"Cấu kiện: \"{_os.path.basename(fname)}\"", st_ck))
     story.append(Spacer(1, 2))
 
     # ===== Mặt cắt =====
-    fig1, ax1 = plt.subplots(figsize=(3.2, 3.2))
-    draw_section_ax(ax1, sec, show_dims=True, show_stats=False)
-    img_sec = fig_to_img(fig1, 62, 62)
+    fig1, ax1 = plt.subplots(figsize=(2.6, 2.6))
+    draw_section_ax(ax1, sec, show_dims=True, show_stats=False,
+                    small_dots=True)
+    img_sec = fig_to_img(fig1, 50, 50)
 
     # Box vật liệu + thống kê (giống app)
     from collections import Counter
@@ -671,7 +682,7 @@ def export_summary_pdf(sec, inp, res, filepath: str):
          Paragraph(f"{sec.steel_area:.0f} mm²", st_box_v),
          Paragraph(f"{sec.reinforcement_ratio*100:.2f}%", st_box_v)],
     ]
-    t_box = Table(box_data, colWidths=[38 * mm, 38 * mm, 38 * mm])
+    t_box = Table(box_data, colWidths=[28 * mm, 28 * mm, 28 * mm])
     t_box.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#E5E7EB")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
