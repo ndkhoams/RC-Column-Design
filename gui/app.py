@@ -118,10 +118,7 @@ class App(tk.Tk):
             sum_canvas.itemconfig(1, width=e.width)
         sum_canvas.bind("<Configure>", _sum_width)
 
-        self.sum_text = tk.Text(self._sum_inner, wrap=tk.WORD, font=("Consolas", 10),
-                                height=10)
-        self.sum_text.pack(fill=tk.X, padx=4, pady=4)
-        # Chọn loại biểu đồ
+        # Chọn loại biểu đồ (trên cùng)
         plot_bar = ttk.Frame(self._sum_inner)
         plot_bar.pack(fill=tk.X, padx=4, pady=2)
         ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
@@ -132,7 +129,7 @@ class App(tk.Tk):
         self.cb_plot.pack(side=tk.LEFT, padx=4)
         self.cb_plot.bind("<<ComboboxSelected>>", lambda e: self._redraw())
         if HAS_MPL:
-            self.fig = Figure(figsize=(5.4, 4.6), dpi=100)
+            self.fig = Figure(figsize=(6.5, 8.0), dpi=100)
             self.mpl = FigureCanvasTkAgg(self.fig, master=self._sum_inner)
             self.mpl.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         # cuộn chuột cho tab Tóm tắt (đệ quy, trừ combobox đang mở)
@@ -620,22 +617,7 @@ class App(tk.Tk):
             f"(D/C = {worst_r['dc']:.3f})")
 
     def _show_summary(self, sec, inp, res, prefix=""):
-        """Cập nhật tab Tóm tắt + biểu đồ + L0."""
-        n = len(sec.rebars)
-        dias = sorted(set(r.dia for r in sec.rebars))
-        dia_txt = "/".join(f"{d:.0f}" for d in dias)
-        summ = [
-            f"{prefix}{n} thanh d{dia_txt} — As = {res.steel_area:.0f} mm², "
-            f"μ = {res.reinforcement_ratio * 100:.2f}%",
-            f"N = {res.N:.1f} kN, M2 = {res.Mx_star:.1f}, "
-            f"M3 = {res.My_star:.1f} kN·m (đã phóng đại η)",
-            f"M = {res.M_resultant:.1f} kN·m | D/C = {res.dc:.3f} "
-            f"(FS = {res.fs:.2f})",
-            f"φL = {res.phi_L:.2f}; L02 = {res.L0x:.2f} m, "
-            f"L03 = {res.L0y:.2f} m",
-        ]
-        self.sum_text.delete("1.0", tk.END)
-        self.sum_text.insert(tk.END, "\n".join(summ))
+        """Cập nhật biểu đồ + L0 (ô text tóm tắt đã bỏ theo yêu cầu)."""
         self.l0_var.set(
             f"Chiều dài tính toán: L02 = {res.L0x:.2f} m, "
             f"L03 = {res.L0y:.2f} m")
@@ -947,82 +929,90 @@ class App(tk.Tk):
         pass
 
     def _redraw(self):
-        """Vẽ lại theo loại biểu đồ đang chọn."""
+        """Vẽ lại theo loại biểu đồ đang chọn.
+
+        Layout: sơ đồ mặt cắt trên, biểu đồ tương tác lớn phía dưới.
+        """
         if not HAS_MPL or self._last_sec is None:
             return
+        import matplotlib.pyplot as plt
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
         kind = self.cb_plot.get()
         self.fig.clear()
-        from rc_column.pdf_export import draw_section_ax
+        from rc_column.pdf_export import draw_section_ax, _radial_limit
         from rc_column.interaction import (BiaxialCapacity, FiberSection,
                                            uniaxial_curve_fs)
+        fs = FiberSection(sec)
+
+        def _nm_ax(ax, th, lab, Ms, Nv, title_sz=12):
+            cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
+            ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
+                    linewidth=1.5)
+            lim = _radial_limit(cv, Nv, Ms)
+            ax.scatter([Ms], [Nv], c="red", s=90, zorder=5,
+                       label="Điểm tải trọng")
+            if lim:
+                ax.scatter([lim[1]], [lim[0]], c="orange", s=90,
+                           zorder=5, label="Giới hạn")
+            ax.set_xlabel("M (kN·m)")
+            ax.set_ylabel("N (kN)")
+            ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=title_sz)
+            ax.legend(fontsize=9)
+            ax.grid(True, alpha=0.3)
 
         if kind.startswith("N-M"):
-            # Layout mới: mặt cắt nhỏ trên, 2 biểu đồ N-M2/N-M3 lớn dưới
-            self.fig.set_size_inches(6.5, 8.0)
-            import matplotlib.pyplot as plt
-            a1 = plt.subplot2grid((4, 2), (0, 0), colspan=2, fig=self.fig)
+            # Mặt cắt trên, 2 biểu đồ lớn cạnh nhau dưới
+            self.fig.set_size_inches(7.0, 8.5)
+            a1 = plt.subplot2grid((5, 2), (0, 0), colspan=2, fig=self.fig)
             draw_section_ax(a1, sec)
-            a1.set_title("Sơ đồ mặt cắt", fontsize=10)
+            a1.set_title("Sơ đồ mặt cắt", fontsize=12)
             a1.grid(True, alpha=0.3)
-            from rc_column.pdf_export import _radial_limit
-            fs = FiberSection(sec)
-            for pos, th, lab, Ms in [((1, 0), 0, "N-M2", inp.Mx),
-                                     ((1, 1), 90, "N-M3", inp.My)]:
-                ax = plt.subplot2grid((4, 2), pos, rowspan=3, fig=self.fig)
-                cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-                ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-",
-                        linewidth=1.5)
-                lim = _radial_limit(cv, inp.N, Ms)
-                ax.scatter([Ms], [inp.N], c="red", s=80, zorder=5,
-                           label="Điểm tải trọng")
-                if lim:
-                    ax.scatter([lim[1]], [lim[0]], c="orange", s=80,
-                               zorder=5, label="Giới hạn")
-                ax.set_xlabel("M (kN·m)"); ax.set_ylabel("N (kN)")
-                ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
-                ax.legend(fontsize=8); ax.grid(True, alpha=0.3)
-            self.fig.tight_layout()
-            self.mpl.draw()
-            return
-
-        # Các loại khác: layout cũ (mặt cắt trái, biểu đồ phải)
-        self.fig.set_size_inches(5.4, 4.6)
-        a1 = self.fig.add_subplot(121)
-        draw_section_ax(a1, sec)
-        a1.set_title("Sơ đồ mặt cắt")
-        a1.grid(True, alpha=0.3)
-
-        if kind.startswith("M2-M3"):
-            a2 = self.fig.add_subplot(122)
+            a2 = plt.subplot2grid((5, 2), (1, 0), rowspan=4, fig=self.fig)
+            _nm_ax(a2, 0, "N-M2", inp.Mx, inp.N)
+            a3 = plt.subplot2grid((5, 2), (1, 1), rowspan=4, fig=self.fig)
+            _nm_ax(a3, 90, "N-M3", inp.My, inp.N)
+        elif kind.startswith("M2-M3"):
+            self.fig.set_size_inches(7.0, 8.5)
+            a1 = plt.subplot2grid((5, 1), (0, 0), fig=self.fig)
+            draw_section_ax(a1, sec)
+            a1.set_title("Sơ đồ mặt cắt", fontsize=12)
+            a1.grid(True, alpha=0.3)
+            a2 = plt.subplot2grid((5, 1), (1, 0), rowspan=4, fig=self.fig)
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             pts = cap.mx_my_curve(inp.N)
             a2.plot([p[0] for p in pts], [p[1] for p in pts], "b-",
                     linewidth=1.5, label=f"Tại N = {inp.N:.0f} kN")
-            a2.scatter([inp.Mx], [inp.My], c="red", s=80, zorder=5,
+            a2.scatter([inp.Mx], [inp.My], c="red", s=90, zorder=5,
                        label="Điểm tải trọng")
-            a2.set_xlabel("M2 (kN·m)"); a2.set_ylabel("M3 (kN·m)")
-            a2.set_title("Tương tác M2-M3")
-            a2.legend(fontsize=8); a2.grid(True, alpha=0.3)
+            a2.set_xlabel("M2 (kN·m)")
+            a2.set_ylabel("M3 (kN·m)")
+            a2.set_title("Tương tác M2-M3", fontsize=12)
+            a2.legend(fontsize=9)
+            a2.grid(True, alpha=0.3)
             a2.set_aspect("equal", adjustable="datalim")
-        elif kind.startswith("3D"):
+        else:  # 3D
             from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-            a2 = self.fig.add_subplot(122, projection="3d")
+            self.fig.set_size_inches(7.0, 8.5)
+            a1 = plt.subplot2grid((5, 1), (0, 0), fig=self.fig)
+            draw_section_ax(a1, sec)
+            a1.set_title("Sơ đồ mặt cắt", fontsize=12)
+            a1.grid(True, alpha=0.3)
+            a2 = plt.subplot2grid((5, 1), (1, 0), rowspan=4, fig=self.fig,
+                                  projection="3d")
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
             import numpy as np
             N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
             a2.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
                             edgecolor="none")
-            a2.scatter([inp.Mx], [inp.My], [inp.N], c="red", s=60,
+            a2.scatter([inp.Mx], [inp.My], [inp.N], c="red", s=70,
                        label="Điểm tải trọng")
-            a2.set_xlabel("M2 (kN·m)"); a2.set_ylabel("M3 (kN·m)")
+            a2.set_xlabel("M2 (kN·m)")
+            a2.set_ylabel("M3 (kN·m)")
             a2.set_zlabel("N (kN)")
-            a2.set_title("Mặt tương tác 3D N-M2-M3")
+            a2.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
         self.fig.tight_layout()
         self.mpl.draw()
-
-
 
 def main():
     app = App()
