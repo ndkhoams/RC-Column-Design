@@ -244,6 +244,13 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
 
 
 # --- Xuất PDF ---
+import re as _re
+
+def _math_sub(text: str) -> str:
+    """Chuyển ký hiệu toán học _{xx} thành <sub>xx</sub> cho ReportLab."""
+    return _re.sub(r"_\{([^}]+)\}", r"<sub>\1</sub>", text)
+
+
 def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
                        st_badge_ok, st_badge_ng):
     """Chuyển segments của 1 mục thành list flowables."""
@@ -274,7 +281,7 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
         elif "title" in tags:
             continue
         else:
-            buf_lines.append(t.replace("\n", "<br/>"))
+            buf_lines.append(_math_sub(t.replace("\n", "<br/>")))
     flush()
     return out
 
