@@ -133,8 +133,6 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True):
     ax.set_yticks([])
     for sp in ax.spines.values():
         sp.set_visible(False)
-    ax.set_title("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", fontsize=10,
-                 fontweight="bold", pad=10)
 
 
 def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
