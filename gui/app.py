@@ -481,10 +481,7 @@ class App(tk.Tk):
         self._row(f, "Đai: bước đai s (mm)", self.en_sw_s, 2)
         self.en_sw_legs = ttk.Entry(f, width=18); self.en_sw_legs.insert(0, "2")
         self._row(f, "Đai: số nhánh", self.en_sw_legs, 3)
-        self.rebar_info = tk.StringVar(value="")
-        ttk.Label(f, textvariable=self.rebar_info, font=("", 10),
-                  justify=tk.LEFT).grid(row=4, column=0, columnspan=2,
-                                        padx=4, pady=4, sticky=tk.W)
+        self.rebar_info = tk.StringVar(value="")  # giữ để tương thích, không hiển thị
         # Bind refresh
         for w in (self.sp_cover, self.sp_e2n, self.sp_e3n, self.en_l2_s,
                   self.sp_l2_count, self.en_bundle_gap, self.sp_cnbars,
@@ -1763,8 +1760,19 @@ class App(tk.Tk):
                     va="top", ha="left",
                     bbox=dict(boxstyle="round,pad=0.3", fc="white",
                               ec="#E5E7EB", alpha=0.9))
-            ax.legend(fontsize=8, loc="upper center",
-                      bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
+            # Legend 4 mục như web, đặt dưới biểu đồ
+            from matplotlib.lines import Line2D
+            leg_elems = [
+                Line2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+                Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+                       markersize=8, markeredgecolor="white", label="Điểm tải A"),
+                Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+                       markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+                       label="Tia tải O-A-B"),
+            ]
+            ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
+                      bbox_to_anchor=(0.5, -0.18), ncol=4, frameon=False)
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
             ax.set_axisbelow(True)
@@ -1772,9 +1780,6 @@ class App(tk.Tk):
                 ax.spines[sp].set_visible(False)
             for sp in ("left", "bottom"):
                 ax.spines[sp].set_color("#9CA3AF")
-            ax.text(0.5, -0.52, f"Tỉ số an toàn FS = {res.fs:.2f}",
-                    transform=ax.transAxes, ha="center", fontsize=10,
-                    color="darkred", weight="bold")
 
         def _m2m3_ax(ax):
             # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
@@ -1813,9 +1818,6 @@ class App(tk.Tk):
             for sp in ("left", "bottom"):
                 ax.spines[sp].set_color("#9CA3AF")
             ax.set_aspect("equal", adjustable="datalim")
-            ax.text(0.5, -0.52, f"Tỉ số an toàn FS = {res.fs:.2f}",
-                    transform=ax.transAxes, ha="center", fontsize=10,
-                    color="darkred", weight="bold")
 
         def _new_fig(parent, figsize):
             fig = Figure(figsize=figsize, dpi=100)
@@ -1845,17 +1847,15 @@ class App(tk.Tk):
         f_tr.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         self._build_param_table(f_tr, inp, res)
 
-        # ===== Ô dưới-trái: biểu đồ N-M + chú thích =====
+        # ===== Ô dưới-trái: biểu đồ N-M =====
         f_bl = ttk.Frame(self._sum_inner)
         f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
         fig_nm, cv_nm = _new_fig(f_bl, (3.9, 2.9))
         a3 = fig_nm.add_subplot(111)
         _nm_alpha_ax(a3)
         fig_nm.tight_layout()
-        # Chừa chỗ dưới cho legend + dòng "Tỉ số an toàn"
-        fig_nm.subplots_adjust(bottom=0.34)
+        fig_nm.subplots_adjust(bottom=0.30)
         cv_nm.draw()
-        self._build_nm_notes(f_bl, inp, res)
 
         # ===== Ô dưới-phải: header + biểu đồ M2-M3 =====
         f_br = ttk.Frame(self._sum_inner)
@@ -1868,6 +1868,13 @@ class App(tk.Tk):
         fig_mm.subplots_adjust(bottom=0.34)
         cv_mm.draw()
 
+        # ===== Hàng 3 full-width: chi tiết biểu đồ N-M =====
+        f_notes = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
+                     padx=4, pady=4)
+        self._build_nm_notes(f_notes, inp, res)
+
+        self._sum_inner.rowconfigure(2, weight=0)
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
             try:
