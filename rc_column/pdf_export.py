@@ -298,9 +298,10 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
     return out
 
 
-def export_pdf(inp, res, filepath: str, batch_rows=None):
+def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None):
     """Xuất thuyết minh ra file PDF (bố cục giống trong phần mềm).
-    batch_rows: list (force, result) cho mục 7 (tùy chọn)."""
+    batch_rows: list (force, result) cho mục 7 (tùy chọn).
+    case_info: dict {case, station, N, M2, M3} cho tổ hợp tính toán."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib.colors import HexColor
@@ -366,7 +367,8 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
                "(Điều 8.1.2.7)", st_sub))
 
     from .report import generate_report_sections
-    sections = generate_report_sections(inp, res, batch_rows=batch_rows)
+    sections = generate_report_sections(inp, res, batch_rows=batch_rows,
+                                        case_info=case_info)
 
     # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
     img_side = {}
@@ -400,11 +402,12 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
                         colWidths=[108*mm, 68*mm])
             tbl.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
                 ("LEFTPADDING", (0, 0), (0, 0), 0),
                 ("RIGHTPADDING", (1, 0), (1, 0), 0),
             ]))
             S.append(KeepTogether(tbl))
-            S.append(Spacer(1, 2))
+            S.append(Spacer(1, 1))
         elif num == 6 and img_m6:
             from reportlab.platypus import PageBreak
             S.append(PageBreak())
