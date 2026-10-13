@@ -66,6 +66,13 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
     ax.annotate("", xy=(0, L), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
 
+    # Chỉ hiện text t2=/t3= (không vẽ đường line dim)
+    if sec.kind == "rect":
+        off = max(cx, cy) * 0.12
+        ax.text(0, -cy/2 - off, f"t3={cx:.0f}", fontsize=9, color="blue",
+                ha="center", va="top")
+        ax.text(cx/2 + off, 0, f"t2={cy:.0f}", fontsize=9, color="blue",
+                va="center", rotation=90)
 
     ax.set_aspect("equal")
     # Ẩn vạch tọa độ (đã có dim t2/t3)
@@ -139,9 +146,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     ax.set_xlabel("M (kN·m)")
     ax.set_ylabel("N (kN)")
     ax.legend(fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.14), ncol=2)
+              bbox_to_anchor=(0.5, -0.22), ncol=2)
     ax.grid(True, alpha=0.3)
-    fig.subplots_adjust(bottom=0.24)
+    fig.subplots_adjust(bottom=0.32)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
