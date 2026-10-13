@@ -648,6 +648,13 @@ class App(tk.Tk):
             "etabs_path": getattr(self, "etabs_file", ""),
             "etabs_map": self.cb_map.get(),
             "etabs_comb": bv(self.var_comb),
+            # Lưu luôn nội lực đã import (không cần link lại file Excel)
+            "etabs_forces": [
+                {"story": f.story, "column": f.column, "case": f.case,
+                 "case_type": f.case_type, "station": f.station,
+                 "N": f.N, "Mx": f.Mx, "My": f.My}
+                for f in getattr(self, "etabs_forces", [])
+            ],
         }
 
     def _apply_data(self, d: dict):
@@ -715,12 +722,16 @@ class App(tk.Tk):
             with open(path, encoding="utf-8") as f:
                 d = json.load(f)
             self._apply_data(d)
-            # Nếu có đường dẫn ETABS và file còn tồn tại -> nạp lại
-            ep = d.get("etabs_path", "")
-            if d.get("load_mode") == "etabs" and ep:
-                import os
-                if os.path.exists(ep):
-                    self._load_etabs_file(ep)
+            # Khôi phục nội lực đã lưu trong file (không cần file Excel)
+            forces_data = d.get("etabs_forces", [])
+            if d.get("load_mode") == "etabs" and forces_data:
+                from rc_column.etabs_import import EtabsForce
+                self.etabs_forces = [EtabsForce(**fd) for fd in forces_data]
+                n_case = len(set(f.case for f in self.etabs_forces))
+                self.etabs_info.set(
+                    f"Đã nạp {len(self.etabs_forces)} dòng, {n_case} tổ hợp "
+                    f"từ file dữ liệu — Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
+                self._fill_etabs_table([(f, None) for f in self.etabs_forces])
             messagebox.showinfo("Mở dữ liệu", f"Đã nạp: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
