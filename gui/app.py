@@ -33,6 +33,11 @@ class App(tk.Tk):
         super().__init__()
         self.title("Kiểm tra cột bê tông cốt thép — TCVN 5574:2018")
         self.geometry("1360x860")
+        # Mở mặc định full màn hình
+        try:
+            self.state("zoomed")
+        except Exception:
+            pass
         self._setup_styles()
         self._build()
         self.after(100, self._fix_left_width)
