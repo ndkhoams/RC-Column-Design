@@ -322,13 +322,13 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
     st_title = ParagraphStyle("title", fontName="VN-Bold", fontSize=14,
                               textColor=SLATE, alignment=TA_CENTER, spaceAfter=4)
     st_sub = ParagraphStyle("sub", fontName="VN", fontSize=9,
-                            textColor=GRAY, alignment=TA_CENTER, spaceAfter=12)
+                            textColor=GRAY, alignment=TA_CENTER, spaceAfter=8)
     st_h = ParagraphStyle("h", fontName="VN-Bold", fontSize=11,
-                          textColor=SLATE, spaceBefore=10, spaceAfter=2)
+                          textColor=SLATE, spaceBefore=6, spaceAfter=1)
     st_ref = ParagraphStyle("ref", fontName="VN", fontSize=8,
                             textColor=GRAY, spaceAfter=6)
     st_body = ParagraphStyle("body", fontName="VN", fontSize=9.5,
-                             textColor=SLATE, leading=16, spaceAfter=2,
+                             textColor=SLATE, leading=14, spaceAfter=1,
                              alignment=TA_JUSTIFY)
     st_cap = ParagraphStyle("cap", fontName="VN", fontSize=8,
                             textColor=GRAY, alignment=TA_CENTER, spaceBefore=4)
