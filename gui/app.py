@@ -78,7 +78,7 @@ class App(tk.Tk):
                    command=self.on_save_as_data).pack(side=tk.LEFT,
                                                       expand=True, fill=tk.X,
                                                       padx=(2, 2))
-        ttk.Button(data_bar, text="📂 Mở dữ liệu",
+        ttk.Button(data_bar, text="📂 OPEN",
                    command=self.on_load_data).pack(side=tk.LEFT, expand=True,
                                                    fill=tk.X, padx=(2, 0))
         ttk.Button(bottom_bar, text="KIỂM TRA KHẢ NĂNG CHỊU LỰC",
@@ -148,6 +148,10 @@ class App(tk.Tk):
         calc_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
         ttk.Button(calc_bar, text="🖨️ Xuất PDF thuyết minh",
                    command=self.on_export_pdf).pack(side=tk.LEFT, padx=4)
+        self.var_export_table = tk.BooleanVar(value=True)
+        ttk.Checkbutton(calc_bar, text="Kèm bảng tổng hợp (mục 7)",
+                        variable=self.var_export_table,
+                        command=self._on_toggle_table).pack(side=tk.LEFT, padx=4)
         # Cuộn chuột trên thanh nút Xuất PDF -> cuộn text thuyết minh
         self._bind_wheel_to_calc(calc_bar)
         # Khung text + thanh cuộn
@@ -401,6 +405,9 @@ class App(tk.Tk):
         ttk.Button(self.etabs_frame, text="📋 Paste từ Clipboard",
                    command=self.on_paste_etabs).grid(row=0, column=1,
                                                     padx=4, pady=4, sticky=tk.W)
+        ttk.Button(self.etabs_frame, text="🗑️ DELETE",
+                   command=self.on_delete_forces).grid(row=0, column=2,
+                                                       padx=4, pady=4, sticky=tk.W)
         ttk.Label(self.etabs_frame,
                   text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
                   foreground="gray", font=("", 8)).grid(
@@ -580,6 +587,19 @@ class App(tk.Tk):
             f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
         self._fill_etabs_table([(f, None) for f in forces])
 
+    def on_delete_forces(self):
+        """Xóa toàn bộ nội lực đã import."""
+        from tkinter import messagebox
+        if not getattr(self, "etabs_forces", []):
+            messagebox.showinfo("Xóa nội lực", "Bảng nội lực đang trống.")
+            return
+        if messagebox.askyesno("Xóa nội lực",
+                               f"Xóa toàn bộ {len(self.etabs_forces)} dòng nội lực?"):
+            self.etabs_forces = []
+            self.etabs_file = ""
+            self.etabs_info.set("Đã xóa toàn bộ nội lực.")
+            self._fill_etabs_table([])
+
     def _load_etabs_file(self, path: str) -> bool:
         """Nạp file Excel ETABS (dùng chung cho import tay và mở dữ liệu)."""
         try:
@@ -710,14 +730,22 @@ class App(tk.Tk):
             f"Xong {len(rows)} tổ hợp trong {dt:.1f}s — "
             f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
             f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
+        # Lưu kết quả tất cả tổ hợp cho mục 7
+        self._batch_rows = rows
         # hiện thuyết minh của tổ hợp nguy hiểm nhất
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
         res_w = check_column(inp_w, n_angles=24)
         sec_w = build_section(inp_w)
-        self._render_report_sections(generate_report_sections(inp_w, res_w),
-                                      sec_w, inp_w, res_w)
+        batch = getattr(self, "_batch_rows", None)
+        if not getattr(self, "var_export_table", None) or \
+                not self.var_export_table.get():
+            batch = None
+        self._render_report_sections(
+            generate_report_sections(inp_w, res_w, batch_rows=batch),
+            sec_w, inp_w, res_w)
         self._pdf_inp, self._pdf_res = inp_w, res_w
+        self._pdf_batch = batch
         # cập nhật cả tab Tóm tắt + biểu đồ cho tổ hợp nguy hiểm nhất
         self._show_summary(sec_w, inp_w, res_w,
                            prefix=f"Tổ hợp {worst_f.case}@{worst_f.station:.2f}m: ")
@@ -737,6 +765,22 @@ class App(tk.Tk):
             self._last_res = res
             self._redraw()
 
+    def _on_toggle_table(self):
+        """Bật/tắt bảng tổng hợp (mục 7) -> render lại thuyết minh."""
+        if not getattr(self, "_pdf_inp", None):
+            return
+        from rc_column.report import generate_report_sections
+        from rc_column.checker import build_section
+        inp, res = self._pdf_inp, self._pdf_res
+        sec = build_section(inp)
+        batch = getattr(self, "_batch_rows", None)
+        if not self.var_export_table.get():
+            batch = None
+        self._render_report_sections(
+            generate_report_sections(inp, res, batch_rows=batch),
+            sec, inp, res)
+        self._pdf_batch = batch
+
     def on_export_pdf(self):
         """Xuất thuyết minh ra PDF."""
         if not getattr(self, "_pdf_inp", None):
@@ -752,7 +796,8 @@ class App(tk.Tk):
             return
         try:
             from rc_column.pdf_export import export_pdf
-            export_pdf(self._pdf_inp, self._pdf_res, path)
+            export_pdf(self._pdf_inp, self._pdf_res, path,
+                       batch_rows=getattr(self, "_pdf_batch", None))
             messagebox.showinfo("Xuất PDF", f"Đã lưu: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi xuất PDF", str(ex))
@@ -960,10 +1005,9 @@ class App(tk.Tk):
             except Exception:
                 pass
             try:
-                from rc_column.pdf_export import (surface_3d_image,
-                                                  interaction_image)
-                img_m6 = (surface_3d_image(sec, inp, res),
-                          interaction_image(sec, inp, res, small=True))
+                from rc_column.pdf_export import interaction_image
+                # Bỏ 3D, chỉ giữ biểu đồ N-M full-width
+                img_m6 = interaction_image(sec, inp, res)
             except Exception:
                 pass
 
@@ -1020,8 +1064,8 @@ class App(tk.Tk):
         t.window_create(tk.END, window=frame)
         t.insert(tk.END, "\n\n")
 
-    def _insert_charts_fullwidth(self, num, info, pngs: tuple):
-        """Mục 6: text full-width, 3D trái + N-M(α) phải bên dưới."""
+    def _insert_charts_fullwidth(self, num, info, png: bytes):
+        """Mục 6: text full-width, biểu đồ N-M full-width bên dưới (bỏ 3D)."""
         import base64
         from tkinter import PhotoImage
         t = self.calc_text
@@ -1029,26 +1073,19 @@ class App(tk.Tk):
         for text, tags in info["segs"]:
             t.insert(tk.END, text, tags if tags else ())
         t.insert(tk.END, "\n")
-        # Khung 2 biểu đồ cạnh nhau: 3D trái, N-M(α) phải
+        # 1 biểu đồ N-M full-width
         frame = tk.Frame(t, bg="white")
-        for i, (png, cap) in enumerate(
-                zip(pngs, ["Mặt tương tác 3D N-M2-M3",
-                           "Biểu đồ N-M (góc α)"])):
-            b64 = base64.b64encode(png).decode("ascii")
-            img = PhotoImage(data=b64)
-            self._report_images.append(img)
-            col = tk.Frame(frame, bg="white")
-            tk.Label(col, image=img, bg="white").pack()
-            tk.Label(col, text=cap, font=("", 9, "bold"),
-                     fg="#0f172a", bg="white").pack()
-            col.pack(side=tk.LEFT, padx=10, anchor=tk.N)
+        b64 = base64.b64encode(png).decode("ascii")
+        img = PhotoImage(data=b64)
+        self._report_images.append(img)
+        tk.Label(frame, image=img, bg="white").pack()
+        tk.Label(frame, text="Biểu đồ N-M (góc α)", font=("", 9, "bold"),
+                 fg="#0f172a", bg="white").pack()
         self._report_frames.append(frame)
         self._bind_wheel_to_calc(frame)
         t.window_create(tk.END, window=frame)
         t.insert(tk.END, "\n")
-        t.insert(tk.END,
-                 "Hình 2. Mặt tương tác 3D và biểu đồ N-M (góc α)\n",
-                 "sec_ref")
+        t.insert(tk.END, "Hình 2. Biểu đồ N-M (góc α)\n", "sec_ref")
         t.insert(tk.END, "\n")
 
     def _bind_wheel_to_calc(self, widget):
