@@ -328,7 +328,7 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
     st_ref = ParagraphStyle("ref", fontName="VN", fontSize=8,
                             textColor=GRAY, spaceAfter=6)
     st_body = ParagraphStyle("body", fontName="VN", fontSize=9.5,
-                             textColor=SLATE, leading=13, spaceAfter=2,
+                             textColor=SLATE, leading=16, spaceAfter=2,
                              alignment=TA_JUSTIFY)
     st_cap = ParagraphStyle("cap", fontName="VN", fontSize=8,
                             textColor=GRAY, alignment=TA_CENTER, spaceBefore=4)
