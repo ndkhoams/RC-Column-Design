@@ -127,7 +127,7 @@ class App(tk.Tk):
         ttk.Label(plot_bar, text="Biểu đồ:").pack(side=tk.LEFT, padx=4)
         self.cb_plot = ttk.Combobox(plot_bar, state="readonly", width=28,
                                     values=["N-M (2 phương)", "M2-M3 (tại N)",
-                                            "3D (N-Mx-My)"])
+                                            "3D (N-M2-M3)"])
         self.cb_plot.set("N-M (2 phương)")
         self.cb_plot.pack(side=tk.LEFT, padx=4)
         self.cb_plot.bind("<<ComboboxSelected>>", lambda e: self._redraw())
@@ -479,10 +479,10 @@ class App(tk.Tk):
             f"Hàm lượng μ {sec.reinforcement_ratio * 100:.2f}%",
         ]
         if math.isfinite(ccx):
-            lines.append(f"Khoảng hở thông thủy: Cx = {ccx:.1f} mm, "
-                         f"Cy = {ccy:.1f} mm")
-            lines.append(f"Khoảng cách tim: Cx = {ccx + d_avg:.1f} mm, "
-                         f"Cy = {ccy + d_avg:.1f} mm")
+            lines.append(f"Khoảng hở thông thủy: t3 = {ccx:.1f} mm, "
+                         f"t2 = {ccy:.1f} mm")
+            lines.append(f"Khoảng cách tim: t3 = {ccx + d_avg:.1f} mm, "
+                         f"t2 = {ccy + d_avg:.1f} mm")
         self.rebar_info.set("\n".join(lines))
 
     def collect(self) -> ColumnInput:
@@ -631,14 +631,14 @@ class App(tk.Tk):
             f"M3 = {res.My_star:.1f} kN·m (đã phóng đại η)",
             f"M = {res.M_resultant:.1f} kN·m | D/C = {res.dc:.3f} "
             f"(FS = {res.fs:.2f})",
-            f"φL = {res.phi_L:.2f}; L0x = {res.L0x:.2f} m, "
-            f"L0y = {res.L0y:.2f} m",
+            f"φL = {res.phi_L:.2f}; L02 = {res.L0x:.2f} m, "
+            f"L03 = {res.L0y:.2f} m",
         ]
         self.sum_text.delete("1.0", tk.END)
         self.sum_text.insert(tk.END, "\n".join(summ))
         self.l0_var.set(
-            f"Chiều dài tính toán: L0x = {res.L0x:.2f} m, "
-            f"L0y = {res.L0y:.2f} m")
+            f"Chiều dài tính toán: L02 = {res.L0x:.2f} m, "
+            f"L03 = {res.L0y:.2f} m")
         if HAS_MPL:
             self._last_sec = sec
             self._last_inp = inp
@@ -954,7 +954,7 @@ class App(tk.Tk):
                        label="Điểm tải trọng")
             a2.set_xlabel("M2 (kN·m)"); a2.set_ylabel("M3 (kN·m)")
             a2.set_zlabel("N (kN)")
-            a2.set_title("Mặt tương tác 3D N-Mx-My")
+            a2.set_title("Mặt tương tác 3D N-M2-M3")
         else:
             a2 = self.fig.add_subplot(122)
             fs = FiberSection(sec)
