@@ -154,12 +154,12 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     ax.set_title(f"Biểu đồ tương tác N-M (α = {alpha_deg:.1f}°)",
                  fontsize=12)
     ax.legend(fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.20), ncol=2)
+              bbox_to_anchor=(0.5, -0.16), ncol=2)
     ax.grid(True, alpha=0.3)
-    ax.text(0.5, -0.36, f"Tỉ số an toàn FS = {res.fs:.2f}",
+    ax.text(0.5, -0.42, f"Tỉ số an toàn FS = {res.fs:.2f}",
             transform=ax.transAxes, ha="center", fontsize=10,
             color="darkred", weight="bold")
-    fig.subplots_adjust(bottom=0.28)
+    fig.subplots_adjust(bottom=0.34)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
