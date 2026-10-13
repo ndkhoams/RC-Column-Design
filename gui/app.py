@@ -736,11 +736,15 @@ class App(tk.Tk):
         if not getattr(self, "var_export_table", None) or \
                 not self.var_export_table.get():
             batch = None
+        case_info = {"case": worst_f.case, "station": worst_f.station,
+                     "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My}
         self._render_report_sections(
-            generate_report_sections(inp_w, res_w, batch_rows=batch),
+            generate_report_sections(inp_w, res_w, batch_rows=batch,
+                                     case_info=case_info),
             sec_w, inp_w, res_w)
         self._pdf_inp, self._pdf_res = inp_w, res_w
         self._pdf_batch = batch
+        self._pdf_case = case_info
         # cập nhật cả tab Tóm tắt + biểu đồ cho tổ hợp nguy hiểm nhất
         self._show_summary(sec_w, inp_w, res_w,
                            prefix=f"Tổ hợp {worst_f.case}@{worst_f.station:.2f}m: ")
@@ -771,8 +775,10 @@ class App(tk.Tk):
         batch = getattr(self, "_batch_rows", None)
         if not self.var_export_table.get():
             batch = None
+        case_info = getattr(self, "_pdf_case", None)
         self._render_report_sections(
-            generate_report_sections(inp, res, batch_rows=batch),
+            generate_report_sections(inp, res, batch_rows=batch,
+                                     case_info=case_info),
             sec, inp, res)
         self._pdf_batch = batch
 
@@ -792,7 +798,8 @@ class App(tk.Tk):
         try:
             from rc_column.pdf_export import export_pdf
             export_pdf(self._pdf_inp, self._pdf_res, path,
-                       batch_rows=getattr(self, "_pdf_batch", None))
+                       batch_rows=getattr(self, "_pdf_batch", None),
+                       case_info=getattr(self, "_pdf_case", None))
             messagebox.showinfo("Xuất PDF", f"Đã lưu: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi xuất PDF", str(ex))
@@ -1059,7 +1066,7 @@ class App(tk.Tk):
         self._bind_wheel_to_calc(frame)
         t.insert(tk.END, "\n")
         t.window_create(tk.END, window=frame)
-        t.insert(tk.END, "\n\n")
+        t.insert(tk.END, "\n")
 
     def _insert_charts_fullwidth(self, num, info, pngs: tuple):
         """Mục 6: text full-width, 2 biểu đồ cạnh nhau bên dưới."""
