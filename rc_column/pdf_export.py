@@ -146,11 +146,11 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> byte
     ax.set_xlabel("M (kN·m)")
     ax.set_ylabel("N (kN)")
     ax.legend(fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.22), ncol=2)
+              bbox_to_anchor=(0.5, -0.28), ncol=2)
     ax.grid(True, alpha=0.3)
-    fig.subplots_adjust(bottom=0.32)
+    fig.subplots_adjust(bottom=0.38)
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    fig.savefig(buf, format="png", dpi=dpi)
     plt.close(fig)
     return buf.getvalue()
 
@@ -302,7 +302,8 @@ def export_pdf(inp, res, filepath: str):
     st_cap = ParagraphStyle("cap", fontName="VN", fontSize=8,
                             textColor=GRAY, alignment=TA_CENTER, spaceBefore=4)
     st_dc = ParagraphStyle("dc", fontName="VN-Bold", fontSize=15,
-                           textColor=DC_GREEN, alignment=TA_CENTER, spaceBefore=8)
+                           leading=22, textColor=DC_GREEN, alignment=TA_CENTER,
+                           spaceBefore=8, spaceAfter=6)
     st_badge_ok = ParagraphStyle("bok", fontName="VN-Bold", fontSize=12,
                                  textColor=GREEN_TX, backColor=GREEN_BG,
                                  alignment=TA_CENTER, borderPadding=8,
