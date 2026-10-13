@@ -242,6 +242,45 @@ class BiaxialCapacity:
                 my_grid[i, j] = m * math.sin(rad)
         return n_vals, th_vals, mx_grid, my_grid
 
+    def dc_ratio(self, N: float, Mx: float, My: float,
+                 n_iter: int = 60) -> dict:
+        """Tỷ số D/C theo phương pháp tia 3D.
+
+        Tìm λ_max sao cho λ·(N, Mx, My) nằm trên mặt tương tác.
+        D/C = 1/λ_max. Trả về dict {dc, lambda_max, Bx, By, BN, ok}.
+        """
+        Mstar = math.hypot(Mx, My)
+        if Mstar < 1e-12 and abs(N) < 1e-12:
+            return {"dc": 0.0, "lambda_max": float("inf"),
+                    "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": True}
+        phi = math.degrees(math.atan2(My, Mx)) if Mstar > 1e-12 else 0.0
+
+        def f(lam: float) -> float:
+            return self.moment_capacity(lam * N, phi) - lam * Mstar
+
+        flo = f(0.0)
+        if flo <= 1e-12:
+            # ngay tại gốc đã vượt khả năng (trường hợp suy biến)
+            return {"dc": float("inf"), "lambda_max": 0.0,
+                    "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": False}
+        lo, hi = 0.0, 1.0
+        while f(hi) > 0 and hi < 1e7:
+            hi *= 2.0
+        if hi >= 1e7:
+            return {"dc": 0.0, "lambda_max": float("inf"),
+                    "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": True}
+        for _ in range(n_iter):
+            mid = 0.5 * (lo + hi)
+            if f(mid) > 0:
+                lo = mid
+            else:
+                hi = mid
+        lam = 0.5 * (lo + hi)
+        dc = 1.0 / lam if lam > 1e-12 else float("inf")
+        return {"dc": dc, "lambda_max": lam,
+                "Bx": lam * Mx, "By": lam * My, "BN": lam * N,
+                "ok": dc <= 1.0}
+
     def check(self, N: float, Mx: float, My: float) -> dict:
         """Kiểm tra (N kN, Mx, My kN·m). Trả về dict kết quả."""
         M = math.hypot(Mx, My)
