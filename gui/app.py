@@ -148,7 +148,7 @@ class App(tk.Tk):
         calc_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
         ttk.Button(calc_bar, text="🖨️ Xuất PDF thuyết minh",
                    command=self.on_export_pdf).pack(side=tk.LEFT, padx=4)
-        self.var_export_table = tk.BooleanVar(value=True)
+        self.var_export_table = tk.BooleanVar(value=False)
         ttk.Checkbutton(calc_bar, text="Kèm bảng tổng hợp (mục 7)",
                         variable=self.var_export_table,
                         command=self._on_toggle_table).pack(side=tk.LEFT, padx=4)
@@ -401,13 +401,14 @@ class App(tk.Tk):
         self.etabs_frame.grid_remove()
         ttk.Button(self.etabs_frame, text="📂 Chọn file Excel ETABS...",
                    command=self.on_import_etabs).grid(row=0, column=0,
-                                                     padx=4, pady=4, sticky=tk.W)
+                                                     padx=(0, 2), pady=4, sticky=tk.W)
         ttk.Button(self.etabs_frame, text="📋 Paste từ Clipboard",
                    command=self.on_paste_etabs).grid(row=0, column=1,
-                                                    padx=4, pady=4, sticky=tk.W)
+                                                    padx=2, pady=4, sticky=tk.W)
         ttk.Button(self.etabs_frame, text="🗑️ DELETE",
                    command=self.on_delete_forces).grid(row=0, column=2,
-                                                       padx=4, pady=4, sticky=tk.W)
+                                                       padx=(2, 0), pady=4, sticky=tk.E)
+        self.etabs_frame.grid_columnconfigure(2, weight=1)
         ttk.Label(self.etabs_frame,
                   text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
                   foreground="gray", font=("", 8)).grid(
