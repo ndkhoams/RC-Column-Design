@@ -83,13 +83,11 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     alen = max(cx, cy) * 0.62
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#16A34A", lw=1.6))
-    # t3 dịch sang phải để không đè chấm thép
-    _t3x = max(cx, cy) * 0.08
-    ax.annotate("", xy=(_t3x, alen), xytext=(_t3x, 0),
+    ax.annotate("", xy=(0, alen), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
     ax.text(alen * 1.08, 0, "t2", fontsize=9, color="#15803D",
             weight="bold", va="center", ha="left")
-    ax.text(_t3x, alen * 1.08, "t3", fontsize=9, color="#1D4ED8",
+    ax.text(0, alen * 1.08, "t3", fontsize=9, color="#1D4ED8",
             weight="bold", va="bottom", ha="center")
     # Dim t3 (dưới đáy), t2 (bên trái)
     if show_dims and sec.kind == "rect":
@@ -769,6 +767,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
         [img_sec],
+        [Spacer(1, 15 * mm)],
         [t_box],
     ]
     _left_tbl = Table(_left_content, colWidths=[80 * mm])
