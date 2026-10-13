@@ -1724,7 +1724,7 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
-        tk.Label(left, text="\u25cf Bi\u1ec3u \u0111\u1ed3 t\u01b0\u01a1ng t\u00e1c N-M alpha",
+        tk.Label(left, text="\u25cf Bi\u1ec3u \u0111\u1ed3 t\u01b0\u01a1ng t\u00e1c N\u2013M\u03b1",
                  font=("", 10, "bold")).pack(side=tk.LEFT)
         tk.Label(left, text=f"  \u03b1 = {alpha_deg:.1f}\u00b0  ",
                  font=("", 8, "bold"), fg="#065F46",
