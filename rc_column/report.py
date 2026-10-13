@@ -113,32 +113,32 @@ def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
     b.line("Diện tích bê tông A",
            f"A = {_f(sec.gross_area, 0)} mm²",
            f"{_f(sec.gross_area / 1e6, 4)} m²")
-    b.line("Mô men quán tính Ix",
+    b.line("Mô men quán tính I2",
            f"Ix = {_f(res.Ix, 3)} mm⁴", "")
-    b.line("Mô men quán tính Iy",
+    b.line("Mô men quán tính I3",
            f"Iy = {_f(res.Iy, 3)} mm⁴", "")
-    b.line("Bán kính quán tính ix / iy",
+    b.line("Bán kính quán tính i2 / i3",
            f"ix = {_f(res.ix, 1)} mm, iy = {_f(res.iy, 1)} mm", "")
 
     # ---- 3. Chiều dài tính toán ----
     b.section(3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
               "TCVN 5574:2018 Mục 8.1.2.4")
-    b.line("L0x", f"L0x = {_f(res.L0x)} m", "")
-    b.line("L0y", f"L0y = {_f(res.L0y)} m", "")
+    b.line("L02", f"L0x = {_f(res.L0x)} m", "")
+    b.line("L03", f"L0y = {_f(res.L0y)} m", "")
     okx = "ĐẠT" if res.lambda_x <= 120 else "KHÔNG ĐẠT"
     oky = "ĐẠT" if res.lambda_y <= 120 else "KHÔNG ĐẠT"
-    b.line("Độ mảnh λx",
-           f"λx = L0x/ix = {_f(res.lambda_x, 1)} ≤ 120",
+    b.line("Độ mảnh λ2",
+           f"λ2 = L02/i2 = {_f(res.lambda_x, 1)} ≤ 120",
            okx, "")
-    b.line("Độ mảnh λy",
-           f"λy = L0y/iy = {_f(res.lambda_y, 1)} ≤ 120",
+    b.line("Độ mảnh λ3",
+           f"λ3 = L03/i3 = {_f(res.lambda_y, 1)} ≤ 120",
            oky, "")
     buck_x = res.lambda_x > 14
     buck_y = res.lambda_y > 14
-    A(f"  ▪ Uốn dọc phương X: {'BẮT BUỘC XÉT' if buck_x else 'không cần xét'} "
-      f"(λx {'>' if buck_x else '≤'} 14)\n", "card")
-    A(f"  ▪ Uốn dọc phương Y: {'BẮT BUỘC XÉT' if buck_y else 'không cần xét'} "
-      f"(λy {'>' if buck_y else '≤'} 14)\n", "card")
+    A(f"  ▪ Uốn dọc trục 2: {'BẮT BUỘC XÉT' if buck_x else 'không cần xét'} "
+      f"(λ2 {'>' if buck_x else '≤'} 14)\n", "card")
+    A(f"  ▪ Uốn dọc trục 3: {'BẮT BUỘC XÉT' if buck_y else 'không cần xét'} "
+      f"(λ3 {'>' if buck_y else '≤'} 14)\n", "card")
 
     # ---- 4. Độ lệch tâm ----
     b.section(4, "ĐỘ LỆCH TÂM", "TCVN 5574:2018 Mục 8.1.2.2.4")
@@ -154,8 +154,8 @@ def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
     b.section(5, "UỐN DỌC & PHÓNG ĐẠI MÔ MEN", "CT (44)–(48)")
     phi_txt = "2.00 (thiên về an toàn)" if not inp.long_term.has_data else _f(res.phi_L)
     A(f"  ▪ φL = {phi_txt}\n", "card")
-    b.line("δe,x / δe,y", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
-    b.line("kb,x / kb,y", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
+    b.line("δe,2 / δe,3", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
+    b.line("kb,2 / kb,3", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
     b.line("D2 / D3", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
     b.line("Ncr,2 / Ncr,3", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
     b.line("η2 / η3", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
