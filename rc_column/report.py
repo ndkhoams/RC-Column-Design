@@ -67,7 +67,8 @@ class ReportBuilder:
         return self.sections
 
 
-def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
+def _build_report(inp: ColumnInput, res: CheckResult,
+                  case_info=None) -> ReportBuilder:
     sec = build_section(inp)
     conc = sec.concrete
     steel = sec.steel
@@ -167,6 +168,11 @@ def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
     # ---- 6. NDM ----
     b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
               "TCVN 5574:2018 Điều 8.1.2.7")
+    if case_info:
+        A(f"  ▪ Tổ hợp tính toán: {case_info['case']}@{case_info['station']:.2f} — "
+          f"N = {_f(case_info['N'], 1)} kN, "
+          f"M2 = {_f(case_info['M2'], 1)} kN·m, "
+          f"M3 = {_f(case_info['M3'], 1)} kN·m\n", "card")
     Ma = math.hypot(res.Mx_star, res.My_star)
     alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0
     A(f"  ▪ Điểm tải trọng A = (M2*, M3*, N) = "
@@ -193,10 +199,11 @@ def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
 
 
 def generate_report_sections(inp: ColumnInput, res: CheckResult,
-                             batch_rows=None) -> dict:
+                             batch_rows=None, case_info=None) -> dict:
     """Trả về dict {num: {title, ref, segs}} cho từng mục.
-    batch_rows: list of (force, result_dict) cho mục 7 (tùy chọn)."""
-    builder = _build_report(inp, res)
+    batch_rows: list of (force, result_dict) cho mục 7 (tùy chọn).
+    case_info: dict {case, station, N, M2, M3} cho dòng tổ hợp tính toán."""
+    builder = _build_report(inp, res, case_info)
     if batch_rows:
         _build_section7(builder, batch_rows)
     return builder.build_sections()
