@@ -38,6 +38,35 @@ class StirrupResult:
     s_max: float = 0.0      # bước tối đa cho phép
 
 
+@dataclass
+class ShearResult:
+    """Kết quả kiểm tra chịu cắt theo TCVN 5574:2018 8.1.3."""
+    ok: bool
+    Q: float = 0.0          # lực cắt tính toán (kN)
+    Qb: float = 0.0         # khả năng bê tông (kN)
+    Qsw: float = 0.0        # khả năng cốt đai (kN)
+    direction: str = ""     # "2" hoặc "3"
+
+
+def check_shear(Q: float, b: float, h0: float, Rbt: float,
+                Asw: float, Rsw: float, s: float,
+                direction: str = "") -> ShearResult:
+    """Kiểm tra chịu cắt theo TCVN 5574:2018 8.1.3.
+
+    Q ≤ Qb + Qsw
+    - Qb = 0.75 × Rbt × b × h0 (bê tông, với c = 2h0, φb2 = 1.5)
+    - Qsw = 2 × Rsw × Asw × h0 / s (cốt đai, với c0 = 2h0)
+
+    Đơn vị: Q (kN), b/h0 (mm), Rbt/Rsw (MPa), Asw (mm²), s (mm)
+    """
+    # Đổi đơn vị: MPa × mm² = N → /1000 = kN
+    Qb = 0.75 * Rbt * b * h0 / 1000.0
+    Qsw = 2.0 * Rsw * Asw * h0 / s / 1000.0 if s > 0 else 0.0
+    Qcap = Qb + Qsw
+    ok = abs(Q) <= Qcap + 1e-9
+    return ShearResult(ok=ok, Q=Q, Qb=Qb, Qsw=Qsw, direction=direction)
+
+
 def _is_high_grade(concrete_grade: str) -> bool:
     """Bê tông từ B70 đến B100."""
     try:
