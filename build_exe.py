@@ -33,6 +33,10 @@ def main() -> int:
         # ẩn import để PyInstaller không bỏ sót
         "--hidden-import", "matplotlib.backends.backend_tkagg",
         "--hidden-import", "numpy",
+        "--hidden-import", "reportlab",
+        "--hidden-import", "reportlab.lib.pagesizes",
+        "--hidden-import", "reportlab.pdfbase.ttfonts",
+        "--hidden-import", "reportlab.platypus",
         ENTRY,
     ]
     print("Chạy:", " ".join(cmd))
