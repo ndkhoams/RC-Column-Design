@@ -112,11 +112,32 @@ def _build_report(inp: ColumnInput, res: CheckResult,
               f"{'Chữ nhật' if inp.section_type == 'rect' else 'Tròn'} "
               f"{inp.cx:.0f}×{inp.cy:.0f} mm" if inp.section_type == "rect"
               else f"Tròn D={inp.cx:.0f} mm")
+    from collections import Counter as _Counter
+    _cnt = _Counter((r.layer, r.dia) for r in sec.rebars)
+    _compo = " + ".join(
+        f"{_cnt[k]}d{k[1]:.0f}"
+        for k in sorted(_cnt, key=lambda k: (k[0], -k[1])))
     n_bar = len(sec.rebars)
-    dias = sorted(set(r.dia for r in sec.rebars))
-    dia_txt = "/".join(f"{d:.0f}" for d in dias)
-    A(f"  ▪ Cốt thép: {n_bar} thanh d{dia_txt}, As = {res.steel_area:.0f} mm², "
+    A(f"  ▪ Cốt thép: {n_bar} thanh ({_compo}), As = {res.steel_area:.0f} mm², "
       f"μ = {_f(res.reinforcement_ratio * 100)}%\n", "card")
+    if inp.section_type == "rect" and inp.rebar_mode != "custom":
+        A(f"      Lớp 1: 4d{inp.corner_dia:.0f} (góc)"
+          f" + {inp.edge_t2_count}d{inp.edge_t2_dia:.0f}/mặt cạnh t2"
+          f" + {inp.edge_t3_count}d{inp.edge_t3_dia:.0f}/mặt cạnh t3\n",
+          "card")
+        if inp.two_layer:
+            _m = inp.layer2_mode
+            if _m == "perimeter":
+                _t2 = (f"Lớp 2 (chu vi): d{inp.l2_t2_dia:.0f}/cạnh t2,"
+                       f" d{inp.l2_t3_dia:.0f}/cạnh t3 (số thanh = lớp 1)")
+            elif _m == "concentrated":
+                _t2 = (f"Lớp 2 (tập trung): {inp.l2_count}d{inp.l2_dia:.0f}/mặt"
+                       f" cạnh {inp.l2_side}, s = {inp.l2_s_layer:.0f} mm")
+            else:
+                _t2 = (f"Lớp 2 (ghép bó): {inp.bundle_size} thanh/bó tại cạnh,"
+                       f" {inp.bundle_corner} thanh/bó tại góc"
+                       f" ({'lớp trong' if inp.bundle_pos == 'inner' else 'cùng lớp ngoài'})")
+            A(f"      {_t2}\n", "card")
     b.line("Diện tích bê tông A",
            f"A = {_f(sec.gross_area, 0)} mm²",
            f"{_f(sec.gross_area / 1e6, 4)} m²")
