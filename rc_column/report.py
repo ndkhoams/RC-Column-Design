@@ -156,18 +156,18 @@ def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
     A(f"  ▪ φL = {phi_txt}\n", "card")
     b.line("δe,x / δe,y", "", f"{_f(res.delta_ex, 3)} / {_f(res.delta_ey, 3)}")
     b.line("kb,x / kb,y", "", f"{_f(res.kbx, 3)} / {_f(res.kby, 3)}")
-    b.line("Dx / Dy", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
-    b.line("Ncr,x / Ncr,y", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
-    b.line("ηx / ηy", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
-    b.line("Mx* = ηx·Mx", "", f"{_f(res.Mx_star, 1)} kN·m")
-    b.line("My* = ηy·My", "", f"{_f(res.My_star, 1)} kN·m")
+    b.line("D2 / D3", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
+    b.line("Ncr,2 / Ncr,3", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
+    b.line("η2 / η3", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
+    b.line("M2* = η2·M2", "", f"{_f(res.Mx_star, 1)} kN·m")
+    b.line("M3* = η3·M3", "", f"{_f(res.My_star, 1)} kN·m")
 
     # ---- 6. NDM ----
     b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
               "TCVN 5574:2018 Điều 8.1.2.7")
     Ma = math.hypot(res.Mx_star, res.My_star)
     alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0
-    A(f"  ▪ Điểm tải trọng A = (Mx*, My*, N) = "
+    A(f"  ▪ Điểm tải trọng A = (M2*, M3*, N) = "
       f"({_f(res.Mx_star, 1)}, {_f(res.My_star, 1)}, {_f(res.N, 1)})\n", "card")
     A(f"  ▪ Điểm giới hạn B = ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
       f"{_f(res.BN, 1)}) trên mặt tương tác\n", "card")
