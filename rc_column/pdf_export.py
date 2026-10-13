@@ -45,11 +45,13 @@ def _find_font_bold():
 
 
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
-def section_image(sec, width_in=3.2, dpi=150) -> bytes:
+def section_image(sec, width_in=3.2, dpi=150, small=False) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
+    if small:
+        width_in, dpi = 2.6, 100
     fig, ax = plt.subplots(figsize=(width_in, width_in))
     if sec.kind == "rect":
         ax.add_patch(mpatches.Rectangle((-sec.cx/2, -sec.cy/2), sec.cx, sec.cy,
@@ -71,11 +73,13 @@ def section_image(sec, width_in=3.2, dpi=150) -> bytes:
     return buf.getvalue()
 
 
-def interaction_image(sec, inp, res, width_in=5.0, dpi=150) -> bytes:
+def interaction_image(sec, inp, res, width_in=5.0, dpi=150, small=False) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from .interaction import BiaxialCapacity
+    if small:
+        width_in, dpi = 3.0, 100
     fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     # đường bao N-M tại góc của điểm tải
