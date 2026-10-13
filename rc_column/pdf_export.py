@@ -45,26 +45,58 @@ def _find_font_bold():
 
 
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
-def section_image(sec, width_in=3.2, dpi=150, small=False) -> bytes:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+def draw_section_ax(ax, sec, show_dims: bool = True):
+    """Vẽ mặt cắt lên axes: thép, trục 2/3, nét dim t2/t3 (kiểu ETABS)."""
     import matplotlib.patches as mpatches
-    if small:
-        width_in, dpi = 2.6, 100
-    fig, ax = plt.subplots(figsize=(width_in, width_in))
+    cx, cy = sec.cx, sec.cy
     if sec.kind == "rect":
-        ax.add_patch(mpatches.Rectangle((-sec.cx/2, -sec.cy/2), sec.cx, sec.cy,
+        ax.add_patch(mpatches.Rectangle((-cx/2, -cy/2), cx, cy,
                                         fill=False, edgecolor="black", lw=1.5))
     else:
-        ax.add_patch(mpatches.Circle((0, 0), sec.cx/2, fill=False,
+        ax.add_patch(mpatches.Circle((0, 0), cx/2, fill=False,
                                      edgecolor="black", lw=1.5))
     ax.scatter([r.x for r in sec.rebars], [r.y for r in sec.rebars],
                s=80, c="red", zorder=3)
     for r in sec.rebars:
         ax.text(r.x, r.y, f"{r.dia:.0f}", fontsize=6, ha="center",
                 va="center", color="white")
+    # Trục 2 (ngang →), trục 3 (đứng ↑)
+    L = max(cx, cy) * 0.75
+    ax.annotate("", xy=(L, 0), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
+    ax.text(L*1.05, 0, "2", fontsize=11, color="green", weight="bold",
+            va="center")
+    ax.annotate("", xy=(0, L), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="green", lw=1.5))
+    ax.text(0, L*1.05, "3", fontsize=11, color="green", weight="bold",
+            ha="center")
+    if show_dims and sec.kind == "rect":
+        off = max(cx, cy) * 0.12
+        # dim t3 (ngang, dưới)
+        y0 = -cy/2 - off
+        ax.plot([-cx/2, cx/2], [y0, y0], color="blue", lw=1)
+        ax.plot([-cx/2, -cx/2], [y0-4, y0+4], color="blue", lw=1)
+        ax.plot([cx/2, cx/2], [y0-4, y0+4], color="blue", lw=1)
+        ax.text(0, y0-8, f"t3={cx:.0f}", fontsize=8, color="blue",
+                ha="center", va="top")
+        # dim t2 (đứng, phải)
+        x0 = cx/2 + off
+        ax.plot([x0, x0], [-cy/2, cy/2], color="blue", lw=1)
+        ax.plot([x0-4, x0+4], [-cy/2, -cy/2], color="blue", lw=1)
+        ax.plot([x0-4, x0+4], [cy/2, cy/2], color="blue", lw=1)
+        ax.text(x0+8, 0, f"t2={cy:.0f}", fontsize=8, color="blue",
+                va="center", rotation=90)
     ax.set_aspect("equal")
+
+
+def section_image(sec, width_in=3.2, dpi=150, small=False) -> bytes:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    if small:
+        width_in, dpi = 2.6, 100
+    fig, ax = plt.subplots(figsize=(width_in, width_in))
+    draw_section_ax(ax, sec)
     ax.set_title("Mặt cắt cột và bố trí thép", fontsize=10)
     ax.grid(True, alpha=0.3)
     buf = io.BytesIO()
