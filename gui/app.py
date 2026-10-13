@@ -937,6 +937,14 @@ class App(tk.Tk):
             return
         sec, inp, res = self._last_sec, self._last_inp, self._last_res
         kind = self.cb_plot.get()
+        # Tạo Figure mới hoàn toàn mỗi lần vẽ -> không bao giờ sót axes cũ
+        try:
+            self.mpl.get_tk_widget().destroy()
+        except Exception:
+            pass
+        self.fig = Figure(figsize=(7.0, 8.5), dpi=100)
+        self.mpl = FigureCanvasTkAgg(self.fig, master=self._sum_inner)
+        self.mpl.get_tk_widget().pack(fill=tk.X)
         from rc_column.pdf_export import draw_section_ax, _radial_limit
         from rc_column.interaction import (BiaxialCapacity, FiberSection,
                                            uniaxial_curve_fs)
@@ -968,12 +976,9 @@ class App(tk.Tk):
                         transform=ax.transAxes, ha="center", fontsize=10,
                         color="darkred", weight="bold")
 
-        # Xóa triệt để axes cũ (tránh sót khi đổi loại biểu đồ)
-        for ax in list(self.fig.axes):
-            self.fig.delaxes(ax)
         if kind.startswith("N-M"):
             # Mặt cắt lớn trên, 2 biểu đồ cạnh nhau dưới
-            self.fig.set_size_inches(7.0, 9.5)
+            self.fig.set_size_inches(7.0, 8.5)
             gs = self.fig.add_gridspec(5, 2)
             a1 = self.fig.add_subplot(gs[0:2, :])
             draw_section_ax(a1, sec)
@@ -984,7 +989,7 @@ class App(tk.Tk):
             a3 = self.fig.add_subplot(gs[2:, 1])
             _nm_ax(a3, 90, "N-M3", inp.My, inp.N)
         elif kind.startswith("M2-M3"):
-            self.fig.set_size_inches(7.0, 9.5)
+            self.fig.set_size_inches(7.0, 8.5)
             gs = self.fig.add_gridspec(5, 1)
             a1 = self.fig.add_subplot(gs[0:2, 0])
             draw_section_ax(a1, sec)
@@ -1005,7 +1010,7 @@ class App(tk.Tk):
             a2.set_aspect("equal", adjustable="datalim")
         else:  # 3D
             from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-            self.fig.set_size_inches(7.0, 9.5)
+            self.fig.set_size_inches(7.0, 8.5)
             gs = self.fig.add_gridspec(5, 1)
             a1 = self.fig.add_subplot(gs[0:2, 0])
             draw_section_ax(a1, sec)
@@ -1026,11 +1031,16 @@ class App(tk.Tk):
             a2.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
         self.fig.tight_layout()
         self.mpl.draw()
-        # Đẩy nội dung lên đầu, xóa vùng trống thừa
-        self._sum_inner.update_idletasks()
-        self._sum_canvas.configure(
-            scrollregion=self._sum_canvas.bbox("all"))
-        self._sum_canvas.yview_moveto(0)
+        # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
+        def _to_top():
+            try:
+                self._sum_inner.update_idletasks()
+                self._sum_canvas.configure(
+                    scrollregion=self._sum_canvas.bbox("all"))
+                self._sum_canvas.yview_moveto(0)
+            except Exception:
+                pass
+        self._sum_canvas.after_idle(_to_top)
 
 def main():
     app = App()
