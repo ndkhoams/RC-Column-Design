@@ -12,18 +12,39 @@ from dataclasses import dataclass
 
 # Hệ số psi theo điều kiện biên (tham khảo TCVN 5574:2018 Bảng 31 / phụ lục)
 # key: (liên kết trên, liên kết dưới)
+# Hệ số ψ đơn cho từng loại liên kết (khi 2 đầu giống nhau)
+PSI_SINGLE = {
+    "ngam_cung": 0.5,
+    "ngam_nua_cung": 0.8,
+    "khop": 1.0,
+    "khop_han_che": 1.2,
+    "ngam_han_che": 1.5,
+    "tu_do": 2.0,
+}
+
 PSI_TABLE = {
-    ("ngam", "ngam"): 0.5,
-    ("ngam", "khop"): 0.7,
+    ("ngam_cung", "ngam_cung"): 0.5,
+    ("ngam_cung", "ngam_nua_cung"): 0.65,
+    ("ngam_cung", "khop"): 0.7,
+    ("ngam_nua_cung", "ngam_nua_cung"): 0.8,
+    ("ngam_nua_cung", "khop"): 0.9,
     ("khop", "khop"): 1.0,
-    ("ngam", "tu_do"): 2.0,
+    ("ngam_cung", "tu_do"): 2.0,
+    ("ngam_nua_cung", "tu_do"): 2.0,
     ("khop", "tu_do"): 2.0,
+    # Di động hạn chế: nội suy giữa các giá trị chuẩn
+    ("khop_han_che", "khop_han_che"): 1.2,
+    ("ngam_han_che", "ngam_han_che"): 1.5,
+    ("ngam_han_che", "khop_han_che"): 1.35,
 }
 
 BOUNDARY_NAMES = {
-    "ngam": "Ngàm",
+    "ngam_nua_cung": "Ngàm nửa cứng",
+    "ngam_cung": "Ngàm cứng",
     "khop": "Khớp",
     "tu_do": "Tự do",
+    "khop_han_che": "Khớp di động hạn chế",
+    "ngam_han_che": "Ngàm di động hạn chế",
 }
 
 
