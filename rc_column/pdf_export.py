@@ -342,14 +342,14 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None):
                              alignment=TA_JUSTIFY)
     st_cap = ParagraphStyle("cap", fontName="VN", fontSize=8,
                             textColor=GRAY, alignment=TA_CENTER, spaceBefore=4)
-    st_dc = ParagraphStyle("dc", fontName="VN-Bold", fontSize=15,
-                           leading=22, textColor=DC_GREEN, alignment=TA_CENTER,
+    st_dc = ParagraphStyle("dc", fontName="VN-Bold", fontSize=10,
+                           leading=14, textColor=DC_GREEN, alignment=TA_CENTER,
                            spaceBefore=8, spaceAfter=6)
-    st_badge_ok = ParagraphStyle("bok", fontName="VN-Bold", fontSize=12,
+    st_badge_ok = ParagraphStyle("bok", fontName="VN-Bold", fontSize=10,
                                  textColor=GREEN_TX, backColor=GREEN_BG,
-                                 alignment=TA_CENTER, borderPadding=8,
-                                 spaceBefore=8)
-    st_badge_ng = ParagraphStyle("bng", fontName="VN-Bold", fontSize=12,
+                                 alignment=TA_CENTER, borderPadding=6,
+                                 spaceBefore=6)
+    st_badge_ng = ParagraphStyle("bng", fontName="VN-Bold", fontSize=10,
                                  textColor=RED_TX, backColor=RED_BG,
                                  alignment=TA_CENTER, borderPadding=8,
                                  spaceBefore=8)
