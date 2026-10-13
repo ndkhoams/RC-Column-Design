@@ -87,6 +87,9 @@ def draw_section_ax(ax, sec, show_dims: bool = True):
         ax.text(x0+8, 0, f"t2={cy:.0f}", fontsize=8, color="blue",
                 va="center", rotation=90)
     ax.set_aspect("equal")
+    # Ẩn vạch tọa độ (đã có dim t2/t3)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
 
 def section_image(sec, width_in=3.2, dpi=150, small=False) -> bytes:
@@ -119,7 +122,7 @@ def interaction_image(sec, inp, res, width_in=5.0, dpi=150, small=False) -> byte
     # vẽ 2 đường N-Mx, N-My
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
-    for th, style, lab in [(0, "b-", "N-Mx"), (90, "r--", "N-My")]:
+    for th, style, lab in [(0, "b-", "N-M2"), (90, "r--", "N-M3")]:
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
         ax.plot([p[1] for p in cv], [p[0] for p in cv], style, label=lab, lw=1.5)
     # điểm tải A và điểm giới hạn B (quy về M)
