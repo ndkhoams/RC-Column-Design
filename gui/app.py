@@ -63,6 +63,16 @@ class App(tk.Tk):
         self._sec_stability()
         self._sec_loads()
 
+        # Hàng nút lưu/mở dữ liệu
+        data_bar = ttk.Frame(self.left)
+        data_bar.pack(fill=tk.X, padx=8, pady=(10, 0))
+        ttk.Button(data_bar, text="💾 Lưu dữ liệu",
+                   command=self.on_save_data).pack(side=tk.LEFT, expand=True,
+                                                   fill=tk.X, padx=(0, 4))
+        ttk.Button(data_bar, text="📂 Mở dữ liệu",
+                   command=self.on_load_data).pack(side=tk.LEFT, expand=True,
+                                                   fill=tk.X, padx=(4, 0))
+
         ttk.Button(self.left, text="KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    command=self.on_check).pack(fill=tk.X, padx=8, pady=10, ipady=8)
 
@@ -120,6 +130,21 @@ class App(tk.Tk):
         calc_scroll.config(command=self.calc_text.yview)
         self.calc_text.insert(tk.END,
                               "Chi tiết tính toán sẽ hiển thị sau khi thực hiện kiểm tra.")
+        # Cuộn chuột mượt cho thuyết minh (2 dòng/nấc thay vì mặc định)
+        self.calc_text.bind("<MouseWheel>", self._on_calc_wheel)
+        self.calc_text.bind("<Button-4>", self._on_calc_wheel)
+        self.calc_text.bind("<Button-5>", self._on_calc_wheel)
+
+    def _on_calc_wheel(self, event):
+        """Cuộn thuyết minh mượt hơn: bước nhỏ 2 units/nấc."""
+        if getattr(event, "num", None) == 4:
+            self.calc_text.yview_scroll(-2, "units")
+        elif getattr(event, "num", None) == 5:
+            self.calc_text.yview_scroll(2, "units")
+        else:
+            delta = int(-event.delta / 120) if event.delta else 0
+            self.calc_text.yview_scroll(delta * 2, "units")
+        return "break"
 
     def _wheel_on(self):
         self.bind_all("<MouseWheel>", self._on_wheel)
@@ -456,6 +481,10 @@ class App(tk.Tk):
             filetypes=[("Excel", "*.xlsx *.xls"), ("All", "*.*")])
         if not path:
             return
+        self._load_etabs_file(path)
+
+    def _load_etabs_file(self, path: str) -> bool:
+        """Nạp file Excel ETABS (dùng chung cho import tay và mở dữ liệu)."""
         try:
             from rc_column.etabs_import import read_etabs_excel
             m2_to = "Mx" if self.cb_map.get().startswith("M2→Mx") else "My"
@@ -463,15 +492,16 @@ class App(tk.Tk):
                                       only_combinations=self.var_comb.get())
         except Exception as ex:
             messagebox.showerror("Lỗi đọc file", str(ex))
-            return
+            return False
         self.etabs_forces = forces
         self.etabs_file = path
         n_case = len(set(f.case for f in forces))
         self.etabs_info.set(
             f"Đã đọc {len(forces)} dòng, {n_case} tổ hợp từ: "
             f"{path.split('/')[-1].split(chr(92))[-1]} — "
-            f"Bấm 'Kiểm tra tất cả' để tính.")
+            f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
         self._fill_etabs_table([(f, None) for f in forces])
+        return True
 
     def _fill_etabs_table(self, rows):
         t = self.etabs_tree
@@ -584,6 +614,116 @@ class App(tk.Tk):
             messagebox.showinfo("Xuất PDF", f"Đã lưu: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi xuất PDF", str(ex))
+
+    def _collect_data(self) -> dict:
+        """Thu thập toàn bộ dữ liệu nhập liệu thành dict."""
+        def ev(e):
+            return e.get()
+        def bv(v):
+            return v.get()
+        return {
+            "version": 1,
+            # 1. Vật liệu
+            "concrete": self.cb_conc.get(), "gamma_b": ev(self.en_gb),
+            "steel": self.cb_steel.get(), "gamma_s": ev(self.en_gs),
+            "model": self.cb_model.get(),
+            # 2. Tiết diện
+            "kind": self.cb_kind.get(),
+            "cx": ev(self.en_cx), "cy": ev(self.en_cy),
+            "cover": ev(self.en_cover),
+            # 3. Cốt thép
+            "dia": ev(self.en_dia), "nx": ev(self.en_nx),
+            "ny": ev(self.en_ny),
+            # 4. Chiều dài tính toán
+            "Lx": ev(self.en_Lx), "Ly": ev(self.en_Ly),
+            "top_x": self.cb_tx.get(), "bot_x": self.cb_bx.get(),
+            "top_y": self.cb_ty.get(), "bot_y": self.cb_by.get(),
+            "psi_x": ev(self.en_psix), "psi_y": ev(self.en_psiy),
+            # 5. Nội lực
+            "load_mode": bv(self.var_load_mode),
+            "N": ev(self.en_N), "Mx": ev(self.en_Mx), "My": ev(self.en_My),
+            "long_term": bv(self.var_lt),
+            "N_lt": ev(self.en_Nlt), "Mx_lt": ev(self.en_Mxlt),
+            "My_lt": ev(self.en_Mylt),
+            "etabs_path": getattr(self, "etabs_file", ""),
+            "etabs_map": self.cb_map.get(),
+            "etabs_comb": bv(self.var_comb),
+        }
+
+    def _apply_data(self, d: dict):
+        """Đổ dữ liệu từ dict vào các trường nhập liệu."""
+        def se(e, v):
+            e.delete(0, tk.END); e.insert(0, str(v))
+        try:
+            self.cb_conc.set(d.get("concrete", "B25")); se(self.en_gb, d.get("gamma_b", "1.0"))
+            self.cb_steel.set(d.get("steel", "CB400-V")); se(self.en_gs, d.get("gamma_s", "1.0"))
+            self.cb_model.set(d.get("model", self.cb_model.get()))
+            self.cb_kind.set(d.get("kind", "Chữ nhật"))
+            se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
+            se(self.en_cover, d.get("cover", "30"))
+            se(self.en_dia, d.get("dia", "20")); se(self.en_nx, d.get("nx", "3"))
+            se(self.en_ny, d.get("ny", "3"))
+            se(self.en_Lx, d.get("Lx", "4.0")); se(self.en_Ly, d.get("Ly", "4.0"))
+            self.cb_tx.set(d.get("top_x", "Ngàm")); self.cb_bx.set(d.get("bot_x", "Ngàm"))
+            self.cb_ty.set(d.get("top_y", "Ngàm")); self.cb_by.set(d.get("bot_y", "Ngàm"))
+            se(self.en_psix, d.get("psi_x", "")); se(self.en_psiy, d.get("psi_y", ""))
+            self.var_load_mode.set(d.get("load_mode", "etabs"))
+            se(self.en_N, d.get("N", "")); se(self.en_Mx, d.get("Mx", ""))
+            se(self.en_My, d.get("My", ""))
+            self.var_lt.set(bool(d.get("long_term", False)))
+            se(self.en_Nlt, d.get("N_lt", "")); se(self.en_Mxlt, d.get("Mx_lt", ""))
+            se(self.en_Mylt, d.get("My_lt", ""))
+            self.cb_map.set(d.get("etabs_map", "M2→Mx, M3→My"))
+            self.var_comb.set(bool(d.get("etabs_comb", True)))
+            self.etabs_file = d.get("etabs_path", "")
+            # cập nhật giao diện theo chế độ
+            self._toggle_load_mode()
+            self._toggle_lt()
+            self._refresh_rebar()
+        except Exception as ex:
+            messagebox.showerror("Lỗi", f"Không đọc được file dữ liệu: {ex}")
+
+    def on_save_data(self):
+        """Lưu dữ liệu nhập liệu ra file JSON."""
+        import json
+        from tkinter import filedialog
+        path = filedialog.asksaveasfilename(
+            title="Lưu dữ liệu cột",
+            defaultextension=".json",
+            filetypes=[("JSON", "*.json")],
+            initialfile="CotBTCT.json")
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(self._collect_data(), f, ensure_ascii=False,
+                          indent=2)
+            messagebox.showinfo("Lưu dữ liệu", f"Đã lưu: {path}")
+        except Exception as ex:
+            messagebox.showerror("Lỗi", str(ex))
+
+    def on_load_data(self):
+        """Mở file dữ liệu JSON đã lưu."""
+        import json
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(
+            title="Mở dữ liệu cột",
+            filetypes=[("JSON", "*.json")])
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8") as f:
+                d = json.load(f)
+            self._apply_data(d)
+            # Nếu có đường dẫn ETABS và file còn tồn tại -> nạp lại
+            ep = d.get("etabs_path", "")
+            if d.get("load_mode") == "etabs" and ep:
+                import os
+                if os.path.exists(ep):
+                    self._load_etabs_file(ep)
+            messagebox.showinfo("Mở dữ liệu", f"Đã nạp: {path}")
+        except Exception as ex:
+            messagebox.showerror("Lỗi", str(ex))
 
     def _render_report(self, segs):
         """Hiển thị thuyết minh với format VietconSoft (giữ để tương thích)."""
