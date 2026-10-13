@@ -595,15 +595,18 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     from reportlab.lib.enums import TA_CENTER
     import io as _io
 
-    # Font
+    # Font: dùng helper _find_font có sẵn, fallback Helvetica
+    FN, FNB = "Helvetica", "Helvetica-Bold"
     try:
-        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
-        pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSans-Bold.ttf"))
-        pdfmetrics.registerFontFamily("DejaVu", normal="DejaVu",
-                                      bold="DejaVu-Bold")
+        pdfmetrics.registerFont(TTFont("DejaVu", _find_font()))
+        FN = "DejaVu"
     except Exception:
         pass
-    FN, FNB = "DejaVu", "DejaVu-Bold"
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVuB", _find_font_bold()))
+        FNB = "DejaVuB"
+    except Exception:
+        pass
 
     def fig_to_img(fig, w_mm):
         buf = _io.BytesIO()
