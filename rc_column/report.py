@@ -142,10 +142,10 @@ def _build_report(inp: ColumnInput, res: CheckResult) -> ReportBuilder:
 
     # ---- 4. Độ lệch tâm ----
     b.section(4, "ĐỘ LỆCH TÂM", "TCVN 5574:2018 Mục 8.1.2.2.4")
-    b.line("e1x = |My|/N", f"= {_f(abs(res.My) * 1000 / max(abs(res.N), 1e-9), 1)} mm",
+    b.line("e12 = |M2|/N", f"= {_f(abs(res.My) * 1000 / max(abs(res.N), 1e-9), 1)} mm",
            f"{_f(res.e1x, 1)} mm")
-    b.line("e1y = |Mx|/N", "", f"{_f(res.e1y, 1)} mm")
-    b.line("eax / eay (ngẫu nhiên)", "",
+    b.line("e13 = |M3|/N", "", f"{_f(res.e1y, 1)} mm")
+    b.line("ea2 / ea3 (ngẫu nhiên)", "",
            f"{_f(res.eax, 1)} / {_f(res.eay, 1)} mm")
     b.line("e0x / e0y (ban đầu)", "",
            f"{_f(res.e0x, 1)} / {_f(res.e0y, 1)} mm")
