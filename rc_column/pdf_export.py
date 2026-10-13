@@ -125,35 +125,65 @@ def _radial_limit(curve, N_load: float, M_load: float):
 
 
 def interaction_image(sec, inp, res, width_in=6.0, dpi=150, small=False) -> bytes:
-    """2 biểu đồ riêng: N-M2 và N-M3."""
+    """Biểu đồ tương tác N-M tại góc uốn xiên α (1 biểu đồ duy nhất)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import math
     if small:
-        width_in, dpi = 5.2, 100
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(width_in, width_in * 0.48))
+        width_in, dpi = 4.0, 100
+    fig, ax = plt.subplots(figsize=(width_in, width_in * 0.75))
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
-    for ax, th, lab, Ms, Mb in [(ax1, 0, "N-M2", res.Mx_star, res.Bx),
-                                (ax2, 90, "N-M3", res.My_star, res.By)]:
-        cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
-        ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
-        lim = (res.BN, Mb)
-        ax.scatter([Ms], [res.N], c="green", s=70, zorder=5,
-                   label="A (tải trọng)")
-        ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
-        ax.scatter([lim[1]], [lim[0]], c="orange", s=70, zorder=5,
-                   label="B (giới hạn)")
-        ax.set_xlabel("M (kN·m)")
-        ax.set_ylabel("N (kN)")
-        ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=10)
-        ax.legend(fontsize=8)
-        ax.grid(True, alpha=0.3)
-        ax.text(0.5, -0.32, f"Tỉ số an toàn FS = {res.fs:.2f}",
-                transform=ax.transAxes, ha="center", fontsize=9,
-                color="darkred", weight="bold")
-    fig.tight_layout()
+    alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star))
+    cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
+    ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
+    ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
+    Ma = math.hypot(res.Mx_star, res.My_star)
+    Mb = math.hypot(res.Bx, res.By)
+    lim = (res.BN, Mb)
+    ax.scatter([Ma], [res.N], c="green", s=80, zorder=5,
+               label="A (tải trọng)")
+    ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
+    ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
+               label="B (giới hạn)")
+    ax.set_xlabel("M (kN·m)")
+    ax.set_ylabel("N (kN)")
+    ax.set_title(f"Biểu đồ tương tác N-M (α = {alpha_deg:.1f}°)",
+                 fontsize=12)
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    ax.text(0.5, -0.28, f"Tỉ số an toàn FS = {res.fs:.2f}",
+            transform=ax.transAxes, ha="center", fontsize=10,
+            color="darkred", weight="bold")
+    fig.subplots_adjust(bottom=0.22)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def surface_3d_image(sec, inp, res, width_in=4.0, dpi=100) -> bytes:
+    """Mặt tương tác 3D N-M2-M3."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    import numpy as np
+    from .interaction import BiaxialCapacity
+    fig = plt.figure(figsize=(width_in, width_in * 0.85))
+    ax = fig.add_subplot(111, projection="3d")
+    cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+    n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
+    N3, _ = np.meshgrid(n_vals, th_vals, indexing="ij")
+    ax.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
+                    edgecolor="none")
+    ax.scatter([res.Mx_star], [res.My_star], [res.N], c="red", s=60,
+               label="Điểm tải trọng")
+    ax.set_xlabel("M2 (kN·m)")
+    ax.set_ylabel("M3 (kN·m)")
+    ax.set_zlabel("N (kN)")
+    ax.set_title("Mặt tương tác 3D N-M2-M3", fontsize=12)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -312,9 +342,14 @@ def export_pdf(inp, res, filepath: str):
         pass
     img_m6 = []
     try:
-        png_m2, png_m3 = interaction_images(sec, inp, res, small=True)
-        img_m6 = [Image(io.BytesIO(png_m2), width=82*mm, height=70*mm),
-                  Image(io.BytesIO(png_m3), width=82*mm, height=70*mm)]
+        from .pdf_export import surface_3d_image  # noqa
+    except Exception:
+        pass
+    try:
+        png_3d = surface_3d_image(sec, inp, res)
+        png_nm = interaction_image(sec, inp, res, small=True)
+        img_m6 = [Image(io.BytesIO(png_3d), width=82*mm, height=70*mm),
+                  Image(io.BytesIO(png_nm), width=82*mm, height=70*mm)]
     except Exception:
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
@@ -339,15 +374,16 @@ def export_pdf(inp, res, filepath: str):
             S.extend(flows)
             S.append(Spacer(1, 4))
             tbl6 = Table([[
-                [img_m6[0], P("Biểu đồ N-M2", st_cap)],
-                [img_m6[1], P("Biểu đồ N-M3", st_cap)],
+                [img_m6[0], P("Mặt tương tác 3D N-M2-M3", st_cap)],
+                [img_m6[1], P("Biểu đồ N-M (góc α)", st_cap)],
             ]], colWidths=[88*mm, 88*mm])
             tbl6.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ]))
             S.append(tbl6)
-            S.append(P("Hình 2. Biểu đồ tương tác N-M2 và N-M3", st_cap))
+            S.append(P("Hình 2. Mặt tương tác 3D và biểu đồ N-M (góc α)",
+                       st_cap))
             S.append(Spacer(1, 6))
         else:
             S.extend(flows)
