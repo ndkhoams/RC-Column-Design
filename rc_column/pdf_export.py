@@ -850,22 +850,7 @@ def export_summary_pdf(sec, inp, res, filepath: str):
         conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade],
                                 inp.gamma_b)
         swg = STEEL_GRADES.get(inp.sw_steel_grade)
-        sr = check_stirrup(sec, stir_in, inp.cover)
-        for ch in sr.checks:
-            mk = "✓" if ch.ok else "✗"
-            _sw_ok_all = _sw_ok_all and ch.ok
-            extra = ""
-            if "kính đai" in ch.item:
-                extra = f" (bố trí phi{stir_in.dia:.0f})"
-            elif "Bước đai" in ch.item:
-                extra = (f" (bố trí khoảng cách a = "
-                         f"{stir_in.spacing:.0f} mm)")
-            tm = "thỏa mãn" if ch.ok else "không đạt"
-            story.append(Paragraph(
-                f"{mk} {ch.item}: {ch.required} (có {ch.provided})"
-                f"{extra} — {tm}", st_b))
-
-        # Bảng chi tiết 2 phương
+        # Bảng chi tiết 2 phương (bỏ check cấu tạo)
         cols = {}
         for Q, lbl, b_w, h_dim in (
                 (inp.Q2, "2", inp.cx, inp.cy),
@@ -884,7 +869,10 @@ def export_summary_pdf(sec, inp, res, filepath: str):
 
         tdata = [[_pc("Thông số", True), _pc("Phương 2", True),
                   _pc("Phương 3", True)]]
+        _sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
+                   f"a{stir_in.spacing:.0f}")
         _rows = [
+            ("Thép đai bố trí", _sw_txt, _sw_txt),
             ("Q (kN)", f"{cols['2']['Q']:.1f}", f"{cols['3']['Q']:.1f}"),
             ("b × h0 (mm)",
              f"{cols['2']['b']:.0f} × {cols['2']['h0']:.0f}",
@@ -1297,12 +1285,16 @@ def export_summary_pdf(sec, inp, res, filepath: str):
     story.append(Paragraph(
         f"• Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) &nbsp;&nbsp; "
         f"<b>D/C = OA/OB = {res.dc:.3f} → {ok_txt}</b>", st_b))
+    st_b_blue = ParagraphStyle("bb", parent=st_b,
+                               textColor=HexColor("#2563EB"))
+    st_b_orange = ParagraphStyle("bo", parent=st_b,
+                                 textColor=HexColor("#EA580C"))
     story.append(Paragraph(
         f"• A (điểm tải): N = {res.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
-        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b))
+        f"(M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", st_b_blue))
     story.append(Paragraph(
         f"• B (điểm giới hạn): Nu = {res.BN:+.1f} kN, Mα,u = {Mb:.1f} kN·m "
-        f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b))
+        f"(M2u = {res.Bx:.1f}, M3u = {res.By:.1f})", st_b_orange))
     story.append(Spacer(1, 2))
 
     # ===== Kiểm tra thép đai =====
