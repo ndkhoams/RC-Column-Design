@@ -1865,23 +1865,10 @@ class App(tk.Tk):
                 qsw = swg.Rsw * Asw / stir_in.spacing
                 cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh)
 
-            # Header cấu tạo
-            hdr = tk.Frame(parent, bg="white")
-            hdr.pack(fill=tk.X, padx=8, pady=(4, 2))
-            for ch in sr.checks:
-                mark = "✓" if ch.ok else "✗"
-                extra = ""
-                if "kính đai" in ch.item:
-                    extra = f" (bố trí phi{stir_in.dia:.0f})"
-                elif "Bước đai" in ch.item:
-                    extra = (f" (bố trí khoảng cách a = "
-                             f"{stir_in.spacing:.0f} mm)")
-                tm = "thỏa mãn" if ch.ok else "không đạt"
-                tk.Label(hdr, text=f"{mark} {ch.item}: {ch.required} "
-                                  f"(có {ch.provided}){extra} — {tm}",
-                         font=("", 9), fg="#1F2937", bg="white",
-                         anchor="w", justify=tk.LEFT).pack(
-                             fill=tk.X, pady=1)
+            # Title rõ
+            tk.Label(parent, text="Kiểm tra thép đai",
+                     font=("", 11, "bold"), bg="white", fg="#111827",
+                     anchor="w").pack(fill=tk.X, padx=8, pady=(4, 2))
 
             # Bảng Phương 2 | Phương 3
             tf = tk.Frame(parent, bg="white")
@@ -1892,7 +1879,10 @@ class App(tk.Tk):
                          fg="#111827", borderwidth=1, relief="solid",
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=1 if j else 2)
+            sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
+                        f"a{stir_in.spacing:.0f}")
             rows = [
+                ("Thép đai bố trí", sw_txt, sw_txt),
                 ("Q (kN)",
                  f"{cols['2']['Q']:.1f}", f"{cols['3']['Q']:.1f}"),
                 ("b × h0 (mm)",
@@ -1918,7 +1908,6 @@ class App(tk.Tk):
                  f"{cols['2']['sh'].Qcap2:.1f}",
                  f"{cols['3']['sh'].Qcap2:.1f}"),
             ]
-            ok_all = all(ch.ok for ch in sr.checks)
             for i, (a, b, c) in enumerate(rows):
                 bg = "#F9FAFB" if i % 2 else "white"
                 for j, t in enumerate((a, b, c)):
@@ -1928,10 +1917,8 @@ class App(tk.Tk):
                              padx=6, pady=2, anchor="w" if j == 0
                              else "center").grid(row=i + 1, column=j,
                                                  sticky="nsew")
-            # Đánh dấu ĐK
-            for lbl in ("2", "3"):
-                sh = cols[lbl]["sh"]
-                ok_all = ok_all and sh.ok
+            # Kết luận từ chịu cắt
+            ok_all = all(cols[lbl]["sh"].ok for lbl in ("2", "3"))
             # Kết luận
             kl = "ĐẠT" if ok_all else "KHÔNG ĐẠT"
             fgk = "#065F46" if ok_all else "#991B1B"
