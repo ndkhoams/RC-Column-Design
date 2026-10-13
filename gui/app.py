@@ -258,7 +258,8 @@ class App(tk.Tk):
         self.cb_kind = ttk.Combobox(f, values=["Chữ nhật", "Tròn"],
                                     state="readonly", width=18)
         self.cb_kind.set("Chữ nhật")
-        self.cb_kind.bind("<<ComboboxSelected>>", lambda e: self._refresh_rebar())
+        self.cb_kind.bind("<<ComboboxSelected>>",
+                          lambda e: self._refresh_rebar_panel())
         self._row(f, "Loại tiết diện", self.cb_kind, 0)
         self.en_cx = ttk.Entry(f, width=18); self.en_cx.insert(0, "400")
         self._row(f, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
@@ -267,35 +268,222 @@ class App(tk.Tk):
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
-    # ---- 3. Bố trí cốt thép dọc ----
+    # ---- 3. Bố trí cốt thép dọc (format VietconSoft) ----
+    DIAS = ["10", "12", "14", "16", "18", "20", "22", "25", "28", "32"]
+
     def _sec_rebar(self):
         f = self._frame("3. Bố trí cốt thép dọc")
-        self.en_dia = ttk.Entry(f, width=18); self.en_dia.insert(0, "20")
-        self._row(f, "Đường kính (mm)", self.en_dia, 0)
-        self.en_nx = ttk.Entry(f, width=18); self.en_nx.insert(0, "3")
-        self._row(f, "Số thanh mỗi cạnh X", self.en_nx, 1)
-        self.en_ny = ttk.Entry(f, width=18); self.en_ny.insert(0, "3")
-        self._row(f, "Số thanh mỗi cạnh Y (tròn: tổng số)", self.en_ny, 2)
-        self.en_cover = ttk.Entry(f, width=18); self.en_cover.insert(0, "30")
-        self._row(f, "Lớp bê tông bảo vệ (mm)", self.en_cover, 3)
-        # Cốt thép đai (TCVN 5574:2018 10.3.4)
+        DIAS = self.DIAS
+
+        # ===== Panel cho tiết diện chữ nhật =====
+        self.rebar_rect = ttk.Frame(f)
+        self.rebar_rect.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
+        rr = self.rebar_rect
+        r = 0
+        self.sp_cover = ttk.Spinbox(rr, from_=15, to=100, width=8)
+        self.sp_cover.set("30")
+        self._row(rr, "Lớp bê tông bảo vệ cốt dọc c (mm)", self.sp_cover, r)
+        r += 1
+        self.cb_corner_dia = ttk.Combobox(rr, values=DIAS, state="readonly",
+                                          width=8)
+        self.cb_corner_dia.set("20")
+        self._row(rr, "4 thanh thép góc", self.cb_corner_dia, r)
+        r += 1
+        # Thép cạnh t2: số thanh + đường kính
+        fr2 = ttk.Frame(rr)
+        self.sp_e2n = ttk.Spinbox(fr2, from_=0, to=20, width=5)
+        self.sp_e2n.set("3")
+        self.cb_e2d = ttk.Combobox(fr2, values=DIAS, state="readonly",
+                                   width=5)
+        self.cb_e2d.set("20")
+        self.sp_e2n.pack(side=tk.LEFT)
+        ttk.Label(fr2, text="thanh/mặt – d").pack(side=tk.LEFT, padx=2)
+        self.cb_e2d.pack(side=tk.LEFT)
+        self._row(rr, "Thép cạnh t2 (2 mặt trái/phải)", fr2, r)
+        r += 1
+        # Thép cạnh t3
+        fr3 = ttk.Frame(rr)
+        self.sp_e3n = ttk.Spinbox(fr3, from_=0, to=20, width=5)
+        self.sp_e3n.set("3")
+        self.cb_e3d = ttk.Combobox(fr3, values=DIAS, state="readonly",
+                                   width=5)
+        self.cb_e3d.set("20")
+        self.sp_e3n.pack(side=tk.LEFT)
+        ttk.Label(fr3, text="thanh/mặt – d").pack(side=tk.LEFT, padx=2)
+        self.cb_e3d.pack(side=tk.LEFT)
+        self._row(rr, "Thép cạnh t3 (2 mặt trên/dưới)", fr3, r)
+        r += 1
+        # Toggle 2 lớp thép + badge "Nâng cao"
+        tog = ttk.Frame(rr)
+        self.var_two_layer = tk.BooleanVar(value=False)
+        ttk.Checkbutton(tog, text="Bố trí 2 lớp thép",
+                        variable=self.var_two_layer,
+                        command=self._toggle_two_layer).pack(side=tk.LEFT)
+        tk.Label(tog, text="Nâng cao", bg="#dcfce7", fg="#15803d",
+                 font=("", 8, "bold"), padx=6, pady=2).pack(side=tk.LEFT,
+                                                           padx=6)
+        tog.grid(row=r, column=0, columnspan=2, sticky=tk.W, padx=4,
+                 pady=(6, 2))
+        r += 1
+        # Panel lớp 2 (ẩn/hiện theo toggle)
+        self.l2_panel = ttk.LabelFrame(rr, text="Lớp thép thứ 2", padding=6)
+        self.l2_panel.grid(row=r, column=0, columnspan=2, sticky=tk.EW,
+                           padx=4, pady=4)
+        r += 1
+        seg = ttk.Frame(self.l2_panel)
+        seg.pack(fill=tk.X, pady=(0, 6))
+        self.var_l2mode = tk.StringVar(value="perimeter")
+        self.btn_seg = {}
+        for key, txt in (("perimeter", "Chu vi"),
+                         ("concentrated", "Tập trung"),
+                         ("bundled", "Ghép bó / đôi")):
+            b = tk.Button(seg, text=txt, font=("", 9), padx=8, pady=4,
+                          relief=tk.RAISED, bd=1,
+                          command=lambda k=key: self._set_l2mode(k))
+            b.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+            self.btn_seg[key] = b
+        self._seg_default_bg = self.btn_seg["perimeter"].cget("bg")
+        self._seg_default_fg = self.btn_seg["perimeter"].cget("fg")
+        # --- Chu vi ---
+        self.fr_perimeter = ttk.Frame(self.l2_panel)
+        self.cb_l2_t2d = ttk.Combobox(self.fr_perimeter, values=DIAS,
+                                      state="readonly", width=8)
+        self.cb_l2_t2d.set("20")
+        self._row(self.fr_perimeter, "Thép lớp 2 cạnh t2 — d",
+                  self.cb_l2_t2d, 0)
+        self.cb_l2_t3d = ttk.Combobox(self.fr_perimeter, values=DIAS,
+                                      state="readonly", width=8)
+        self.cb_l2_t3d.set("20")
+        self._row(self.fr_perimeter, "Thép lớp 2 cạnh t3 — d",
+                  self.cb_l2_t3d, 1)
+        self.l2_perim_note = tk.StringVar(value="")
+        ttk.Label(self.fr_perimeter, textvariable=self.l2_perim_note,
+                  foreground="gray", font=("", 8)).grid(
+                      row=2, column=0, columnspan=2, sticky=tk.W,
+                      padx=4, pady=2)
+        # --- Tập trung ---
+        self.fr_conc = ttk.Frame(self.l2_panel)
+        self.en_l2_s = ttk.Entry(self.fr_conc, width=10)
+        self.en_l2_s.insert(0, "30")
+        self._row(self.fr_conc, "Khe hở giữa 2 lớp s (mm)", self.en_l2_s,
+                  0)
+        self.cb_l2_side = ttk.Combobox(
+            self.fr_conc, values=["Cạnh t2 (trái/phải)", "Cạnh t3 (trên/dưới)"],
+            state="readonly", width=16)
+        self.cb_l2_side.set("Cạnh t2 (trái/phải)")
+        self._row(self.fr_conc, "Mặt bố trí", self.cb_l2_side, 1)
+        self.sp_l2_count = ttk.Spinbox(self.fr_conc, from_=1, to=30,
+                                       width=10)
+        self.sp_l2_count.set("5")
+        self._row(self.fr_conc, "Số thanh mỗi mặt", self.sp_l2_count, 2)
+        self.cb_l2_dia = ttk.Combobox(self.fr_conc, values=DIAS,
+                                      state="readonly", width=10)
+        self.cb_l2_dia.set("25")
+        self._row(self.fr_conc, "Đường kính", self.cb_l2_dia, 3)
+        # --- Ghép bó / đôi ---
+        self.fr_bund = ttk.Frame(self.l2_panel)
+        self.cb_bundle_pos = ttk.Combobox(
+            self.fr_bund, values=["Lớp trong", "Cùng lớp ngoài"],
+            state="readonly", width=14)
+        self.cb_bundle_pos.set("Lớp trong")
+        self._row(self.fr_bund, "Vị trí bó", self.cb_bundle_pos, 0)
+        self.sp_bundle_size = ttk.Spinbox(self.fr_bund, from_=1, to=4,
+                                         width=10)
+        self.sp_bundle_size.set("2")
+        self._row(self.fr_bund, "Số thanh mỗi bó tại cạnh",
+                  self.sp_bundle_size, 1)
+        self.sp_bundle_corner = ttk.Spinbox(self.fr_bund, from_=1, to=4,
+                                           width=10)
+        self.sp_bundle_corner.set("2")
+        self._row(self.fr_bund, "Số thanh mỗi bó tại góc",
+                  self.sp_bundle_corner, 2)
+        self.en_bundle_gap = ttk.Entry(self.fr_bund, width=10)
+        self.en_bundle_gap.insert(0, "0")
+        self._row(self.fr_bund, "Khe hở trong bó (mm)",
+                  self.en_bundle_gap, 3)
+
+        # ===== Panel cho tiết diện tròn =====
+        self.rebar_circ = ttk.Frame(f)
+        self.rebar_circ.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
+        self.cb_cdia = ttk.Combobox(self.rebar_circ, values=DIAS,
+                                    state="readonly", width=10)
+        self.cb_cdia.set("20")
+        self._row(self.rebar_circ, "Đường kính (mm)", self.cb_cdia, 0)
+        self.sp_cnbars = ttk.Spinbox(self.rebar_circ, from_=4, to=40,
+                                     width=10)
+        self.sp_cnbars.set("8")
+        self._row(self.rebar_circ, "Tổng số thanh", self.sp_cnbars, 1)
+        self.sp_ccover = ttk.Spinbox(self.rebar_circ, from_=15, to=100,
+                                     width=10)
+        self.sp_ccover.set("30")
+        self._row(self.rebar_circ, "Lớp bê tông bảo vệ c (mm)",
+                  self.sp_ccover, 2)
+
+        # ===== Cốt thép đai (giữ nguyên) =====
         self.en_sw_dia = ttk.Entry(f, width=18); self.en_sw_dia.insert(0, "8")
-        self._row(f, "Đai: đường kính (mm)", self.en_sw_dia, 4)
+        self._row(f, "Đai: đường kính (mm)", self.en_sw_dia, 1)
         self.en_sw_s = ttk.Entry(f, width=18); self.en_sw_s.insert(0, "200")
-        self._row(f, "Đai: bước đai s (mm)", self.en_sw_s, 5)
+        self._row(f, "Đai: bước đai s (mm)", self.en_sw_s, 2)
         self.en_sw_legs = ttk.Entry(f, width=18); self.en_sw_legs.insert(0, "2")
-        self._row(f, "Đai: số nhánh", self.en_sw_legs, 6)
-        for w in (self.en_dia, self.en_nx, self.en_ny, self.en_cover):
-            w.bind("<FocusOut>", lambda e: self._refresh_rebar())
+        self._row(f, "Đai: số nhánh", self.en_sw_legs, 3)
         self.rebar_info = tk.StringVar(value="")
         ttk.Label(f, textvariable=self.rebar_info, font=("", 10),
-                  justify=tk.LEFT).grid(row=7, column=0, columnspan=2,
+                  justify=tk.LEFT).grid(row=4, column=0, columnspan=2,
                                         padx=4, pady=4, sticky=tk.W)
+        # Bind refresh
+        for w in (self.sp_cover, self.sp_e2n, self.sp_e3n, self.en_l2_s,
+                  self.sp_l2_count, self.en_bundle_gap, self.sp_cnbars,
+                  self.sp_ccover, self.sp_bundle_size, self.sp_bundle_corner):
+            w.bind("<FocusOut>", lambda e: self._refresh_rebar())
+            w.bind("<Return>", lambda e: self._refresh_rebar())
+        for w in (self.cb_corner_dia, self.cb_e2d, self.cb_e3d,
+                  self.cb_l2_t2d, self.cb_l2_t3d, self.cb_l2_side,
+                  self.cb_l2_dia, self.cb_bundle_pos, self.cb_cdia):
+            w.bind("<<ComboboxSelected>>", lambda e: self._refresh_rebar())
+        self._toggle_two_layer()
+        self._set_l2mode("perimeter")
+        self._refresh_rebar_panel()
+
+    def _toggle_two_layer(self):
+        """Ẩn/hiện panel lớp 2."""
+        if self.var_two_layer.get():
+            self.l2_panel.grid()
+        else:
+            self.l2_panel.grid_remove()
+        self._refresh_rebar()
+
+    def _set_l2mode(self, mode):
+        """Chọn chế độ lớp 2 + highlight nút segmented."""
+        self.var_l2mode.set(mode)
+        for key, b in self.btn_seg.items():
+            if key == mode:
+                b.config(bg="#15803d", fg="white", relief=tk.SUNKEN)
+            else:
+                b.config(bg=self._seg_default_bg,
+                         fg=self._seg_default_fg, relief=tk.RAISED)
+        self.fr_perimeter.pack_forget()
+        self.fr_conc.pack_forget()
+        self.fr_bund.pack_forget()
+        {"perimeter": self.fr_perimeter,
+         "concentrated": self.fr_conc,
+         "bundled": self.fr_bund}[mode].pack(fill=tk.X)
+        self._refresh_rebar()
+
+    def _refresh_rebar_panel(self):
+        """Hiện panel chữ nhật/tròn theo loại tiết diện."""
+        is_rect = self.cb_kind.get() == "Chữ nhật"
+        if is_rect:
+            self.rebar_rect.grid()
+            self.rebar_circ.grid_remove()
+        else:
+            self.rebar_rect.grid_remove()
+            self.rebar_circ.grid()
+        self._refresh_rebar()
 
     # ---- 4. Chiều dài tính toán ----
     def _sec_stability(self):
         f = self._frame("4. Chiều dài tính toán")
-        hdr = ["Tham số", "Trục 2", "Trục 3"]
+        hdr = ["Tham số", "Phương 2", "Phương 3"]
         for c, h in enumerate(hdr):
             ttk.Label(f, text=h, font=("", 9, "bold")).grid(
                 row=0, column=c, padx=4, pady=2, sticky=tk.W)
@@ -483,6 +671,30 @@ class App(tk.Tk):
         """Dựng input nháp (chưa cần nội lực) để vẽ sơ đồ & thống kê thép."""
         is_rect = self.cb_kind.get() == "Chữ nhật"
         model = "3line" if self.cb_model.get().startswith("3") else "2line"
+
+        def _gi(sp, default=0):
+            try:
+                return int(float(sp.get()))
+            except Exception:
+                return default
+
+        def _gd(cb, default=20.0):
+            try:
+                return float(cb.get())
+            except Exception:
+                return default
+
+        if is_rect:
+            e2n = max(0, _gi(self.sp_e2n, 3)); e2d = _gd(self.cb_e2d, 20.0)
+            e3n = max(0, _gi(self.sp_e3n, 3)); e3d = _gd(self.cb_e3d, 20.0)
+            cover = self._f(self.sp_cover, 30.0)
+            corner_dia = _gd(self.cb_corner_dia, 20.0)
+        else:
+            e2n, e2d, e3n, e3d = 0, 20.0, 0, 20.0
+            cover = self._f(self.sp_ccover, 30.0)
+            corner_dia = _gd(self.cb_cdia, 20.0)
+        l2_side_txt = self.cb_l2_side.get()
+        bundle_txt = self.cb_bundle_pos.get()
         return ColumnInput(
             concrete_grade=self.cb_conc.get(), gamma_b=self._f(self.en_gb, 0.85),
             steel_grade=self.cb_steel.get(),
@@ -491,11 +703,25 @@ class App(tk.Tk):
             concrete_model=model,
             section_type="rect" if is_rect else "circle",
             cx=self._f(self.en_cx, 400.0), cy=self._f(self.en_cy, 400.0),
-            bar_dia=self._f(self.en_dia, 20.0),
-            nx=max(2, int(self._f(self.en_nx, 3))),
-            ny=max(2, int(self._f(self.en_ny, 3))),
-            n_bars=max(4, int(self._f(self.en_ny, 8))),
-            cover=self._f(self.en_cover, 30.0),
+            bar_dia=_gd(self.cb_cdia, 20.0),
+            nx=e3n + 2, ny=e2n + 2,  # giữ tương thích (số thanh mỗi cạnh kể cả góc)
+            n_bars=max(4, _gi(self.sp_cnbars, 8)),
+            cover=cover,
+            corner_dia=corner_dia,
+            edge_t2_count=e2n, edge_t2_dia=e2d,
+            edge_t3_count=e3n, edge_t3_dia=e3d,
+            two_layer=bool(self.var_two_layer.get()),
+            layer2_mode=self.var_l2mode.get(),
+            l2_t2_dia=_gd(self.cb_l2_t2d, 20.0),
+            l2_t3_dia=_gd(self.cb_l2_t3d, 20.0),
+            l2_s_layer=self._f(self.en_l2_s, 30.0),
+            l2_side="t2" if l2_side_txt.startswith("Cạnh t2") else "t3",
+            l2_count=max(1, _gi(self.sp_l2_count, 5)),
+            l2_dia=_gd(self.cb_l2_dia, 25.0),
+            bundle_pos="inner" if bundle_txt.startswith("Lớp trong") else "outer",
+            bundle_size=max(1, _gi(self.sp_bundle_size, 2)),
+            bundle_corner=max(1, _gi(self.sp_bundle_corner, 2)),
+            bundle_gap=self._f(self.en_bundle_gap, 0.0),
             sw_dia=self._f(self.en_sw_dia, 8.0),
             sw_spacing=self._f(self.en_sw_s, 200.0),
             sw_legs=max(2, int(self._f(self.en_sw_legs, 2))),
@@ -509,13 +735,20 @@ class App(tk.Tk):
         except Exception:
             return
         n = len(sec.rebars)
-        dias = sorted(set(r.dia for r in sec.rebars))
-        dia_txt = "/".join(f"{d:.0f}" for d in dias)
+        # Gom theo (layer, dia): "16d25 + 8d20"
+        from collections import Counter
+        cnt = Counter((r.layer, r.dia) for r in sec.rebars)
+        parts = []
+        for (layer, dia) in sorted(cnt, key=lambda k: (k[0], -k[1])):
+            parts.append(f"{cnt[(layer, dia)]}d{dia:.0f}")
+        compo = " + ".join(parts)
         ccx, ccy = clear_spacing(sec)
         # khoảng cách tim = khoảng hở + đường kính trung bình
+        dias = sorted(set(r.dia for r in sec.rebars))
         d_avg = sum(dias) / len(dias) if dias else 0
         lines = [
-            f"{n} thanh d{dia_txt}",
+            f"{n} thanh",
+            compo,
             f"Tổng As {sec.steel_area:.0f} mm²",
             f"Hàm lượng μ {sec.reinforcement_ratio * 100:.2f}%",
         ]
@@ -525,6 +758,14 @@ class App(tk.Tk):
             lines.append(f"Khoảng cách tim: t3 = {ccx + d_avg:.1f} mm, "
                          f"t2 = {ccy + d_avg:.1f} mm")
         self.rebar_info.set("\n".join(lines))
+        # Ghi chú số thanh lớp 2 (chu vi: tự match lớp 1)
+        try:
+            self.l2_perim_note.set(
+                f"Số thanh tự động = lớp 1 "
+                f"(t2: {inp.edge_t2_count}/mặt, t3: {inp.edge_t3_count}/mặt, "
+                f"góc: 4)")
+        except Exception:
+            pass
 
     def collect(self) -> ColumnInput:
         inp = self._draft_input()
@@ -855,10 +1096,29 @@ class App(tk.Tk):
             # 2. Tiết diện
             "kind": self.cb_kind.get(),
             "cx": ev(self.en_cx), "cy": ev(self.en_cy),
-            "cover": ev(self.en_cover),
-            # 3. Cốt thép
-            "dia": ev(self.en_dia), "nx": ev(self.en_nx),
-            "ny": ev(self.en_ny),
+            "cover": self.sp_cover.get(),
+            # 3. Cốt thép dọc (kiểu VietconSoft)
+            "corner_dia": self.cb_corner_dia.get(),
+            "e2n": self.sp_e2n.get(), "e2d": self.cb_e2d.get(),
+            "e3n": self.sp_e3n.get(), "e3d": self.cb_e3d.get(),
+            "two_layer": bv(self.var_two_layer),
+            "l2mode": self.var_l2mode.get(),
+            "l2_t2d": self.cb_l2_t2d.get(), "l2_t3d": self.cb_l2_t3d.get(),
+            "l2_s": ev(self.en_l2_s), "l2_side": self.cb_l2_side.get(),
+            "l2_count": self.sp_l2_count.get(),
+            "l2_dia": self.cb_l2_dia.get(),
+            "bundle_pos": self.cb_bundle_pos.get(),
+            "bundle_size": self.sp_bundle_size.get(),
+            "bundle_corner": self.sp_bundle_corner.get(),
+            "bundle_gap": ev(self.en_bundle_gap),
+            # tròn
+            "cdia": self.cb_cdia.get(), "cnbars": self.sp_cnbars.get(),
+            "ccover": self.sp_ccover.get(),
+            # tương thích cũ
+            "dia": self.cb_corner_dia.get(),
+            "nx": str(int(float(self.sp_e3n.get() or 0)) + 2),
+            "ny": str(int(float(self.sp_e2n.get() or 0)) + 2),
+            # đai
             "sw_dia": ev(self.en_sw_dia), "sw_s": ev(self.en_sw_s),
             "sw_legs": ev(self.en_sw_legs),
             # 4. Chiều dài tính toán
@@ -897,9 +1157,30 @@ class App(tk.Tk):
             self.cb_model.set(d.get("model", self.cb_model.get()))
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
-            se(self.en_cover, d.get("cover", "30"))
-            se(self.en_dia, d.get("dia", "20")); se(self.en_nx, d.get("nx", "3"))
-            se(self.en_ny, d.get("ny", "3"))
+            self.sp_cover.set(d.get("cover", "30"))
+            # Cốt thép dọc kiểu mới (fallback về field cũ nếu file cũ)
+            self.cb_corner_dia.set(d.get("corner_dia", d.get("dia", "20")))
+            self.sp_e2n.set(d.get("e2n", str(max(0, int(d.get("ny", 3)) - 2))))
+            self.cb_e2d.set(d.get("e2d", d.get("dia", "20")))
+            self.sp_e3n.set(d.get("e3n", str(max(0, int(d.get("nx", 3)) - 2))))
+            self.cb_e3d.set(d.get("e3d", d.get("dia", "20")))
+            self.var_two_layer.set(bool(d.get("two_layer", False)))
+            self._set_l2mode(d.get("l2mode", "perimeter"))
+            self.cb_l2_t2d.set(d.get("l2_t2d", "20"))
+            self.cb_l2_t3d.set(d.get("l2_t3d", "20"))
+            se(self.en_l2_s, d.get("l2_s", "30"))
+            self.cb_l2_side.set(d.get("l2_side", "Cạnh t2 (trái/phải)"))
+            self.sp_l2_count.set(d.get("l2_count", "5"))
+            self.cb_l2_dia.set(d.get("l2_dia", "25"))
+            self.cb_bundle_pos.set(d.get("bundle_pos", "Lớp trong"))
+            self.sp_bundle_size.set(d.get("bundle_size", "2"))
+            self.sp_bundle_corner.set(d.get("bundle_corner", "2"))
+            se(self.en_bundle_gap, d.get("bundle_gap", "0"))
+            self.cb_cdia.set(d.get("cdia", d.get("dia", "20")))
+            self.sp_cnbars.set(d.get("cnbars", "8"))
+            self.sp_ccover.set(d.get("ccover", d.get("cover", "30")))
+            self._toggle_two_layer()
+            self._refresh_rebar_panel()
             se(self.en_sw_dia, d.get("sw_dia", "8"))
             se(self.en_sw_s, d.get("sw_s", "200"))
             se(self.en_sw_legs, d.get("sw_legs", "2"))
@@ -1333,8 +1614,6 @@ class App(tk.Tk):
         # Hàng 1: Sơ đồ mặt cắt | Biểu đồ 3D
         a1 = self.fig.add_subplot(gs[0, 0])
         draw_section_ax(a1, sec)
-        a1.set_title("Sơ đồ mặt cắt", fontsize=11)
-        a1.grid(True, alpha=0.3)
         a2 = self.fig.add_subplot(gs[0, 1], projection="3d")
         _plot_3d(a2)
         # Hàng 2: Biểu đồ N-M | Biểu đồ M2-M3 tại N
