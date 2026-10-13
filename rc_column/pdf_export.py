@@ -85,7 +85,7 @@ def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     if small:
-        width_in, dpi = 2.0, 200
+        width_in, dpi = 1.6, 200
     # Figure theo đúng tỉ lệ t2/t3 (cao = rộng × cy/cx)
     ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
     fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
@@ -396,6 +396,7 @@ def export_pdf(inp, res, filepath: str, batch_rows=None):
                 ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#000000")),
                 ("BACKGROUND", (0, 0), (-1, 0), HexColor("#e2e8f0")),
                 ("FONTNAME", (0, 0), (-1, 0), "VN-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "VN"),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
