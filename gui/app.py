@@ -755,7 +755,14 @@ class App(tk.Tk):
         # hiện thuyết minh của tổ hợp nguy hiểm nhất
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
-        inp_w.Q2, inp_w.Q3 = worst_f.Q2, worst_f.Q3
+        # Lực cắt: lấy từ combo có |Q| lớn nhất (độc lập với combo N-M)
+        f_q2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
+        f_q3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
+        inp_w.Q2, inp_w.Q3 = f_q2.Q2, f_q3.Q3
+        shear_info = {
+            "q2": {"case": f_q2.case, "station": f_q2.station, "Q": f_q2.Q2},
+            "q3": {"case": f_q3.case, "station": f_q3.station, "Q": f_q3.Q3},
+        }
         res_w = check_column(inp_w, n_angles=24)
         sec_w = build_section(inp_w)
         batch = getattr(self, "_batch_rows", None)
@@ -766,11 +773,13 @@ class App(tk.Tk):
                      "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My}
         self._render_report_sections(
             generate_report_sections(inp_w, res_w, batch_rows=batch,
-                                     case_info=case_info),
+                                     case_info=case_info,
+                                     shear_info=shear_info),
             sec_w, inp_w, res_w)
         self._pdf_inp, self._pdf_res = inp_w, res_w
         self._pdf_batch = batch
         self._pdf_case = case_info
+        self._pdf_shear = shear_info
         # cập nhật cả tab Tóm tắt + biểu đồ cho tổ hợp nguy hiểm nhất
         self._show_summary(sec_w, inp_w, res_w,
                            prefix=f"Tổ hợp {worst_f.case}@{worst_f.station:.2f}m: ")
@@ -802,9 +811,11 @@ class App(tk.Tk):
         if not self.var_export_table.get():
             batch = None
         case_info = getattr(self, "_pdf_case", None)
+        shear_info = getattr(self, "_pdf_shear", None)
         self._render_report_sections(
             generate_report_sections(inp, res, batch_rows=batch,
-                                     case_info=case_info),
+                                     case_info=case_info,
+                                     shear_info=shear_info),
             sec, inp, res)
         self._pdf_batch = batch
 
@@ -825,7 +836,8 @@ class App(tk.Tk):
             from rc_column.pdf_export import export_pdf
             export_pdf(self._pdf_inp, self._pdf_res, path,
                        batch_rows=getattr(self, "_pdf_batch", None),
-                       case_info=getattr(self, "_pdf_case", None))
+                       case_info=getattr(self, "_pdf_case", None),
+                       shear_info=getattr(self, "_pdf_shear", None))
             messagebox.showinfo("Xuất PDF", f"Đã lưu: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi xuất PDF", str(ex))
