@@ -63,8 +63,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        dot_s = max(4.0, 0.05 * dia * dia) if small_dots else \
-            max(12.0, 0.15 * dia * dia)
+        # Cỡ chấm bằng chấm legend diễn giải
+        dot_s = (max(5.0, dia * 0.32)) ** 2
         # Co vào trong 4% để không chạm viền
         ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
                    s=dot_s, c=color, zorder=4,
@@ -666,7 +666,18 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     # Dùng nguyên hình từ app nếu có (đúng ý đồ hiển thị)
     if sec_img_path:
         from reportlab.platypus import Image as _RLImage
-        img_sec = _RLImage(sec_img_path, width=60 * mm, height=48 * mm)
+        from PIL import Image as _PILImage
+        _pil = _PILImage.open(sec_img_path)
+        _w, _h = _pil.size
+        _ratio = _w / _h
+        # Scale vừa khung 60x48mm, giữ đúng tỉ lệ
+        if 60 / 48 > _ratio:
+            _hh = 48 * mm
+            _ww = _hh * _ratio
+        else:
+            _ww = 60 * mm
+            _hh = _ww / _ratio
+        img_sec = _RLImage(sec_img_path, width=_ww, height=_hh)
     else:
         fig1, ax1 = plt.subplots(figsize=(3.9, 3.1))
         draw_section_ax(ax1, sec, show_dims=True, show_stats=False)
