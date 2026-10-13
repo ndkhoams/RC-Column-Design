@@ -7,13 +7,10 @@ from typing import List, Tuple
 
 # --- Font hỗ trợ tiếng Việt ---
 def _find_font():
-    """Tìm font TTF hỗ trợ tiếng Việt: ưu tiên Arial (Windows), rồi DejaVu."""
-    candidates = [
-        "C:/Windows/Fonts/arial.ttf",
-        "C:/Windows/Fonts/Arial.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
-    # thêm font từ matplotlib
+    """Tìm font TTF hỗ trợ tiếng Việt và glyph ₂₃.
+    Ưu tiên DejaVu Sans của matplotlib (chắc chắn có ₂₃)."""
+    candidates = []
+    # DejaVu từ matplotlib trước (có đủ glyph ₂₃)
     try:
         import matplotlib
         mpl_font = os.path.join(os.path.dirname(matplotlib.__file__),
@@ -21,16 +18,18 @@ def _find_font():
         candidates.append(mpl_font)
     except Exception:
         pass
+    candidates += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/Arial.ttf",
+    ]
     for p in candidates:
         if os.path.exists(p):
             return p
     return None
 
 def _find_font_bold():
-    cands = [
-        "C:/Windows/Fonts/arialbd.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    ]
+    cands = []
     try:
         import matplotlib
         cands.append(os.path.join(os.path.dirname(matplotlib.__file__),
@@ -38,6 +37,10 @@ def _find_font_bold():
                                   "DejaVuSans-Bold.ttf"))
     except Exception:
         pass
+    cands += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+    ]
     for p in cands:
         if os.path.exists(p):
             return p
@@ -263,12 +266,6 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
 
 
 # --- Xuất PDF ---
-def _fix_sub(text: str) -> str:
-    """Chuyển Unicode subscript ₂₃ sang thẻ <sub> của ReportLab
-    (font PDF không có glyph ₂₃)."""
-    return text.replace("₂", "<sub>2</sub>").replace("₃", "<sub>3</sub>")
-
-
 def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
                        st_badge_ok, st_badge_ng):
     """Chuyển segments của 1 mục thành list flowables."""
@@ -299,7 +296,7 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
         elif "title" in tags:
             continue
         else:
-            buf_lines.append(_fix_sub(t.replace("\n", "<br/>")))
+            buf_lines.append(t.replace("\n", "<br/>"))
     flush()
     return out
 
