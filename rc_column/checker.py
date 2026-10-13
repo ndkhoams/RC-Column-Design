@@ -10,7 +10,8 @@ from .sections import (Section, bar_area, clear_spacing, layout_circle_bars,
                        layout_custom_bars, layout_rect_bars,
                        make_circle_section, make_rect_section)
 from .interaction import BiaxialCapacity
-from .stability import (LongTermLoads, effective_length, phi_L, slenderness)
+from .stability import (LongTermLoads, buckling_factors, eccentricities,
+                        effective_length, phi_L, slenderness)
 
 
 @dataclass
@@ -50,16 +51,35 @@ class ColumnInput:
 @dataclass
 class CheckResult:
     ok: bool
-    utilization: float
+    utilization: float       # = D/C
+    dc: float                # tỷ số D/C theo tia 3D
+    fs: float                # hệ số an toàn = 1/(D/C)
     N: float; Mx: float; My: float
+    Mx_star: float; My_star: float   # mô men đã phóng đại uốn dọc
     M_resultant: float
     M_capacity: float
+    # điểm B trên mặt tương tác
+    Bx: float; By: float; BN: float
+    lambda_max: float
     phi_L: float
     L0x: float; L0y: float
     lambda_x: float; lambda_y: float
+    # hình học
+    Ix: float; Iy: float      # mm⁴
+    ix: float; iy: float      # mm
+    Isx: float; Isy: float    # mm⁴ (cốt thép)
+    # độ lệch tâm (mm)
+    e1x: float; e1y: float; eax: float; eay: float; e0x: float; e0y: float
+    # uốn dọc
+    delta_ex: float; delta_ey: float
+    kbx: float; kby: float
+    Dx: float; Dy: float
+    Ncrx: float; Ncry: float
+    etax: float; etay: float
     steel_area: float
     reinforcement_ratio: float
     clear_cx: float; clear_cy: float
+    alpha_e: float            # Es/Eb
     details: List[str] = field(default_factory=list)
 
 
@@ -81,40 +101,80 @@ def build_section(inp: ColumnInput) -> Section:
     return sec
 
 
+def section_inertia(sec: Section):
+    """Ix, Iy (mm⁴), ix, iy (mm), Isx, Isy của cốt thép (mm⁴)."""
+    if sec.kind == "rect":
+        b, h = sec.cx, sec.cy
+        Ix = b * h ** 3 / 12.0
+        Iy = h * b ** 3 / 12.0
+    else:
+        r = sec.cx / 2.0
+        Ix = Iy = math.pi * r ** 4 / 4.0
+    A = sec.gross_area
+    ix = math.sqrt(Ix / A) if A > 0 else 0.0
+    iy = math.sqrt(Iy / A) if A > 0 else 0.0
+    Isx = sum(r.area * r.y ** 2 for r in sec.rebars)
+    Isy = sum(r.area * r.x ** 2 for r in sec.rebars)
+    return Ix, Iy, ix, iy, Isx, Isy
+
+
 def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
     details: List[str] = []
     sec = build_section(inp)
+    conc = sec.concrete
+    steel = sec.steel
 
+    # --- Hình học ---
+    Ix, Iy, ix, iy, Isx, Isy = section_inertia(sec)
+    alpha_e = steel.Es / conc.Eb
+
+    # --- Chiều dài tính toán & độ mảnh ---
     L0x = effective_length(inp.Lx, inp.top_x, inp.bottom_x, inp.psi_x)
     L0y = effective_length(inp.Ly, inp.top_y, inp.bottom_y, inp.psi_y)
-    lam_x = slenderness(L0x, inp.cx)
-    lam_y = slenderness(L0y, inp.cy)
-    details.append(f"L0x = {L0x:.2f} m, L0y = {L0y:.2f} m")
-    details.append(f"Độ mảnh λx = {lam_x:.1f}, λy = {lam_y:.1f}")
+    lam_x = (L0x * 1000.0) / ix if ix > 0 else float("inf")
+    lam_y = (L0y * 1000.0) / iy if iy > 0 else float("inf")
 
+    # --- Độ lệch tâm ---
+    ecc = eccentricities(inp.N, inp.Mx, inp.My, inp.Lx, inp.Ly, inp.cx, inp.cy)
+
+    # --- φL ---
     phi = phi_L(inp.N, inp.Mx, inp.My, inp.long_term)
-    details.append(f"Hệ số φL = {phi:.2f}")
 
-    # Phân tích NDM
+    # --- Uốn dọc ---
+    buck = buckling_factors(ecc.e0x, ecc.e0y, inp.cx, inp.cy, phi,
+                            conc.Eb, Ix, Iy, Isx, Isy, L0x, L0y,
+                            inp.N, inp.Mx, inp.My)
+
+    # --- NDM: D/C theo tia 3D với mô men đã phóng đại ---
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=n_angles)
-    r = cap.check(inp.N, inp.Mx, inp.My)
-    details.append(
-        f"Momen tổng hợp M = {r['M_resultant']:.1f} kN·m, "
-        f"khả năng chịu M = {r['M_capacity']:.1f} kN·m"
-    )
-    details.append(f"Hệ số sử dụng = {r['utilization']:.3f}")
+    r = cap.dc_ratio(inp.N, buck.Mx_star, buck.My_star)
+    dc = r["dc"]
+    fs_val = 1.0 / dc if dc > 1e-12 else float("inf")
+
+    Mres = math.hypot(buck.Mx_star, buck.My_star)
+    Mcap_pt = cap.moment_capacity(inp.N,
+                                  math.degrees(math.atan2(buck.My_star,
+                                                          buck.Mx_star))
+                                  if Mres > 1e-12 else 0.0)
 
     mu = sec.reinforcement_ratio
-    details.append(f"Hàm lượng cốt thép μ = {mu*100:.2f}%")
     ccx, ccy = clear_spacing(sec)
-    if math.isfinite(ccx):
-        details.append(f"Khoảng hở thông thủy: {ccx:.1f} / {ccy:.1f} mm")
+
+    details.append(f"D/C = {dc:.3f} (FS = {fs_val:.2f})")
 
     return CheckResult(
-        ok=r["ok"], utilization=r["utilization"],
+        ok=r["ok"], utilization=dc, dc=dc, fs=fs_val,
         N=inp.N, Mx=inp.Mx, My=inp.My,
-        M_resultant=r["M_resultant"], M_capacity=r["M_capacity"],
+        Mx_star=buck.Mx_star, My_star=buck.My_star,
+        M_resultant=Mres, M_capacity=Mcap_pt,
+        Bx=r["Bx"], By=r["By"], BN=r["BN"], lambda_max=r["lambda_max"],
         phi_L=phi, L0x=L0x, L0y=L0y, lambda_x=lam_x, lambda_y=lam_y,
+        Ix=Ix, Iy=Iy, ix=ix, iy=iy, Isx=Isx, Isy=Isy,
+        e1x=ecc.e1x, e1y=ecc.e1y, eax=ecc.eax, eay=ecc.eay,
+        e0x=ecc.e0x, e0y=ecc.e0y,
+        delta_ex=buck.delta_ex, delta_ey=buck.delta_ey,
+        kbx=buck.kbx, kby=buck.kby, Dx=buck.Dx, Dy=buck.Dy,
+        Ncrx=buck.Ncrx, Ncry=buck.Ncry, etax=buck.etax, etay=buck.etay,
         steel_area=sec.steel_area, reinforcement_ratio=mu,
-        clear_cx=ccx, clear_cy=ccy, details=details,
+        clear_cx=ccx, clear_cy=ccy, alpha_e=alpha_e, details=details,
     )
