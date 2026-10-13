@@ -405,10 +405,9 @@ class App(tk.Tk):
         ttk.Button(self.etabs_frame, text="📋 Paste từ Clipboard",
                    command=self.on_paste_etabs).grid(row=0, column=1,
                                                     padx=2, pady=4, sticky=tk.W)
-        ttk.Button(self.etabs_frame, text="🗑️ DELETE", width=10,
+        ttk.Button(self.etabs_frame, text="🗑️ DELETE", width=12,
                    command=self.on_delete_forces).grid(row=0, column=2,
-                                                       padx=(2, 0), pady=4, sticky=tk.E)
-        self.etabs_frame.grid_columnconfigure(2, weight=1)
+                                                       padx=2, pady=4, sticky=tk.W)
         ttk.Label(self.etabs_frame,
                   text="M2, M3 trong Excel map thẳng vào M2, M3 kiểm tra.",
                   foreground="gray", font=("", 8)).grid(
