@@ -58,16 +58,16 @@ def _get_styles():
                                     fontSize=11, textColor=HexColor(TEXT),
                                     spaceBefore=10, spaceAfter=6),
         "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
-                                     fontSize=9, textColor=HexColor(TEXT),
-                                     leading=12, spaceAfter=2),
-        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=7,
+                                     fontSize=11, textColor=HexColor(TEXT),
+                                     leading=14, spaceAfter=3),
+        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=8,
                                    textColor=HexColor(GRAY), alignment=2),
-        "formula": ParagraphStyle("formula", fontName="VN", fontSize=8,
-                                  textColor=HexColor("#374151"), leading=11,
-                                  leftIndent=6, spaceAfter=1),
-        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=9,
-                                 textColor=HexColor(TEXT), leading=12,
-                                 spaceBefore=3),
+        "formula": ParagraphStyle("formula", fontName="VN", fontSize=9.5,
+                                  textColor=HexColor("#374151"), leading=13,
+                                  leftIndent=8, spaceAfter=2),
+        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=10.5,
+                                 textColor=HexColor(TEXT), leading=14,
+                                 spaceBefore=4),
         "note": ParagraphStyle("note", fontName="VN", fontSize=7.5,
                                textColor=HexColor(GRAY), leading=10,
                                spaceBefore=4, spaceAfter=4),
@@ -97,7 +97,7 @@ def _card(P, st, title, ref, lines, result=""):
     if ref:
         t = Table([[P(title, st["card_title"]),
                     P(ref, st["card_ref"])]],
-                  colWidths=[60, 27])
+                  colWidths=[62, 27])
         t.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -117,14 +117,14 @@ def _card(P, st, title, ref, lines, result=""):
     n = len(rows)
     # Chỉ số dòng bắt đầu/kết thúc của khối công thức
     f0, f1 = 1, n - 2 if result else n - 1
-    card = Table([[r[0]] for r in rows], colWidths=[87])
+    card = Table([[r[0]] for r in rows], colWidths=[89])
     sty = [
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]
     if f1 >= f0:
         sty += [
@@ -138,7 +138,7 @@ def _card(P, st, title, ref, lines, result=""):
 def _two(P, st, c1, c2):
     """Hai card cạnh nhau, căn đỉnh."""
     from reportlab.platypus import Table, TableStyle
-    t = Table([[c1, c2]], colWidths=[93, 93])
+    t = Table([[c1, c2]], colWidths=[95, 95])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 3),
@@ -174,8 +174,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     steel = sec.steel
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
-                            leftMargin=10*mm, rightMargin=10*mm,
-                            topMargin=10*mm, bottomMargin=10*mm)
+                            leftMargin=8*mm, rightMargin=8*mm,
+                            topMargin=8*mm, bottomMargin=8*mm)
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st["title"]))
     S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
@@ -233,7 +233,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
          P(f"Biến dạng kéo giới hạn: εbt2 = 0.00015 (0.15‰)", st["formula"]),
          P(f"Biến dạng giới hạn: εs2 = {EPS_S2} (25.00‰)", st["formula"])],
     ]
-    tbl = Table([hdr] + dat, colWidths=[62, 62, 62])
+    tbl = Table([hdr] + dat, colWidths=[64, 64, 64])
     tbl.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("GRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
