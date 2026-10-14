@@ -662,25 +662,6 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
 
     # ===== Mặt cắt =====
     # Dùng nguyên hình từ app nếu có (đúng ý đồ hiển thị)
-    if sec_img_path:
-        from reportlab.platypus import Image as _RLImage
-        from PIL import Image as _PILImage
-        _pil = _PILImage.open(sec_img_path)
-        _w, _h = _pil.size
-        _ratio = _w / _h
-        # Scale vừa khung 65x65mm, giữ đúng tỉ lệ
-        if 65 / 65 > _ratio:
-            _hh = 65 * mm
-            _ww = _hh * _ratio
-        else:
-            _ww = 65 * mm
-            _hh = _ww / _ratio
-        img_sec = _RLImage(sec_img_path, width=_ww, height=_hh)
-    else:
-        fig1, ax1 = plt.subplots(figsize=(3.9, 3.1))
-        draw_section_ax(ax1, sec, show_dims=True, show_stats=False)
-        img_sec = fig_to_img(fig1, 60, 48)
-
     # Box vật liệu + thống kê (giống app)
     from collections import Counter
     n = len(sec.rebars)
@@ -760,19 +741,8 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
     _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
-    # BẢNG THỐNG NHẤT: đo chiều cao, đặt rowHeights cụ thể
-    # TEST_PUSH_0718
-    _left_top = Table(
-        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
-         [_ck_para],
-         [img_sec]],
-        colWidths=[80 * mm])
-    _left_top.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-    ]))
+    # BƯỚC 1: Đo chiều cao bảng phải
+    # MARKER_3BUOC_0725 để xác định vị trí nét dưới cùng
     _right_tbl = Table(
         [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
          [t_param]],
@@ -783,30 +753,59 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
-    _box_tbl = Table([[t_box]], colWidths=[80 * mm])
-    _box_tbl.setStyle(TableStyle([
+    _, _rh = _right_tbl.wrap(80 * mm, 1000)  # Chiều cao bảng phải
+
+    # BƯỚC 2: Đo boxes, tính vị trí đáy
+    _, _bh = t_box.wrap(75 * mm, 1000)  # Chiều cao boxes
+    _title_tbl = Table(
+        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
+         [_ck_para]],
+        colWidths=[80 * mm])
+    _, _th = _title_tbl.wrap(80 * mm, 1000)  # Chiều cao tiêu đề
+
+    # BƯỚC 3: Khoảng trống còn lại -> scale hình vào (giữ tỉ lệ)
+    _avail_h = _rh - _th - _bh - 4 * mm  # Trừ padding
+    _avail_h = max(_avail_h, 20 * mm)  # Tối thiểu 20mm
+    if sec_img_path:
+        from reportlab.platypus import Image as _RLImage
+        from PIL import Image as _PILImage
+        _pil = _PILImage.open(sec_img_path)
+        _w, _h = _pil.size
+        _ratio = _w / _h
+        # Scale vừa khoảng trống (rộng max 80mm, cao max _avail_h)
+        _max_w = 78 * mm
+        if _max_w / _avail_h > _ratio:
+            _hh = _avail_h
+            _ww = _hh * _ratio
+        else:
+            _ww = _max_w
+            _hh = _ww / _ratio
+        img_sec = _RLImage(sec_img_path, width=_ww, height=_hh)
+    else:
+        fig1, ax1 = plt.subplots(figsize=(3.9, 3.1))
+        draw_section_ax(ax1, sec, show_dims=True, show_stats=False)
+        img_sec = fig_to_img(fig1, 60, 48)
+
+    # Dựng cột trái: tiêu đề + hình (vừa khoảng trống) + boxes (đáy trùng đáy bảng)
+    _left_tbl = Table(
+        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
+         [_ck_para],
+         [img_sec],
+         [t_box]],
+        colWidths=[80 * mm])
+    _left_tbl.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("VALIGN", (0, 3), (0, 3), "BOTTOM"),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
-    # Đo chiều cao thực tế
-    _, _rh = _right_tbl.wrap(80 * mm, 1000)
-    _, _bh = _box_tbl.wrap(80 * mm, 1000)
-    _, _lth = _left_top.wrap(80 * mm, 1000)
-    # Hàng 0 cao = rh - bh, hàng 1 cao = bh
-    # Để left_top + khoảng trống = hàng 0
-    _r0h = max(_rh - _bh, _lth)
-    _outer = Table([[_left_top, _right_tbl],
-                    [_box_tbl, ""]],
-                   colWidths=[84 * mm, 84 * mm],
-                   rowHeights=[_r0h, _bh])
+    # Bảng ngoài: 2 cột cao bằng nhau (_rh)
+    _outer = Table([[_left_tbl, _right_tbl]],
+                   colWidths=[84 * mm, 84 * mm])
     _outer.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("VALIGN", (0, 1), (0, 1), "BOTTOM"),
-        ("SPAN", (1, 0), (1, 1)),
         ("BOX", (0, 0), (-1, -1), 0.6, HexColor("#D1D5DB")),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.6, HexColor("#D1D5DB")),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
