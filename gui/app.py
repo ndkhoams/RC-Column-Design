@@ -937,7 +937,8 @@ class App(tk.Tk):
         self._show_summary(sec, inp, res)
         # Thuyết minh (có format màu sắc) + nhúng hình
         self._render_report_sections(generate_report_sections(inp, res),
-                                      sec, inp, res, case_info=None)
+                                      sec, inp, res, case_info=None,
+                                      shear_info=None)
         self._pdf_inp, self._pdf_res = inp, res
 
     # ---------------- ETABS ----------------
@@ -1184,7 +1185,8 @@ class App(tk.Tk):
             generate_report_sections(inp_w, res_w, batch_rows=batch,
                                      case_info=case_info,
                                      shear_info=shear_info),
-            sec_w, inp_w, res_w, case_info=case_info)
+            sec_w, inp_w, res_w, case_info=case_info,
+            shear_info=shear_info)
         self._pdf_inp, self._pdf_res = inp_w, res_w
         self._pdf_batch = batch
         self._pdf_case = case_info
@@ -1289,7 +1291,8 @@ class App(tk.Tk):
             generate_report_sections(inp, res, batch_rows=batch,
                                      case_info=case_info,
                                      shear_info=shear_info),
-            sec, inp, res, case_info=case_info)
+            sec, inp, res, case_info=case_info,
+            shear_info=shear_info)
         self._pdf_batch = batch
 
     def on_export_pdf(self):
@@ -1588,25 +1591,16 @@ class App(tk.Tk):
         return re.sub(r"_\{([^}]+)\}", r"\1", text)
 
     def _render_report_sections(self, sections, sec, inp, res,
-                                case_info=None):
-        """Hiển thị thuyết minh kiểu Vietcon: mục 1-6 dạng card, mục 7 giữ text."""
+                                case_info=None, shear_info=None):
+        """Hiển thị thuyết minh kiểu Vietcon: mục 1-7 dạng card."""
         from rc_column.report_widgets import build_calc_widgets
         # Xóa nội dung cũ
         for w in self._calc_inner.winfo_children():
             w.destroy()
-        # Mục 1-6: widget kiểu Vietcon
-        body = build_calc_widgets(self._calc_inner, inp, res, case_info)
+        # Mục 1-7: widget kiểu Vietcon
+        body = build_calc_widgets(self._calc_inner, inp, res, case_info,
+                                  shear_info)
         body.pack(fill=tk.BOTH, expand=True)
-        # Mục 7 (thép đai): giữ nguyên dạng text
-        if 7 in sections:
-            t7 = tk.Text(self._calc_inner, wrap=tk.WORD, font=("", 10),
-                         bg="white", relief=tk.FLAT, height=30)
-            t7.pack(fill=tk.X, padx=4, pady=8)
-            self._setup_report_tags(t7)
-            info7 = sections[7]
-            for text, tags in info7["segs"]:
-                t7.insert(tk.END, self._clean_math(text), tags if tags else ())
-            t7.configure(state=tk.DISABLED)
         # Cập nhật scroll
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(
