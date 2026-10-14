@@ -1217,8 +1217,6 @@ class App(tk.Tk):
             if _p:
                 _ck = _os.path.splitext(_os.path.basename(_p))[0].upper()
             _def = f"TMTT-{_ck}.pdf" if _ck else "TMTT.pdf"
-            if not is_summary:
-                _def = "ThuyetMinh.pdf"
             path = filedialog.asksaveasfilename(
                 title="Xuất PDF",
                 defaultextension=".pdf",
@@ -1226,6 +1224,37 @@ class App(tk.Tk):
                 initialfile=_def)
             if not path:
                 return
+            # Hàm hiện dialog thành công có nút Mở PDF
+            def _show_success(ppath):
+                import tkinter as _tk
+                dlg = _tk.Toplevel(self.root)
+                dlg.title("Xuất PDF")
+                dlg.geometry("380x130")
+                dlg.resizable(False, False)
+                dlg.transient(self.root)
+                dlg.grab_set()
+                _tk.Label(dlg, text=f"Đã lưu: {ppath}",
+                          wraplength=340, justify="left").pack(
+                              padx=16, pady=(16, 12))
+                btns = _tk.Frame(dlg)
+                btns.pack(pady=4)
+                def _open():
+                    import os as _os, sys as _sys, subprocess as _sp
+                    try:
+                        if _sys.platform.startswith("win"):
+                            _os.startfile(ppath)
+                        elif _sys.platform == "darwin":
+                            _sp.run(["open", ppath])
+                        else:
+                            _sp.run(["xdg-open", ppath])
+                    except Exception:
+                        pass
+                    dlg.destroy()
+                _tk.Button(btns, text="Mở PDF", width=12,
+                           command=_open).pack(side="left", padx=6)
+                _tk.Button(btns, text="Đóng", width=12,
+                           command=dlg.destroy).pack(side="left", padx=6)
+                dlg.wait_window()
             if is_summary:
                 from rc_column.pdf_export import export_summary_pdf
                 # Gán tên file vào inp để hiển thị "Cấu kiện"
@@ -1258,7 +1287,7 @@ class App(tk.Tk):
                            batch_rows=getattr(self, "_pdf_batch", None),
                            case_info=getattr(self, "_pdf_case", None),
                            shear_info=getattr(self, "_pdf_shear", None))
-            messagebox.showinfo("Xuất PDF", f"Đã xuất: {path}")
+            _show_success(path)
         except Exception as e:
             from tkinter import messagebox
             messagebox.showerror("Lỗi", f"Không xuất được: {e}")
@@ -1301,11 +1330,17 @@ class App(tk.Tk):
             messagebox.showinfo("Xuất PDF", "Hãy kiểm tra trước khi xuất PDF.")
             return
         from tkinter import filedialog
+        import os as _os
+        _ck = ""
+        _p = getattr(self, "current_save_path", "") or ""
+        if _p:
+            _ck = _os.path.splitext(_os.path.basename(_p))[0].upper()
+        _def = f"TMTT-{_ck}.pdf" if _ck else "TMTT.pdf"
         path = filedialog.asksaveasfilename(
             title="Lưu thuyết minh PDF",
             defaultextension=".pdf",
             filetypes=[("PDF", "*.pdf")],
-            initialfile="ThuyetMinhCotBTCT.pdf")
+            initialfile=_def)
         if not path:
             return
         try:
@@ -1314,9 +1349,41 @@ class App(tk.Tk):
                        batch_rows=getattr(self, "_pdf_batch", None),
                        case_info=getattr(self, "_pdf_case", None),
                        shear_info=getattr(self, "_pdf_shear", None))
-            messagebox.showinfo("Xuất PDF", f"Đã lưu: {path}")
+            self._show_pdf_success(path)
         except Exception as ex:
             messagebox.showerror("Lỗi xuất PDF", str(ex))
+
+    def _show_pdf_success(self, ppath):
+        """Dialog thành công có nút Mở PDF."""
+        import tkinter as _tk
+        dlg = _tk.Toplevel(self.root)
+        dlg.title("Xuất PDF")
+        dlg.geometry("380x130")
+        dlg.resizable(False, False)
+        dlg.transient(self.root)
+        dlg.grab_set()
+        _tk.Label(dlg, text=f"Đã lưu: {ppath}",
+                  wraplength=340, justify="left").pack(
+                      padx=16, pady=(16, 12))
+        btns = _tk.Frame(dlg)
+        btns.pack(pady=4)
+        def _open():
+            import os as _os, sys as _sys, subprocess as _sp
+            try:
+                if _sys.platform.startswith("win"):
+                    _os.startfile(ppath)
+                elif _sys.platform == "darwin":
+                    _sp.run(["open", ppath])
+                else:
+                    _sp.run(["xdg-open", ppath])
+            except Exception:
+                pass
+            dlg.destroy()
+        _tk.Button(btns, text="Mở PDF", width=12,
+                   command=_open).pack(side="left", padx=6)
+        _tk.Button(btns, text="Đóng", width=12,
+                   command=dlg.destroy).pack(side="left", padx=6)
+        dlg.wait_window()
 
     def _collect_data(self) -> dict:
         """Thu thập toàn bộ dữ liệu nhập liệu thành dict."""
