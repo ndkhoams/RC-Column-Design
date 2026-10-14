@@ -72,12 +72,12 @@ def _get_styles():
         "note": ParagraphStyle("note", fontName="VN", fontSize=7.5,
                                textColor=HexColor(GRAY), leading=10,
                                spaceBefore=4, spaceAfter=4),
-        "dc_ok": ParagraphStyle("dc_ok", fontName="VN-Bold", fontSize=11,
+        "dc_ok": ParagraphStyle("dc_ok", fontName="VN-Bold", fontSize=9,
                                 textColor=HexColor("#065F46"),
                                 backColor=HexColor("#D1FAE5"),
                                 borderPadding=10, alignment=TA_CENTER,
                                 spaceBefore=10, spaceAfter=10),
-        "dc_ng": ParagraphStyle("dc_ng", fontName="VN-Bold", fontSize=11,
+        "dc_ng": ParagraphStyle("dc_ng", fontName="VN-Bold", fontSize=9,
                                 textColor=HexColor("#991B1B"),
                                 backColor=HexColor("#FEE2E2"),
                                 borderPadding=10, alignment=TA_CENTER,
@@ -96,11 +96,10 @@ def _two(P, st, c1, c2):
 
     def _one(c):
         rows = []
-        if c["ref"]:
-            rows.append([P(f'<b>{c["title"]}</b> <font color="{GRAY}" size=7>{c["ref"]}</font>',
-                           st["card_title"])])
-        elif c["title"]:
+        if c["title"]:
             rows.append([P(f'<b>{c["title"]}</b>', st["card_title"])])
+        if c["ref"]:
+            rows.append([P(c["ref"], st["card_ref"])])
         for ln in c["lines"]:
             rows.append([P(ln, st["formula"])])
         if c.get("result"):
@@ -481,12 +480,19 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         except Exception:
             _pngs = None
     if _pngs:
-        img1 = Image(io.BytesIO(_pngs[0]), width=80*mm, height=60*mm)
-        img2 = Image(io.BytesIO(_pngs[1]), width=80*mm, height=60*mm)
-        S.append(P("Biểu đồ tương tác N-Mα", st["cap"]))
-        S.append(img1)
-        S.append(P("Biểu đồ tương tác M2-M3", st["cap"]))
-        S.append(img2)
+        from reportlab.platypus import Table as _T2, TableStyle as _TS2
+        img1 = Image(io.BytesIO(_pngs[0]), width=88*mm, height=66*mm)
+        img2 = Image(io.BytesIO(_pngs[1]), width=88*mm, height=66*mm)
+        # 2 biểu đồ đặt ngang nhau
+        _ct = _T2([[[P("Biểu đồ tương tác N-Mα", st["cap"]), img1],
+                    [P("Biểu đồ tương tác M2-M3", st["cap"]), img2]]])
+        _ct.setStyle(_TS2([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        S.append(_ct)
     S.append(P(f"TỶ SỐ SỬ DỤNG (D/C) = {_f(res.dc, 3)} "
                f"(FS = {_f(res.fs, 2)}) — "
                f"{'✓ ĐẠT — D/C ≤ 1.000' if res.ok else '✗ KHÔNG ĐẠT'}",
