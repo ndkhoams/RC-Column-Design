@@ -33,20 +33,29 @@ class App(tk.Tk):
         super().__init__()
         self.title("Kiểm tra cột bê tông cốt thép — TCVN 5574:2018")
         self.geometry("1360x860")
-        # Icon title bar
+        # Icon title bar: ưu tiên PNG (ổn định hơn ICO trên tkinter)
         try:
             import os, sys
-            _base = getattr(sys, "_MEIPASS", os.path.dirname(
-                os.path.abspath(__file__)) + "/..")
+            _base = os.path.normpath(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), ".."))
+            if hasattr(sys, "_MEIPASS"):
+                _base = sys._MEIPASS
+            _png = os.path.join(_base, "icon.png")
             _ico = os.path.join(_base, "icon.ico")
-            if os.path.exists(_ico):
-                self.iconbitmap(_ico)
-            else:
-                _png = os.path.join(_base, "icon.png")
-                if os.path.exists(_png):
+            _done = False
+            if os.path.exists(_png):
+                try:
                     _img = tk.PhotoImage(file=_png)
                     self.iconphoto(True, _img)
                     self._icon_img = _img
+                    _done = True
+                except Exception:
+                    pass
+            if not _done and os.path.exists(_ico):
+                try:
+                    self.iconbitmap(_ico)
+                except Exception:
+                    pass
         except Exception:
             pass
         # Mở mặc định full màn hình
