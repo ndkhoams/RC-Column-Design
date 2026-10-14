@@ -68,9 +68,9 @@ class App(tk.Tk):
         # Nền chung
         st.configure(".", background=BG, font=("", 10))
         st.configure("TFrame", background=BG)
-        st.configure("TLabel", background=BG, foreground=TEXT, font=("", 10))
-        # Label mô tả nhỏ màu xám, nền trắng
-        st.configure("Muted.TLabel", foreground=MUTED, font=("", 9),
+        st.configure("TLabel", background="white", foreground=TEXT, font=("", 10))
+        # Label mô tả: màu chữ bình thường, nền trắng (không in mờ)
+        st.configure("Muted.TLabel", foreground=TEXT, font=("", 9),
                      background="white")
         # Tiêu đề mục: số xanh lá + chữ đậm
         st.configure("Section.TLabel", foreground=TEXT,
@@ -1494,7 +1494,6 @@ class App(tk.Tk):
                 self.on_check()
             except Exception:
                 pass
-            messagebox.showinfo("Mở dữ liệu", f"Đã nạp: {path}")
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
 
