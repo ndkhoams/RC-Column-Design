@@ -777,7 +777,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     # wrap để lấy chiều cao thực tế
     _lw, _lh = _left_no_spacer.wrap(80 * mm, 1000)
     _rw, _rh = _right_tmp.wrap(80 * mm, 1000)
-    _dyn_spacer = max(0, _rh - _lh - 7 * mm)  # Trừ 1 hàng
+    _dyn_spacer = max(0, _rh - _lh + 7 * mm)  # Cộng 1 hàng
     _left_content = [
         [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
         [_ck_para],
