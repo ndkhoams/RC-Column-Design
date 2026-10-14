@@ -158,6 +158,9 @@ class App(tk.Tk):
         ttk.Button(data_bar, text="📂 OPEN", style="Ghost.TButton",
                    command=self.on_load_data).pack(side=tk.LEFT, expand=True,
                                                    fill=tk.X, padx=(4, 0))
+        ttk.Button(data_bar, text="📄 XUẤT PDF", style="Ghost.TButton",
+                   command=self._export_pdf).pack(side=tk.LEFT, expand=True,
+                                                   fill=tk.X, padx=(4, 0))
         ttk.Button(bottom_bar, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    style="Accent.TButton",
                    command=self.on_check).pack(fill=tk.X, padx=10, pady=10)
@@ -172,8 +175,7 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=4)
         ttk.Label(hdr, textvariable=self.result_var,
                   font=("", 12, "bold")).pack(side=tk.LEFT, expand=True)
-        ttk.Button(hdr, text="📄 XUẤT PDF",
-                   command=self._export_pdf).pack(side=tk.RIGHT, padx=4)
+
 
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
