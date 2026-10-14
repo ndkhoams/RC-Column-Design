@@ -217,8 +217,6 @@ class App(tk.Tk):
         ttk.Checkbutton(calc_bar, text="Kèm bảng tổng hợp (mục 8)",
                         variable=self.var_export_table,
                         command=self._on_toggle_table).pack(side=tk.LEFT, padx=4)
-        # Cuộn chuột trên thanh nút Xuất PDF -> cuộn text thuyết minh
-        self._bind_wheel_to_calc(calc_bar)
         # Khung cuộn cho thuyết minh kiểu Vietcon (widget)
         calc_frame = ttk.Frame(self.tab_calc)
         calc_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -241,8 +239,9 @@ class App(tk.Tk):
         tk.Label(self._calc_inner, text="Chi tiết tính toán sẽ hiển thị sau "
                  "khi thực hiện kiểm tra.", bg="white",
                  font=("", 10)).pack(pady=20)
-        # Cuộn chuột cho thuyết minh
+        # Cuộn chuột cho thuyết minh (cả thanh công cụ)
         self._bind_wheel(self._calc_inner, self._calc_canvas)
+        self._bind_wheel_to_calc(calc_bar)
 
     def _bind_wheel(self, root_widget, canvas):
         """Gắn cuộn chuột đệ quy cho root_widget và mọi con cháu,
@@ -1623,14 +1622,8 @@ class App(tk.Tk):
         self._bind_wheel(self._calc_inner, self._calc_canvas)
 
     def _bind_wheel_to_calc(self, widget):
-        """Gắn cuộn chuột đệ quy cho widget nhúng -> cuộn calc_text."""
-        def _rec(w):
-            w.bind("<MouseWheel>", self._on_calc_wheel)
-            w.bind("<Button-4>", self._on_calc_wheel)
-            w.bind("<Button-5>", self._on_calc_wheel)
-            for ch in w.winfo_children():
-                _rec(ch)
-        _rec(widget)
+        """Gắn cuộn chuột cho thanh công cụ -> cuộn canvas thuyết minh."""
+        self._bind_wheel(widget, self._calc_canvas)
 
     def _embed_report_images(self, sec, inp, res):
         """(Không dùng nữa — giữ để tương thích, logic đã chuyển vào
