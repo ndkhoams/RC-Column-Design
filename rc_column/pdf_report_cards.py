@@ -88,66 +88,62 @@ def _get_styles():
     }
 
 
-def _card(P, st, title, ref, lines, result=""):
-    """Trả về (title_obj, fbox) để _two ghép thành 1 table phẳng."""
-    from reportlab.platypus import Table, TableStyle
+def _two(P, st, c1, c2):
+    """1 table phẳng duy nhất: 2 cột, không nested table.
+    c1/c2 là dict {title, ref, lines, result}."""
+    from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.colors import HexColor
+    from reportlab.lib.units import mm
 
-    # Tiêu đề + ref
-    if ref:
-        _tr = Table([[P(f"<b>{title}</b>", st["card_title"]),
-                      P(ref, st["card_ref"])]], colWidths=[60, 28])
-        _tr.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ]))
-        title_obj = _tr
-    else:
-        title_obj = P(f"<b>{title}</b>", st["card_title"])
-    # Khối công thức
-    grows = [[P(ln, st["formula"])] for ln in lines]
-    if result:
-        grows.append([P(result, st["result"])])
-    fbox = Table(grows, colWidths=[88])
-    fbox.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), HexColor(FORMULA_BG)),
-        ("LINEBEFORE", (0, 0), (0, -1), 1.5, HexColor("#D1D5DB")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+    def _title_cell(title, ref):
+        if ref:
+            return P(f'<b>{title}</b> <font color="{GRAY}" size=6>{ref}</font>',
+                     st["card_title"])
+        return P(f"<b>{title}</b>", st["card_title"])
+
+    # Số dòng công thức tối đa
+    n1 = len(c1["lines"]) + (1 if c1.get("result") else 0)
+    n2 = len(c2["lines"]) + (1 if c2.get("result") else 0)
+    nmax = max(n1, n2)
+
+    # Dựng rows: [title], [ref], [formulas...]
+    rows = []
+    rows.append([_title_cell(c1["title"], c1["ref"]),
+                 _title_cell(c2["title"], c2["ref"])])
+    # Các dòng công thức
+    for i in range(nmax):
+        l1 = c1["lines"][i] if i < len(c1["lines"]) else ""
+        l2 = c2["lines"][i] if i < len(c2["lines"]) else ""
+        # Dòng result
+        if i == len(c1["lines"]) and c1.get("result"):
+            l1 = c1["result"]
+        if i == len(c2["lines"]) and c2.get("result"):
+            l2 = c2["result"]
+        rows.append([P(l1, st["formula"]) if l1 else P("", st["formula"]),
+                     P(l2, st["formula"]) if l2 else P("", st["formula"])])
+
+    t = Table(rows, colWidths=[90, 90])
+    sty = [
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
         ("TOPPADDING", (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    return (title_obj, fbox)
+        # Khối công thức: nền + viền trái (từ hàng 1 trở đi)
+        ("BACKGROUND", (0, 1), (-1, -1), HexColor(FORMULA_BG)),
+        ("LINEBEFORE", (0, 1), (0, -1), 1.5, HexColor("#D1D5DB")),
+        ("LINEBEFORE", (1, 1), (1, -1), 1.5, HexColor("#D1D5DB")),
+        ("LEFTPADDING", (0, 1), (-1, -1), 8),
+    ]
+    t.setStyle(TableStyle(sty))
+    return [t, Spacer(1, 4*mm)]
 
 
-def _single_card(P, st, title, ref, lines, result=""):
-    """Card đơn full-width: title + fbox xếp dọc."""
-    from reportlab.platypus import Spacer
-    from reportlab.lib.units import mm
-    (t, f) = _card(P, st, title, ref, lines, result)
-    return [t, f, Spacer(1, 3*mm)]
+def _mk(title, ref, lines, result=""):
+    return {"title": title, "ref": ref, "lines": lines, "result": result}
 
 
-def _two(P, st, c1, c2):
-    """1 table phẳng: 2 cột x 2 hàng (title/fbox), full 180mm."""
-    from reportlab.platypus import Table, TableStyle, Spacer
-    from reportlab.lib.units import mm
-    (t1, f1) = c1
-    (t2, f2) = c2
-    t = Table([[t1, t2], [f1, f2]], colWidths=[90, 90])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (1, 0), 6),
-    ]))
-    return [t, Spacer(1, 3*mm)]
+_EMPTY = {"title": "", "ref": "", "lines": [], "result": ""}
 
 
 def _sec_head(P, st, num, title, ref=""):
@@ -186,32 +182,32 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
                        "TCVN 5574:2018 Mục 6.1 & 6.2"))
     S.extend(_two(P, st,
-        _card(P, st, "Bê tông: Cường độ chịu nén tính toán Rb*",
+        _mk( "Bê tông: Cường độ chịu nén tính toán Rb*",
               "Bảng 6 & Mục 6.1.2.3",
               ["Rb* = γb · Rb",
                f"= {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
                f"= {_f(conc.Rb)} MPa (N/mm²)"]),
-        _card(P, st, "Bê tông: Mô đun đàn hồi ban đầu Eb", "Bảng 10",
+        _mk( "Bê tông: Mô đun đàn hồi ban đầu Eb", "Bảng 10",
               [f"Eb (Cấp độ bền {inp.concrete_grade})",
                f"= {conc.Eb:,.0f} N/mm²",
                f"= {_f(conc.Eb / 1000, 1)} × 10³ MPa"])))
     S.extend(_two(P, st,
-        _card(P, st, "Cốt thép: Cường độ chịu kéo tính toán Rs",
+        _mk( "Cốt thép: Cường độ chịu kéo tính toán Rs",
               "Bảng 13 & Mục 6.2.2",
               ["Rs = (Rsn / γs) · γsi",
                f"= ({steel.grade.Rs:.0f} / 1.15) × {_f(inp.gamma_s)}",
                f"= {_f(steel.Rs, 1)} MPa"]),
-        _card(P, st, "Cốt thép: Cường độ chịu nén tính toán Rsc",
+        _mk( "Cốt thép: Cường độ chịu nén tính toán Rsc",
               "Bảng 13 & Mục 6.2.2.2",
               [f"Tác dụng ngắn hạn: Rsc = {steel.Rsc:.0f} MPa",
                f"Tác dụng dài hạn: Rsc = {steel.Rsc:.0f} MPa",
                f"= {_f(steel.Rsc, 1)} MPa"])))
     S.extend(_two(P, st,
-        _card(P, st, "Cốt thép: Mô đun đàn hồi Es", "Mục 6.2.2.4",
+        _mk( "Cốt thép: Mô đun đàn hồi Es", "Mục 6.2.2.4",
               [f"Es (Cốt thép {inp.steel_grade})",
                f"= {steel.Es:,.0f} N/mm²",
                f"= {_f(steel.Es / 1000)} × 10³ MPa"]),
-        _card(P, st, "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
+        _mk( "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
               ["αe = Es / Eb",
                f"= {steel.Es:,.0f} / {conc.Eb:,.0f}",
                f"= {_f(res.alpha_e)} -"])))
@@ -257,30 +253,30 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
                        f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm"))
     S.extend(_two(P, st,
-        _card(P, st, "Diện tích tiết diện bê tông nguyên A", "",
+        _mk( "Diện tích tiết diện bê tông nguyên A", "",
               ["A = t2 · t3",
                f"= {inp.cy:.0f} × {inp.cx:.0f}",
                f"= {sec.gross_area:,.0f} mm² "
                f"(= {_f(sec.gross_area / 1e6, 4)} m²)"]),
-        _card(P, st, "Lớp bê tông bảo vệ cốt dọc c", "",
+        _mk( "Lớp bê tông bảo vệ cốt dọc c", "",
               [f"c = {inp.cover:.0f} mm",
                "Chiều dày lớp bê tông bảo vệ",
                f"= {inp.cover:.0f} mm"])))
     S.extend(_two(P, st,
-        _card(P, st, "Mô men quán tính trục 2 (I2)", "",
+        _mk( "Mô men quán tính trục 2 (I2)", "",
               ["I₂ = (t3 · t2³) / 12",
                f"= ({inp.cx:.0f} × {inp.cy:.0f}³) / 12",
                f"= {_f(res.Ix / 1e9, 3)} × 10⁹ mm⁴"]),
-        _card(P, st, "Mô men quán tính trục 3 (I3)", "",
+        _mk( "Mô men quán tính trục 3 (I3)", "",
               ["I₃ = (t2 · t3³) / 12",
                f"= ({inp.cy:.0f} × {inp.cx:.0f}³) / 12",
                f"= {_f(res.Iy / 1e9, 3)} × 10⁹ mm⁴"])))
     S.extend(_two(P, st,
-        _card(P, st, "Bán kính quán tính phương 2 (i2)", "",
+        _mk( "Bán kính quán tính phương 2 (i2)", "",
               ["i₂ = √(I₂ / A) = t2 / √12",
                f"= {inp.cy:.0f} / 3.464",
                f"= {_f(res.ix, 2)} mm (= {_f(res.ix / 1000, 4)} m)"]),
-        _card(P, st, "Bán kính quán tính phương 3 (i3)", "",
+        _mk( "Bán kính quán tính phương 3 (i3)", "",
               ["i₃ = √(I₃ / A) = t3 / √12",
                f"= {inp.cx:.0f} / 3.464",
                f"= {_f(res.iy, 2)} mm (= {_f(res.iy / 1000, 4)} m)"])))
@@ -289,20 +285,20 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.append(_sec_head(P, st, 3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
                        "TCVN 5574:2018 Mục 8.1.2.4"))
     S.extend(_two(P, st,
-        _card(P, st, "Chiều dài tính toán phương 2 (L02)", "",
+        _mk( "Chiều dài tính toán phương 2 (L02)", "",
               [f"L₀₂ = ψ · L = {_f(inp.psi_x, 2)} × {_f(inp.Lx, 2)}",
                f"= {_f(res.L0x, 2)} m"]),
-        _card(P, st, "Chiều dài tính toán phương 3 (L03)", "",
+        _mk( "Chiều dài tính toán phương 3 (L03)", "",
               [f"L₀₃ = ψ · L = {_f(inp.psi_y, 2)} × {_f(inp.Ly, 2)}",
                f"= {_f(res.L0y, 2)} m"])))
     ok2 = "ĐẠT" if res.lambda_x <= 120 else "KHÔNG ĐẠT"
     ok3 = "ĐẠT" if res.lambda_y <= 120 else "KHÔNG ĐẠT"
     S.extend(_two(P, st,
-        _card(P, st, "Độ mảnh cột phương 2 (λ2)", "",
+        _mk( "Độ mảnh cột phương 2 (λ2)", "",
               ["λ₂ = L₀₂ / i₂",
                f"= {_f(res.L0x * 1000, 0)} / {_f(res.ix, 1)}",
                f"= {_f(res.lambda_x, 1)} ≤ 120 → {ok2}"]),
-        _card(P, st, "Độ mảnh cột phương 3 (λ3)", "",
+        _mk( "Độ mảnh cột phương 3 (λ3)", "",
               ["λ₃ = L₀₃ / i₃",
                f"= {_f(res.L0y * 1000, 0)} / {_f(res.iy, 1)}",
                f"= {_f(res.lambda_y, 1)} ≤ 120 → {ok3}"])))
@@ -315,14 +311,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     kl3 = ("BẮT BUỘC XÉT UỐN DỌC (kể đến hệ số η₃)" if need3
            else "KHÔNG CẦN XÉT UỐN DỌC")
     S.extend(_two(P, st,
-        _card(P, st, "Điều kiện xét hiệu ứng uốn dọc phương 2",
+        _mk( "Điều kiện xét hiệu ứng uốn dọc phương 2",
               "Mục 8.1.2.1.2",
               ["Xét khi λ₂ > 14 hoặc L₀₂ / t2 > 4",
                f"λ₂ = {_f(res.lambda_x, 2)} "
                f"{'>' if res.lambda_x > 14 else '≤'} 14",
                f"L₀₂ / t2 = {_f(l02_t2, 2)}",
                f"= {kl2}"]),
-        _card(P, st, "Điều kiện xét hiệu ứng uốn dọc phương 3",
+        _mk( "Điều kiện xét hiệu ứng uốn dọc phương 3",
               "Mục 8.1.2.1.2",
               ["Xét khi λ₃ > 14 hoặc L₀₃ / t3 > 4",
                f"λ₃ = {_f(res.lambda_y, 2)} "
@@ -346,29 +342,29 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     M2 = abs(res.Mx_star / res.etax) if res.etax else 0.0
     M3 = abs(res.My_star / res.etay) if res.etay else 0.0
     S.extend(_two(P, st,
-        _card(P, st, "Độ lệch tâm tĩnh học phương 2 (e12)",
+        _mk( "Độ lệch tâm tĩnh học phương 2 (e12)",
               "Mục 8.1.2.2.4",
               ["e₁₂ = |M₂| / N",
                f"= ({_f(M2 * 1000, 2)} × 10³) / {_f(N, 2)}",
                f"= {_f(res.e1x, 2)} mm"]),
-        _card(P, st, "Độ lệch tâm tĩnh học phương 3 (e13)",
+        _mk( "Độ lệch tâm tĩnh học phương 3 (e13)",
               "Mục 8.1.2.2.4",
               ["e₁₃ = |M₃| / N",
                f"= ({_f(M3 * 1000, 2)} × 10³) / {_f(N, 2)}",
                f"= {_f(res.e1y, 2)} mm"])))
     S.extend(_two(P, st,
-        _card(P, st, "Độ lệch tâm ngẫu nhiên phương 2 (ea2)", "",
+        _mk( "Độ lệch tâm ngẫu nhiên phương 2 (ea2)", "",
               ["ea₂ = max(t2/600, L₀₂/600, 10mm)",
                f"= {_f(res.eax, 1)} mm"]),
-        _card(P, st, "Độ lệch tâm ngẫu nhiên phương 3 (ea3)", "",
+        _mk( "Độ lệch tâm ngẫu nhiên phương 3 (ea3)", "",
               ["ea₃ = max(t3/600, L₀₃/600, 10mm)",
                f"= {_f(res.eay, 1)} mm"])))
     S.extend(_two(P, st,
-        _card(P, st, "Độ lệch tâm ban đầu phương 2 (e02)", "",
+        _mk( "Độ lệch tâm ban đầu phương 2 (e02)", "",
               ["e₀₂ = e₁₂ + ea₂",
                f"= {_f(res.e1x, 1)} + {_f(res.eax, 1)}",
                f"= {_f(res.e0x, 1)} mm"]),
-        _card(P, st, "Độ lệch tâm ban đầu phương 3 (e03)", "",
+        _mk( "Độ lệch tâm ban đầu phương 3 (e03)", "",
               ["e₀₃ = e₁₃ + ea₃",
                f"= {_f(res.e1y, 1)} + {_f(res.eay, 1)}",
                f"= {_f(res.e0y, 1)} mm"])))
@@ -390,45 +386,45 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     # Mỗi hàng: 2 card (phương 2 | phương 3)
     def _mk(d, e0, t, delta, kb, D, Ncr, eta, Mstar, Morig, L0, kind):
         if kind == "phi":
-            return _card(P, st,
+            return _mk(
                          f"Hệ số ảnh hưởng thời hạn tải trọng φL,{d}",
                          "Công thức (48)",
                          [f"φL,{d} = 1 + ML1,{d} / ML,{d} ≤ 2.0",
                           f"φL = {phi_txt}"])
         if kind == "de":
-            return _card(P, st, f"Độ lệch tâm tương đối phương {d} (δe,{d})",
+            return _mk( f"Độ lệch tâm tương đối phương {d} (δe,{d})",
                          "Điều 8.1.2.4.2",
                          [f"δe,{d} = e0{'3' if d == '2' else '2'} / t{d} "
                           "(lấy trong [0.15, 1.5])",
                           f"= {_f(e0, 2)} / {t:.0f} = {_f(delta, 3)}",
                           f"= {_f(delta, 3)} -"])
         if kind == "kb":
-            return _card(P, st, f"Hệ số độ cứng bê tông phương {d} (kb,{d})",
+            return _mk( f"Hệ số độ cứng bê tông phương {d} (kb,{d})",
                          "Công thức (47)",
                          [f"kb,{d} = 0.15 / [φL,{d} · (0.3 + δe,{d})]",
                           f"= 0.15 / [{_f(phi_v, 2)} × "
                           f"(0.3 + {_f(delta, 3)})]",
                           f"= {_f(kb, 3)} -"])
         if kind == "D":
-            return _card(P, st, f"Độ cứng chống uốn quy ước phương {d} (D{d})",
+            return _mk( f"Độ cứng chống uốn quy ước phương {d} (D{d})",
                          "Công thức (46)",
                          [f"D{d} = kb,{d} · Eb · I{d} + ks · Es · Is{d}",
                           "ks = 0.7",
                           f"= {_f(D, 1)} kN·m²"])
         if kind == "Ncr":
-            return _card(P, st, f"Lực tới hạn Euler phương {d} (Ncr,{d})",
+            return _mk( f"Lực tới hạn Euler phương {d} (Ncr,{d})",
                          "Công thức (45)",
                          [f"Ncr,{d} = (π² · D{d}) / L0{d}²",
                           f"= (π² × {_f(D, 1)}) / {_f(L0, 2)}²",
                           f"= {_f(Ncr, 2)} kN"])
         if kind == "eta":
-            return _card(P, st, f"Hệ số uốn dọc phương {d} (η{d})",
+            return _mk( f"Hệ số uốn dọc phương {d} (η{d})",
                          "Công thức (44)",
                          [f"η{d} = 1 / [1 - N / Ncr,{d}]",
                           f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}]",
                           f"= {_f(eta, 3)} ≥ 1.0"])
         if kind == "Ms":
-            return _card(P, st, f"Mô men tính toán phương {d} (M{d}*)",
+            return _mk( f"Mô men tính toán phương {d} (M{d}*)",
                          "Mục 8.1.2.4",
                          [f"M{d}* = η{d} · M{d}",
                           f"= {_f(eta, 3)} × {_f(Morig, 2)}",
@@ -437,17 +433,17 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     for kind in ["phi", "de", "kb", "D", "Ncr", "eta", "Ms"]:
         c1 = _mk(*dirs[0], kind)
         c2 = _mk(*dirs[1], kind)
-        S.append(KeepTogether(_two(P, st, c1, c2)))
+        S.extend(_two(P, st, c1, c2))
     Ma = math.hypot(res.Mx_star, res.My_star)
     alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
         if Ma > 1e-9 else 0.0
     S.append(KeepTogether(_two(P, st,
-        _card(P, st, "Góc tác dụng mô men uốn tổng hợp α", "Góc uốn xiên",
+        _mk( "Góc tác dụng mô men uốn tổng hợp α", "Góc uốn xiên",
               ["α = arctan(M₃* / M₂*)",
                f"= arctan({_f(abs(res.My_star), 2)} / "
                f"{_f(abs(res.Mx_star), 2)})",
                f"= {_f(alpha, 2)} độ (°)"]),
-        _card(P, st, "Mô men uốn xiên tổng hợp Mα", "Véc-tơ tổng hợp",
+        _mk( "Mô men uốn xiên tổng hợp Mα", "Véc-tơ tổng hợp",
               ["Mα = √((M₂*)² + (M₃*)²)",
                f"= √({_f(abs(res.Mx_star), 2)}² + "
                f"{_f(abs(res.My_star), 2)}²)",
@@ -461,21 +457,21 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     OA = math.sqrt(res.Mx_star**2 + res.My_star**2 + res.N**2)
     OB = math.sqrt(res.Bx**2 + res.By**2 + res.BN**2)
     S.append(KeepTogether(_two(P, st,
-        _card(P, st, "Điểm nội lực tính toán A (Nội lực tác dụng)", "",
+        _mk( "Điểm nội lực tính toán A (Nội lực tác dụng)", "",
               ["A = (M₂tt, M₃tt, N)",
                f"= ({_f(res.Mx_star, 1)}, {_f(res.My_star, 1)}, "
                f"{_f(res.N, 1)})",
                f"= |OA| = {_f(OA, 1)} kN/kNm"]),
-        _card(P, st, "Điểm giới hạn B (trên mặt tương tác)", "",
+        _mk( "Điểm giới hạn B (trên mặt tương tác)", "",
               ["B = (M₂gh, M₃gh, Ngh)",
                f"= ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
                f"{_f(res.BN, 1)})",
                f"= |OB| = {_f(OB, 1)} kN/kNm"]))))
     S.append(KeepTogether(_two(P, st,
-        _card(P, st, "Góc uốn xiên α", "",
+        _mk( "Góc uốn xiên α", "",
               [f"α = {_f(alpha, 1)}°",
                f"Mα = {_f(Ma, 1)} kN·m"]),
-        _card(P, st, "Tỷ số D/C", "",
+        _mk( "Tỷ số D/C", "",
               [f"D/C = |OA| / |OB| = {_f(OA, 1)} / {_f(OB, 1)}",
                f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"]))))
     # Biểu đồ
@@ -511,16 +507,18 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         mark = "✓" if chk.ok else "✗"
         chk_lines.append(f"{mark} {chk.item}: yêu cầu {chk.required}, "
                          f"chọn {chk.provided}")
-    S.extend(_single_card(P, st, "Cấu tạo cốt đai (10.3.4)", "", chk_lines))
+    S.extend(_two(P, st, _mk("Cấu tạo cốt đai (10.3.4)", "", chk_lines),
+                      _EMPTY))
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
-        S.extend(_single_card(P, st, "Lực cắt tính toán", "",
+        S.extend(_two(P, st, _mk("Lực cắt tính toán", "",
                        [f"Q2 = {_f(q2i['Q'], 1)} kN "
                         f"({q2i['case']}@{q2i['station']:.2f})",
                         f"Q3 = {_f(q3i['Q'], 1)} kN "
                         f"({q3i['case']}@{q3i['station']:.2f})",
-                        "Độc lập với combo N-M nguy hiểm nhất"]))
+                        "Độc lập với combo N-M nguy hiểm nhất"]),
+                      _EMPTY))
     Rb = conc.Rb
     Rbt = conc.Rbt
     Rsw = sw_grade.Rsw * inp.gamma_s
@@ -540,7 +538,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         qsw = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
         Qb_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_hi = 2.5 * Rbt * b_w * h0u / 1000.0
-        cards7.append(_card(P, st, f"Kiểm tra chịu cắt phương {dnum}", "",
+        cards7.append(_mk( f"Kiểm tra chịu cắt phương {dnum}", "",
             [f"Q = {_f(Q, 1)} kN; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
              f"Asw = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²",
              f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
@@ -557,7 +555,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
              f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm"]))
         shear_ok &= sh.ok
     if len(cards7) == 2:
-        S.append(KeepTogether(_two(P, st, cards7[0], cards7[1])))
+        S.extend(_two(P, st, cards7[0], cards7[1]))
     else:
         for c in cards7:
             S.append(c)
