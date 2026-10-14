@@ -1253,8 +1253,8 @@ class App(tk.Tk):
                                                      None),
                                    sec_img_path=_sec_png)
             else:
-                from rc_column.pdf_export import export_pdf
-                export_pdf(self._last_inp, self._last_res, path,
+                from rc_column.pdf_report_cards import export_pdf_cards
+                export_pdf_cards(self._last_inp, self._last_res, path,
                            batch_rows=getattr(self, "_pdf_batch", None),
                            case_info=getattr(self, "_pdf_case", None),
                            shear_info=getattr(self, "_pdf_shear", None))
@@ -1309,8 +1309,8 @@ class App(tk.Tk):
         if not path:
             return
         try:
-            from rc_column.pdf_export import export_pdf
-            export_pdf(self._pdf_inp, self._pdf_res, path,
+            from rc_column.pdf_report_cards import export_pdf_cards
+            export_pdf_cards(self._pdf_inp, self._pdf_res, path,
                        batch_rows=getattr(self, "_pdf_batch", None),
                        case_info=getattr(self, "_pdf_case", None),
                        shear_info=getattr(self, "_pdf_shear", None))
