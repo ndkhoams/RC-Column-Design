@@ -95,11 +95,23 @@ def _card(P, st, title, ref, lines, result=""):
     from reportlab.lib.colors import HexColor
 
     rows = []
-    # Tiêu đề in đậm
-    rows.append([P(f"<b>{title}</b>", st["card_title"])])
-    # Ref xám nhỏ dòng riêng
+    # Tiêu đề (trái) + ref (phải) cùng hàng như app
     if ref:
-        rows.append([P(ref, st["card_ref"])])
+        from reportlab.platypus import Table as _T, TableStyle as _TS
+        _tr = _T([[P(f"<b>{title}</b>", st["card_title"]),
+                   P(ref, st["card_ref"])]],
+                 colWidths=[88, 40])
+        _tr.setStyle(_TS([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        rows.append([_tr])
+    else:
+        rows.append([P(f"<b>{title}</b>", st["card_title"])])
     # Các dòng công thức
     for ln in lines:
         rows.append([P(ln, st["formula"])])
@@ -107,10 +119,9 @@ def _card(P, st, title, ref, lines, result=""):
         rows.append([P(result, st["result"])])
 
     n = len(rows)
-    # Khối công thức: sau tiêu đề+ref, trước kết quả
-    f0 = 2 if ref else 1
+    f0 = 1
     f1 = n - 2 if result else n - 1
-    card = Table([[r[0]] for r in rows], colWidths=[184])
+    card = Table([[r[0]] for r in rows], colWidths=[128])
     sty = [
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
@@ -129,10 +140,17 @@ def _card(P, st, title, ref, lines, result=""):
 
 
 def _two(P, st, c1, c2):
-    """Trả về list 2 card để add trực tiếp vào story (không bọc table)."""
-    from reportlab.platypus import Spacer
-    from reportlab.lib.units import mm
-    return [c1, Spacer(1, 3*mm), c2, Spacer(1, 3*mm)]
+    """Hai card cạnh nhau trên khổ ngang."""
+    from reportlab.platypus import Table, TableStyle
+    t = Table([[c1, c2]], colWidths=[136, 136])
+    t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    return [t]
 
 
 def _sec_head(P, st, num, title, ref=""):
@@ -147,7 +165,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                      batch_rows=None, case_info=None, shear_info=None,
                      chart_pngs=None):
     """Xuất PDF thuyết minh với layout card giống hệt app."""
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Image, Table, TableStyle, KeepTogether)
@@ -159,9 +177,9 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     conc = sec.concrete
     steel = sec.steel
 
-    doc = SimpleDocTemplate(filepath, pagesize=A4,
-                            leftMargin=8*mm, rightMargin=8*mm,
-                            topMargin=8*mm, bottomMargin=8*mm)
+    doc = SimpleDocTemplate(filepath, pagesize=landscape(A4),
+                            leftMargin=10*mm, rightMargin=10*mm,
+                            topMargin=10*mm, bottomMargin=10*mm)
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st["title"]))
     S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
