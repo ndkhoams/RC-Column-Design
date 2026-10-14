@@ -1704,10 +1704,10 @@ class App(tk.Tk):
         varmap = {}
 
         def _card(prow, title, vkey, subkey=None):
-            # Chiều cao cố định để 3 box bằng nhau
+            # Chiều cao bằng 3 box vật liệu trên (52px)
             cell = tk.Frame(prow, bg="white",
                             highlightbackground="#E5E7EB",
-                            highlightthickness=1, height=72)
+                            highlightthickness=1, height=52)
             cell.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3, pady=2)
             cell.pack_propagate(False)
             tk.Label(cell, text=title, font=("", 8), fg="#6B7280",
@@ -2129,11 +2129,12 @@ class App(tk.Tk):
         f_tl = tk.Frame(self._sum_inner, bg="white", highlightbackground="#D1D5DB",
                         highlightthickness=1)
         f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        ttk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
-                  font=("", 11, "bold")).pack(pady=(2, 2))
+        tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
+                 font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
-        ttk.Label(f_tl, textvariable=self.ck_var,
-                  font=("", 10, "bold"), foreground="#92400E").pack(pady=(0, 4))
+        tk.Label(f_tl, textvariable=self.ck_var,
+                 font=("", 10, "bold"), fg="#92400E",
+                 bg="white").pack(pady=(0, 4))
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
         draw_section_ax(a1, sec, show_stats=False)
