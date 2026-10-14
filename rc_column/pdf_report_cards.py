@@ -197,6 +197,54 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
                "(Điều 8.1.2.7)", st["sub"]))
 
+    # ============ SƠ ĐỒ MẶT CẮT (trước mục 1) ============
+    try:
+        from .pdf_export import section_image
+        _sec_png = section_image(sec, width_in=3.0)
+    except Exception:
+        _sec_png = None
+    if _sec_png:
+        S.append(P("<b>SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT</b>", st["card_title"]))
+        _simg = Image(io.BytesIO(_sec_png), width=70*mm, height=70*mm)
+        _simg.hAlign = "CENTER"
+        S.append(_simg)
+        # 6x2 info boxes dưới mặt cắt
+        _boxes = [
+            (f"t2", f"{sec.cy:.0f} mm"),
+            (f"t3", f"{sec.cx:.0f} mm"),
+            ("A", f"{sec.A/1e6:.4f} m²"),
+            ("I2", f"{sec.I2/1e9:.3f}×10⁹ mm⁴"),
+            ("I3", f"{sec.I3/1e9:.3f}×10⁹ mm⁴"),
+            ("As", f"{sec.As:.0f} mm²"),
+            ("i2", f"{(sec.I2/sec.A)**0.5:.1f} mm"),
+            ("i3", f"{(sec.I3/sec.A)**0.5:.1f} mm"),
+            ("μ", f"{100*sec.As/sec.A:.2f}%"),
+            ("Thép", f"{len(sec.bars)} thanh"),
+            ("Bê tông", f"{inp.conc_grade}"),
+            ("Cốt thép", f"{inp.steel_grade}"),
+        ]
+        _brows = []
+        for r in range(2):
+            _row = []
+            for c in range(6):
+                lbl, val = _boxes[r*6 + c]
+                _row.append(P(f"<b>{lbl}</b><br/>{val}", st["formula"]))
+            _brows.append(_row)
+        _bt = Table(_brows)
+        _bt.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
+            ("GRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
+            ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        S.append(_bt)
+        S.append(Spacer(1, 6*mm))
+
     # ================= MỤC 1 =================
     S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
                        "TCVN 5574:2018 Mục 6.1 & 6.2"))
@@ -231,42 +279,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                f"= {steel.Es:,.0f} / {conc.Eb:,.0f}",
                f"= {_f(res.alpha_e)} -"])))
     # Bảng biến dạng giới hạn
-    S.append(P("<b>Biến dạng tỷ đối giới hạn của vật liệu</b>",
-               st["card_title"]))
-    hdr = [P("<b>BÊ TÔNG CHỊU NÉN</b>", st["formula"]),
-           P("<b>BÊ TÔNG CHỊU KÉO</b>", st["formula"]),
-           P("<b>CỐT THÉP</b>", st["formula"])]
-    dat = [
-        [P(f"Biến dạng quy đổi: εb1,red = 0.0015 (1.50‰)", st["formula"]),
-         P(f"Biến dạng quy đổi: εbt1,red = 0.00008 (0.08‰)", st["formula"]),
-         P(f"Biến dạng khi đạt Rs: εs0 = {_f(steel.Rs / steel.Es, 6)}",
-           st["formula"])],
-        [P(f"Tham số εb0: εb0 = {EPS_B1} (2.00‰)", st["formula"]),
-         P(f"Tham số εbt0: εbt0 = 0.00010 (0.10‰)", st["formula"]),
-         P(f"Biến dạng khi đạt Rsc: εsc0 = {_f(steel.Rsc / steel.Es, 6)}",
-           st["formula"])],
-        [P(f"Biến dạng nén giới hạn: εb2 = {EPS_B2} (3.50‰)", st["formula"]),
-         P(f"Biến dạng kéo giới hạn: εbt2 = 0.00015 (0.15‰)", st["formula"]),
-         P(f"Biến dạng giới hạn: εs2 = {EPS_S2} (25.00‰)", st["formula"])],
-    ]
-    tbl = Table([hdr] + dat)
-    tbl.setStyle(TableStyle([
-        ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
-        ("GRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
-        ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
-         [HexColor(WHITE), HexColor(FORMULA_BG)]),
-    ]))
-    S.append(tbl)
-    S.append(P("* NDM – TCVN 5574:2018, Điều 8.1.2.7: εbu được xác định theo "
-               "trạng thái ứng suất-biến dạng tiết diện theo Công thức (86), "
-               "với εb0 ≤ εbu ≤ εb2. Bê tông vùng kéo không tham gia kiểm tra "
-               "khả năng chịu lực TTGH I.", st["note"]))
+
 
     # ================= MỤC 2 =================
     S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
