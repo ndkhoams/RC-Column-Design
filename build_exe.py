@@ -21,6 +21,23 @@ MATPLOTLIB_HOOKS = [
 ]
 
 
+def _make_icon():
+    """Tạo icon.ico từ icon.png bằng Pillow local (tương thích PyInstaller)."""
+    if not os.path.exists("icon.png"):
+        return False
+    try:
+        from PIL import Image
+        img = Image.open("icon.png")
+        # PyInstaller trên Windows ưa ICO BMP; Pillow local tạo sẽ tương thích
+        img.save("icon.ico", sizes=[(16, 16), (32, 32), (48, 48),
+                                    (64, 64), (128, 128), (256, 256)])
+        print("Đã tạo icon.ico từ icon.png")
+        return True
+    except Exception as e:
+        print(f"Không tạo được icon.ico: {e}")
+        return False
+
+
 def main() -> int:
     cmd = [
         sys.executable, "-m", "PyInstaller",
@@ -30,8 +47,8 @@ def main() -> int:
         "--windowed",         # không hiện console
         "--name", APP_NAME,
     ]
-    # Icon cho file .exe (file icon.ico chuẩn BMP Windows)
-    if os.path.exists("icon.ico"):
+    # Icon cho file .exe: tạo từ icon.png bằng Pillow trên máy build
+    if _make_icon():
         cmd += ["--icon", "icon.ico"]
     cmd += [
         *MATPLOTLIB_HOOKS,
