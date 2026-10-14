@@ -58,17 +58,17 @@ def _get_styles():
                                     fontSize=11, textColor=HexColor(TEXT),
                                     spaceBefore=10, spaceAfter=6),
         "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
-                                     fontSize=9, textColor=HexColor(TEXT),
-                                     leading=11, spaceAfter=2),
-        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=7.5,
-                                   textColor=HexColor(GRAY), leading=10,
-                                   spaceAfter=3),
-        "formula": ParagraphStyle("formula", fontName="VN", fontSize=9.5,
-                                  textColor=HexColor("#374151"), leading=13,
-                                  leftIndent=8, spaceAfter=2),
-        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=10.5,
-                                 textColor=HexColor(TEXT), leading=14,
-                                 spaceBefore=4),
+                                     fontSize=8, textColor=HexColor(TEXT),
+                                     leading=10, spaceAfter=2),
+        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=6,
+                                   textColor=HexColor(GRAY), leading=8,
+                                   spaceAfter=2),
+        "formula": ParagraphStyle("formula", fontName="VN", fontSize=7,
+                                  textColor=HexColor("#374151"), leading=10,
+                                  leftIndent=6, spaceAfter=1),
+        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=7.5,
+                                 textColor=HexColor(TEXT), leading=10,
+                                 spaceBefore=3),
         "note": ParagraphStyle("note", fontName="VN", fontSize=7.5,
                                textColor=HexColor(GRAY), leading=10,
                                spaceBefore=4, spaceAfter=4),
@@ -89,48 +89,65 @@ def _get_styles():
 
 
 def _card(P, st, title, ref, lines, result=""):
-    """Kiểu web Vietcon: 1 cột full-width, title+ref cùng hàng."""
+    """2 cột scale vừa A4 dọc: card 88mm, font nhỏ."""
     from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.colors import HexColor
     from reportlab.lib.units import mm
 
     parts = []
-    # Tiêu đề (trái, đậm) + ref (phải, xám nhỏ) cùng hàng - đủ rộng 180mm
     if ref:
         _tr = Table([[P(f"<b>{title}</b>", st["card_title"]),
-                      P(ref, st["card_ref"])]], colWidths=[130, 50])
+                      P(ref, st["card_ref"])]], colWidths=[60, 28])
         _tr.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("ALIGN", (1, 0), (1, 0), "RIGHT"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ]))
         parts.append(_tr)
     else:
         parts.append(P(f"<b>{title}</b>", st["card_title"]))
-    # Khối công thức: viền trái + nền nhạt
     grows = [[P(ln, st["formula"])] for ln in lines]
     if result:
         grows.append([P(result, st["result"])])
-    fbox = Table(grows, colWidths=[180])
+    fbox = Table(grows, colWidths=[88])
     fbox.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), HexColor(FORMULA_BG)),
-        ("LINEBEFORE", (0, 0), (0, -1), 2, HexColor("#D1D5DB")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LINEBEFORE", (0, 0), (0, -1), 1.5, HexColor("#D1D5DB")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
     parts.append(fbox)
-    parts.append(Spacer(1, 4*mm))
     return parts
 
 
 def _two(P, st, c1, c2):
-    """Hai card xếp dọc full-width (khổ dọc 1 cột)."""
-    return c1 + c2
+    """Hai card cạnh nhau trên khổ dọc (mỗi 88mm)."""
+    from reportlab.platypus import Table, TableStyle, Spacer
+    from reportlab.lib.units import mm
+    def _cell(flows):
+        inner = Table([[f] for f in flows], colWidths=[88])
+        inner.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        return inner
+    t = Table([[_cell(c1), _cell(c2)]], colWidths=[90, 90])
+    t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    return [t, Spacer(1, 2*mm)]
 
 
 def _sec_head(P, st, num, title, ref=""):
