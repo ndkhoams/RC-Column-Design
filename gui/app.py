@@ -355,8 +355,8 @@ class App(tk.Tk):
         # ===== Panel cho tiết diện chữ nhật =====
         self.rebar_rect = ttk.Frame(f)
         self.rebar_rect.grid(row=0, column=0, sticky=tk.NSEW)
-        f.columnconfigure(0, weight=1)
-        f.columnconfigure(1, weight=1)
+        f.columnconfigure(0, weight=2)
+        f.columnconfigure(1, weight=3)
         rr = self.rebar_rect
         r = 0
         self.sp_cover = ttk.Entry(rr, width=8)
