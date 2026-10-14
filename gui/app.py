@@ -88,13 +88,20 @@ class App(tk.Tk):
         except Exception:
             pass
 
-    def _fix_left_width(self):
+    def _fix_left_width(self, _retry=0):
         try:
             self.update_idletasks()
-            self._paned.sashpos(0, self._left_width)
-            # Vô hiệu hóa sash: không cho kéo
-            self._paned.bind("<B1-Motion>", lambda e: "break", add="+")
-            self._paned.bind("<ButtonPress-1>", lambda e: "break", add="+")
+            # Chỉ set sash khi window đã có kích thước thực (>100px)
+            if self.winfo_width() > 100:
+                self._paned.sashpos(0, self._left_width)
+                # Vô hiệu hóa sash: không cho kéo
+                self._paned.bind("<B1-Motion>", lambda e: "break", add="+")
+                self._paned.bind("<ButtonPress-1>", lambda e: "break", add="+")
+                # Sau khi set sash xong, refresh layout
+                self.after(200, self._refresh_layout)
+            elif _retry < 5:
+                # Thử lại sau 200ms nếu window chưa sẵn sàng
+                self.after(200, lambda: self._fix_left_width(_retry + 1))
         except Exception:
             pass
 
