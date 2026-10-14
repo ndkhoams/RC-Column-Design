@@ -499,6 +499,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                st["dc_ok"] if res.ok else st["dc_ng"]))
 
     # ================= MỤC 7 =================
+    from reportlab.platypus import PageBreak as _PB
+    S.append(_PB())
     S.append(_sec_head(P, st, 7, "KIỂM TRA CỐT THÉP ĐAI",
                        "TCVN 5574:2018 Mục 10.3.4 & 8.1.3"))
     from .stirrup import StirrupInput, check_stirrup, check_shear
