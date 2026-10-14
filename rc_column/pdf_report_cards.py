@@ -97,7 +97,7 @@ def _card(P, st, title, ref, lines, result=""):
     if ref:
         t = Table([[P(title, st["card_title"]),
                     P(ref, st["card_ref"])]],
-                  colWidths=[225, 75])
+                  colWidths=[60, 27])
         t.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -117,7 +117,7 @@ def _card(P, st, title, ref, lines, result=""):
     n = len(rows)
     # Chỉ số dòng bắt đầu/kết thúc của khối công thức
     f0, f1 = 1, n - 2 if result else n - 1
-    card = Table([[r[0]] for r in rows], colWidths=[300])
+    card = Table([[r[0]] for r in rows], colWidths=[87])
     sty = [
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
@@ -138,7 +138,7 @@ def _card(P, st, title, ref, lines, result=""):
 def _two(P, st, c1, c2):
     """Hai card cạnh nhau, căn đỉnh."""
     from reportlab.platypus import Table, TableStyle
-    t = Table([[c1, c2]], colWidths=[158, 158])
+    t = Table([[c1, c2]], colWidths=[93, 93])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 3),
@@ -233,7 +233,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
          P(f"Biến dạng kéo giới hạn: εbt2 = 0.00015 (0.15‰)", st["formula"]),
          P(f"Biến dạng giới hạn: εs2 = {EPS_S2} (25.00‰)", st["formula"])],
     ]
-    tbl = Table([hdr] + dat, colWidths=[106, 106, 106])
+    tbl = Table([hdr] + dat, colWidths=[62, 62, 62])
     tbl.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("GRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
@@ -487,8 +487,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         except Exception:
             _pngs = None
     if _pngs:
-        img1 = Image(io.BytesIO(_pngs[0]), width=85*mm, height=64*mm)
-        img2 = Image(io.BytesIO(_pngs[1]), width=85*mm, height=64*mm)
+        img1 = Image(io.BytesIO(_pngs[0]), width=80*mm, height=60*mm)
+        img2 = Image(io.BytesIO(_pngs[1]), width=80*mm, height=60*mm)
         S.append(P("Biểu đồ tương tác N-Mα", st["cap"]))
         S.append(img1)
         S.append(P("Biểu đồ tương tác M2-M3", st["cap"]))
