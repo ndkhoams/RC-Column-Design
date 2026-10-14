@@ -74,9 +74,15 @@ class ColumnInput:
     Q3: float = 0.0                # kN (lực cắt theo phương 3)
     long_term: LongTermLoads = field(default_factory=LongTermLoads)
     # Cốt thép đai (TCVN 5574:2018 10.3.4)
-    sw_dia: float = 8.0            # đường kính đai (mm)
-    sw_spacing: float = 200.0      # bước đai (mm)
-    sw_legs: int = 2               # số nhánh đai
+    sw_dia: float = 8.0            # đường kính đai bao (mm)
+    sw_spacing: float = 200.0      # bước đai bao (mm)
+    sw_legs: int = 2               # số nhánh đai bao
+    swm2_dia: float = 8.0          # đường kính đai giữa t2 (mm)
+    swm2_spacing: float = 200.0    # bước đai giữa t2 (mm)
+    swm2_legs: int = 0             # số nhánh đai giữa t2
+    swm3_dia: float = 8.0          # đường kính đai giữa t3 (mm)
+    swm3_spacing: float = 200.0    # bước đai giữa t3 (mm)
+    swm3_legs: int = 0             # số nhánh đai giữa t3
 
 
 @dataclass
