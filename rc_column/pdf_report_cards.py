@@ -197,47 +197,6 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
                "(Điều 8.1.2.7)", st["sub"]))
 
-    # ============ SƠ ĐỒ MẶT CẮT (trước mục 1) ============
-    try:
-        from .pdf_export import section_image
-        _sec_png = section_image(sec, width_in=3.0)
-    except Exception:
-        _sec_png = None
-    if _sec_png:
-        S.append(P("<b>SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT</b>", st["card_title"]))
-        _simg = Image(io.BytesIO(_sec_png), width=70*mm, height=70*mm)
-        _simg.hAlign = "CENTER"
-        S.append(_simg)
-        # 6 box thông tin dưới mặt cắt
-        from collections import Counter as _Ctr
-        _cnt = _Ctr(getattr(r, "dia", 0) for r in sec.rebars)
-        _bar_str = " + ".join(f"{_cnt[d]:.0f}d{d:.0f}"
-                              for d in sorted(_cnt, reverse=True))
-        _boxes = [
-            ("Bê tông", f"{inp.concrete_grade}"),
-            ("Thép dọc", f"{inp.steel_grade}"),
-            ("Thép đai", f"{inp.sw_steel_grade}"),
-            ("Số thanh", _bar_str),
-            ("Tổng As", f"{sec.steel_area:.0f} mm²"),
-            ("Hàm lượng μ", f"{100*sec.reinforcement_ratio:.2f}%"),
-        ]
-        _brow = [[P(f"<b>{lbl}</b><br/>{val}", st["formula"])
-                  for lbl, val in _boxes]]
-        _bt = Table(_brow)
-        _bt.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
-            ("GRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
-            ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ]))
-        S.append(_bt)
-        S.append(Spacer(1, 6*mm))
-
     # ================= MỤC 1 =================
     S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
                        "TCVN 5574:2018 Mục 6.1 & 6.2"))
@@ -277,6 +236,35 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     # ================= MỤC 2 =================
     S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
                        f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm"))
+    # Sơ đồ mặt cắt + thông tin (trái: text, phải: hình)
+    try:
+        from .pdf_export import section_image as _si
+        _sec_png2 = _si(sec, width_in=2.8, show_stats=False)
+    except Exception:
+        _sec_png2 = None
+    if _sec_png2:
+        from collections import Counter as _Ctr2
+        _cnt2 = _Ctr2(getattr(r, "dia", 0) for r in sec.rebars)
+        _bar_str2 = " + ".join(f"{_cnt2[d]:.0f}d{d:.0f}"
+                               for d in sorted(_cnt2, reverse=True))
+        _info_lines = [
+            P(f"<b>Bê tông:</b> {inp.concrete_grade}", st["formula"]),
+            P(f"<b>Thép dọc:</b> {inp.steel_grade}", st["formula"]),
+            P(f"<b>Thép đai:</b> {inp.sw_steel_grade}", st["formula"]),
+            P(f"<b>Số thanh:</b> {_bar_str2}", st["formula"]),
+            P(f"<b>Tổng As:</b> {sec.steel_area:.0f} mm²", st["formula"]),
+            P(f"<b>Hàm lượng μ:</b> {100*sec.reinforcement_ratio:.2f}%",
+              st["formula"]),
+        ]
+        _simg2 = Image(io.BytesIO(_sec_png2), width=65*mm, height=65*mm)
+        _layout = Table([[[_info_lines], _simg2]])
+        _layout.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        S.append(_layout)
+        S.append(Spacer(1, 4*mm))
     S.extend(_two(P, st,
         _mk( "Diện tích tiết diện bê tông nguyên A", "",
               ["A = t2 · t3",
