@@ -602,13 +602,6 @@ def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
     sec = build_section(inp)
     outer = tk.Frame(parent, bg=WHITE)
     # Header chung
-    hdr = tk.Frame(outer, bg=WHITE)
-    hdr.pack(fill=tk.X, padx=4, pady=(6, 2))
-    tk.Label(hdr, text="▤", font=("", 14), fg="#059669",
-             bg=WHITE).pack(side=tk.LEFT, padx=(2, 6))
-    tk.Label(hdr, text="Chi tiết tính toán", font=("", 13, "bold"),
-             fg=TEXT, bg=WHITE).pack(side=tk.LEFT)
-
     body = tk.Frame(outer, bg=WHITE)
     body.pack(fill=tk.BOTH, expand=True)
 
