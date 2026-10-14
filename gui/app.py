@@ -2229,7 +2229,8 @@ class App(tk.Tk):
         self._sec_card_vars = self._build_section_cards(f_tl, sec, inp)
 
         # ===== Ô trên-phải: bảng thông số tính toán =====
-        f_tr = ttk.Frame(self._sum_inner)
+        f_tr = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightthickness=1)
         f_tr.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         self._build_param_table(f_tr, inp, res)
 
@@ -2258,7 +2259,7 @@ class App(tk.Tk):
         # ===== Hàng 3 full-width: chi tiết biểu đồ N-M =====
         f_notes = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
         f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
-                     padx=4, pady=4)
+                     padx=4, pady=(4, 12))
         self._build_nm_notes(f_notes, inp, res)
 
         # ===== Hàng 4 full-width: tóm tắt thép đai =====
