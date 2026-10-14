@@ -354,7 +354,9 @@ class App(tk.Tk):
 
         # ===== Panel cho tiết diện chữ nhật =====
         self.rebar_rect = ttk.Frame(f)
-        self.rebar_rect.grid(row=1, column=0, columnspan=2, sticky=tk.EW)
+        self.rebar_rect.grid(row=0, column=0, sticky=tk.NSEW)
+        f.columnconfigure(0, weight=1)
+        f.columnconfigure(1, weight=1)
         rr = self.rebar_rect
         r = 0
         self.sp_cover = ttk.Entry(rr, width=8)
@@ -478,7 +480,7 @@ class App(tk.Tk):
 
         # ===== Panel cho tiết diện tròn =====
         self.rebar_circ = ttk.Frame(f)
-        self.rebar_circ.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
+        self.rebar_circ.grid(row=0, column=0, sticky=tk.NSEW)
         self.cb_cdia = ttk.Combobox(self.rebar_circ, values=DIAS,
                                     state="readonly", width=10)
         self.cb_cdia.set("20")
@@ -493,9 +495,9 @@ class App(tk.Tk):
         self._row(self.rebar_circ, "Lớp bê tông bảo vệ c (mm)",
                   self.sp_ccover, 2)
 
-        # ===== Cốt thép đai: bảng 2 hàng (bao/giữa) x 3 cột =====
+        # ===== Cốt thép đai: bên phải =====
         sw_hdr = ttk.Frame(f)
-        sw_hdr.grid(row=0, column=0, columnspan=2, sticky=tk.EW,
+        sw_hdr.grid(row=0, column=1, sticky=tk.NSEW,
                     padx=4, pady=(4, 2))
         for j, t in enumerate(("Số nhánh", "Đường kính (mm)",
                                "Khoảng cách s (mm)")):
@@ -580,6 +582,8 @@ class App(tk.Tk):
         for c, h in enumerate(hdr):
             ttk.Label(f, text=h, font=("", 9, "bold")).grid(
                 row=0, column=c, padx=4, pady=2, sticky=tk.W)
+        f.columnconfigure(1, weight=1)
+        f.columnconfigure(2, weight=1)
         bn = list(BOUNDARY_NAMES.values())
         self.en_Lx = ttk.Entry(f, width=20)
         self.en_Ly = ttk.Entry(f, width=20)
