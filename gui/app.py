@@ -69,8 +69,9 @@ class App(tk.Tk):
         st.configure(".", background=BG, font=("", 10))
         st.configure("TFrame", background=BG)
         st.configure("TLabel", background=BG, foreground=TEXT, font=("", 10))
-        # Label mô tả nhỏ màu xám
-        st.configure("Muted.TLabel", foreground=MUTED, font=("", 9))
+        # Label mô tả nhỏ màu xám, nền trắng
+        st.configure("Muted.TLabel", foreground=MUTED, font=("", 9),
+                     background="white")
         # Tiêu đề mục: số xanh lá + chữ đậm
         st.configure("Section.TLabel", foreground=TEXT,
                      font=("", 11, "bold"))
