@@ -384,47 +384,47 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
          res.etay, res.My_star, M3, res.L0y),
     ]
     # Mỗi hàng: 2 card (phương 2 | phương 3)
-    def _mk(d, e0, t, delta, kb, D, Ncr, eta, Mstar, Morig, L0, kind):
+    def _mk5(d, e0, t, delta, kb, D, Ncr, eta, Mstar, Morig, L0, kind):
         if kind == "phi":
-            return _mk(
+            return _mk5(
                          f"Hệ số ảnh hưởng thời hạn tải trọng φL,{d}",
                          "Công thức (48)",
                          [f"φL,{d} = 1 + ML1,{d} / ML,{d} ≤ 2.0",
                           f"φL = {phi_txt}"])
         if kind == "de":
-            return _mk( f"Độ lệch tâm tương đối phương {d} (δe,{d})",
+            return _mk5( f"Độ lệch tâm tương đối phương {d} (δe,{d})",
                          "Điều 8.1.2.4.2",
                          [f"δe,{d} = e0{'3' if d == '2' else '2'} / t{d} "
                           "(lấy trong [0.15, 1.5])",
                           f"= {_f(e0, 2)} / {t:.0f} = {_f(delta, 3)}",
                           f"= {_f(delta, 3)} -"])
         if kind == "kb":
-            return _mk( f"Hệ số độ cứng bê tông phương {d} (kb,{d})",
+            return _mk5( f"Hệ số độ cứng bê tông phương {d} (kb,{d})",
                          "Công thức (47)",
                          [f"kb,{d} = 0.15 / [φL,{d} · (0.3 + δe,{d})]",
                           f"= 0.15 / [{_f(phi_v, 2)} × "
                           f"(0.3 + {_f(delta, 3)})]",
                           f"= {_f(kb, 3)} -"])
         if kind == "D":
-            return _mk( f"Độ cứng chống uốn quy ước phương {d} (D{d})",
+            return _mk5( f"Độ cứng chống uốn quy ước phương {d} (D{d})",
                          "Công thức (46)",
                          [f"D{d} = kb,{d} · Eb · I{d} + ks · Es · Is{d}",
                           "ks = 0.7",
                           f"= {_f(D, 1)} kN·m²"])
         if kind == "Ncr":
-            return _mk( f"Lực tới hạn Euler phương {d} (Ncr,{d})",
+            return _mk5( f"Lực tới hạn Euler phương {d} (Ncr,{d})",
                          "Công thức (45)",
                          [f"Ncr,{d} = (π² · D{d}) / L0{d}²",
                           f"= (π² × {_f(D, 1)}) / {_f(L0, 2)}²",
                           f"= {_f(Ncr, 2)} kN"])
         if kind == "eta":
-            return _mk( f"Hệ số uốn dọc phương {d} (η{d})",
+            return _mk5( f"Hệ số uốn dọc phương {d} (η{d})",
                          "Công thức (44)",
                          [f"η{d} = 1 / [1 - N / Ncr,{d}]",
                           f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}]",
                           f"= {_f(eta, 3)} ≥ 1.0"])
         if kind == "Ms":
-            return _mk( f"Mô men tính toán phương {d} (M{d}*)",
+            return _mk5( f"Mô men tính toán phương {d} (M{d}*)",
                          "Mục 8.1.2.4",
                          [f"M{d}* = η{d} · M{d}",
                           f"= {_f(eta, 3)} × {_f(Morig, 2)}",
