@@ -1927,7 +1927,9 @@ class App(tk.Tk):
             headers = ["Thông số", "Phương V2", "Phương V3"]
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
-                         fg="#111827", borderwidth=1, relief="solid",
+                         fg="#111827", borderwidth=0,
+                         highlightbackground="#D1D5DB",
+                         highlightthickness=1,
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=1 if j else 2)
             sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
@@ -1964,7 +1966,9 @@ class App(tk.Tk):
                 for j, t in enumerate((a, b, c)):
                     fw = ("", 9, "bold") if j == 0 else ("", 9)
                     tk.Label(tf, text=t, font=fw, bg=bg, fg="#1F2937",
-                             borderwidth=1, relief="solid",
+                             borderwidth=0,
+                             highlightbackground="#D1D5DB",
+                             highlightthickness=1,
                              padx=6, pady=2, anchor="w" if j == 0
                              else "center").grid(row=i + 1, column=j,
                                                  sticky="nsew")
@@ -2184,6 +2188,8 @@ class App(tk.Tk):
         self._sum_inner.rowconfigure(3, weight=0)
 
         self._sum_inner.rowconfigure(2, weight=0)
+        # Gắn lại cuộn chuột cho các widget mới (kể cả hình matplotlib)
+        self._bind_wheel(self._sum_inner, self._sum_canvas)
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
             try:
