@@ -150,7 +150,7 @@ def _pdf_section_header(P, styles, num, title, ref):
 
 
 def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
-                     case_info=None, shear_info=None):
+                     batch_rows=None, case_info=None, shear_info=None):
     """Xuất PDF thuyết minh kiểu card giống app."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
