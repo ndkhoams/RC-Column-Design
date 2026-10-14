@@ -180,8 +180,8 @@ class App(tk.Tk):
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.nb = nb
-        self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text="Tóm tắt")
-        self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text="Thuyết minh tính toán")
+        self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text="Kết quả tính toán")
+        self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text="Chi tiết tính toán")
 
         # Tab Tóm tắt bọc trong canvas cuộn được
         sum_canvas = tk.Canvas(self.tab_sum, highlightthickness=0)
