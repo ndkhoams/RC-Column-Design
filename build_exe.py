@@ -30,9 +30,9 @@ def main() -> int:
         "--windowed",         # không hiện console
         "--name", APP_NAME,
     ]
-    # Không dùng --icon trong PyInstaller (hay lỗi convert trên Windows).
-    # Sau khi build xong, chuột phải vào file .exe > Properties > Change icon,
-    # chọn file icon.ico trong thư mục project.
+    # Icon cho file .exe (file icon.ico chuẩn BMP Windows)
+    if os.path.exists("icon.ico"):
+        cmd += ["--icon", "icon.ico"]
     cmd += [
         *MATPLOTLIB_HOOKS,
         # ẩn import để PyInstaller không bỏ sót
