@@ -1224,6 +1224,23 @@ class App(tk.Tk):
                 initialfile=_def)
             if not path:
                 return
+            # Lấy PNG biểu đồ từ tab Tóm tắt cho PDF
+            def _get_chart_pngs():
+                try:
+                    import io
+                    nm_fig = getattr(self, "_nm_fig", None)
+                    m2m3_fig = getattr(self, "_m2m3_fig", None)
+                    if nm_fig is not None and m2m3_fig is not None:
+                        buf1 = io.BytesIO()
+                        nm_fig.savefig(buf1, format="png", dpi=150,
+                                       bbox_inches="tight")
+                        buf2 = io.BytesIO()
+                        m2m3_fig.savefig(buf2, format="png", dpi=150,
+                                         bbox_inches="tight")
+                        return (buf1.getvalue(), buf2.getvalue())
+                except Exception:
+                    pass
+                return None
             # Hàm hiện dialog thành công có nút Mở PDF
             def _show_success(ppath):
                 import tkinter as _tk
@@ -1286,7 +1303,8 @@ class App(tk.Tk):
                 export_pdf_cards(self._last_inp, self._last_res, path,
                            batch_rows=getattr(self, "_pdf_batch", None),
                            case_info=getattr(self, "_pdf_case", None),
-                           shear_info=getattr(self, "_pdf_shear", None))
+                           shear_info=getattr(self, "_pdf_shear", None),
+                           chart_pngs=_get_chart_pngs())
             _show_success(path)
         except Exception as e:
             from tkinter import messagebox
@@ -1345,10 +1363,27 @@ class App(tk.Tk):
             return
         try:
             from rc_column.pdf_report_cards import export_pdf_cards
+            # Lấy PNG từ tab Tóm tắt
+            _cp = None
+            try:
+                import io
+                _nf = getattr(self, "_nm_fig", None)
+                _mf = getattr(self, "_m2m3_fig", None)
+                if _nf is not None and _mf is not None:
+                    _b1 = io.BytesIO(); _nf.savefig(_b1, format="png",
+                                                    dpi=150,
+                                                    bbox_inches="tight")
+                    _b2 = io.BytesIO(); _mf.savefig(_b2, format="png",
+                                                    dpi=150,
+                                                    bbox_inches="tight")
+                    _cp = (_b1.getvalue(), _b2.getvalue())
+            except Exception:
+                pass
             export_pdf_cards(self._pdf_inp, self._pdf_res, path,
                        batch_rows=getattr(self, "_pdf_batch", None),
                        case_info=getattr(self, "_pdf_case", None),
-                       shear_info=getattr(self, "_pdf_shear", None))
+                       shear_info=getattr(self, "_pdf_shear", None),
+                       chart_pngs=_cp)
             self._show_pdf_success(path)
         except Exception as ex:
             messagebox.showerror("Lỗi xuất PDF", str(ex))
@@ -1664,9 +1699,25 @@ class App(tk.Tk):
         # Xóa nội dung cũ
         for w in self._calc_inner.winfo_children():
             w.destroy()
+        # Lấy PNG biểu đồ từ tab Tóm tắt (giống hệt)
+        chart_pngs = None
+        try:
+            import io
+            nm_fig = getattr(self, "_nm_fig", None)
+            m2m3_fig = getattr(self, "_m2m3_fig", None)
+            if nm_fig is not None and m2m3_fig is not None:
+                buf1 = io.BytesIO()
+                nm_fig.savefig(buf1, format="png", dpi=100,
+                               bbox_inches="tight")
+                buf2 = io.BytesIO()
+                m2m3_fig.savefig(buf2, format="png", dpi=100,
+                                 bbox_inches="tight")
+                chart_pngs = (buf1.getvalue(), buf2.getvalue())
+        except Exception:
+            pass
         # Mục 1-7: widget kiểu Vietcon
         body = build_calc_widgets(self._calc_inner, inp, res, case_info,
-                                  shear_info)
+                                  shear_info, chart_pngs)
         body.pack(fill=tk.BOTH, expand=True)
         # Cập nhật scroll
         self._calc_inner.update_idletasks()
@@ -2186,6 +2237,7 @@ class App(tk.Tk):
         f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
         self._build_nm_header(f_bl, res)
         fig_nm, cv_nm = _new_fig(f_bl, (3.9, 2.9))
+        self._nm_fig = fig_nm
         a3 = fig_nm.add_subplot(111)
         _nm_alpha_ax(a3)
         fig_nm.tight_layout()
@@ -2197,6 +2249,7 @@ class App(tk.Tk):
         f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self._build_m2m3_header(f_br, res)
         fig_mm, cv_mm = _new_fig(f_br, (3.9, 2.9))
+        self._m2m3_fig = fig_mm
         a4 = fig_mm.add_subplot(111)
         _m2m3_ax(a4)
         fig_mm.tight_layout()
