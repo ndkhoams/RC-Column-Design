@@ -527,8 +527,7 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
                         [f"Q2 = {_f(q2i['Q'], 1)} kN "
                          f"({q2i['case']}@{q2i['station']:.2f})",
                          f"Q3 = {_f(q3i['Q'], 1)} kN "
-                         f"({q3i['case']}@{q3i['station']:.2f})",
-                         "Độc lập với combo N-M nguy hiểm nhất"])
+                         f"({q3i['case']}@{q3i['station']:.2f})"])
         c.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
     # Kiểm tra chịu cắt từng phương
     Rb = conc.Rb
@@ -565,6 +564,9 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
             f"  Qsw = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
             f"= {_f(sh.Qsw_opt, 1)} kN",
             f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm",
+            f"{'✓' if sh.ok else '✗'} So sánh: |Q| = {_f(abs(Q), 1)} kN "
+            f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN "
+            f"→ {'ĐẠT' if sh.ok else 'KHÔNG ĐẠT'}",
         ]
         c = _param_card(grid, f"Kiểm tra chịu cắt phương {dnum}", "", lines)
         c.grid(row=row, column=int(dnum) - 2, sticky="nsew", padx=4, pady=4)
