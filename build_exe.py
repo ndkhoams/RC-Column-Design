@@ -29,7 +29,13 @@ def main() -> int:
         "--onefile",          # 1 file exe duy nhất
         "--windowed",         # không hiện console
         "--name", APP_NAME,
-        "--icon", "icon.ico",
+    ]
+    # Icon: chỉ thêm nếu file tồn tại và hợp lệ
+    if os.path.exists("icon.ico"):
+        cmd += ["--icon", "icon.ico"]
+    else:
+        print("Cảnh báo: không tìm thấy icon.ico, build không có icon.")
+    cmd += [
         *MATPLOTLIB_HOOKS,
         # ẩn import để PyInstaller không bỏ sót
         "--hidden-import", "matplotlib.backends.backend_tkagg",
