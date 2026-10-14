@@ -317,12 +317,12 @@ class App(tk.Tk):
         self._row(f, "Cấp độ bền thép dọc", self.cb_steel, 0, c0=2)
         self.en_gb = ttk.Entry(f, width=14); self.en_gb.insert(0, "0.85")
         self._row(f, "Hệ số γb", self.en_gb, 1, c0=0)
-        self.en_gs = ttk.Entry(f, width=14); self.en_gs.insert(0, "1.0")
-        self._row(f, "Hệ số γs", self.en_gs, 1, c0=2)
         self.cb_sw_steel = ttk.Combobox(f, values=list(STEEL_GRADES),
                                         state="readonly", width=14)
         self.cb_sw_steel.set("CB400-V")
-        self._row(f, "Cấp độ bền thép đai", self.cb_sw_steel, 2, c0=0)
+        self._row(f, "Cấp độ bền thép đai", self.cb_sw_steel, 1, c0=2)
+        self.en_gs = ttk.Entry(f, width=14); self.en_gs.insert(0, "1.0")
+        self._row(f, "Hệ số γs", self.en_gs, 2, c0=0)
         self.cb_model = ttk.Combobox(
             f, values=["3 đoạn thẳng (MH3ĐT)", "2 đoạn thẳng (MH2ĐT)"],
             state="readonly", width=14)
@@ -339,9 +339,9 @@ class App(tk.Tk):
                           lambda e: self._refresh_rebar_panel())
         self._row(f, "Loại tiết diện", self.cb_kind, 0, c0=0)
         self.en_cx = ttk.Entry(f, width=14); self.en_cx.insert(0, "400")
-        self._row(f, "Cạnh t3 (mm) — ngang", self.en_cx, 0, c0=2)
+        self._row(f, "Cạnh t3 (mm) — ngang", self.en_cx, 1, c0=0)
         self.en_cy = ttk.Entry(f, width=14); self.en_cy.insert(0, "400")
-        self._row(f, "Cạnh t2 (mm) — đứng", self.en_cy, 1, c0=0)
+        self._row(f, "Cạnh t2 (mm) — đứng", self.en_cy, 1, c0=2)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
@@ -354,7 +354,7 @@ class App(tk.Tk):
 
         # ===== Panel cho tiết diện chữ nhật =====
         self.rebar_rect = ttk.Frame(f)
-        self.rebar_rect.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
+        self.rebar_rect.grid(row=1, column=0, columnspan=2, sticky=tk.EW)
         rr = self.rebar_rect
         r = 0
         self.sp_cover = ttk.Entry(rr, width=8)
@@ -495,7 +495,7 @@ class App(tk.Tk):
 
         # ===== Cốt thép đai: bảng 2 hàng (bao/giữa) x 3 cột =====
         sw_hdr = ttk.Frame(f)
-        sw_hdr.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
+        sw_hdr.grid(row=0, column=0, columnspan=2, sticky=tk.EW,
                     padx=4, pady=(4, 2))
         for j, t in enumerate(("Số nhánh", "Đường kính (mm)",
                                "Khoảng cách s (mm)")):
@@ -581,18 +581,18 @@ class App(tk.Tk):
             ttk.Label(f, text=h, font=("", 9, "bold")).grid(
                 row=0, column=c, padx=4, pady=2, sticky=tk.W)
         bn = list(BOUNDARY_NAMES.values())
-        self.en_Lx = ttk.Entry(f, width=12)
-        self.en_Ly = ttk.Entry(f, width=12)
-        self.cb_tx = ttk.Combobox(f, values=bn, state="readonly", width=10)
+        self.en_Lx = ttk.Entry(f, width=20)
+        self.en_Ly = ttk.Entry(f, width=20)
+        self.cb_tx = ttk.Combobox(f, values=bn, state="readonly", width=18)
         self.cb_tx.set("Ngàm nửa cứng")
-        self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=16)
+        self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=18)
         self.cb_bx.set("Ngàm nửa cứng")
-        self.cb_ty = ttk.Combobox(f, values=bn, state="readonly", width=16)
+        self.cb_ty = ttk.Combobox(f, values=bn, state="readonly", width=18)
         self.cb_ty.set("Ngàm nửa cứng")
-        self.cb_by = ttk.Combobox(f, values=bn, state="readonly", width=16)
+        self.cb_by = ttk.Combobox(f, values=bn, state="readonly", width=18)
         self.cb_by.set("Ngàm nửa cứng")
-        self.en_psix = ttk.Entry(f, width=12)
-        self.en_psiy = ttk.Entry(f, width=12)
+        self.en_psix = ttk.Entry(f, width=20)
+        self.en_psiy = ttk.Entry(f, width=20)
         rows = [
             ("Chiều dài cột L (m)", self.en_Lx, self.en_Ly),
             ("Liên kết đầu trên", self.cb_tx, self.cb_ty),
