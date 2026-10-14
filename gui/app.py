@@ -69,20 +69,22 @@ class App(tk.Tk):
         # Ép tính lại layout sau khi hiện cửa sổ (fix khoảng trống trên Win)
         self.after(300, self._refresh_layout)
 
-    def _refresh_layout(self):
+    def _refresh_layout(self, _retry=0):
         """Ép tkinter tính lại layout (fix lỗi khoảng trống khi mở app)."""
         try:
             self.update_idletasks()
-            # Cập nhật scrollregion cho canvas trái
-            if hasattr(self, '_left_canvas'):
-                self._left_canvas.configure(
-                    scrollregion=self._left_canvas.bbox("all"))
-            # Cập nhật scrollregion cho canvas thuyết minh
-            if hasattr(self, '_calc_canvas'):
-                self._calc_canvas.configure(
-                    scrollregion=self._calc_canvas.bbox("all"))
-            # Ép vẽ lại
+            for _c in ('_left_canvas', '_calc_canvas', '_sum_canvas'):
+                if hasattr(self, _c):
+                    cv = getattr(self, _c)
+                    try:
+                        cv.configure(scrollregion=cv.bbox("all"))
+                        cv.yview_moveto(0)  # ép về đầu
+                    except Exception:
+                        pass
             self.update()
+            # Thử lại 2 lần nữa vì fullscreen trên Win tính geometry chậm
+            if _retry < 2:
+                self.after(500, lambda: self._refresh_layout(_retry + 1))
         except Exception:
             pass
 
