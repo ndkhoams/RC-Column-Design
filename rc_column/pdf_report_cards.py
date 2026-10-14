@@ -89,7 +89,7 @@ def _get_styles():
 
 
 def _two(P, st, c1, c2):
-    """2 cột rộng full 190mm."""
+    """2 cột tự giãn đều, không fix width."""
     from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.colors import HexColor
     from reportlab.lib.units import mm
@@ -107,7 +107,7 @@ def _two(P, st, c1, c2):
             rows.append([P(c["result"], st["result"])])
         if not rows:
             rows.append([P("", st["formula"])])
-        t = Table(rows, colWidths=[95])
+        t = Table(rows)
         sty = [
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -124,14 +124,14 @@ def _two(P, st, c1, c2):
         t.setStyle(TableStyle(sty))
         return t
 
-    t = Table([[_one(c1), _one(c2)]], colWidths=[95, 95])
+    # Không chỉ định colWidths -> 2 cột tự chia đều
+    t = Table([[_one(c1), _one(c2)]])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
         ("TOPPADDING", (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
     ]))
     return [t, Spacer(1, 4*mm)]
 
