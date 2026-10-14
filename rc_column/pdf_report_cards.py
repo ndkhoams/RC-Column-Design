@@ -532,8 +532,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                        [f"Q2 = {_f(q2i['Q'], 1)} kN "
                         f"({q2i['case']}@{q2i['station']:.2f})",
                         f"Q3 = {_f(q3i['Q'], 1)} kN "
-                        f"({q3i['case']}@{q3i['station']:.2f})",
-                        "Độc lập với combo N-M nguy hiểm nhất"]),
+                        f"({q3i['case']}@{q3i['station']:.2f})"]),
                       _EMPTY))
     Rb = conc.Rb
     Rbt = conc.Rbt
@@ -568,7 +567,10 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
              f"  (Qb ∈ [{_f(Qb_lo, 1)}, {_f(Qb_hi, 1)}] kN)",
              f"  Qsw = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
              f"= {_f(sh.Qsw_opt, 1)} kN",
-             f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm"]))
+             f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm",
+             f"{'✓' if sh.ok else '✗'} So sánh: |Q| = {_f(abs(Q), 1)} kN "
+             f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN "
+             f"→ {'ĐẠT' if sh.ok else 'KHÔNG ĐẠT'}"]))
         shear_ok &= sh.ok
     if len(cards7) == 2:
         S.extend(_two(P, st, cards7[0], cards7[1]))
