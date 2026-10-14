@@ -412,7 +412,7 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec):
 
 def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
     """Mục 7: Kiểm tra cốt thép đai — dạng card khớp style mục 1-6."""
-    from .checker import StirrupInput, check_stirrup, check_shear
+    from .stirrup import StirrupInput, check_stirrup, check_shear
     from .materials import STEEL_GRADES
     import math as _m
     _section_header(g, 7, "KIỂM TRA CỐT THÉP ĐAI",
