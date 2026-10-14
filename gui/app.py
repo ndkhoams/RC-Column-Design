@@ -633,11 +633,14 @@ class App(tk.Tk):
         mode_bar = ttk.Frame(f)
         mode_bar.grid(row=0, column=0, columnspan=2, sticky=tk.W,
                       padx=4, pady=4)
-        ttk.Radiobutton(mode_bar, text="Nhập tay",
+        st = ttk.Style()
+        st.configure("White.TRadiobutton", background="white", font=("", 10))
+        ttk.Radiobutton(mode_bar, text="Nhập tay", style="White.TRadiobutton",
                         variable=self.var_load_mode, value="manual",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
         ttk.Radiobutton(mode_bar, text="Import Excel ETABS",
+                        style="White.TRadiobutton",
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
@@ -694,33 +697,35 @@ class App(tk.Tk):
         btn_row = ttk.Frame(self.etabs_frame)
         btn_row.grid(row=0, column=0, columnspan=3, sticky=tk.EW,
                      padx=4, pady=4)
-        ttk.Button(btn_row, text="📂 Chọn file Excel",
+        st.configure("Big.TButton", font=("", 12), padding=(8, 6))
+        ttk.Button(btn_row, text="📂 Chọn file Excel", style="Big.TButton",
                    command=self.on_import_etabs).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
-        ttk.Button(btn_row, text="📋 Paste từ Clipboard",
+        ttk.Button(btn_row, text="📋 Paste từ Clipboard", style="Big.TButton",
                    command=self.on_paste_etabs).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=2)
-        ttk.Button(btn_row, text="🗑️ Xóa nội lực",
+        ttk.Button(btn_row, text="🗑️ Xóa nội lực", style="Big.TButton",
                    command=self.on_delete_forces).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
 
         # Luôn chỉ tính tổ hợp (Combination) - bỏ checkbox theo yêu cầu
-        self.etabs_info = tk.StringVar(value="Chưa chọn file.")
-        ttk.Label(self.etabs_frame, textvariable=self.etabs_info,
-                  foreground="#0a4d8c", wraplength=360,
-                  justify=tk.LEFT).grid(row=3, column=0, columnspan=2,
-                                        padx=4, sticky=tk.W)
-        # Bảng kết quả (gọn cho panel trái)
-        cols = ("case", "N", "Mx", "My", "dc", "kl")
+        self.etabs_info = tk.StringVar(value="")
+        # Bảng kết quả: Story, Label, Comb, Station, N, V2, V3, M2, M3, D/C
+        cols = ("story", "label", "case", "station", "N", "V2", "V3",
+                "M2", "M3", "dc")
         self.etabs_tree = ttk.Treeview(self.etabs_frame, columns=cols,
                                        show="headings", height=12)
         self.etabs_tree.bind("<Double-1>", self._edit_etabs_cell)
-        hd = {"case": "Tổ hợp", "N": "N", "Mx": "M2", "My": "M3",
-              "dc": "D/C", "kl": "KQ"}
-        wd = {"case": 80, "N": 65, "Mx": 65, "My": 65, "dc": 55, "kl": 60}
+        hd = {"story": "Story", "label": "Label", "case": "Comb",
+              "station": "Station", "N": "N", "V2": "V2", "V3": "V3",
+              "M2": "M2", "M3": "M3", "dc": "D/C"}
+        wd = {"story": 60, "label": 60, "case": 70, "station": 55,
+              "N": 65, "V2": 60, "V3": 60, "M2": 65, "M3": 65, "dc": 55}
         for c in cols:
             self.etabs_tree.heading(c, text=hd[c])
             self.etabs_tree.column(c, width=wd[c], anchor=tk.CENTER)
+        # Tag đỏ cho dòng D/C > 1
+        self.etabs_tree.tag_configure("over", foreground="#DC2626")
         self.etabs_tree.grid(row=4, column=0, columnspan=2, padx=4, pady=4,
                              sticky=tk.EW)
         vsb = ttk.Scrollbar(self.etabs_frame, orient=tk.VERTICAL,
@@ -1004,14 +1009,12 @@ class App(tk.Tk):
         t.delete(*t.get_children())
         for f, r in rows:
             dc = r["dc"] if r else None
-            vals = (f"{f.case}@{f.station:.2f}",
-                    f"{f.N:.0f}", f"{f.Mx:.0f}", f"{f.My:.0f}",
-                    f"{dc:.3f}" if dc is not None and dc == dc else "—",
-                    ("NG" if dc and dc > 1 else
-                     "ĐẠT" if dc else "—"))
-            tag = ()
-            if r and dc == dc:
-                tag = ("ng",) if dc > 1 else ()
+            vals = (f.story, f.column, f.case, f"{f.station:.2f}",
+                    f"{f.N:.0f}", f"{f.Q2:.0f}", f"{f.Q3:.0f}",
+                    f"{f.Mx:.0f}", f"{f.My:.0f}",
+                    f"{dc:.3f}" if dc is not None and dc == dc else "—")
+            # Dòng D/C > 1: đỏ text cả dòng
+            tag = ("over",) if (dc and dc == dc and dc > 1) else ()
             t.insert("", tk.END, values=vals, tags=tag)
 
     def _edit_etabs_cell(self, event):
@@ -1079,6 +1082,25 @@ class App(tk.Tk):
         if not self.etabs_forces:
             messagebox.showinfo("ETABS", "Hãy import file Excel trước.")
             return
+        # Tự động xác định L: station lớn nhất của (Story, Column) phổ biến nhất
+        # Nếu không có data ETABS thì giữ L nhập tay
+        try:
+            from collections import Counter
+            _pairs = Counter((f.story, f.column)
+                             for f in self.etabs_forces)
+            if _pairs:
+                _bst, _bcl = _pairs.most_common(1)[0][0]
+                _sts = [f.station for f in self.etabs_forces
+                        if f.story == _bst and f.column == _bcl]
+                if _sts:
+                    _L = max(_sts)
+                    if _L > 0:
+                        self.en_Lx.delete(0, tk.END)
+                        self.en_Lx.insert(0, f"{_L:.2f}")
+                        self.en_Ly.delete(0, tk.END)
+                        self.en_Ly.insert(0, f"{_L:.2f}")
+        except Exception:
+            pass
         try:
             inp = self.collect()
         except Exception as ex:
@@ -1100,6 +1122,18 @@ class App(tk.Tk):
         # highlight dòng nguy hiểm nhất (dòng đầu sau sắp xếp)
         self._fill_etabs_table(rows)
         worst_f, worst_r = rows[0]
+        # Tự động xác định L: station lớn nhất của cùng Story + Column Label
+        _L_auto = None
+        try:
+            _sts = [f.station for f in self.etabs_forces
+                    if f.story == worst_f.story and f.column == worst_f.column]
+            if _sts:
+                _L_auto = max(_sts)
+        except Exception:
+            pass
+        if _L_auto and _L_auto > 0:
+            self.en_Lx.delete(0, tk.END); self.en_Lx.insert(0, f"{_L_auto:.2f}")
+            self.en_Ly.delete(0, tk.END); self.en_Ly.insert(0, f"{_L_auto:.2f}")
         children = self.etabs_tree.get_children()
         if children:
             self.etabs_tree.item(children[0], tags=("worst",))
