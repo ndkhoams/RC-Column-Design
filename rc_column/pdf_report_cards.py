@@ -89,28 +89,25 @@ def _get_styles():
 
 
 def _two(P, st, c1, c2):
-    """Mỗi card 1 hàng full-width 180mm, xếp dọc."""
+    """2 cột rộng full 190mm."""
     from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.colors import HexColor
     from reportlab.lib.units import mm
 
     def _one(c):
-        # c là dict
         rows = []
-        # Tiêu đề + ref cùng hàng
         if c["ref"]:
             rows.append([P(f'<b>{c["title"]}</b> <font color="{GRAY}" size=7>{c["ref"]}</font>',
                            st["card_title"])])
         elif c["title"]:
             rows.append([P(f'<b>{c["title"]}</b>', st["card_title"])])
-        # Công thức
         for ln in c["lines"]:
             rows.append([P(ln, st["formula"])])
         if c.get("result"):
             rows.append([P(c["result"], st["result"])])
         if not rows:
-            return None
-        t = Table(rows, colWidths=[180])
+            rows.append([P("", st["formula"])])
+        t = Table(rows, colWidths=[95])
         sty = [
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -118,7 +115,6 @@ def _two(P, st, c1, c2):
             ("TOPPADDING", (0, 0), (-1, -1), 2),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ]
-        # Nền + viền trái cho khối công thức (từ hàng 1)
         if len(rows) > 1:
             sty += [
                 ("BACKGROUND", (0, 1), (-1, -1), HexColor(FORMULA_BG)),
@@ -128,13 +124,16 @@ def _two(P, st, c1, c2):
         t.setStyle(TableStyle(sty))
         return t
 
-    parts = []
-    for c in (c1, c2):
-        t = _one(c)
-        if t is not None:
-            parts.append(t)
-            parts.append(Spacer(1, 3*mm))
-    return parts
+    t = Table([[_one(c1), _one(c2)]], colWidths=[95, 95])
+    t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+    ]))
+    return [t, Spacer(1, 4*mm)]
 
 
 def _mk(title, ref, lines, result=""):
@@ -169,8 +168,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     steel = sec.steel
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
-                            leftMargin=15*mm, rightMargin=15*mm,
-                            topMargin=12*mm, bottomMargin=12*mm)
+                            leftMargin=10*mm, rightMargin=10*mm,
+                            topMargin=10*mm, bottomMargin=10*mm)
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st["title"]))
     S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
