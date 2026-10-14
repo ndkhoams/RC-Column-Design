@@ -219,33 +219,30 @@ class App(tk.Tk):
                         command=self._on_toggle_table).pack(side=tk.LEFT, padx=4)
         # Cuộn chuột trên thanh nút Xuất PDF -> cuộn text thuyết minh
         self._bind_wheel_to_calc(calc_bar)
-        # Khung text + thanh cuộn
+        # Khung cuộn cho thuyết minh kiểu Vietcon (widget)
         calc_frame = ttk.Frame(self.tab_calc)
         calc_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
-        calc_scroll = ttk.Scrollbar(calc_frame)
+        self._calc_canvas = tk.Canvas(calc_frame, bg="white",
+                                      highlightthickness=0)
+        calc_scroll = ttk.Scrollbar(calc_frame, orient=tk.VERTICAL,
+                                    command=self._calc_canvas.yview)
+        self._calc_inner = tk.Frame(self._calc_canvas, bg="white")
+        self._calc_inner.bind("<Configure>",
+            lambda e: self._calc_canvas.configure(
+                scrollregion=self._calc_canvas.bbox("all")))
+        self._calc_canvas.create_window((0, 0), window=self._calc_inner,
+                                        anchor=tk.NW)
+        self._calc_canvas.configure(yscrollcommand=calc_scroll.set)
+        self._calc_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         calc_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.calc_text = tk.Text(calc_frame, wrap=tk.WORD,
-                                 font=("", 10),
-                                 yscrollcommand=calc_scroll.set)
-        self.calc_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        calc_scroll.config(command=self.calc_text.yview)
-        self.calc_text.insert(tk.END,
-                              "Chi tiết tính toán sẽ hiển thị sau khi thực hiện kiểm tra.")
-        # Cuộn chuột mượt cho thuyết minh (2 dòng/nấc thay vì mặc định)
-        self.calc_text.bind("<MouseWheel>", self._on_calc_wheel)
-        self.calc_text.bind("<Button-4>", self._on_calc_wheel)
-        self.calc_text.bind("<Button-5>", self._on_calc_wheel)
-
-    def _on_calc_wheel(self, event):
-        """Cuộn thuyết minh mượt hơn: bước nhỏ 2 units/nấc."""
-        if getattr(event, "num", None) == 4:
-            self.calc_text.yview_scroll(-2, "units")
-        elif getattr(event, "num", None) == 5:
-            self.calc_text.yview_scroll(2, "units")
-        else:
-            delta = int(-event.delta / 120) if event.delta else 0
-            self.calc_text.yview_scroll(delta * 2, "units")
-        return "break"
+        def _calc_width(e):
+            self._calc_canvas.itemconfig(1, width=e.width)
+        self._calc_canvas.bind("<Configure>", _calc_width)
+        tk.Label(self._calc_inner, text="Chi tiết tính toán sẽ hiển thị sau "
+                 "khi thực hiện kiểm tra.", bg="white",
+                 font=("", 10)).pack(pady=20)
+        # Cuộn chuột cho thuyết minh
+        self._bind_wheel(self._calc_inner, self._calc_canvas)
 
     def _bind_wheel(self, root_widget, canvas):
         """Gắn cuộn chuột đệ quy cho root_widget và mọi con cháu,
@@ -949,7 +946,7 @@ class App(tk.Tk):
         self._show_summary(sec, inp, res)
         # Thuyết minh (có format màu sắc) + nhúng hình
         self._render_report_sections(generate_report_sections(inp, res),
-                                      sec, inp, res)
+                                      sec, inp, res, case_info=None)
         self._pdf_inp, self._pdf_res = inp, res
 
     # ---------------- ETABS ----------------
@@ -1196,7 +1193,7 @@ class App(tk.Tk):
             generate_report_sections(inp_w, res_w, batch_rows=batch,
                                      case_info=case_info,
                                      shear_info=shear_info),
-            sec_w, inp_w, res_w)
+            sec_w, inp_w, res_w, case_info=case_info)
         self._pdf_inp, self._pdf_res = inp_w, res_w
         self._pdf_batch = batch
         self._pdf_case = case_info
@@ -1301,7 +1298,7 @@ class App(tk.Tk):
             generate_report_sections(inp, res, batch_rows=batch,
                                      case_info=case_info,
                                      shear_info=shear_info),
-            sec, inp, res)
+            sec, inp, res, case_info=case_info)
         self._pdf_batch = batch
 
     def on_export_pdf(self):
@@ -1599,127 +1596,31 @@ class App(tk.Tk):
         import re
         return re.sub(r"_\{([^}]+)\}", r"\1", text)
 
-    def _render_report_sections(self, sections, sec, inp, res):
-        """Hiển thị thuyết minh theo từng mục; mục 2 & 6: text trái, hình phải."""
-        import base64
-        from tkinter import PhotoImage
-        from rc_column.pdf_export import section_image, interaction_image
-        t = self.calc_text
-        t.delete("1.0", tk.END)
-        self._setup_report_tags(t)
-        self._report_images = []
-        self._report_frames = []  # giữ tham chiếu frame nhúng
-
-        # Tiêu đề chung (nằm ngoài sections)
-        t.insert(tk.END, "THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT\n",
-                 "title")
-        t.insert(tk.END,
-                 "Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
-                 "(Điều 8.1.2.7)\n\n", "sec_ref")
-
-        # Ảnh cho mục 2 (side-by-side) và mục 6 (2 biểu đồ lớn)
-        img_map = {}
-        img_m6 = ()
-        if HAS_MPL:
-            try:
-                from rc_column.pdf_export import section_image
-                img_map[2] = section_image(sec, small=True)
-            except Exception:
-                pass
-            try:
-                from rc_column.pdf_export import interaction_image, m2m3_image
-                # 2 biểu đồ như tab Tóm tắt: N-M full (trái), M2-M3 (phải)
-                img_m6 = (interaction_image(sec, inp, res, width_in=4.0,
-                                            dpi=100),
-                          m2m3_image(sec, inp, res, width_in=4.0, dpi=100))
-            except Exception:
-                pass
-
-        for num in sorted(sections.keys()):
-            info = sections[num]
-            if num == 2 and img_map.get(2):
-                # Gộp mục 2+3: text 2 mục bên trái, ảnh bên phải
-                info23 = {"segs": info["segs"] + sections[3]["segs"]}
-                self._insert_side_by_side(num, info23, img_map[2])
-            elif num == 3:
-                # Đã gộp vào mục 2, bỏ qua
-                continue
-            elif num == 6 and img_m6:
-                self._insert_charts_fullwidth(num, info, img_m6)
-            else:
-                # Hiển thị text thường
-                for text, tags in info["segs"]:
-                    t.insert(tk.END, self._clean_math(text), tags if tags else ())
-        # Phần kết quả cuối (nằm sau mục 6 trong flat segs)
-        # -> lấy từ generate_report để đảm bảo đầy đủ
-        from rc_column.report import generate_report, generate_report_sections
-        flat = generate_report(inp, res)
-        # Tìm vị trí sau mục 6: chèn phần còn lại (D/C, badge)
-        # Đơn giản: tìm segment có tag 'dc'/'ok'/'ng' chưa được chèn
-        # (vì sections đã bao gồm hết, ta chỉ cần đảm bảo không trùng)
-        # Thực tế build_sections đã bao gồm toàn bộ -> không cần thêm
-
-    def _insert_side_by_side(self, num, info, png: bytes):
-        """Chèn mục text-trái hình-phải vào Text widget."""
-        import base64
-        from tkinter import PhotoImage
-        t = self.calc_text
-        captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép",
-                    6: "Hình 2. Biểu đồ tương tác N-M2 và N-M3"}
-        # Frame chứa 2 cột
-        frame = tk.Frame(t, bg="white")
-        # Cột trái: text
-        left_txt = tk.Text(frame, wrap=tk.WORD, font=("", 10),
-                           bg="white", relief=tk.FLAT, height=14, width=52)
-        self._setup_report_tags(left_txt)
-        for text, tags in info["segs"]:
-            left_txt.insert(tk.END, self._clean_math(text), tags if tags else ())
-        left_txt.configure(state=tk.DISABLED)
-        left_txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
-                      padx=(0, 8), anchor=tk.N)
-        # Cột phải: hình
-        b64 = base64.b64encode(png).decode("ascii")
-        img = PhotoImage(data=b64)
-        self._report_images.append(img)
-        right = tk.Frame(frame, bg="white")
-        tk.Label(right, image=img, bg="white").pack()
-        tk.Label(right, text=captions.get(num, ""), font=("", 8),
-                 fg="#64748b", bg="white", wraplength=280).pack()
-        right.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 4))
-        self._report_frames.append(frame)
-        # Cuộn chuột trên khung nhúng -> cuộn text thuyết minh chính
-        self._bind_wheel_to_calc(frame)
-        t.insert(tk.END, "\n")
-        t.window_create(tk.END, window=frame)
-        t.insert(tk.END, "\n")
-
-    def _insert_charts_fullwidth(self, num, info, pngs: tuple):
-        """Mục 6: text full-width, 2 biểu đồ cạnh nhau bên dưới."""
-        import base64
-        from tkinter import PhotoImage
-        t = self.calc_text
-        # Text full-width
-        for text, tags in info["segs"]:
-            t.insert(tk.END, self._clean_math(text), tags if tags else ())
-        t.insert(tk.END, "\n")
-        # 2 biểu đồ cạnh nhau như tab Tóm tắt: N-M trái, M2-M3 phải
-        frame = tk.Frame(t, bg="white")
-        for png, cap in zip(pngs, ["Biểu đồ N-M (góc α)",
-                                   "Biểu đồ M2-M3 (tại N)"]):
-            b64 = base64.b64encode(png).decode("ascii")
-            img = PhotoImage(data=b64)
-            self._report_images.append(img)
-            col = tk.Frame(frame, bg="white")
-            tk.Label(col, image=img, bg="white").pack()
-            tk.Label(col, text=cap, font=("", 9, "bold"),
-                     fg="#0f172a", bg="white").pack()
-            col.pack(side=tk.LEFT, padx=10, anchor=tk.N)
-        self._report_frames.append(frame)
-        self._bind_wheel_to_calc(frame)
-        t.window_create(tk.END, window=frame)
-        t.insert(tk.END, "\n")
-        t.insert(tk.END, "Hình 2. Biểu đồ M2-M3 và N-M (góc α)\n", "sec_ref")
-        t.insert(tk.END, "\n")
+    def _render_report_sections(self, sections, sec, inp, res,
+                                case_info=None):
+        """Hiển thị thuyết minh kiểu Vietcon: mục 1-6 dạng card, mục 7 giữ text."""
+        from rc_column.report_widgets import build_calc_widgets
+        # Xóa nội dung cũ
+        for w in self._calc_inner.winfo_children():
+            w.destroy()
+        # Mục 1-6: widget kiểu Vietcon
+        body = build_calc_widgets(self._calc_inner, inp, res, case_info)
+        body.pack(fill=tk.BOTH, expand=True)
+        # Mục 7 (thép đai): giữ nguyên dạng text
+        if 7 in sections:
+            t7 = tk.Text(self._calc_inner, wrap=tk.WORD, font=("", 10),
+                         bg="white", relief=tk.FLAT, height=30)
+            t7.pack(fill=tk.X, padx=4, pady=8)
+            self._setup_report_tags(t7)
+            info7 = sections[7]
+            for text, tags in info7["segs"]:
+                t7.insert(tk.END, self._clean_math(text), tags if tags else ())
+            t7.configure(state=tk.DISABLED)
+        # Cập nhật scroll
+        self._calc_inner.update_idletasks()
+        self._calc_canvas.configure(
+            scrollregion=self._calc_canvas.bbox("all"))
+        self._bind_wheel(self._calc_inner, self._calc_canvas)
 
     def _bind_wheel_to_calc(self, widget):
         """Gắn cuộn chuột đệ quy cho widget nhúng -> cuộn calc_text."""
