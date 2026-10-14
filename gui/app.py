@@ -1227,11 +1227,11 @@ class App(tk.Tk):
             # Hàm hiện dialog thành công có nút Mở PDF
             def _show_success(ppath):
                 import tkinter as _tk
-                dlg = _tk.Toplevel(self.root)
+                dlg = _tk.Toplevel(self)
                 dlg.title("Xuất PDF")
                 dlg.geometry("380x130")
                 dlg.resizable(False, False)
-                dlg.transient(self.root)
+                dlg.transient(self)
                 dlg.grab_set()
                 _tk.Label(dlg, text=f"Đã lưu: {ppath}",
                           wraplength=340, justify="left").pack(
@@ -1356,11 +1356,11 @@ class App(tk.Tk):
     def _show_pdf_success(self, ppath):
         """Dialog thành công có nút Mở PDF."""
         import tkinter as _tk
-        dlg = _tk.Toplevel(self.root)
+        dlg = _tk.Toplevel(self)
         dlg.title("Xuất PDF")
         dlg.geometry("380x130")
         dlg.resizable(False, False)
-        dlg.transient(self.root)
+        dlg.transient(self)
         dlg.grab_set()
         _tk.Label(dlg, text=f"Đã lưu: {ppath}",
                   wraplength=340, justify="left").pack(
