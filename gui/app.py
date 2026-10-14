@@ -67,7 +67,7 @@ class App(tk.Tk):
         MUTED = "#6B7280"
         # Nền chung
         st.configure(".", background=BG, font=("", 10))
-        st.configure("TFrame", background=BG)
+        st.configure("TFrame", background="white")
         st.configure("TLabel", background="white", foreground=TEXT, font=("", 10))
         # Label mô tả: màu chữ bình thường, nền trắng (không in mờ)
         st.configure("Muted.TLabel", foreground=TEXT, font=("", 9),
@@ -95,7 +95,7 @@ class App(tk.Tk):
                background=[("active", GREEN_DARK), ("pressed", "#065F46")])
         # Nút phụ viền xám
         st.configure("Ghost.TButton", background="white", foreground=TEXT,
-                     font=("", 10), padding=(10, 6), borderwidth=1,
+                     font=("", 12), padding=(12, 8), borderwidth=1,
                      relief="solid", bordercolor=BORDER)
         # Treeview bảng thông số
         st.configure("Treeview", background="white",
@@ -1823,7 +1823,7 @@ class App(tk.Tk):
         r1.pack(fill=tk.X, pady=1, padx=4)
         tk.Label(r1, text=f"\u25cf \u0110\u01b0\u1eddng bao ki\u1ec3m tra: "
                           f"N-M\u03b1 (\u03b1 = {alpha_deg:.1f}\u00b0)",
-                 font=mono, fg="#059669").pack(side=tk.LEFT)
+                 font=mono, fg="#059669", bg="white").pack(side=tk.LEFT)
         okc = "#059669" if res.ok else "#DC2626"
         okt = "\u0110\u1ea0T" if res.ok else "KH\u00d4NG \u0110\u1ea0T"
         bgc = "#D1FAE5" if res.ok else "#FEE2E2"
@@ -1865,7 +1865,7 @@ class App(tk.Tk):
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
         tk.Label(left, text="\u25cf Bi\u1ec3u \u0111\u1ed3 t\u01b0\u01a1ng t\u00e1c N\u2013M\u03b1",
-                 font=("", 10, "bold")).pack(side=tk.LEFT)
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         tk.Label(left, text=f"  \u03b1 = {alpha_deg:.1f}\u00b0  ",
                  font=("", 8, "bold"), fg="#065F46",
                  bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
@@ -1877,7 +1877,7 @@ class App(tk.Tk):
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
         tk.Label(left, text="\u25cf M\u1eb7t c\u1eaft M2-M3",
-                 font=("", 10, "bold")).pack(side=tk.LEFT)
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         tk.Label(left, text=f"  N = {res.N:+.1f} kN  ",
                  font=("", 8, "bold"), fg="#1D4ED8",
                  bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
