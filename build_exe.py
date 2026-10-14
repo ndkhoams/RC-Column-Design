@@ -29,6 +29,7 @@ def main() -> int:
         "--onefile",          # 1 file exe duy nhất
         "--windowed",         # không hiện console
         "--name", APP_NAME,
+        "--icon", "icon.ico",
         *MATPLOTLIB_HOOKS,
         # ẩn import để PyInstaller không bỏ sót
         "--hidden-import", "matplotlib.backends.backend_tkagg",
