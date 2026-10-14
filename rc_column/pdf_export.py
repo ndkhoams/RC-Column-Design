@@ -146,7 +146,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
         sp.set_visible(False)
 
 
-def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
+def section_image(sec, width_in=3.2, dpi=300, small=False,
+                  show_stats=True) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -155,7 +156,7 @@ def section_image(sec, width_in=3.2, dpi=300, small=False) -> bytes:
     # Figure theo đúng tỉ lệ t2/t3 (cao = rộng × cy/cx)
     ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
     fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
-    draw_section_ax(ax, sec)
+    draw_section_ax(ax, sec, show_stats=show_stats)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     for sp in ax.spines.values():
@@ -738,7 +739,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     _ck_style = ParagraphStyle(
         "ck", fontName=FNB, fontSize=11, alignment=TA_LEFT,
         textColor=HexColor("#111827"), spaceBefore=2, spaceAfter=2)
-    _ck_para = Paragraph(f"Cấu kiện: {_ck_name}", _ck_style) \
+    _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
     # BƯỚC 1: Đo chiều cao bảng phải
     # MARKER_3BUOC_0725 để xác định vị trí nét dưới cùng
