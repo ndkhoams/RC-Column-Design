@@ -91,7 +91,7 @@ def _grid2(parent):
 def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
     conc = sec.concrete
     steel = sec.steel
-    _section_header(g.master, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
+    _section_header(g, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
                     "TCVN 5574:2018 Mục 6.1 & 6.2")
     grid = _grid2(g)
 
@@ -174,7 +174,7 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
 
 
 def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
-    _section_header(g.master, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
+    _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
                     f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm")
     grid = _grid2(g)
     # A
@@ -215,7 +215,7 @@ def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
 
 
 def _build_sec3(g, inp: ColumnInput, res: CheckResult, sec):
-    _section_header(g.master, 3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
+    _section_header(g, 3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
                     "TCVN 5574:2018 Mục 8.1.2.4")
     grid = _grid2(g)
     c = _param_card(grid, "Chiều dài tính toán phương 2 (L02)", "",
@@ -241,7 +241,7 @@ def _build_sec3(g, inp: ColumnInput, res: CheckResult, sec):
 
 
 def _build_sec4(g, inp: ColumnInput, res: CheckResult, sec, case_info=None):
-    _section_header(g.master, 4, "ĐỘ LỆCH TÂM",
+    _section_header(g, 4, "ĐỘ LỆCH TÂM",
                     "TCVN 5574:2018 Mục 8.1.2.2.4")
     if case_info:
         tk.Label(g, text=f"Tổ hợp tính toán: {case_info.get('case')}@"
@@ -265,7 +265,7 @@ def _build_sec4(g, inp: ColumnInput, res: CheckResult, sec, case_info=None):
 
 
 def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
-    _section_header(g.master, 5, "UỐN DỌC & PHÓNG ĐẠI MÔ MEN", "CT (44)–(48)")
+    _section_header(g, 5, "UỐN DỌC & PHÓNG ĐẠI MÔ MEN", "CT (44)–(48)")
     grid = _grid2(g)
     phi_txt = ("2.00 (thiên về an toàn)"
                if not inp.long_term.has_data else _f(res.phi_L))
@@ -295,7 +295,7 @@ def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
 
 
 def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec):
-    _section_header(g.master, 6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
+    _section_header(g, 6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
                     "TCVN 5574:2018 Điều 8.1.2.7")
     Ma = math.hypot(res.Mx_star, res.My_star)
     alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
