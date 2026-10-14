@@ -58,8 +58,8 @@ def _get_styles():
                                     fontSize=11, textColor=HexColor(TEXT),
                                     spaceBefore=10, spaceAfter=6),
         "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
-                                     fontSize=11, textColor=HexColor(TEXT),
-                                     leading=14, spaceAfter=3),
+                                     fontSize=9, textColor=HexColor(TEXT),
+                                     leading=11, spaceAfter=2),
         "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=7.5,
                                    textColor=HexColor(GRAY), leading=10,
                                    spaceAfter=3),
@@ -95,23 +95,10 @@ def _card(P, st, title, ref, lines, result=""):
     from reportlab.lib.colors import HexColor
 
     rows = []
-    # Tiêu đề (trái) + ref (phải) cùng hàng như app
+    # Card hẹp: tiêu đề trên, ref dưới
+    rows.append([P(f"<b>{title}</b>", st["card_title"])])
     if ref:
-        from reportlab.platypus import Table as _T, TableStyle as _TS
-        _tr = _T([[P(f"<b>{title}</b>", st["card_title"]),
-                   P(ref, st["card_ref"])]],
-                 colWidths=[88, 40])
-        _tr.setStyle(_TS([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-        rows.append([_tr])
-    else:
-        rows.append([P(f"<b>{title}</b>", st["card_title"])])
+        rows.append([P(ref, st["card_ref"])])
     # Các dòng công thức
     for ln in lines:
         rows.append([P(ln, st["formula"])])
@@ -119,9 +106,9 @@ def _card(P, st, title, ref, lines, result=""):
         rows.append([P(result, st["result"])])
 
     n = len(rows)
-    f0 = 1
+    f0 = 2 if ref else 1
     f1 = n - 2 if result else n - 1
-    card = Table([[r[0]] for r in rows], colWidths=[128])
+    card = Table([[r[0]] for r in rows], colWidths=[84])
     sty = [
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
@@ -140,15 +127,15 @@ def _card(P, st, title, ref, lines, result=""):
 
 
 def _two(P, st, c1, c2):
-    """Hai card cạnh nhau trên khổ ngang."""
+    """Hai card cạnh nhau, khổ dọc."""
     from reportlab.platypus import Table, TableStyle
-    t = Table([[c1, c2]], colWidths=[136, 136])
+    t = Table([[c1, c2]], colWidths=[88, 88])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
     return [t]
 
@@ -165,7 +152,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                      batch_rows=None, case_info=None, shear_info=None,
                      chart_pngs=None):
     """Xuất PDF thuyết minh với layout card giống hệt app."""
-    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Image, Table, TableStyle, KeepTogether)
@@ -177,9 +164,9 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     conc = sec.concrete
     steel = sec.steel
 
-    doc = SimpleDocTemplate(filepath, pagesize=landscape(A4),
-                            leftMargin=10*mm, rightMargin=10*mm,
-                            topMargin=10*mm, bottomMargin=10*mm)
+    doc = SimpleDocTemplate(filepath, pagesize=A4,
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=12*mm, bottomMargin=12*mm)
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st["title"]))
     S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
