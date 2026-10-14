@@ -581,8 +581,8 @@ class App(tk.Tk):
             ttk.Label(f, text=h, font=("", 9, "bold")).grid(
                 row=0, column=c, padx=4, pady=2, sticky=tk.W)
         bn = list(BOUNDARY_NAMES.values())
-        self.en_Lx = ttk.Entry(f, width=12); self.en_Lx.insert(0, "4.0")
-        self.en_Ly = ttk.Entry(f, width=12); self.en_Ly.insert(0, "4.0")
+        self.en_Lx = ttk.Entry(f, width=12)
+        self.en_Ly = ttk.Entry(f, width=12)
         self.cb_tx = ttk.Combobox(f, values=bn, state="readonly", width=10)
         self.cb_tx.set("Ngàm nửa cứng")
         self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=16)
@@ -1082,25 +1082,6 @@ class App(tk.Tk):
         if not self.etabs_forces:
             messagebox.showinfo("ETABS", "Hãy import file Excel trước.")
             return
-        # Tự động xác định L: station lớn nhất của (Story, Column) phổ biến nhất
-        # Nếu không có data ETABS thì giữ L nhập tay
-        try:
-            from collections import Counter
-            _pairs = Counter((f.story, f.column)
-                             for f in self.etabs_forces)
-            if _pairs:
-                _bst, _bcl = _pairs.most_common(1)[0][0]
-                _sts = [f.station for f in self.etabs_forces
-                        if f.story == _bst and f.column == _bcl]
-                if _sts:
-                    _L = max(_sts)
-                    if _L > 0:
-                        self.en_Lx.delete(0, tk.END)
-                        self.en_Lx.insert(0, f"{_L:.2f}")
-                        self.en_Ly.delete(0, tk.END)
-                        self.en_Ly.insert(0, f"{_L:.2f}")
-        except Exception:
-            pass
         try:
             inp = self.collect()
         except Exception as ex:
@@ -1111,11 +1092,26 @@ class App(tk.Tk):
         self.update_idletasks()
         import time
         t0 = time.time()
-        bc = BatchChecker(inp, n_angles=12)
+        # Xác định L cho từng (Story, Column):
+        # - Nếu ô L nhập tay CÓ giá trị: dùng giá trị đó cho tất cả
+        # - Nếu ô L TRỐNG: L = station lớn nhất của từng (Story, Column)
+        from collections import defaultdict
+        _L_manual = self._f(self.en_Lx, 0.0)
+        _groups = defaultdict(list)
+        for _f in self.etabs_forces:
+            _groups[(_f.story, _f.column)].append(_f)
         rows = []
-        for f in self.etabs_forces:
-            r = bc.check_one(f.N, f.Mx, f.My, inp.long_term)
-            rows.append((f, r))
+        for (_st, _cl), _flist in _groups.items():
+            if _L_manual > 0:
+                _L_grp = _L_manual
+            else:
+                _L_grp = max(_f.station for _f in _flist)
+            _inp_g = self.collect()
+            _inp_g.Lx = _inp_g.Ly = _L_grp
+            _bc = BatchChecker(_inp_g, n_angles=12)
+            for _f in _flist:
+                _r = _bc.check_one(_f.N, _f.Mx, _f.My, _inp_g.long_term)
+                rows.append((_f, _r))
         # sắp xếp theo D/C giảm dần (nguy hiểm nhất lên đầu)
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
@@ -1149,6 +1145,15 @@ class App(tk.Tk):
         # hiện thuyết minh của tổ hợp nguy hiểm nhất
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
+        # L cho worst: nếu ô L trống thì dùng station max của nhóm worst
+        _Lw = self._f(self.en_Lx, 0.0)
+        if _Lw <= 0:
+            _sts_w = [f.station for f in self.etabs_forces
+                      if f.story == worst_f.story and f.column == worst_f.column]
+            if _sts_w:
+                _Lw = max(_sts_w)
+        if _Lw > 0:
+            inp_w.Lx = inp_w.Ly = _Lw
         # Lực cắt: lấy từ combo có |Q| lớn nhất (độc lập với combo N-M)
         f_q2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
         f_q3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
