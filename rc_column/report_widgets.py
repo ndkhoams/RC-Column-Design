@@ -612,4 +612,6 @@ def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
     _build_sec5(body, inp, res, sec)
     _build_sec6(body, inp, res, sec, chart_pngs)
     _build_sec7(body, inp, res, sec, shear_info)
+    # Spacer hút khoảng trống xuống đáy (fix Canvas Win)
+    tk.Frame(body, bg=WHITE).pack(fill=tk.BOTH, expand=True)
     return outer
