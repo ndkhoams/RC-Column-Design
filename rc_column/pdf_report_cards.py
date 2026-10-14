@@ -203,39 +203,32 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.extend(_two(P, st,
         _mk( "Bê tông: Cường độ chịu nén tính toán Rb*",
               "Bảng 6 & Mục 6.1.2.3",
-              ["Rb* = γb · Rb",
-               f"= {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
+              [f"Rb* = γb · Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
                f"= {_f(conc.Rb)} MPa (N/mm²)"]),
         _mk( "Bê tông: Mô đun đàn hồi ban đầu Eb", "Bảng 10",
-              [f"Eb (Cấp độ bền {inp.concrete_grade})",
-               f"= {conc.Eb:,.0f} N/mm²",
+              [f"Eb ({inp.concrete_grade}) = {conc.Eb:,.0f} N/mm²",
                f"= {_f(conc.Eb / 1000, 1)} × 10³ MPa"])))
     S.extend(_two(P, st,
         _mk( "Cốt thép: Cường độ chịu kéo tính toán Rs",
               "Bảng 13 & Mục 6.2.2",
-              ["Rs = (Rsn / γs) · γsi",
-               f"= ({steel.grade.Rs:.0f} / 1.15) × {_f(inp.gamma_s)}",
+              [f"Rs = (Rsn / γs) · γsi = ({steel.grade.Rs:.0f} / 1.15) × {_f(inp.gamma_s)}",
                f"= {_f(steel.Rs, 1)} MPa"]),
         _mk( "Cốt thép: Cường độ chịu nén tính toán Rsc",
               "Bảng 13 & Mục 6.2.2.2",
-              [f"Tác dụng ngắn hạn: Rsc = {steel.Rsc:.0f} MPa",
-               f"Tác dụng dài hạn: Rsc = {steel.Rsc:.0f} MPa",
+              [f"Rsc = {steel.Rsc:.0f} MPa (ngắn hạn & dài hạn)",
                f"= {_f(steel.Rsc, 1)} MPa"])))
     S.extend(_two(P, st,
         _mk( "Cốt thép: Mô đun đàn hồi Es", "Mục 6.2.2.4",
-              [f"Es (Cốt thép {inp.steel_grade})",
-               f"= {steel.Es:,.0f} N/mm²",
+              [f"Es ({inp.steel_grade}) = {steel.Es:,.0f} N/mm²",
                f"= {_f(steel.Es / 1000)} × 10³ MPa"]),
         _mk( "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
-              ["αe = Es / Eb",
-               f"= {steel.Es:,.0f} / {conc.Eb:,.0f}",
+              [f"αe = Es / Eb = {steel.Es:,.0f} / {conc.Eb:,.0f}",
                f"= {_f(res.alpha_e)} -"])))
     # Bảng biến dạng giới hạn
 
 
     # ================= MỤC 2 =================
-    S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
-                       f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm"))
+    S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT"))
     # Sơ đồ mặt cắt + thông tin (trái: text, phải: hình)
     try:
         from .pdf_export import section_image as _si
@@ -258,8 +251,10 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         ]
         _simg2 = Image(io.BytesIO(_sec_png2), width=65*mm, height=65*mm)
         _layout = Table([[[_info_lines], _simg2]])
+        _layout.hAlign = "CENTER"
         _layout.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
         ]))
