@@ -1816,7 +1816,14 @@ class App(tk.Tk):
         ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
-        tree = ttk.Treeview(parent, columns=cols, show="headings", height=17)
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=17,
+                            style="Param.Treeview")
+        _pst = ttk.Style()
+        _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
+                       background="#F3F4F6", foreground="#111827",
+                       borderwidth=1, relief="solid")
+        _pst.map("Param.Treeview.Heading",
+                 background=[("active", "#E5E7EB")])
         tree.heading("sym", text="K\u00fd hi\u1ec7u")
         tree.heading("desc", text="Th\u00f4ng s\u1ed1")
         tree.heading("val", text="Gi\u00e1 tr\u1ecb")
