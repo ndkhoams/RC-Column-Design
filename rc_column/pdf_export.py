@@ -760,53 +760,44 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
     _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
-    # BẢNG THỐNG NHẤT: 2 cột, kẻ thẳng hàng
-    # Cột trái: tiêu đề + cấu kiện + mặt cắt + boxes
-    # Cột phải: bảng thông số
-    # Đo chiều cao để tính spacer động (đáy box = đáy bảng)
-    _left_no_spacer = Table(
+    # BẢNG THỐNG NHẤT: boxes ở hàng riêng, tự căn đáy
+    _left_top = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para],
-         [img_sec],
-         [t_box]],
+         [img_sec]],
         colWidths=[80 * mm])
-    _right_tmp = Table(
-        [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
-         [t_param]],
-        colWidths=[80 * mm])
-    # wrap để lấy chiều cao thực tế
-    _lw, _lh = _left_no_spacer.wrap(80 * mm, 1000)
-    _rw, _rh = _right_tmp.wrap(80 * mm, 1000)
-    _dyn_spacer = max(0, _rh - _lh + 7 * mm)  # Cộng 1 hàng
-    _left_content = [
-        [Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
-        [_ck_para],
-        [img_sec],
-        [Spacer(1, _dyn_spacer)],
-        [t_box],
-    ]
-    _left_tbl = Table(_left_content, colWidths=[80 * mm])
-    _left_tbl.setStyle(TableStyle([
+    _left_top.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
-    _right_content = [
-        [Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
-        [t_param],
-    ]
-    _right_tbl = Table(_right_content, colWidths=[80 * mm])
+    _right_tbl = Table(
+        [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
+         [t_param]],
+        colWidths=[80 * mm])
     _right_tbl.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
-    # Bảng ngoài thống nhất với BOX bao quanh
-    _outer = Table([[_left_tbl, _right_tbl]], colWidths=[84 * mm, 84 * mm])
+    _box_tbl = Table([[t_box]], colWidths=[80 * mm])
+    _box_tbl.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    # Outer: hàng 0 = [top | right], hàng 1 = [boxes | (right span)]
+    # Dùng 2 hàng, right span 2 hàng để đáy boxes = đáy bảng
+    _outer = Table([[_left_top, _right_tbl],
+                    [_box_tbl, ""]],
+                   colWidths=[84 * mm, 84 * mm])
     _outer.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("VALIGN", (0, 1), (0, 1), "BOTTOM"),
+        ("SPAN", (1, 0), (1, 1)),
         ("BOX", (0, 0), (-1, -1), 0.6, HexColor("#D1D5DB")),
         ("LINEBELOW", (0, 0), (-1, 0), 0.6, HexColor("#D1D5DB")),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
