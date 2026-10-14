@@ -229,36 +229,20 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
 
     # ================= MỤC 2 =================
     S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT"))
-    # Sơ đồ mặt cắt + thông tin (trái: text, phải: hình)
+    from collections import Counter as _Ctr2
+    _cnt2 = _Ctr2(getattr(r, "dia", 0) for r in sec.rebars)
+    _bar_str2 = " + ".join(f"{_cnt2[d]:.0f}d{d:.0f}"
+                           for d in sorted(_cnt2, reverse=True))
+    # Sơ đồ mặt cắt căn giữa
     try:
         from .pdf_export import section_image as _si
         _sec_png2 = _si(sec, width_in=2.8, show_stats=False)
     except Exception:
         _sec_png2 = None
     if _sec_png2:
-        from collections import Counter as _Ctr2
-        _cnt2 = _Ctr2(getattr(r, "dia", 0) for r in sec.rebars)
-        _bar_str2 = " + ".join(f"{_cnt2[d]:.0f}d{d:.0f}"
-                               for d in sorted(_cnt2, reverse=True))
-        _info_lines = [
-            P(f"<b>Bê tông:</b> {inp.concrete_grade}", st["formula"]),
-            P(f"<b>Thép dọc:</b> {inp.steel_grade}", st["formula"]),
-            P(f"<b>Thép đai:</b> {inp.sw_steel_grade}", st["formula"]),
-            P(f"<b>Số thanh:</b> {_bar_str2}", st["formula"]),
-            P(f"<b>Tổng As:</b> {sec.steel_area:.0f} mm²", st["formula"]),
-            P(f"<b>Hàm lượng μ:</b> {100*sec.reinforcement_ratio:.2f}%",
-              st["formula"]),
-        ]
         _simg2 = Image(io.BytesIO(_sec_png2), width=65*mm, height=65*mm)
-        _layout = Table([[[_info_lines], _simg2]])
-        _layout.hAlign = "CENTER"
-        _layout.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ]))
-        S.append(_layout)
+        _simg2.hAlign = "CENTER"
+        S.append(_simg2)
         S.append(Spacer(1, 4*mm))
     S.extend(_two(P, st,
         _mk( "Diện tích tiết diện bê tông nguyên A", "",
@@ -266,10 +250,10 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                f"= {inp.cy:.0f} × {inp.cx:.0f}",
                f"= {sec.gross_area:,.0f} mm² "
                f"(= {_f(sec.gross_area / 1e6, 4)} m²)"]),
-        _mk( "Lớp bê tông bảo vệ cốt dọc c", "",
-              [f"c = {inp.cover:.0f} mm",
-               "Chiều dày lớp bê tông bảo vệ",
-               f"= {inp.cover:.0f} mm"])))
+        _mk( "Diện tích cốt thép dọc As", "",
+              [f"Số thanh: {_bar_str2}",
+               f"Tổng As: {sec.steel_area:.0f} mm²",
+               f"Hàm lượng μ: {100*sec.reinforcement_ratio:.2f}%"])))
     S.extend(_two(P, st,
         _mk( "Mô men quán tính trục 2 (I2)", "",
               ["I₂ = (t3 · t2³) / 12",
