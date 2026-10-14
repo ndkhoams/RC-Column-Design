@@ -736,12 +736,11 @@ class App(tk.Tk):
         # Tag đỏ cho dòng D/C > 1, nền xen kẽ như bảng thép đai
         self.etabs_tree.tag_configure("over", foreground="#DC2626")
         self.etabs_tree.tag_configure("even", background="#F3F4F6")
-        # Header giống bảng thép đai: nền #F3F4F6, chữ đậm, viền #D1D5DB
+        # Header giống bảng thép đai: nền #F3F4F6, chữ đậm
         _st = ttk.Style()
         _st.configure("Etabs.Treeview.Heading", font=("", 9, "bold"),
-                      background="#F3F4F6", foreground="#111827",
-                      borderwidth=1, relief="solid")
-        _st.map("Etabs.Treeview.Heading", background=[("active", "#E5E7EB")])
+                      background="#F3F4F6", foreground="#111827")
+        _st.configure("Etabs.Treeview", rowheight=22)
         self.etabs_tree.configure(style="Etabs.Treeview")
         self.etabs_tree.grid(row=4, column=0, columnspan=2, padx=4, pady=4,
                              sticky=tk.EW)
@@ -1820,10 +1819,7 @@ class App(tk.Tk):
                             style="Param.Treeview")
         _pst = ttk.Style()
         _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
-                       background="#F3F4F6", foreground="#111827",
-                       borderwidth=1, relief="solid")
-        _pst.map("Param.Treeview.Heading",
-                 background=[("active", "#E5E7EB")])
+                       background="#F3F4F6", foreground="#111827")
         tree.heading("sym", text="K\u00fd hi\u1ec7u")
         tree.heading("desc", text="Th\u00f4ng s\u1ed1")
         tree.heading("val", text="Gi\u00e1 tr\u1ecb")
