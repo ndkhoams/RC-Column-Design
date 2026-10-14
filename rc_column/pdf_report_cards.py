@@ -431,8 +431,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                           f"= {_f(abs(Mstar), 2)} kN·m"])
         return None
     for kind in ["phi", "de", "kb", "D", "Ncr", "eta", "Ms"]:
-        c1 = _mk(*dirs[0], kind)
-        c2 = _mk(*dirs[1], kind)
+        c1 = _mk5(*dirs[0], kind)
+        c2 = _mk5(*dirs[1], kind)
         S.extend(_two(P, st, c1, c2))
     Ma = math.hypot(res.Mx_star, res.My_star)
     alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
