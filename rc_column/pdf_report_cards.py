@@ -143,11 +143,22 @@ _EMPTY = {"title": "", "ref": "", "lines": [], "result": ""}
 
 
 def _sec_head(P, st, num, title, ref=""):
+    from reportlab.platypus import Table, TableStyle
     dot = _DOT_COLORS[(num - 1) % len(_DOT_COLORS)]
-    html = f'<font color="{dot}">●</font>&nbsp;&nbsp;<b>{num}. {title}</b>'
+    # Tiêu đề dòng 1, ref dòng 2 riêng
+    rows = [[P(f'<font color="{dot}">●</font>&nbsp;&nbsp;<b>{num}. {title}</b>',
+               st["sec_title"])]]
     if ref:
-        html += f'&nbsp;&nbsp;<font size=8 color="{GRAY}">{ref}</font>'
-    return P(html, st["sec_title"])
+        rows.append([P(f'<font size=8 color="{GRAY}">{ref}</font>',
+                       st["sec_title"])])
+    t = Table(rows)
+    t.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+    ]))
+    return t
 
 
 def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
