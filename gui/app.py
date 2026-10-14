@@ -818,6 +818,12 @@ class App(tk.Tk):
             sw_dia=self._f(self.en_sw_dia, 8.0),
             sw_spacing=self._f(self.en_sw_s, 200.0),
             sw_legs=max(2, int(self._f(self.en_sw_legs, 2))),
+            swm2_dia=self._f(self.sw_inputs["Đai giữa t2:"]["dia"], 8.0),
+            swm2_spacing=self._f(self.sw_inputs["Đai giữa t2:"]["s"], 200.0),
+            swm2_legs=int(self._f(self.sw_inputs["Đai giữa t2:"]["legs"], 0)),
+            swm3_dia=self._f(self.sw_inputs["Đai giữa t3:"]["dia"], 8.0),
+            swm3_spacing=self._f(self.sw_inputs["Đai giữa t3:"]["s"], 200.0),
+            swm3_legs=int(self._f(self.sw_inputs["Đai giữa t3:"]["legs"], 0)),
         )
 
     def _refresh_rebar(self):
@@ -1902,19 +1908,31 @@ class App(tk.Tk):
             swg = STEEL_GRADES.get(inp.sw_steel_grade)
             sr = check_stirrup(self._last_sec, stir_in, inp.cover)
 
-            # Tính chi tiết từng phương
+            # Tính chi tiết từng phương (kể cả đai giữa)
             cols = {}
-            # Q2 (theo trục 2): b = t2 = cy, h0 từ t3 = cx
-            # Q3 (theo trục 3): b = t3 = cx, h0 từ t2 = cy
-            for Q, lbl, b_w, h_dim in (
-                    (inp.Q2, "2", inp.cy, inp.cx),
-                    (inp.Q3, "3", inp.cx, inp.cy)):
+            # Q2 (theo trục 2): b = t2 = cy, h0 từ t3 = cx; dùng đai giữa t2
+            # Q3 (theo trục 3): b = t3 = cx, h0 từ t2 = cy; dùng đai giữa t3
+            for Q, lbl, b_w, h_dim, mdia, ms, mlegs in (
+                    (inp.Q2, "2", inp.cy, inp.cx,
+                     inp.swm2_dia, inp.swm2_spacing, inp.swm2_legs),
+                    (inp.Q3, "3", inp.cx, inp.cy,
+                     inp.swm3_dia, inp.swm3_spacing, inp.swm3_legs)):
                 h0 = h_dim - inp.cover - inp.sw_dia - 12
+                # Asw = đai bao + đai giữa
                 Asw = stir_in.legs * bar_area(stir_in.dia)
+                s_eff = stir_in.spacing
+                sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
+                          f"a{stir_in.spacing:.0f}")
+                if mlegs > 0:
+                    Asw += mlegs * bar_area(mdia)
+                    s_eff = min(s_eff, ms) if ms > 0 else s_eff
+                    sw_txt += (f" + {mlegs:.0f}φ{mdia:.0f} a{ms:.0f} "
+                               f"(giữa)")
                 sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt,
-                                 Asw, swg.Rsw, stir_in.spacing)
-                qsw = swg.Rsw * Asw / stir_in.spacing
-                cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh)
+                                 Asw, swg.Rsw, s_eff)
+                qsw = swg.Rsw * Asw / s_eff if s_eff > 0 else 0
+                cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw,
+                                 sh=sh, sw_txt=sw_txt, s_eff=s_eff)
 
             # Title rõ
             tk.Label(parent, text="Kiểm tra thép đai",
@@ -1932,10 +1950,9 @@ class App(tk.Tk):
                          highlightthickness=1,
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=1 if j else 2)
-            sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
-                        f"a{stir_in.spacing:.0f}")
             rows = [
-                ("Thép đai bố trí", sw_txt, sw_txt),
+                ("Thép đai bố trí",
+                 cols['2']['sw_txt'], cols['3']['sw_txt']),
                 ("Q (kN)",
                  f"{cols['2']['Q']:.1f}", f"{cols['3']['Q']:.1f}"),
                 ("b × h0 (mm)",
@@ -1948,10 +1965,10 @@ class App(tk.Tk):
                 ("ĐK1: 0.3×Rb×b×h0 (kN)",
                  f"{cols['2']['sh'].Qcap1:.1f}",
                  f"{cols['3']['sh'].Qcap1:.1f}"),
-                ("Qb (kN) tại C",
+                ("Qb = 1.5×Rbt×b×h0²/C (kN)",
                  f"{cols['2']['sh'].Qb_opt:.1f}",
                  f"{cols['3']['sh'].Qb_opt:.1f}"),
-                ("Qsw (kN) tại C",
+                ("Qsw = 0.75×qsw×C (kN)",
                  f"{cols['2']['sh'].Qsw_opt:.1f}",
                  f"{cols['3']['sh'].Qsw_opt:.1f}"),
                 ("C cho [Q]min (mm)",
