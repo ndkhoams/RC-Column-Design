@@ -1246,10 +1246,15 @@ class App(tk.Tk):
                 import tkinter as _tk
                 dlg = _tk.Toplevel(self)
                 dlg.title("Xuất PDF")
-                dlg.geometry("380x130")
                 dlg.resizable(False, False)
                 dlg.transient(self)
                 dlg.grab_set()
+                # Căn giữa màn hình
+                dlg.update_idletasks()
+                _w, _h = 380, 130
+                _x = (dlg.winfo_screenwidth() // 2) - (_w // 2)
+                _y = (dlg.winfo_screenheight() // 2) - (_h // 2)
+                dlg.geometry(f"{_w}x{_h}+{_x}+{_y}")
                 _tk.Label(dlg, text=f"Đã lưu: {ppath}",
                           wraplength=340, justify="left").pack(
                               padx=16, pady=(16, 12))
@@ -1393,10 +1398,15 @@ class App(tk.Tk):
         import tkinter as _tk
         dlg = _tk.Toplevel(self)
         dlg.title("Xuất PDF")
-        dlg.geometry("380x130")
         dlg.resizable(False, False)
         dlg.transient(self)
         dlg.grab_set()
+        # Căn giữa màn hình
+        dlg.update_idletasks()
+        _w, _h = 380, 130
+        _x = (dlg.winfo_screenwidth() // 2) - (_w // 2)
+        _y = (dlg.winfo_screenheight() // 2) - (_h // 2)
+        dlg.geometry(f"{_w}x{_h}+{_x}+{_y}")
         _tk.Label(dlg, text=f"Đã lưu: {ppath}",
                   wraplength=340, justify="left").pack(
                       padx=16, pady=(16, 12))
