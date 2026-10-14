@@ -89,12 +89,12 @@ def _get_styles():
 
 
 def _card(P, st, title, ref, lines, result=""):
-    """2 cột scale vừa A4 dọc: card 88mm, font nhỏ."""
-    from reportlab.platypus import Table, TableStyle, Spacer
+    """1 card = 1 Table 1 cột 88mm, các phần xếp dọc."""
+    from reportlab.platypus import Table, TableStyle
     from reportlab.lib.colors import HexColor
-    from reportlab.lib.units import mm
 
-    parts = []
+    rows = []
+    # Tiêu đề + ref cùng hàng
     if ref:
         _tr = Table([[P(f"<b>{title}</b>", st["card_title"]),
                       P(ref, st["card_ref"])]], colWidths=[60, 28])
@@ -106,9 +106,10 @@ def _card(P, st, title, ref, lines, result=""):
             ("TOPPADDING", (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ]))
-        parts.append(_tr)
+        rows.append([_tr])
     else:
-        parts.append(P(f"<b>{title}</b>", st["card_title"]))
+        rows.append([P(f"<b>{title}</b>", st["card_title"])])
+    # Khối công thức
     grows = [[P(ln, st["formula"])] for ln in lines]
     if result:
         grows.append([P(result, st["result"])])
@@ -121,25 +122,25 @@ def _card(P, st, title, ref, lines, result=""):
         ("TOPPADDING", (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
-    parts.append(fbox)
-    return parts
+    rows.append([fbox])
+    card = Table(rows, colWidths=[88])
+    card.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return card
 
 
 def _two(P, st, c1, c2):
-    """Hai card cạnh nhau trên khổ dọc (mỗi 88mm)."""
+    """Hai card cạnh nhau, giãn full 180mm."""
     from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.units import mm
-    def _cell(flows):
-        inner = Table([[f] for f in flows], colWidths=[88])
-        inner.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        return inner
-    t = Table([[_cell(c1), _cell(c2)]], colWidths=[90, 90])
+    # Gộp mỗi card thành 1 cell duy nhất chứa list flowable
+    # Dùng colWidths cố định 90+90=180mm
+    t = Table([[c1, c2]], colWidths=[90, 90])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -511,11 +512,11 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         mark = "✓" if chk.ok else "✗"
         chk_lines.append(f"{mark} {chk.item}: yêu cầu {chk.required}, "
                          f"chọn {chk.provided}")
-    S.extend(_card(P, st, "Cấu tạo cốt đai (10.3.4)", "", chk_lines))
+    S.append(_card(P, st, "Cấu tạo cốt đai (10.3.4)", "", chk_lines))
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
-        S.extend(_card(P, st, "Lực cắt tính toán", "",
+        S.append(_card(P, st, "Lực cắt tính toán", "",
                        [f"Q2 = {_f(q2i['Q'], 1)} kN "
                         f"({q2i['case']}@{q2i['station']:.2f})",
                         f"Q3 = {_f(q3i['Q'], 1)} kN "
