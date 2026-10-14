@@ -214,7 +214,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _bar_str = " + ".join(f"{_cnt[d]:.0f}d{d:.0f}"
                               for d in sorted(_cnt, reverse=True))
         _boxes = [
-            ("Bê tông", f"{inp.conc_grade}"),
+            ("Bê tông", f"{inp.concrete_grade}"),
             ("Thép dọc", f"{inp.steel_grade}"),
             ("Thép đai", f"{inp.sw_steel_grade}"),
             ("Số thanh", _bar_str),
