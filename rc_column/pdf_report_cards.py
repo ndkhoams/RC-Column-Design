@@ -60,8 +60,9 @@ def _get_styles():
         "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
                                      fontSize=11, textColor=HexColor(TEXT),
                                      leading=14, spaceAfter=3),
-        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=8,
-                                   textColor=HexColor(GRAY), alignment=2),
+        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=7.5,
+                                   textColor=HexColor(GRAY), leading=10,
+                                   spaceAfter=3),
         "formula": ParagraphStyle("formula", fontName="VN", fontSize=9.5,
                                   textColor=HexColor("#374151"), leading=13,
                                   leftIndent=8, spaceAfter=2),
@@ -93,21 +94,11 @@ def _card(P, st, title, ref, lines, result=""):
     from reportlab.lib.colors import HexColor
 
     rows = []
-    # Hàng tiêu đề
+    # Tiêu đề (in đậm) + ref (xám, nhỏ) xếp dọc cho khỏi vỡ layout
+    rows.append([P(f"<b>{title}</b>", st["card_title"])])
     if ref:
-        t = Table([[P(title, st["card_title"]),
-                    P(ref, st["card_ref"])]],
-                  colWidths=[62, 27])
-        t.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-        rows.append([t])
-    else:
-        rows.append([P(title, st["card_title"])])
+        rows.append([P(f'<font color="{GRAY}">{ref}</font>',
+                       st["card_ref"])])
     # Các dòng công thức
     for ln in lines:
         rows.append([P(ln, st["formula"])])
@@ -116,7 +107,9 @@ def _card(P, st, title, ref, lines, result=""):
 
     n = len(rows)
     # Chỉ số dòng bắt đầu/kết thúc của khối công thức
-    f0, f1 = 1, n - 2 if result else n - 1
+    # (sau tiêu đề + ref)
+    f0 = 2 if ref else 1
+    f1 = n - 2 if result else n - 1
     card = Table([[r[0]] for r in rows], colWidths=[89])
     sty = [
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
