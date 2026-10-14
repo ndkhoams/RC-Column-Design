@@ -66,6 +66,25 @@ class App(tk.Tk):
         self._setup_styles()
         self._build()
         self.after(100, self._fix_left_width)
+        # Ép tính lại layout sau khi hiện cửa sổ (fix khoảng trống trên Win)
+        self.after(300, self._refresh_layout)
+
+    def _refresh_layout(self):
+        """Ép tkinter tính lại layout (fix lỗi khoảng trống khi mở app)."""
+        try:
+            self.update_idletasks()
+            # Cập nhật scrollregion cho canvas trái
+            if hasattr(self, '_left_canvas'):
+                self._left_canvas.configure(
+                    scrollregion=self._left_canvas.bbox("all"))
+            # Cập nhật scrollregion cho canvas thuyết minh
+            if hasattr(self, '_calc_canvas'):
+                self._calc_canvas.configure(
+                    scrollregion=self._calc_canvas.bbox("all"))
+            # Ép vẽ lại
+            self.update()
+        except Exception:
+            pass
 
     def _fix_left_width(self):
         try:
