@@ -1,0 +1,20 @@
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+
+# PyInstaller
+dist/
+build/
+*.spec
+
+# OS
+Thumbs.db
+.DS_Store
