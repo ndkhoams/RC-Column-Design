@@ -114,8 +114,8 @@ class App(tk.Tk):
         self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
-        # Fix cứng panel trái 380px sau khi build xong
-        self._left_width = 500
+        # Panel trái rộng 700px để hiện đủ bảng nội lực
+        self._left_width = 700
 
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
@@ -308,40 +308,40 @@ class App(tk.Tk):
     def _sec_materials(self):
         f = self._frame("1. Vật liệu")
         self.cb_conc = ttk.Combobox(f, values=list(CONCRETE_GRADES),
-                                    state="readonly", width=18)
+                                    state="readonly", width=14)
         self.cb_conc.set("B25")
-        self._row(f, "Cấp độ bền bê tông", self.cb_conc, 0)
-        self.en_gb = ttk.Entry(f, width=18); self.en_gb.insert(0, "0.85")
-        self._row(f, "Hệ số điều kiện làm việc bê tông γb", self.en_gb, 1)
+        self._row(f, "Cấp độ bền bê tông", self.cb_conc, 0, c0=0)
         self.cb_steel = ttk.Combobox(f, values=list(STEEL_GRADES),
-                                     state="readonly", width=18)
+                                     state="readonly", width=14)
         self.cb_steel.set("CB400-V")
-        self._row(f, "Cấp độ bền thép dọc", self.cb_steel, 2)
+        self._row(f, "Cấp độ bền thép dọc", self.cb_steel, 0, c0=2)
+        self.en_gb = ttk.Entry(f, width=14); self.en_gb.insert(0, "0.85")
+        self._row(f, "Hệ số γb", self.en_gb, 1, c0=0)
+        self.en_gs = ttk.Entry(f, width=14); self.en_gs.insert(0, "1.0")
+        self._row(f, "Hệ số γs", self.en_gs, 1, c0=2)
         self.cb_sw_steel = ttk.Combobox(f, values=list(STEEL_GRADES),
-                                        state="readonly", width=18)
+                                        state="readonly", width=14)
         self.cb_sw_steel.set("CB400-V")
-        self._row(f, "Cấp độ bền thép đai", self.cb_sw_steel, 3)
-        self.en_gs = ttk.Entry(f, width=18); self.en_gs.insert(0, "1.0")
-        self._row(f, "Hệ số điều kiện làm việc thép γs", self.en_gs, 4)
+        self._row(f, "Cấp độ bền thép đai", self.cb_sw_steel, 2, c0=0)
         self.cb_model = ttk.Combobox(
             f, values=["3 đoạn thẳng (MH3ĐT)", "2 đoạn thẳng (MH2ĐT)"],
-            state="readonly", width=18)
+            state="readonly", width=14)
         self.cb_model.set("3 đoạn thẳng (MH3ĐT)")
-        self._row(f, "Mô hình bê tông", self.cb_model, 4)
+        self._row(f, "Mô hình bê tông", self.cb_model, 2, c0=2)
 
     # ---- 2. Tiết diện ----
     def _sec_section(self):
         f = self._frame("2. Tiết diện")
         self.cb_kind = ttk.Combobox(f, values=["Chữ nhật", "Tròn"],
-                                    state="readonly", width=18)
+                                    state="readonly", width=14)
         self.cb_kind.set("Chữ nhật")
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
-        self._row(f, "Loại tiết diện", self.cb_kind, 0)
-        self.en_cx = ttk.Entry(f, width=18); self.en_cx.insert(0, "400")
-        self._row(f, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
-        self.en_cy = ttk.Entry(f, width=18); self.en_cy.insert(0, "400")
-        self._row(f, "Cạnh t2 (mm) — đứng", self.en_cy, 2)
+        self._row(f, "Loại tiết diện", self.cb_kind, 0, c0=0)
+        self.en_cx = ttk.Entry(f, width=14); self.en_cx.insert(0, "400")
+        self._row(f, "Cạnh t3 (mm) — ngang", self.en_cx, 0, c0=2)
+        self.en_cy = ttk.Entry(f, width=14); self.en_cy.insert(0, "400")
+        self._row(f, "Cạnh t2 (mm) — đứng", self.en_cy, 1, c0=0)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
