@@ -139,6 +139,18 @@ def _mk(title, ref, lines, result=""):
     return {"title": title, "ref": ref, "lines": lines, "result": result}
 
 
+def _full_case(d):
+    """Format đầy đủ: [story, column, case@station]."""
+    parts = []
+    if d.get("story"):
+        parts.append(str(d["story"]))
+    if d.get("column"):
+        parts.append(str(d["column"]))
+    cs = f"{d.get('case', '')}@{d.get('station', 0):.2f}"
+    parts.append(cs)
+    return "[" + ", ".join(parts) + "]"
+
+
 _EMPTY = {"title": "", "ref": "", "lines": [], "result": ""}
 
 
@@ -339,8 +351,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                        "ĐỘ LỆCH TÂM BAN ĐẦU",
                        "TCVN 5574:2018 Mục 8.1.2.2.4"))
     if case_info:
-        S.append(P(f"Tổ hợp tính toán: {case_info.get('case')}@"
-                   f"{case_info.get('station', 0):.2f} — "
+        S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
                    f"N = {_f(case_info.get('N', 0), 1)} kN, "
                    f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
                    f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
@@ -529,10 +540,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
         S.extend(_two(P, st, _mk("Lực cắt tính toán", "",
-                       [f"Q2 = {_f(q2i['Q'], 1)} kN "
-                        f"({q2i['case']}@{q2i['station']:.2f})",
-                        f"Q3 = {_f(q3i['Q'], 1)} kN "
-                        f"({q3i['case']}@{q3i['station']:.2f})"]),
+                       [f"Q2 = {_f(q2i['Q'], 1)} kN {_full_case(q2i)}",
+                        f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case(q3i)}"]),
                       _EMPTY))
     Rb = conc.Rb
     Rbt = conc.Rbt
