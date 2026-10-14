@@ -208,39 +208,32 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _simg = Image(io.BytesIO(_sec_png), width=70*mm, height=70*mm)
         _simg.hAlign = "CENTER"
         S.append(_simg)
-        # 6x2 info boxes dưới mặt cắt
+        # 6 box thông tin dưới mặt cắt
+        from collections import Counter as _Ctr
+        _cnt = _Ctr(getattr(r, "dia", 0) for r in sec.rebars)
+        _bar_str = " + ".join(f"{_cnt[d]:.0f}d{d:.0f}"
+                              for d in sorted(_cnt, reverse=True))
         _boxes = [
-            (f"t2", f"{sec.cy:.0f} mm"),
-            (f"t3", f"{sec.cx:.0f} mm"),
-            ("A", f"{sec.A/1e6:.4f} m²"),
-            ("I2", f"{sec.I2/1e9:.3f}×10⁹ mm⁴"),
-            ("I3", f"{sec.I3/1e9:.3f}×10⁹ mm⁴"),
-            ("As", f"{sec.As:.0f} mm²"),
-            ("i2", f"{(sec.I2/sec.A)**0.5:.1f} mm"),
-            ("i3", f"{(sec.I3/sec.A)**0.5:.1f} mm"),
-            ("μ", f"{100*sec.As/sec.A:.2f}%"),
-            ("Thép", f"{len(sec.bars)} thanh"),
             ("Bê tông", f"{inp.conc_grade}"),
-            ("Cốt thép", f"{inp.steel_grade}"),
+            ("Thép dọc", f"{inp.steel_grade}"),
+            ("Thép đai", f"{inp.sw_steel_grade}"),
+            ("Số thanh", _bar_str),
+            ("Tổng As", f"{sec.steel_area:.0f} mm²"),
+            ("Hàm lượng μ", f"{100*sec.reinforcement_ratio:.2f}%"),
         ]
-        _brows = []
-        for r in range(2):
-            _row = []
-            for c in range(6):
-                lbl, val = _boxes[r*6 + c]
-                _row.append(P(f"<b>{lbl}</b><br/>{val}", st["formula"]))
-            _brows.append(_row)
-        _bt = Table(_brows)
+        _brow = [[P(f"<b>{lbl}</b><br/>{val}", st["formula"])
+                  for lbl, val in _boxes]]
+        _bt = Table(_brow)
         _bt.setStyle(TableStyle([
             ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
             ("GRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
             ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ]))
         S.append(_bt)
         S.append(Spacer(1, 6*mm))
