@@ -55,7 +55,7 @@ def _get_styles():
                               textColor=HexColor(GRAY), alignment=TA_CENTER,
                               spaceAfter=10),
         "sec_title": ParagraphStyle("sec_title", fontName="VN-Bold",
-                                    fontSize=11, textColor=HexColor(TEXT),
+                                    fontSize=10, textColor=HexColor(TEXT),
                                     spaceBefore=10, spaceAfter=6),
         "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
                                      fontSize=8, textColor=HexColor(TEXT),
@@ -227,7 +227,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
          P(f"Biến dạng kéo giới hạn: εbt2 = 0.00015 (0.15‰)", st["formula"]),
          P(f"Biến dạng giới hạn: εs2 = {EPS_S2} (25.00‰)", st["formula"])],
     ]
-    tbl = Table([hdr] + dat, colWidths=[64, 64, 64])
+    tbl = Table([hdr] + dat)
     tbl.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("GRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
