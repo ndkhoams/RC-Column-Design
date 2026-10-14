@@ -736,10 +736,9 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
 
     # Hàng trên: [mặt cắt + box | bảng thông số] như app
     _ck_style = ParagraphStyle(
-        "ck", fontName=FNB, fontSize=10, alignment=TA_LEFT,
-        textColor=HexColor("#111827"), spaceBefore=4, spaceAfter=4,
-        backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
-    _ck_para = Paragraph(f"Cấu kiện: {_ck_name}", _ck_style) \
+        "ck", fontName=FNB, fontSize=11, alignment=TA_LEFT,
+        textColor=HexColor("#111827"), spaceBefore=2, spaceAfter=2)
+    _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
     # BƯỚC 1: Đo chiều cao bảng phải
     # MARKER_3BUOC_0725 để xác định vị trí nét dưới cùng
@@ -879,8 +878,8 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     # ===== Chi tiết A/B =====
     story.append(Paragraph("CHI TIẾT ĐIỂM TẢI & GIỚI HẠN", st_h))
     story.append(Paragraph(
-        f"• Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) &nbsp;&nbsp; "
-        f"<b>D/C = OA/OB = {res.dc:.3f} → {ok_txt}</b>", st_b))
+        f"• Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°), "
+        f"D/C = OA/OB = {res.dc:.3f} → <b>{ok_txt}</b>", st_b))
     # PDF: text đen (không màu như app)
     _combo = ""
     if case_info:
@@ -988,10 +987,10 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         _kl = "ĐẠT" if _sw_ok_all else "KHÔNG ĐẠT"
         story.append(Spacer(1, 3))
         story.append(Paragraph(
-            f"Kết luận thép đai: {_kl}",
-            ParagraphStyle("kl", fontName=FNB, fontSize=10, spaceBefore=2,
-                           textColor=HexColor("#065F46" if _sw_ok_all
-                                              else "#991B1B"))))
+            f"Kết luận thép đai: <b>{_kl}</b>",
+            ParagraphStyle("kl", fontName=FN, fontSize=8.5, spaceBefore=2,
+                           leading=11,
+                           textColor=HexColor("#111827"))))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
