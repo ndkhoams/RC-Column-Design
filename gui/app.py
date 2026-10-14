@@ -208,15 +208,8 @@ class App(tk.Tk):
         self._last_inp = None
         self._last_res = None
 
-        # Thanh công cụ thuyết minh
-        calc_bar = ttk.Frame(self.tab_calc)
-        calc_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
-        ttk.Button(calc_bar, text="🖨️ Xuất PDF thuyết minh",
-                   command=self.on_export_pdf).pack(side=tk.LEFT, padx=4)
+        # Biến kèm bảng tổng hợp (mặc định tắt; logic PDF còn dùng)
         self.var_export_table = tk.BooleanVar(value=False)
-        ttk.Checkbutton(calc_bar, text="Kèm bảng tổng hợp (mục 8)",
-                        variable=self.var_export_table,
-                        command=self._on_toggle_table).pack(side=tk.LEFT, padx=4)
         # Khung cuộn cho thuyết minh kiểu Vietcon (widget)
         calc_frame = ttk.Frame(self.tab_calc)
         calc_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -239,9 +232,8 @@ class App(tk.Tk):
         tk.Label(self._calc_inner, text="Chi tiết tính toán sẽ hiển thị sau "
                  "khi thực hiện kiểm tra.", bg="white",
                  font=("", 10)).pack(pady=20)
-        # Cuộn chuột cho thuyết minh (cả thanh công cụ)
+        # Cuộn chuột cho thuyết minh
         self._bind_wheel(self._calc_inner, self._calc_canvas)
-        self._bind_wheel_to_calc(calc_bar)
 
     def _bind_wheel(self, root_widget, canvas):
         """Gắn cuộn chuột đệ quy cho root_widget và mọi con cháu,
