@@ -724,8 +724,9 @@ class App(tk.Tk):
         for c in cols:
             self.etabs_tree.heading(c, text=hd[c])
             self.etabs_tree.column(c, width=wd[c], anchor=tk.CENTER)
-        # Tag đỏ cho dòng D/C > 1
+        # Tag đỏ cho dòng D/C > 1, nền xen kẽ như bảng thép đai
         self.etabs_tree.tag_configure("over", foreground="#DC2626")
+        self.etabs_tree.tag_configure("even", background="#F3F4F6")
         self.etabs_tree.grid(row=4, column=0, columnspan=2, padx=4, pady=4,
                              sticky=tk.EW)
         vsb = ttk.Scrollbar(self.etabs_frame, orient=tk.VERTICAL,
@@ -1007,15 +1008,17 @@ class App(tk.Tk):
     def _fill_etabs_table(self, rows):
         t = self.etabs_tree
         t.delete(*t.get_children())
-        for f, r in rows:
+        for i, (f, r) in enumerate(rows):
             dc = r["dc"] if r else None
             vals = (f.story, f.column, f.case, f"{f.station:.2f}",
                     f"{f.N:.0f}", f"{f.Q2:.0f}", f"{f.Q3:.0f}",
                     f"{f.Mx:.0f}", f"{f.My:.0f}",
                     f"{dc:.3f}" if dc is not None and dc == dc else "—")
-            # Dòng D/C > 1: đỏ text cả dòng
-            tag = ("over",) if (dc and dc == dc and dc > 1) else ()
-            t.insert("", tk.END, values=vals, tags=tag)
+            # Nền xen kẽ; dòng D/C > 1 thêm đỏ text
+            tags = ["even"] if i % 2 == 0 else []
+            if dc and dc == dc and dc > 1:
+                tags.append("over")
+            t.insert("", tk.END, values=vals, tags=tuple(tags))
 
     def _edit_etabs_cell(self, event):
         """Double-click vào ô N/M2/M3 để sửa trực tiếp."""
