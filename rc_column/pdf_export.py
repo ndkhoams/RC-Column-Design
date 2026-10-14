@@ -761,6 +761,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
     # BẢNG THỐNG NHẤT: đo chiều cao, đặt rowHeights cụ thể
+    # TEST_PUSH_0718
     _left_top = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para],
