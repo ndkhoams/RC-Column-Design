@@ -11,7 +11,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from .checker import ColumnInput, CheckResult
-from .sections import build_section
+from .checker import build_section
 from .materials import STEEL_GRADES, EPS_B1, EPS_B2, EPS_S2
 
 WHITE = "#FFFFFF"
