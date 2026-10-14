@@ -89,16 +89,16 @@ def _get_styles():
 
 
 def _card(P, st, title, ref, lines, result=""):
-    """Kiểu web Vietcon: trả về list flowable (không bọc table)."""
+    """Kiểu web Vietcon: 1 cột full-width, title+ref cùng hàng."""
     from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.colors import HexColor
     from reportlab.lib.units import mm
 
     parts = []
-    # Tiêu đề (trái, đậm) + ref (phải, xám nhỏ) cùng hàng
+    # Tiêu đề (trái, đậm) + ref (phải, xám nhỏ) cùng hàng - đủ rộng 180mm
     if ref:
         _tr = Table([[P(f"<b>{title}</b>", st["card_title"]),
-                      P(ref, st["card_ref"])]], colWidths=[60, 24])
+                      P(ref, st["card_ref"])]], colWidths=[130, 50])
         _tr.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("ALIGN", (1, 0), (1, 0), "RIGHT"),
@@ -110,48 +110,27 @@ def _card(P, st, title, ref, lines, result=""):
         parts.append(_tr)
     else:
         parts.append(P(f"<b>{title}</b>", st["card_title"]))
-    # Khối công thức: viền trái + nền nhạt như web
+    # Khối công thức: viền trái + nền nhạt
     grows = [[P(ln, st["formula"])] for ln in lines]
     if result:
         grows.append([P(result, st["result"])])
-    fbox = Table(grows, colWidths=[84])
+    fbox = Table(grows, colWidths=[180])
     fbox.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), HexColor(FORMULA_BG)),
         ("LINEBEFORE", (0, 0), (0, -1), 2, HexColor("#D1D5DB")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
     parts.append(fbox)
+    parts.append(Spacer(1, 4*mm))
     return parts
 
 
 def _two(P, st, c1, c2):
-    """Hai card cạnh nhau, giãn full width. c1/c2 là list flowable."""
-    from reportlab.platypus import Table, TableStyle, Spacer
-    from reportlab.lib.units import mm
-    # Mỗi cell chứa list flowable -> bọc trong Table 1 cột
-    def _cell(flows):
-        inner = Table([[f] for f in flows], colWidths=[88])
-        inner.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        return inner
-    t = Table([[_cell(c1), _cell(c2)]], colWidths=[90, 90])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-    ]))
-    return [t, Spacer(1, 2*mm)]
+    """Hai card xếp dọc full-width (khổ dọc 1 cột)."""
+    return c1 + c2
 
 
 def _sec_head(P, st, num, title, ref=""):
