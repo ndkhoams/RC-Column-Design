@@ -14,6 +14,16 @@ from .checker import ColumnInput, CheckResult
 from .checker import build_section
 from .materials import STEEL_GRADES, EPS_B1, EPS_B2, EPS_S2
 
+def _full_case_w(d):
+    parts = []
+    if d.get("story"):
+        parts.append(str(d["story"]))
+    if d.get("column"):
+        parts.append(str(d["column"]))
+    parts.append(f"{d.get('case', '')}@{d.get('station', 0):.2f}")
+    return "[" + ", ".join(parts) + "]"
+
+
 WHITE = "#FFFFFF"
 BORDER = "#E5E7EB"
 TEXT = "#111827"
@@ -272,8 +282,7 @@ def _build_sec4(g, inp: ColumnInput, res: CheckResult, sec, case_info=None):
                     "ĐỘ LỆCH TÂM BAN ĐẦU",
                     "TCVN 5574:2018 Mục 8.1.2.2.4")
     if case_info:
-        tk.Label(g, text=f"Tổ hợp tính toán: {case_info.get('case')}@"
-                 f"{case_info.get('station', 0):.2f} — "
+        tk.Label(g, text=f"Tổ hợp tính toán: {_full_case_w(case_info)} — "
                  f"N = {_f(case_info.get('N', 0), 1)} kN, "
                  f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
                  f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
@@ -524,10 +533,8 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
         c = _param_card(grid, "Lực cắt tính toán", "",
-                        [f"Q2 = {_f(q2i['Q'], 1)} kN "
-                         f"({q2i['case']}@{q2i['station']:.2f})",
-                         f"Q3 = {_f(q3i['Q'], 1)} kN "
-                         f"({q3i['case']}@{q3i['station']:.2f})"])
+                        [f"Q2 = {_f(q2i['Q'], 1)} kN {_full_case_w(q2i)}",
+                         f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case_w(q3i)}"])
         c.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
     # Kiểm tra chịu cắt từng phương
     Rb = conc.Rb
