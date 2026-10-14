@@ -315,65 +315,142 @@ def _build_sec4(g, inp: ColumnInput, res: CheckResult, sec, case_info=None):
 
 
 def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
-    _section_header(g, 5, "UỐN DỌC & PHÓNG ĐẠI MÔ MEN", "CT (44)–(48)")
+    _section_header(g, 5,
+                    "ĐỘ CỨNG CHỐNG UỐN, LỰC TỚI HẠN EULER & PHÓNG ĐẠI MÔ MEN UỐN DỌC",
+                    "TCVN 5574:2018 Công thức (44) - (48)")
+    conc = sec.concrete
+    steel = sec.steel
+    Eb = conc.Eb / 1000.0  # kN/mm² -> để tính D (kN·m²)
+    Es = steel.Es / 1000.0
+    # Giá trị cho từng phương: 2 (X) và 3 (Y)
+    # Phương 2: dùng e03, t2, Ix, Isx ; Phương 3: dùng e02, t3, Iy, Isy
+    N = abs(res.N)
+    M2_orig = abs(res.Mx_star / res.etax) if res.etax else 0.0
+    M3_orig = abs(res.My_star / res.etay) if res.etay else 0.0
     grid = _grid2(g)
-    phi_txt = ("2.00 (thiên về an toàn)"
+    # Dữ liệu từng phương: (tên, e0, t, I, Is, delta, kb, D, Ncr, eta, M_star, M_orig, L0)
+    dirs = [
+        ("2", res.e0y, inp.cy, res.Ix, res.Isx, res.delta_ex, res.kbx,
+         res.Dx, res.Ncrx, res.etax, res.Mx_star, M2_orig, res.L0x),
+        ("3", res.e0x, inp.cx, res.Iy, res.Isy, res.delta_ey, res.kby,
+         res.Dy, res.Ncry, res.etay, res.My_star, M3_orig, res.L0y),
+    ]
+    phi_txt = ("2 (thiên về an toàn)"
                if not inp.long_term.has_data else _f(res.phi_L))
-    c = _param_card(grid, "Hệ số từ biến φL", "",
-                    [f"φL = {phi_txt}"])
-    c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-    c = _param_card(grid, "Hệ số δe₂ / δe₃", "",
-                    [f"δe₂ = {_f(res.delta_ex, 3)}",
-                     f"δe₃ = {_f(res.delta_ey, 3)}"])
-    c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-    c = _param_card(grid, "Hệ số kb₂ / kb₃ (độ cứng)", "",
-                    [f"kb₂ = {_f(res.kbx, 4)}",
-                     f"kb₃ = {_f(res.kby, 4)}"])
-    c.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
-    c = _param_card(grid, "Độ cứng D₂ / D₃", "",
-                    [f"D₂ = {_f(res.Dx, 1)} kN·m²",
-                     f"D₃ = {_f(res.Dy, 1)} kN·m²"])
-    c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
-    c = _param_card(grid, "Lực tới hạn Euler Ncr,2 / Ncr,3", "",
-                    [f"Ncr,2 = {_f(res.Ncrx, 1)} kN",
-                     f"Ncr,3 = {_f(res.Ncry, 1)} kN"])
-    c.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
-    c = _param_card(grid, "Hệ số uốn dọc η₂ / η₃", "",
-                    [f"η₂ = {_f(res.etax, 3)}",
-                     f"η₃ = {_f(res.etay, 3)}"])
-    c.grid(row=2, column=1, sticky="nsew", padx=4, pady=4)
-    c = _param_card(grid, "Mô men tính toán M₂* / M₃*", "",
-                    [f"M₂* = η₂·M₂ = {_f(res.Mx_star, 1)} kN·m",
-                     f"M₃* = η₃·M₃ = {_f(res.My_star, 1)} kN·m"])
-    c.grid(row=3, column=0, sticky="nsew", padx=4, pady=4)
+    phi_v = 2.0 if not inp.long_term.has_data else res.phi_L
+    # Mỗi loại card một hàng cố định, 2 cột cho 2 phương
+    card_defs = [
+        ("phi", f"Hệ số ảnh hưởng thời hạn tải trọng φL",
+         "Công thức (48)",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+             [f"φL,{d} = 1 + ML1,{d} / ML,{d} ≤ 2.0",
+              f"φL = {phi_txt}"]),
+        ("delta", f"Độ lệch tâm tương đối (δe)",
+         "Điều 8.1.2.4.2",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+             [f"δe,{d} = e0{'3' if d=='2' else '2'} / t{d} "
+              f"(lấy trong [0.15, 1.5])",
+              f"= {_f(e0, 2)} / {t:.0f} = {_f(delta, 3)}",
+              f"= {_f(delta, 3)} -"]),
+        ("kb", f"Hệ số độ cứng bê tông (kb)",
+         "Công thức (47)",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+             [f"kb,{d} = 0.15 / [φL,{d} · (0.3 + δe,{d})]",
+              f"= 0.15 / [{_f(phi_v, 2)} × (0.3 + {_f(delta, 3)})]",
+              f"= {_f(kb, 3)} -"]),
+        ("D", f"Độ cứng chống uốn quy ước (D)",
+         "Công thức (46)",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+             [f"D{d} = kb,{d} · Eb · I{d} + ks · Es · Is{d}",
+              f"ks = 0.7",
+              f"= {_f(D, 1)} kN·m²"]),
+        ("Ncr", f"Lực tới hạn Euler (Ncr)",
+         "Công thức (45)",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+             [f"Ncr,{d} = (π² · D{d}) / L0{d}²",
+              f"= (π² × {_f(D, 1)}) / {_f(L0, 2)}²",
+              f"= {_f(Ncr, 2)} kN"]),
+        ("eta", f"Hệ số uốn dọc (η)",
+         "Công thức (44)",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+             [f"η{d} = 1 / [1 - N / Ncr,{d}]",
+              f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}]",
+              f"= {_f(eta, 3)} ≥ 1.0"]),
+        ("Mstar", f"Mô men tính toán (M*)",
+         "Mục 8.1.2.4",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+             [f"M{d}* = η{d} · M{d}",
+              f"= {_f(eta, 3)} × {_f(Morig, 2)}",
+              f"= {_f(abs(Mstar), 2)} kN·m"]),
+    ]
+    for r, (key, title, ref, fn) in enumerate(card_defs):
+        for (d, e0, t, I, Is, delta, kb, D, Ncr, eta,
+             Mstar, Morig, L0) in dirs:
+            col = int(d) - 2
+            c = _param_card(grid, f"{title} phương {d} ({key},{d})",
+                            ref, fn(d, e0, t, I, Is, delta, kb, D, Ncr,
+                                    eta, Mstar, Morig, L0))
+            c.grid(row=r, column=col, sticky="nsew", padx=4, pady=4)
+    # Góc α và Mα (hàng cuối, 2 cột)
+    import math as _m
+    Ma = _m.hypot(res.Mx_star, res.My_star)
+    alpha = _m.degrees(_m.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0.0
+    r = len(card_defs)
+    c = _param_card(grid, "Góc tác dụng mô men uốn tổng hợp α",
+                    "Góc uốn xiên",
+                    [f"α = arctan(M₃* / M₂*)",
+                     f"= arctan({_f(abs(res.My_star), 2)} / "
+                     f"{_f(abs(res.Mx_star), 2)})",
+                     f"= {_f(alpha, 2)} độ (°)"])
+    c.grid(row=r, column=0, sticky="nsew", padx=4, pady=4)
+    c = _param_card(grid, "Mô men uốn xiên tổng hợp Mα",
+                    "Véc-tơ tổng hợp",
+                    [f"Mα = √((M₂*)² + (M₃*)²)",
+                     f"= √({_f(abs(res.Mx_star), 2)}² + "
+                     f"{_f(abs(res.My_star), 2)}²)",
+                     f"= {_f(Ma, 2)} kN·m"])
+    c.grid(row=r, column=1, sticky="nsew", padx=4, pady=4)
 
 
 def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec):
-    _section_header(g, 6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
-                    "TCVN 5574:2018 Điều 8.1.2.7")
-    Ma = math.hypot(res.Mx_star, res.My_star)
-    alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+    _section_header(g, 6,
+                    "ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC THEO MÔ HÌNH BIẾN DẠNG PHI TUYẾN (NDM)",
+                    "TCVN 5574:2018 Mục 8.1.2.7")
+    import math as _m
+    Ma = _m.hypot(res.Mx_star, res.My_star)
+    alpha = _m.degrees(_m.atan2(res.My_star, res.Mx_star)) \
         if Ma > 1e-9 else 0.0
+    # |OA| và |OB|: độ lớn véc-tơ 3D
+    OA = _m.sqrt(res.Mx_star**2 + res.My_star**2 + res.N**2)
+    OB = _m.sqrt(res.Bx**2 + res.By**2 + res.BN**2)
     grid = _grid2(g)
-    c = _param_card(grid, "Điểm tải trọng A", "",
-                    [f"A = (M₂*, M₃*, N)",
+    # Điểm A theo format web
+    c = _param_card(grid, "Điểm nội lực tính toán A (Nội lực tác dụng)", "",
+                    [f"A = (M₂tt, M₃tt, N)",
                      f"= ({_f(res.Mx_star, 1)}, {_f(res.My_star, 1)}, "
-                     f"{_f(res.N, 1)})"])
+                     f"{_f(res.N, 1)})",
+                     f"= |OA| = {_f(OA, 1)} kN/kNm"])
     c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+    # Điểm B theo format web
     c = _param_card(grid, "Điểm giới hạn B (trên mặt tương tác)", "",
-                    [f"B = ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
-                     f"{_f(res.BN, 1)})"])
+                    [f"B = (M₂gh, M₃gh, Ngh)",
+                     f"= ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
+                     f"{_f(res.BN, 1)})",
+                     f"= |OB| = {_f(OB, 1)} kN/kNm"])
     c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
     c = _param_card(grid, "Góc uốn xiên α", "",
                     [f"α = {_f(alpha, 1)}°",
                      f"Mα = {_f(Ma, 1)} kN·m"])
     c.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+    c = _param_card(grid, "Tỷ số D/C", "",
+                    [f"D/C = |OA| / |OB| = {_f(OA, 1)} / {_f(OB, 1)}",
+                     f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"])
+    c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
     # Biểu đồ tương tác (giống web)
     try:
         from .pdf_export import interaction_image, m2m3_image
         from tkinter import PhotoImage
         import base64
-        import io
         chart_frame = tk.Frame(g, bg=WHITE)
         chart_frame.pack(fill=tk.X, padx=8, pady=8)
         for title, img_fn in (("Biểu đồ tương tác N-Mα", interaction_image),
@@ -381,7 +458,6 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec):
             try:
                 png = img_fn(sec, inp, res, width_in=4.0, dpi=100)
                 ph = PhotoImage(data=base64.b64encode(png).decode())
-                # Giữ tham chiếu để không bị GC
                 if not hasattr(g, "_chart_imgs"):
                     g._chart_imgs = []
                 g._chart_imgs.append(ph)
