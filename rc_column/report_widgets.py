@@ -80,11 +80,15 @@ def _param_card(parent, title: str, ref: str, lines, result: str = ""):
 
 
 def _grid2(parent):
-    """Khung lưới 2 cột."""
+    """Khung lưới 2 cột; các hàng có weight để 2 card cùng hàng
+    luôn căng đều chiều cao, thẳng hàng trái-phải."""
     g = tk.Frame(parent, bg=WHITE)
     g.pack(fill=tk.X, padx=4)
-    g.columnconfigure(0, weight=1)
-    g.columnconfigure(1, weight=1)
+    g.columnconfigure(0, weight=1, uniform="col")
+    g.columnconfigure(1, weight=1, uniform="col")
+    # Cấu hình sẵn weight cho các hàng (đủ cho mọi mục)
+    for r in range(30):
+        g.rowconfigure(r, weight=1)
     return g
 
 
