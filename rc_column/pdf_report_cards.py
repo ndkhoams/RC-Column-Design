@@ -89,54 +89,52 @@ def _get_styles():
 
 
 def _two(P, st, c1, c2):
-    """1 table phẳng duy nhất: 2 cột, không nested table.
-    c1/c2 là dict {title, ref, lines, result}."""
+    """Mỗi card 1 hàng full-width 180mm, xếp dọc."""
     from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.colors import HexColor
     from reportlab.lib.units import mm
 
-    def _title_cell(title, ref):
-        if ref:
-            return P(f'<b>{title}</b> <font color="{GRAY}" size=6>{ref}</font>',
-                     st["card_title"])
-        return P(f"<b>{title}</b>", st["card_title"])
+    def _one(c):
+        # c là dict
+        rows = []
+        # Tiêu đề + ref cùng hàng
+        if c["ref"]:
+            rows.append([P(f'<b>{c["title"]}</b> <font color="{GRAY}" size=7>{c["ref"]}</font>',
+                           st["card_title"])])
+        elif c["title"]:
+            rows.append([P(f'<b>{c["title"]}</b>', st["card_title"])])
+        # Công thức
+        for ln in c["lines"]:
+            rows.append([P(ln, st["formula"])])
+        if c.get("result"):
+            rows.append([P(c["result"], st["result"])])
+        if not rows:
+            return None
+        t = Table(rows, colWidths=[180])
+        sty = [
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]
+        # Nền + viền trái cho khối công thức (từ hàng 1)
+        if len(rows) > 1:
+            sty += [
+                ("BACKGROUND", (0, 1), (-1, -1), HexColor(FORMULA_BG)),
+                ("LINEBEFORE", (0, 1), (0, -1), 2, HexColor("#D1D5DB")),
+                ("LEFTPADDING", (0, 1), (-1, -1), 10),
+            ]
+        t.setStyle(TableStyle(sty))
+        return t
 
-    # Số dòng công thức tối đa
-    n1 = len(c1["lines"]) + (1 if c1.get("result") else 0)
-    n2 = len(c2["lines"]) + (1 if c2.get("result") else 0)
-    nmax = max(n1, n2)
-
-    # Dựng rows: [title], [ref], [formulas...]
-    rows = []
-    rows.append([_title_cell(c1["title"], c1["ref"]),
-                 _title_cell(c2["title"], c2["ref"])])
-    # Các dòng công thức
-    for i in range(nmax):
-        l1 = c1["lines"][i] if i < len(c1["lines"]) else ""
-        l2 = c2["lines"][i] if i < len(c2["lines"]) else ""
-        # Dòng result
-        if i == len(c1["lines"]) and c1.get("result"):
-            l1 = c1["result"]
-        if i == len(c2["lines"]) and c2.get("result"):
-            l2 = c2["result"]
-        rows.append([P(l1, st["formula"]) if l1 else P("", st["formula"]),
-                     P(l2, st["formula"]) if l2 else P("", st["formula"])])
-
-    t = Table(rows, colWidths=[90, 90])
-    sty = [
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        # Khối công thức: nền + viền trái (từ hàng 1 trở đi)
-        ("BACKGROUND", (0, 1), (-1, -1), HexColor(FORMULA_BG)),
-        ("LINEBEFORE", (0, 1), (0, -1), 1.5, HexColor("#D1D5DB")),
-        ("LINEBEFORE", (1, 1), (1, -1), 1.5, HexColor("#D1D5DB")),
-        ("LEFTPADDING", (0, 1), (-1, -1), 8),
-    ]
-    t.setStyle(TableStyle(sty))
-    return [t, Spacer(1, 4*mm)]
+    parts = []
+    for c in (c1, c2):
+        t = _one(c)
+        if t is not None:
+            parts.append(t)
+            parts.append(Spacer(1, 3*mm))
+    return parts
 
 
 def _mk(title, ref, lines, result=""):
