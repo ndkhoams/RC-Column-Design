@@ -1168,8 +1168,12 @@ class App(tk.Tk):
         f_q3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
         inp_w.Q2, inp_w.Q3 = f_q2.Q2, f_q3.Q3
         shear_info = {
-            "q2": {"case": f_q2.case, "station": f_q2.station, "Q": f_q2.Q2},
-            "q3": {"case": f_q3.case, "station": f_q3.station, "Q": f_q3.Q3},
+            "q2": {"case": f_q2.case, "station": f_q2.station, "Q": f_q2.Q2,
+                   "story": getattr(f_q2, "story", ""),
+                   "column": getattr(f_q2, "column", "")},
+            "q3": {"case": f_q3.case, "station": f_q3.station, "Q": f_q3.Q3,
+                   "story": getattr(f_q3, "story", ""),
+                   "column": getattr(f_q3, "column", "")},
         }
         res_w = check_column(inp_w, n_angles=24)
         sec_w = build_section(inp_w)
