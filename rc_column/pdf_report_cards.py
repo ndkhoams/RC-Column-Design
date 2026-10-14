@@ -150,7 +150,8 @@ def _pdf_section_header(P, styles, num, title, ref):
 
 
 def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
-                     batch_rows=None, case_info=None, shear_info=None):
+                     batch_rows=None, case_info=None, shear_info=None,
+                     chart_pngs=None):
     """Xuất PDF thuyết minh kiểu card giống app."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -328,11 +329,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                     f"{_f(res.BN, 1)})",
                     f"= |OB| = {_f(OB, 1)} kN/kNm"])
     S.append(_pdf_two_col(P, styles, c1, c2))
-    # Biểu đồ
+    # Biểu đồ: ưu tiên PNG từ tab Tóm tắt
     try:
-        from .pdf_export import interaction_image, m2m3_image
-        png_nm = interaction_image(sec, inp, res, width_in=4.0)
-        png_m2m3 = m2m3_image(sec, inp, res, width_in=4.0)
+        if chart_pngs:
+            png_nm, png_m2m3 = chart_pngs
+        else:
+            from .pdf_export import interaction_image, m2m3_image
+            png_nm = interaction_image(sec, inp, res, width_in=4.0)
+            png_m2m3 = m2m3_image(sec, inp, res, width_in=4.0)
         img1 = Image(io.BytesIO(png_nm), width=85*mm, height=64*mm)
         img2 = Image(io.BytesIO(png_m2m3), width=85*mm, height=64*mm)
         t = Table([[img1, img2]], colWidths=[90*mm, 90*mm])
