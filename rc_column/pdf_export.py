@@ -760,7 +760,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
     _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
-    # BẢNG THỐNG NHẤT: boxes ở hàng riêng, tự căn đáy
+    # BẢNG THỐNG NHẤT: đo chiều cao, đặt rowHeights cụ thể
     _left_top = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para],
@@ -789,11 +789,17 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
-    # Outer: hàng 0 = [top | right], hàng 1 = [boxes | (right span)]
-    # Dùng 2 hàng, right span 2 hàng để đáy boxes = đáy bảng
+    # Đo chiều cao thực tế
+    _, _rh = _right_tbl.wrap(80 * mm, 1000)
+    _, _bh = _box_tbl.wrap(80 * mm, 1000)
+    _, _lth = _left_top.wrap(80 * mm, 1000)
+    # Hàng 0 cao = rh - bh, hàng 1 cao = bh
+    # Để left_top + khoảng trống = hàng 0
+    _r0h = max(_rh - _bh, _lth)
     _outer = Table([[_left_top, _right_tbl],
                     [_box_tbl, ""]],
-                   colWidths=[84 * mm, 84 * mm])
+                   colWidths=[84 * mm, 84 * mm],
+                   rowHeights=[_r0h, _bh])
     _outer.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("VALIGN", (0, 1), (0, 1), "BOTTOM"),
