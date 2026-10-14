@@ -78,11 +78,24 @@ class App(tk.Tk):
                     cv = getattr(self, _c)
                     try:
                         cv.configure(scrollregion=cv.bbox("all"))
-                        cv.yview_moveto(0)  # ép về đầu
+                        cv.yview_moveto(0)
                     except Exception:
                         pass
+            # Giả lập resize: nudge kích thước 1px rồi trả lại
+            # (kích hoạt lại geometry manager như khi user resize thủ công)
+            _g = self.geometry()
+            try:
+                _w, _h = self.winfo_width(), self.winfo_height()
+                if _w > 100 and _h > 100:
+                    self.geometry(f"{_w+1}x{_h}")
+                    self.update_idletasks()
+                    self.geometry(f"{_w}x{_h}")
+            except Exception:
+                try:
+                    self.geometry(_g)
+                except Exception:
+                    pass
             self.update()
-            # Thử lại 2 lần nữa vì fullscreen trên Win tính geometry chậm
             if _retry < 2:
                 self.after(500, lambda: self._refresh_layout(_retry + 1))
         except Exception:
