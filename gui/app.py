@@ -206,6 +206,9 @@ class App(tk.Tk):
         self._sec_rebar()
         self._sec_stability()
         self._sec_loads()
+        # Spacer hút khoảng trống xuống đáy (fix Canvas Win đẩy content xuống)
+        _spacer = ttk.Frame(self.left)
+        _spacer.pack(fill=tk.BOTH, expand=True)
         # Cuộn chuột cho vùng nhập liệu
         self._bind_wheel(self.left, self._left_canvas)
 
