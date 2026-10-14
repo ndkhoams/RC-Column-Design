@@ -94,11 +94,23 @@ def _card(P, st, title, ref, lines, result=""):
     from reportlab.lib.colors import HexColor
 
     rows = []
-    # Tiêu đề (in đậm) + ref (xám, nhỏ) xếp dọc cho khỏi vỡ layout
-    rows.append([P(f"<b>{title}</b>", st["card_title"])])
+    # Tiêu đề (in đậm, trái) + ref (xám, nhỏ, phải) cùng hàng như app
     if ref:
-        rows.append([P(f'<font color="{GRAY}">{ref}</font>',
-                       st["card_ref"])])
+        from reportlab.platypus import Table as _T, TableStyle as _TS
+        _tr = _T([[P(f"<b>{title}</b>", st["card_title"]),
+                   P(f'<font color="{GRAY}">{ref}</font>', st["card_ref"])]],
+                 colWidths=[130, 54])
+        _tr.setStyle(_TS([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        rows.append([_tr])
+    else:
+        rows.append([P(f"<b>{title}</b>", st["card_title"])])
     # Các dòng công thức
     for ln in lines:
         rows.append([P(ln, st["formula"])])
@@ -106,11 +118,10 @@ def _card(P, st, title, ref, lines, result=""):
         rows.append([P(result, st["result"])])
 
     n = len(rows)
-    # Chỉ số dòng bắt đầu/kết thúc của khối công thức
-    # (sau tiêu đề + ref)
-    f0 = 2 if ref else 1
+    # Khối công thức bắt đầu sau hàng tiêu đề
+    f0 = 1
     f1 = n - 2 if result else n - 1
-    card = Table([[r[0]] for r in rows], colWidths=[89])
+    card = Table([[r[0]] for r in rows], colWidths=[184])
     sty = [
         ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
         ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
@@ -129,13 +140,15 @@ def _card(P, st, title, ref, lines, result=""):
 
 
 def _two(P, st, c1, c2):
-    """Hai card cạnh nhau, căn đỉnh."""
+    """Hai card xếp dọc full-width (PDF 1 cột cho dễ đọc).
+    Giữ tên _two để không phải sửa các chỗ gọi."""
     from reportlab.platypus import Table, TableStyle
-    t = Table([[c1, c2]], colWidths=[95, 95])
+    # Mỗi card full width, xếp chồng dọc
+    t = Table([[c1], [c2]], colWidths=[190])
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
