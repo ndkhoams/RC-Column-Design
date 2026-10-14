@@ -739,7 +739,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         "ck", fontName=FNB, fontSize=10, alignment=TA_LEFT,
         textColor=HexColor("#111827"), spaceBefore=4, spaceAfter=4,
         backColor=HexColor("#F3F4F6"), borderPadding=(4, 4, 4))
-    _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
+    _ck_para = Paragraph(f"Cấu kiện: {_ck_name}", _ck_style) \
         if _ck_name else Spacer(1, 1)
     # BƯỚC 1: Đo chiều cao bảng phải
     # MARKER_3BUOC_0725 để xác định vị trí nét dưới cùng
