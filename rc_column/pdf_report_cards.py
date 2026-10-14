@@ -89,41 +89,52 @@ def _get_styles():
 
 
 def _card(P, st, title, ref, lines, result=""):
-    """Một card đơn giản: tiêu đề, ref, công thức, kết quả xếp dọc.
-    Không dùng table lồng nhau để tránh vỡ layout."""
-    from reportlab.platypus import Table, TableStyle
+    """Kiểu web Vietcon: tiêu đề + ref cùng hàng, khối công thức viền trái.
+    Không viền card."""
+    from reportlab.platypus import Table, TableStyle, Spacer
     from reportlab.lib.colors import HexColor
+    from reportlab.lib.units import mm
 
-    rows = []
-    # Card hẹp: tiêu đề trên, ref dưới
-    rows.append([P(f"<b>{title}</b>", st["card_title"])])
+    parts = []
+    # Tiêu đề (trái, đậm) + ref (phải, xám nhỏ) cùng hàng
     if ref:
-        rows.append([P(ref, st["card_ref"])])
-    # Các dòng công thức
-    for ln in lines:
-        rows.append([P(ln, st["formula"])])
+        _tr = Table([[P(f"<b>{title}</b>", st["card_title"]),
+                      P(ref, st["card_ref"])]], colWidths=[62, 22])
+        _tr.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        parts.append(_tr)
+    else:
+        parts.append(P(f"<b>{title}</b>", st["card_title"]))
+    # Khối công thức: viền trái + nền nhạt như web
+    grows = [[P(ln, st["formula"])] for ln in lines]
     if result:
-        rows.append([P(result, st["result"])])
-
-    n = len(rows)
-    f0 = 2 if ref else 1
-    f1 = n - 2 if result else n - 1
-    card = Table([[r[0]] for r in rows], colWidths=[84])
-    sty = [
-        ("BOX", (0, 0), (-1, -1), 0.5, HexColor(BORDER)),
-        ("BACKGROUND", (0, 0), (-1, -1), HexColor(WHITE)),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-    ]
-    if f1 >= f0:
-        sty += [
-            ("BACKGROUND", (0, f0), (-1, f1), HexColor(FORMULA_BG)),
-            ("LINEBELOW", (0, f0), (-1, f1), 2, HexColor("#D1D5DB")),
-        ]
-    card.setStyle(TableStyle(sty))
-    return card
+        grows.append([P(result, st["result"])])
+    fbox = Table(grows, colWidths=[84])
+    fbox.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), HexColor(FORMULA_BG)),
+        ("LINEBEFORE", (0, 0), (0, -1), 2, HexColor("#D1D5DB")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    parts.append(fbox)
+    parts.append(Spacer(1, 3*mm))
+    # Bọc để _two đặt cạnh nhau được
+    wrap = Table([[parts]], colWidths=[84])
+    wrap.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return wrap
 
 
 def _two(P, st, c1, c2):
