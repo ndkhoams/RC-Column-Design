@@ -89,28 +89,17 @@ def _get_styles():
 
 
 def _card(P, st, title, ref, lines, result=""):
-    """Một card: Table có viền, tiêu đề, khối công thức, kết quả."""
+    """Một card đơn giản: tiêu đề, ref, công thức, kết quả xếp dọc.
+    Không dùng table lồng nhau để tránh vỡ layout."""
     from reportlab.platypus import Table, TableStyle
     from reportlab.lib.colors import HexColor
 
     rows = []
-    # Tiêu đề (in đậm, trái) + ref (xám, nhỏ, phải) cùng hàng như app
+    # Tiêu đề in đậm
+    rows.append([P(f"<b>{title}</b>", st["card_title"])])
+    # Ref xám nhỏ dòng riêng
     if ref:
-        from reportlab.platypus import Table as _T, TableStyle as _TS
-        _tr = _T([[P(f"<b>{title}</b>", st["card_title"]),
-                   P(f'<font color="{GRAY}">{ref}</font>', st["card_ref"])]],
-                 colWidths=[130, 54])
-        _tr.setStyle(_TS([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-        rows.append([_tr])
-    else:
-        rows.append([P(f"<b>{title}</b>", st["card_title"])])
+        rows.append([P(ref, st["card_ref"])])
     # Các dòng công thức
     for ln in lines:
         rows.append([P(ln, st["formula"])])
@@ -118,8 +107,8 @@ def _card(P, st, title, ref, lines, result=""):
         rows.append([P(result, st["result"])])
 
     n = len(rows)
-    # Khối công thức bắt đầu sau hàng tiêu đề
-    f0 = 1
+    # Khối công thức: sau tiêu đề+ref, trước kết quả
+    f0 = 2 if ref else 1
     f1 = n - 2 if result else n - 1
     card = Table([[r[0]] for r in rows], colWidths=[184])
     sty = [
@@ -140,19 +129,10 @@ def _card(P, st, title, ref, lines, result=""):
 
 
 def _two(P, st, c1, c2):
-    """Hai card xếp dọc full-width (PDF 1 cột cho dễ đọc).
-    Giữ tên _two để không phải sửa các chỗ gọi."""
-    from reportlab.platypus import Table, TableStyle
-    # Mỗi card full width, xếp chồng dọc
-    t = Table([[c1], [c2]], colWidths=[190])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
-    return t
+    """Trả về list 2 card để add trực tiếp vào story (không bọc table)."""
+    from reportlab.platypus import Spacer
+    from reportlab.lib.units import mm
+    return [c1, Spacer(1, 3*mm), c2, Spacer(1, 3*mm)]
 
 
 def _sec_head(P, st, num, title, ref=""):
@@ -190,7 +170,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     # ================= MỤC 1 =================
     S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
                        "TCVN 5574:2018 Mục 6.1 & 6.2"))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Bê tông: Cường độ chịu nén tính toán Rb*",
               "Bảng 6 & Mục 6.1.2.3",
               ["Rb* = γb · Rb",
@@ -200,7 +180,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               [f"Eb (Cấp độ bền {inp.concrete_grade})",
                f"= {conc.Eb:,.0f} N/mm²",
                f"= {_f(conc.Eb / 1000, 1)} × 10³ MPa"])))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Cốt thép: Cường độ chịu kéo tính toán Rs",
               "Bảng 13 & Mục 6.2.2",
               ["Rs = (Rsn / γs) · γsi",
@@ -211,7 +191,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               [f"Tác dụng ngắn hạn: Rsc = {steel.Rsc:.0f} MPa",
                f"Tác dụng dài hạn: Rsc = {steel.Rsc:.0f} MPa",
                f"= {_f(steel.Rsc, 1)} MPa"])))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Cốt thép: Mô đun đàn hồi Es", "Mục 6.2.2.4",
               [f"Es (Cốt thép {inp.steel_grade})",
                f"= {steel.Es:,.0f} N/mm²",
@@ -261,7 +241,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     # ================= MỤC 2 =================
     S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
                        f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm"))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Diện tích tiết diện bê tông nguyên A", "",
               ["A = t2 · t3",
                f"= {inp.cy:.0f} × {inp.cx:.0f}",
@@ -271,7 +251,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               [f"c = {inp.cover:.0f} mm",
                "Chiều dày lớp bê tông bảo vệ",
                f"= {inp.cover:.0f} mm"])))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Mô men quán tính trục 2 (I2)", "",
               ["I₂ = (t3 · t2³) / 12",
                f"= ({inp.cx:.0f} × {inp.cy:.0f}³) / 12",
@@ -280,7 +260,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               ["I₃ = (t2 · t3³) / 12",
                f"= ({inp.cy:.0f} × {inp.cx:.0f}³) / 12",
                f"= {_f(res.Iy / 1e9, 3)} × 10⁹ mm⁴"])))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Bán kính quán tính phương 2 (i2)", "",
               ["i₂ = √(I₂ / A) = t2 / √12",
                f"= {inp.cy:.0f} / 3.464",
@@ -293,7 +273,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     # ================= MỤC 3 =================
     S.append(_sec_head(P, st, 3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
                        "TCVN 5574:2018 Mục 8.1.2.4"))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Chiều dài tính toán phương 2 (L02)", "",
               [f"L₀₂ = ψ · L = {_f(inp.psi_x, 2)} × {_f(inp.Lx, 2)}",
                f"= {_f(res.L0x, 2)} m"]),
@@ -302,7 +282,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                f"= {_f(res.L0y, 2)} m"])))
     ok2 = "ĐẠT" if res.lambda_x <= 120 else "KHÔNG ĐẠT"
     ok3 = "ĐẠT" if res.lambda_y <= 120 else "KHÔNG ĐẠT"
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Độ mảnh cột phương 2 (λ2)", "",
               ["λ₂ = L₀₂ / i₂",
                f"= {_f(res.L0x * 1000, 0)} / {_f(res.ix, 1)}",
@@ -319,7 +299,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
            else "KHÔNG CẦN XÉT UỐN DỌC")
     kl3 = ("BẮT BUỘC XÉT UỐN DỌC (kể đến hệ số η₃)" if need3
            else "KHÔNG CẦN XÉT UỐN DỌC")
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Điều kiện xét hiệu ứng uốn dọc phương 2",
               "Mục 8.1.2.1.2",
               ["Xét khi λ₂ > 14 hoặc L₀₂ / t2 > 4",
@@ -350,7 +330,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     N = abs(res.N) if res.N else 1.0
     M2 = abs(res.Mx_star / res.etax) if res.etax else 0.0
     M3 = abs(res.My_star / res.etay) if res.etay else 0.0
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Độ lệch tâm tĩnh học phương 2 (e12)",
               "Mục 8.1.2.2.4",
               ["e₁₂ = |M₂| / N",
@@ -361,14 +341,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               ["e₁₃ = |M₃| / N",
                f"= ({_f(M3 * 1000, 2)} × 10³) / {_f(N, 2)}",
                f"= {_f(res.e1y, 2)} mm"])))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Độ lệch tâm ngẫu nhiên phương 2 (ea2)", "",
               ["ea₂ = max(t2/600, L₀₂/600, 10mm)",
                f"= {_f(res.eax, 1)} mm"]),
         _card(P, st, "Độ lệch tâm ngẫu nhiên phương 3 (ea3)", "",
               ["ea₃ = max(t3/600, L₀₃/600, 10mm)",
                f"= {_f(res.eay, 1)} mm"])))
-    S.append(_two(P, st,
+    S.extend(_two(P, st,
         _card(P, st, "Độ lệch tâm ban đầu phương 2 (e02)", "",
               ["e₀₂ = e₁₂ + ea₂",
                f"= {_f(res.e1x, 1)} + {_f(res.eax, 1)}",
