@@ -407,7 +407,7 @@ def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
     # Góc α và Mα (hàng cuối, 2 cột)
     import math as _m
     Ma = _m.hypot(res.Mx_star, res.My_star)
-    alpha = _m.degrees(_m.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0.0
+    alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) if Ma > 1e-9 else 0.0
     r = len(card_defs)
     c = _param_card(grid, "Góc tác dụng mô men uốn tổng hợp α",
                     "Góc uốn xiên",
@@ -432,7 +432,7 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
                     "TCVN 5574:2018 Mục 8.1.2.7")
     import math as _m
     Ma = _m.hypot(res.Mx_star, res.My_star)
-    alpha = _m.degrees(_m.atan2(res.My_star, res.Mx_star)) \
+    alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) \
         if Ma > 1e-9 else 0.0
     # |OA| và |OB|: độ lớn véc-tơ 3D
     OA = _m.sqrt(res.Mx_star**2 + res.My_star**2 + res.N**2)
