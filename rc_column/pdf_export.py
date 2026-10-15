@@ -744,7 +744,6 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ("λ3", "Độ mảnh cột phương 3", f"{res.lambda_y:.1f}"),
         ("Ncr,2", "Lực tới hạn Euler phương 2", f"{res.Ncrx:.1f} kN"),
         ("Ncr,3", "Lực tới hạn Euler phương 3", f"{res.Ncry:.1f} kN"),
-        ("α", "Góc tác dụng mô men", f"{alpha_deg:.1f} °"),
         ("η2", "Hệ số uốn dọc phương 2", f"{res.etax:.3f}"),
         ("η3", "Hệ số uốn dọc phương 3", f"{res.etay:.3f}"),
         ("M2*", "Mô men tính toán phương 2", f"{res.Mx_star:.1f} kN·m"),
@@ -763,7 +762,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                   Paragraph("Tỷ số sử dụng khả năng chịu lực", st_cell),
                   Paragraph(f"<b>{res.dc:.3f} (FS = {res.fs:.2f}) {ok_txt}</b>",
                             st_cell_b)])
-    t_param = Table(pdata, colWidths=[11 * mm, 45 * mm, 24 * mm])
+    t_param = Table(pdata, colWidths=[10 * mm, 52 * mm, 18 * mm])
     ts = [("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
           ("FONTSIZE", (0, 0), (-1, -1), 8),
           ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
