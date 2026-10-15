@@ -1171,10 +1171,10 @@ class App(tk.Tk):
         self._sum_inner.rowconfigure(0, weight=1)
         self._sum_inner.rowconfigure(1, weight=1)
 
-        # ===== Ô trên-trái: sơ đồ mặt cắt + thẻ thống kê =====
+        # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
         f_tl = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB", highlightthickness=1)
-        f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="ACI 318-19")
@@ -1190,10 +1190,10 @@ class App(tk.Tk):
         # Thẻ thống kê ACI: hàng vật liệu + hàng số liệu thép
         self._build_aci_section_cards(f_tl, sec, conc, steel, tied)
 
-        # ===== Ô trên-phải: bảng thông số tính toán ACI =====
+        # ===== Ô trên-trái: bảng thông số tính toán ACI =====
         f_tr = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB", highlightthickness=1)
-        f_tr.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self._build_aci_param_table(f_tr, inp, aci_res, mm_res)
 
         # ===== Ô dưới-trái: header + biểu đồ N-Mα (ACI) =====
@@ -1219,7 +1219,7 @@ class App(tk.Tk):
         draw_aci_m2m3_ax(a4, sec, conc, steel, aci_res,
                          inp.N, inp.Mx, inp.My, tied=tied)
         fig_mm.tight_layout()
-        fig_mm.subplots_adjust(bottom=0.34)
+        fig_mm.subplots_adjust(bottom=0.30)
         cv_mm.draw()
 
         # ===== Hàng 3 full-width: chi tiết điểm A/B + D/C =====
@@ -2855,10 +2855,10 @@ class App(tk.Tk):
         self._sum_inner.rowconfigure(0, weight=1)
         self._sum_inner.rowconfigure(1, weight=1)
 
-        # ===== Ô trên-trái: sơ đồ mặt cắt + thẻ thống kê =====
+        # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
         f_tl = tk.Frame(self._sum_inner, bg="white", highlightbackground="#D1D5DB",
                         highlightthickness=1)
-        f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
@@ -2873,10 +2873,10 @@ class App(tk.Tk):
         self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
         self._sec_card_vars = self._build_section_cards(f_tl, sec, inp)
 
-        # ===== Ô trên-phải: bảng thông số tính toán =====
+        # ===== Ô trên-trái: bảng thông số tính toán =====
         f_tr = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB", highlightthickness=1)
-        f_tr.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self._build_param_table(f_tr, inp, res)
 
         # ===== Ô dưới-trái: header + biểu đồ N-M =====
@@ -2900,7 +2900,7 @@ class App(tk.Tk):
         a4 = fig_mm.add_subplot(111)
         draw_m2m3_ax(a4, sec, inp, res)
         fig_mm.tight_layout()
-        fig_mm.subplots_adjust(bottom=0.34)
+        fig_mm.subplots_adjust(bottom=0.30)
         cv_mm.draw()
 
         # ===== Hàng 3 full-width: chi tiết biểu đồ N-M =====
