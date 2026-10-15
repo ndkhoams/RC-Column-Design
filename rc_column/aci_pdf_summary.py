@@ -379,7 +379,8 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
-    _outer = Table([[_left_tbl, _right_tbl]],
+    # Đảo vị trí: bảng thông số TRÁI, sơ đồ mặt cắt PHẢI
+    _outer = Table([[_right_tbl, _left_tbl]],
                    colWidths=[87 * mm, 87 * mm])
     _outer.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
