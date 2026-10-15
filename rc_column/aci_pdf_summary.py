@@ -239,13 +239,14 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
                              alignment=TA_CENTER)
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
-    st_val = ParagraphStyle("val", parent=st_cell_b, alignment=TA_LEFT)
+    st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
+    st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
 
     def _sec_table(title, rows):
-        data = [[Paragraph(f"<b>{title}</b>", st_cell_b)]]
+        data = [[Paragraph(f"<b>{title}</b>", st_sec_title)]]
         for lbl, val in rows:
             data.append([Paragraph(lbl, st_lbl),
-                         Paragraph(f"<b>{val}</b>", st_val)])
+                         Paragraph(str(val), st_val)])
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -351,6 +352,17 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     ]))
 
     # ===== Cột phải: hình + biểu đồ =====
+    def _centered_img(png_bytes, w_mm):
+        _im = _img_from_bytes(png_bytes, w_mm)
+        _t = Table([[_im]], colWidths=[90 * mm], hAlign="CENTER")
+        _t.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        return _t
+
     right_flow = []
     try:
         # Mặt cắt (dùng hàm TCVN vì giống nhau)
@@ -360,18 +372,18 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             from rc_column import pdf_export as _pdf_exp
         _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=150,
                                           show_stats=False)
-        right_flow.append(_img_from_bytes(_sec_png, 62))
-        right_flow.append(Spacer(1, 4))
+        right_flow.append(_centered_img(_sec_png, 52))
+        right_flow.append(Spacer(1, 6))
         # 2 biểu đồ ACI
         _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied)
         if _pngs and len(_pngs) >= 2:
-            right_flow.append(_img_from_bytes(_pngs[0], 62))
-            right_flow.append(Spacer(1, 4))
-            right_flow.append(_img_from_bytes(_pngs[1], 62))
+            right_flow.append(_centered_img(_pngs[0], 62))
+            right_flow.append(Spacer(1, 6))
+            right_flow.append(_centered_img(_pngs[1], 62))
         elif chart_pngs and len(chart_pngs) >= 2:
-            right_flow.append(_img_from_bytes(chart_pngs[0], 62))
-            right_flow.append(Spacer(1, 4))
-            right_flow.append(_img_from_bytes(chart_pngs[1], 62))
+            right_flow.append(_centered_img(chart_pngs[0], 62))
+            right_flow.append(Spacer(1, 6))
+            right_flow.append(_centered_img(chart_pngs[1], 62))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 

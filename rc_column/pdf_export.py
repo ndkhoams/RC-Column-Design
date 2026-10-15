@@ -63,15 +63,15 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        # Cỡ chấm bằng chấm legend diễn giải
-        dot_s = (max(5.0, dia * 0.32)) ** 2
+        # Cỡ chấm nhỏ gọn (giảm từ 0.32 xuống 0.22)
+        dot_s = (max(4.0, dia * 0.22)) ** 2
         # Co vào trong 4% để không chạm viền
         ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
                    s=dot_s, c=color, zorder=4,
                    edgecolors="white", linewidths=0.8)
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
-            markeredgecolor="white", markersize=max(5.0, dia * 0.32),
+            markeredgecolor="white", markersize=max(4.0, dia * 0.22),
             label=f"d{dia:.0f}"))
     if legend_handles:
         leg = ax.legend(handles=legend_handles, loc="upper center",
@@ -254,7 +254,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
              label="Tia tải O-A-B"),
     ]
     ax.legend(handles=_leg, fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.18), ncol=4, frameon=False)
+              bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     for _sp in ("top", "right"):
@@ -308,7 +308,7 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
               label="Tia tải O-A-B"),
     ]
     ax.legend(handles=_leg2, fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.22), ncol=4, frameon=False)
+              bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     ax.set_aspect("equal", adjustable="datalim")
@@ -662,13 +662,14 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                              alignment=TA_CENTER)
 
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
-    st_val = ParagraphStyle("val", parent=st_cell_b, alignment=TA_LEFT)
+    st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
+    st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
     def _sec_table(title, rows):
         """Bảng 2 cột kiểu Excel: tiêu đề section + các dòng xen kẽ màu."""
-        data = [[Paragraph(f"<b>{title}</b>", st_cell_b)]]
+        data = [[Paragraph(f"<b>{title}</b>", st_sec_title)]]
         for lbl, val in rows:
             data.append([Paragraph(lbl, st_lbl),
-                         Paragraph(f"<b>{val}</b>", st_val)])
+                         Paragraph(str(val), st_val)])
         # colWidths: nhãn 60mm (2 phần), giá trị 30mm (1 phần)
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
@@ -802,24 +803,35 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ("Kết luận", _ok_txt),
     ]))
 
-    # ===== Cột phải: hình mặt cắt + 2 biểu đồ =====
+    # ===== Cột phải: hình mặt cắt + 2 biểu đồ (căn giữa) =====
+    def _centered_img(png_bytes, w_mm):
+        """Bọc Image trong Table 1 ô căn giữa theo chiều ngang."""
+        _im = _img_from_bytes(png_bytes, w_mm)
+        _t = Table([[_im]], colWidths=[90 * mm], hAlign="CENTER")
+        _t.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        return _t
+
     right_flow = []
     try:
         # Hình mặt cắt
         _sec_png = section_image(sec, width_in=2.2, dpi=150, small=False,
                                  show_stats=False)
-        right_flow.append(_img_from_bytes(_sec_png, 52))
-        right_flow.append(Spacer(1, 4))
+        right_flow.append(_centered_img(_sec_png, 52))
+        right_flow.append(Spacer(1, 6))
         # Biểu đồ N-Mα
         _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
                                     small=True)
-        right_flow.append(_img_from_bytes(_nm_png, 52))
-        right_flow.append(Spacer(1, 4))
+        right_flow.append(_centered_img(_nm_png, 62))
+        right_flow.append(Spacer(1, 6))
         # Biểu đồ M2-M3
         _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
-        # m2m3_image trả về bytes hay fig? kiểm tra
         if isinstance(_m2m3_png, bytes):
-            right_flow.append(_img_from_bytes(_m2m3_png, 52))
+            right_flow.append(_centered_img(_m2m3_png, 62))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 
