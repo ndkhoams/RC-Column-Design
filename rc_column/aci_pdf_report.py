@@ -345,9 +345,10 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 txt = (f"TỶ SỐ SỬ DỤNG (D/C) = {dc_txt} (FS = {fs_txt}) — "
                        f"{'✓ ĐẠT — D/C ≤ 1.000' if ok else '✗ KHÔNG ĐẠT'}")
             else:
-                ok = bool(shear_res.get("ok", False))
+                _shr = shear_res or {}
+                ok = bool(_shr.get("ok", False))
                 Vu = abs(getattr(inp, "Q2", 0.0) or 0.0)
-                phi_vn = shear_res.get("phi_Vn_kN", 0.0) or 0.0
+                phi_vn = _shr.get("phi_Vn_kN", 0.0) or 0.0
                 txt = (f"Vu = {_f(Vu, 1)} kN "
                        f"{'≤' if Vu <= phi_vn else '>'} "
                        f"φVn = {_f(phi_vn, 1)} kN — "
