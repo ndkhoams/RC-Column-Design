@@ -203,7 +203,7 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",
               "TCVN 5574:2018 Điều 8.1.2.7")
     Ma = math.hypot(res.Mx_star, res.My_star)
-    alpha = math.degrees(math.atan2(res.My_star, res.Mx_star)) if Ma > 1e-9 else 0
+    alpha = math.degrees(math.atan2(res.Mx_star, res.My_star)) if Ma > 1e-9 else 0
     A(f"  ▪ Điểm tải trọng A = (M_{{2}}*, M_{{3}}*, N) = "
       f"({_f(res.Mx_star, 1)}, {_f(res.My_star, 1)}, {_f(res.N, 1)})\n", "card")
     A(f"  ▪ Điểm giới hạn B = ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
