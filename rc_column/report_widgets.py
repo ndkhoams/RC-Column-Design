@@ -484,7 +484,8 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
         for col, (title, _draw) in enumerate(_draw_fns):
             cf = tk.Frame(chart_frame, bg=WHITE,
                           highlightbackground=BORDER, highlightthickness=1,
-                          padx=8, pady=8)
+                          highlightcolor=BORDER,
+                          bd=0, padx=8, pady=8)
             cf.grid(row=0, column=col, sticky="nsew", padx=4)
             tk.Label(cf, text=title, font=("", 10, "bold"),
                      fg=TEXT, bg=WHITE).pack(pady=(0, 4))
