@@ -780,25 +780,25 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
     ]))
 
-    # NỘI LỰC TÍNH TOÁN
+    # NỘI LỰC TÍNH TOÁN (bỏ V2, V3 theo yêu cầu)
     left_flow.append(_sec_table("NỘI LỰC TÍNH TOÁN", [
         ("Vị trí cột", _vpos),
         ("Tổ hợp tính toán", _combo_txt),
         ("Lực dọc, N", f"{res.N:.1f} kN"),
         ("Momen quanh trục 2, M2", f"{res.Mx:.1f} kNm"),
         ("Momen quanh trục 3, M3", f"{res.My:.1f} kNm"),
-        ("Lực cắt theo trục 2, V2", f"{inp.Q2:.1f} kN"),
-        ("Lực cắt theo trục 3, V3", f"{inp.Q3:.1f} kN"),
     ]))
 
     # KẾT QUẢ TÍNH TOÁN (thêm điểm B để lấp khoảng trống)
     _Mb = _m.hypot(res.Bx, res.By)
+    _Ma = _m.hypot(res.Mx_star, res.My_star)
     left_flow.append(_sec_table("KẾT QUẢ TÍNH TOÁN", [
         ("Góc tác dụng mômen, α", f"{_alpha:.1f}°"),
         ("Điểm tải trọng A", ""),
         ("Lực dọc, N", f"{res.N:.1f} kN"),
         ("Mômen tính toán, M2*", f"{res.Mx_star:.1f} kNm"),
         ("Mômen tính toán, M3*", f"{res.My_star:.1f} kNm"),
+        ("Mômen tổng, Mα", f"{_Ma:.1f} kNm"),
         ("Điểm giới hạn B", ""),
         ("Lực dọc, Nu", f"{res.BN:.1f} kN"),
         ("Mômen, M2u", f"{res.Bx:.1f} kNm"),
@@ -870,7 +870,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     # Dùng KeepTogether để không bị tách trang
     from reportlab.platypus import KeepTogether
     _sw_story = []
-    _sw_story.append(Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_sec))
+    _sw_story.append(Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_sec_title))
     try:
         from .stirrup import StirrupInput, check_shear
         from .sections import bar_area
