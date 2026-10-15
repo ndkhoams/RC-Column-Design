@@ -1661,6 +1661,13 @@ class App(tk.Tk):
                 _Lw = max(_sts_w)
         if _Lw > 0:
             inp_w.Lx = inp_w.Ly = _Lw
+        # Lực cắt: lấy từ combo có |Q| lớn nhất (giống TCVN)
+        try:
+            f_q2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
+            f_q3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
+            inp_w.Q2, inp_w.Q3 = f_q2.Q2, f_q3.Q3
+        except Exception:
+            pass
         # Gọi _check_aci với inp_w (nó tự vẽ charts + report + lưu PDF data)
         # nhưng cần giữ case_info cho thuyết minh
         self._pdf_case = {"case": worst_f.case, "station": worst_f.station,
