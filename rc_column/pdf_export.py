@@ -662,6 +662,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
     st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
                              alignment=TA_CENTER)
+    st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
 
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
     st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
@@ -892,7 +893,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             _cols.append(dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh))
         _r2, _r3 = _cols[0], _cols[1]
         _sw_data = [
-            [Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_hdr),
+            [Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
@@ -929,7 +930,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         for i in range(1, len(_sw_data)):
             for j in (1, 2):
                 _sw_data[i][j].style.alignment = TA_CENTER
-        t_sw = Table(_sw_data, colWidths=[55 * mm, 62.5 * mm, 62.5 * mm],
+        t_sw = Table(_sw_data, colWidths=[60 * mm, 60 * mm, 60 * mm],
                      hAlign="LEFT", repeatRows=1)
         _sw_style = [
             # Không kẻ GRID — thể hiện như bảng thông tin (xen kẽ màu)

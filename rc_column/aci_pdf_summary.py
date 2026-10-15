@@ -239,6 +239,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
     st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
                              alignment=TA_CENTER)
+    st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
     st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
     st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
@@ -441,7 +442,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         _Av = _sw_legs * bar_area(_sw_dia)
         _sw_txt = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
         _data = [
-            [Paragraph("<b>KIỂM TRA CẮT (ACI 22.5)</b>", st_hdr),
+            [Paragraph("<b>KIỂM TRA CẮT (ACI 22.5)</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
@@ -476,7 +477,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         for i in range(1, len(_data)):
             for j in (1, 2):
                 _data[i][j].style.alignment = TA_CENTER
-        t_sw = Table(_data, colWidths=[55 * mm, 62.5 * mm, 62.5 * mm],
+        t_sw = Table(_data, colWidths=[60 * mm, 60 * mm, 60 * mm],
                      hAlign="LEFT")
         _st = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
