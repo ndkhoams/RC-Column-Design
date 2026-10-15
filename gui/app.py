@@ -1778,10 +1778,11 @@ class App(tk.Tk):
             nm_fig = getattr(self, "_nm_fig", None)
             m2m3_fig = getattr(self, "_m2m3_fig", None)
             if nm_fig is not None and m2m3_fig is not None:
+                # DPI 80 cho tab Chi tiết (nhỏ hơn để không bị cắt legend)
                 buf1 = io.BytesIO()
-                nm_fig.savefig(buf1, format="png", dpi=100)
+                nm_fig.savefig(buf1, format="png", dpi=80)
                 buf2 = io.BytesIO()
-                m2m3_fig.savefig(buf2, format="png", dpi=100)
+                m2m3_fig.savefig(buf2, format="png", dpi=80)
                 chart_pngs = (buf1.getvalue(), buf2.getvalue())
         except Exception:
             pass
