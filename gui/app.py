@@ -2742,15 +2742,10 @@ class App(tk.Tk):
                 cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw,
                                  sh=sh, sw_txt=sw_txt, s_eff=s_eff)
 
-            # Title rõ
-            tk.Label(parent, text="Kiểm tra thép đai",
-                     font=("", 11, "bold"), bg="white", fg="#111827",
-                     anchor="w").pack(fill=tk.X, padx=8, pady=(4, 2))
-
-            # Bảng Phương 2 | Phương 3
+            # Bảng Phương 2 | Phương 3 (header là tiêu đề, không cần label riêng)
             tf = tk.Frame(parent, bg="white")
             tf.pack(fill=tk.X, padx=8, pady=(4, 2))
-            headers = ["Thông số", "Phương V2", "Phương V3"]
+            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT", "Phương V2", "Phương V3"]
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
@@ -2761,30 +2756,30 @@ class App(tk.Tk):
             rows = [
                 ("Thép đai bố trí",
                  cols['2']['sw_txt'], cols['3']['sw_txt']),
-                ("Q (kN)",
-                 f"{cols['2']['Q']:.1f}", f"{cols['3']['Q']:.1f}"),
-                ("b × h0 (mm)",
-                 f"{cols['2']['b']:.0f} × {cols['2']['h0']:.0f}",
-                 f"{cols['3']['b']:.0f} × {cols['3']['h0']:.0f}"),
-                (f"Asw = n×φ{stir_in.dia:.0f} (mm²)",
-                 f"{cols['2']['Asw']:.0f}", f"{cols['3']['Asw']:.0f}"),
-                ("qsw = Rsw×Asw/s (N/mm)",
-                 f"{cols['2']['qsw']:.1f}", f"{cols['3']['qsw']:.1f}"),
-                ("ĐK1: 0.3×Rb×b×h0 (kN)",
-                 f"{cols['2']['sh'].Qcap1:.1f}",
-                 f"{cols['3']['sh'].Qcap1:.1f}"),
-                ("Qb = 1.5×Rbt×b×h0²/C (kN)",
-                 f"{cols['2']['sh'].Qb_opt:.1f}",
-                 f"{cols['3']['sh'].Qb_opt:.1f}"),
-                ("Qsw = 0.75×qsw×C (kN)",
-                 f"{cols['2']['sh'].Qsw_opt:.1f}",
-                 f"{cols['3']['sh'].Qsw_opt:.1f}"),
-                ("C cho [Q]min (mm)",
-                 f"{cols['2']['sh'].C_opt:.0f}",
-                 f"{cols['3']['sh'].C_opt:.0f}"),
-                ("[Q] = Qb+Qsw (kN)",
-                 f"{cols['2']['sh'].Qcap2:.1f}",
-                 f"{cols['3']['sh'].Qcap2:.1f}"),
+                ("Lực cắt tính toán, Q",
+                 f"{cols['2']['Q']:.1f} kN", f"{cols['3']['Q']:.1f} kN"),
+                ("Kích thước tiết diện, b × h0",
+                 f"{cols['2']['b']:.0f} × {cols['2']['h0']:.0f} mm",
+                 f"{cols['3']['b']:.0f} × {cols['3']['h0']:.0f} mm"),
+                ("Asw = n × φ",
+                 f"{cols['2']['Asw']:.0f} mm²", f"{cols['3']['Asw']:.0f} mm²"),
+                ("qsw = Rsw × Asw/s",
+                 f"{cols['2']['qsw']:.1f} N/mm", f"{cols['3']['qsw']:.1f} N/mm"),
+                ("Độ bền trên dải nén xiên Q ≤ 0.3×Rb×b×h0",
+                 f"{cols['2']['sh'].Qcap1:.1f} kN",
+                 f"{cols['3']['sh'].Qcap1:.1f} kN"),
+                ("Qb = 1.5×Rbt×b×h0²/C",
+                 f"{cols['2']['sh'].Qb_opt:.1f} kN",
+                 f"{cols['3']['sh'].Qb_opt:.1f} kN"),
+                ("Qsw = 0.75×qsw×C",
+                 f"{cols['2']['sh'].Qsw_opt:.1f} kN",
+                 f"{cols['3']['sh'].Qsw_opt:.1f} kN"),
+                ("Chiều dài hình chiếu của vết nứt xiên C",
+                 f"{cols['2']['sh'].C_opt:.0f} mm",
+                 f"{cols['3']['sh'].C_opt:.0f} mm"),
+                ("Độ bền trên vết nứt xiên Q ≤ [Q] = Qb + Qsw",
+                 f"{cols['2']['sh'].Qcap2:.1f} kN",
+                 f"{cols['3']['sh'].Qcap2:.1f} kN"),
             ]
             for i, (a, b, c) in enumerate(rows):
                 bg = "#F9FAFB" if i % 2 else "white"
