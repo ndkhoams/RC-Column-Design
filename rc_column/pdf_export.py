@@ -201,7 +201,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     fig, ax = plt.subplots(figsize=(width_in, width_in))
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
-    alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star))
+    alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star))
     cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
     GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
     BLUE_DASH = "#3B82F6"
@@ -731,7 +731,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     ]))
 
     # Bảng thông số đầy đủ (giống app)
-    alpha_deg = _m.degrees(_m.atan2(res.My_star, res.Mx_star)) \
+    alpha_deg = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) \
         if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
     Ma = _m.hypot(res.Mx_star, res.My_star)
     prows = [
