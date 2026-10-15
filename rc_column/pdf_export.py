@@ -208,7 +208,8 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     m_pos = [p[1] for p in cv]
     n_pos = [p[0] for p in cv]
     m_neg = [-p[1] for p in cv]
-    ax.plot(m_pos, n_pos, color=GREEN, lw=2.0, zorder=3)
+    ax.plot(m_pos, n_pos, color=GREEN, lw=2.0, zorder=3,
+            label="Đường bao N-Mα")
     ax.plot(m_neg, n_pos, color=GREEN, lw=2.0, zorder=3)
     ax.fill_betweenx(n_pos, 0, m_pos, color=GREEN, alpha=0.08, zorder=1)
     ax.fill_betweenx(n_pos, m_neg, 0, color=GREEN, alpha=0.08, zorder=1)
@@ -216,15 +217,16 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     Mb = math.hypot(res.Bx, res.By)
     lim = (res.BN, Mb)
     ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=RED,
-            ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+            ls="--", lw=1.5, dashes=(4, 3), zorder=4,
+            label="Tia tải O-A-B")
     ax.plot([Ma, Ma], [0, res.N], color=BLUE_DASH, ls="--",
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     ax.plot([0, Ma], [res.N, res.N], color=BLUE_DASH, ls="--",
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     ax.scatter([lim[1]], [lim[0]], c=ORANGE, s=60, zorder=5,
-               edgecolors="white", linewidths=1.0, label="Giới hạn")
+               edgecolors="white", linewidths=1.0, label="Điểm giới hạn B")
     ax.scatter([Ma], [res.N], c=GREEN, s=60, zorder=6,
-               edgecolors="white", linewidths=1.0, label="Điểm tải trọng")
+               edgecolors="white", linewidths=1.0, label="Điểm tải A")
     ax.text(Ma, res.N, "  A", fontsize=8, color=GREEN,
             weight="bold", va="center", zorder=7)
     ax.text(lim[1], lim[0], "  B", fontsize=8, color=ORANGE,
@@ -240,8 +242,8 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     if right_half:
         # Chỉ hiện nửa phải (M >= 0)
         ax.set_xlim(left=0)
-    ax.legend(fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.22), ncol=2)
+    ax.legend(fontsize=7, loc="upper center",
+              bbox_to_anchor=(0.5, -0.25), ncol=2)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     for _sp in ("top", "right"):
@@ -267,14 +269,14 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     BLUE, GREEN, RED, ORANGE = "#2563EB", "#059669", "#DC2626", "#F97316"
     xs = [p[0] for p in pts] + [pts[0][0]]
     ys = [p[1] for p in pts] + [pts[0][1]]
-    ax.plot(xs, ys, color=BLUE, lw=2.0, zorder=3)
+    ax.plot(xs, ys, color=BLUE, lw=2.0, zorder=3, label="Đường bao M2-M3")
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
     ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
-            ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+            ls="--", lw=1.5, dashes=(4, 3), zorder=4, label="Tia tải O-A-B")
     ax.scatter([res.Bx], [res.By], c=ORANGE, s=60, zorder=5,
-               edgecolors="white", linewidths=1.0, label="Giới hạn")
+               edgecolors="white", linewidths=1.0, label="Điểm giới hạn B")
     ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=60, zorder=6,
-               edgecolors="white", linewidths=1.0, label="Điểm tải trọng")
+               edgecolors="white", linewidths=1.0, label="Điểm tải A")
     ax.text(res.Mx_star, res.My_star, "  A", fontsize=8, color=GREEN,
             weight="bold", va="center", zorder=7)
     ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
@@ -282,8 +284,8 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     ax.set_xlabel("M2 (kN·m)", fontsize=9, fontweight="bold")
     ax.set_ylabel("M3 (kN·m)", fontsize=9, fontweight="bold")
     ax.tick_params(labelsize=8)
-    ax.legend(fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.22), ncol=2)
+    ax.legend(fontsize=7, loc="upper center",
+              bbox_to_anchor=(0.5, -0.25), ncol=2)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     ax.set_aspect("equal", adjustable="datalim")
@@ -317,7 +319,7 @@ def surface_3d_image(sec, inp, res, width_in=4.0, dpi=200) -> bytes:
     ax.plot_surface(mxg, myg, N3, alpha=0.7, cmap="viridis",
                     edgecolor="none")
     ax.scatter([res.Mx_star], [res.My_star], [res.N], c="red", s=60,
-               label="Điểm tải trọng")
+               label="Điểm tải A")
     ax.set_xlabel("M2 (kN·m)")
     ax.set_ylabel("M3 (kN·m)")
     ax.set_zlabel("N (kN)")
@@ -346,10 +348,11 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
         ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
         lim = (res.BN, Mb)
         ax.scatter([Ms], [res.N], c="red", s=80, zorder=5,
-                   label="Điểm tải trọng")
-        ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8)
+                   label="Điểm tải A")
+        ax.plot([0, lim[1]], [0, lim[0]], "r--", lw=1.2, alpha=0.8,
+                label="Tia tải O-A-B")
         ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
-                   label="Giới hạn")
+                   label="Điểm giới hạn B")
         ax.set_xlabel("M (kN·m)")
         ax.set_ylabel("N (kN)")
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
