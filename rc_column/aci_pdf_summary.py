@@ -373,16 +373,16 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=150,
                                           show_stats=False)
         right_flow.append(_centered_img(_sec_png, 52))
-        right_flow.append(Spacer(1, 6))
+        right_flow.append(Spacer(1, 2))
         # 2 biểu đồ ACI
         _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied)
         if _pngs and len(_pngs) >= 2:
             right_flow.append(_centered_img(_pngs[0], 62))
-            right_flow.append(Spacer(1, 6))
+            right_flow.append(Spacer(1, 2))
             right_flow.append(_centered_img(_pngs[1], 62))
         elif chart_pngs and len(chart_pngs) >= 2:
             right_flow.append(_centered_img(chart_pngs[0], 62))
-            right_flow.append(Spacer(1, 6))
+            right_flow.append(Spacer(1, 2))
             right_flow.append(_centered_img(chart_pngs[1], 62))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
@@ -454,8 +454,8 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#9CA3AF")),
             ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
         ]

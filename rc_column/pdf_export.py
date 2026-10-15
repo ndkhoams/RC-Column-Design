@@ -821,17 +821,17 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         # Hình mặt cắt
         _sec_png = section_image(sec, width_in=2.2, dpi=150, small=False,
                                  show_stats=False)
-        right_flow.append(_centered_img(_sec_png, 52))
-        right_flow.append(Spacer(1, 6))
+        right_flow.append(_centered_img(_sec_png, 48))
+        right_flow.append(Spacer(1, 2))
         # Biểu đồ N-Mα
         _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
                                     small=True)
-        right_flow.append(_centered_img(_nm_png, 62))
-        right_flow.append(Spacer(1, 6))
+        right_flow.append(_centered_img(_nm_png, 58))
+        right_flow.append(Spacer(1, 2))
         # Biểu đồ M2-M3
         _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
         if isinstance(_m2m3_png, bytes):
-            right_flow.append(_centered_img(_m2m3_png, 62))
+            right_flow.append(_centered_img(_m2m3_png, 58))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 
@@ -912,13 +912,13 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             for j in (1, 2):
                 _sw_data[i][j].style.alignment = TA_CENTER
         t_sw = Table(_sw_data, colWidths=[55 * mm, 62.5 * mm, 62.5 * mm],
-                     hAlign="CENTER")
+                     hAlign="CENTER", repeatRows=1)
         _sw_style = [
             ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#9CA3AF")),
             ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
         ]
