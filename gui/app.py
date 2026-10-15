@@ -12,6 +12,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 from rc_column.checker import ColumnInput, build_section, check_column
+from rc_column.aci_materials import ACIConcrete, ACISteel
+from rc_column.aci_checker import check_column_aci, moment_magnification, aci_shear_check
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
 from rc_column.report import generate_report, generate_report_sections
 from rc_column.sections import clear_spacing
@@ -359,9 +361,38 @@ class App(tk.Tk):
     # ---- 1. Vật liệu ----
     def _sec_materials(self):
         f = self._frame("1. Vật liệu")
-        fl = ttk.Frame(f); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
-        fr = ttk.Frame(f); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
-        f.columnconfigure(0, weight=1); f.columnconfigure(1, weight=1)
+        # Bộ chọn tiêu chuẩn thiết kế
+        fcode = ttk.Frame(f); fcode.grid(row=0, column=0, columnspan=2,
+                                         sticky=tk.EW, padx=2, pady=(0, 6))
+        self.cb_code = ttk.Combobox(fcode, values=["TCVN 5574:2018", "ACI 318-19"],
+                                    state="readonly", width=16)
+        self.cb_code.set("TCVN 5574:2018")
+        self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
+        ttk.Label(fcode, text="Tiêu chuẩn thiết kế",
+                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 8))
+        self.cb_code.pack(side=tk.LEFT, padx=4)
+        # Khung TCVN (hiện mặc định)
+        self.frm_tcvn = ttk.Frame(f)
+        self.frm_tcvn.grid(row=1, column=0, columnspan=2, sticky=tk.NSEW)
+        fl = ttk.Frame(self.frm_tcvn); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
+        fr = ttk.Frame(self.frm_tcvn); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
+        self.frm_tcvn.columnconfigure(0, weight=1); self.frm_tcvn.columnconfigure(1, weight=1)
+        # Khung ACI (ẩn mặc định)
+        self.frm_aci = ttk.Frame(f)
+        self.frm_aci.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW)
+        afl = ttk.Frame(self.frm_aci); afl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
+        afr = ttk.Frame(self.frm_aci); afr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
+        self.frm_aci.columnconfigure(0, weight=1); self.frm_aci.columnconfigure(1, weight=1)
+        self.en_fc = ttk.Entry(afl, width=12); self.en_fc.insert(0, "30")
+        self._row(afl, "Cường độ bê tông f'c (MPa)", self.en_fc, 0)
+        self.en_fy = ttk.Entry(afl, width=12); self.en_fy.insert(0, "420")
+        self._row(afl, "Cường độ thép fy (MPa)", self.en_fy, 1)
+        self.cb_tie = ttk.Combobox(afr, values=["Tied (đai thường)", "Spiral (xoắn)"],
+                                   state="readonly", width=16)
+        self.cb_tie.set("Tied (đai thường)")
+        self._row(afr, "Loại cốt đai", self.cb_tie, 0)
+        self.frm_aci.grid_remove()
+        # Các ô nhập TCVN (giữ nguyên)
         self.cb_conc = ttk.Combobox(fl, values=list(CONCRETE_GRADES),
                                     state="readonly", width=12)
         self.cb_conc.set("B25")
@@ -383,6 +414,18 @@ class App(tk.Tk):
             state="readonly", width=12)
         self.cb_model.set("3 đoạn thẳng (MH3ĐT)")
         self._row(fr, "Mô hình bê tông", self.cb_model, 2)
+
+    def _toggle_code(self):
+        """Ẩn/hiện khung nhập liệu theo tiêu chuẩn được chọn."""
+        if self.cb_code.get().startswith("ACI"):
+            self.frm_tcvn.grid_remove()
+            self.frm_aci.grid()
+        else:
+            self.frm_aci.grid_remove()
+            self.frm_tcvn.grid()
+
+    def is_aci(self):
+        return self.cb_code.get().startswith("ACI")
 
     # ---- 2. Tiết diện ----
     def _sec_section(self):
@@ -993,6 +1036,9 @@ class App(tk.Tk):
         # Chế độ nhập tay: kiểm tra 1 bộ nội lực
         try:
             inp = self.collect()
+            if self.is_aci():
+                self._check_aci(inp)
+                return
             res = check_column(inp, n_angles=24)
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
@@ -1005,6 +1051,65 @@ class App(tk.Tk):
                                       sec, inp, res, case_info=None,
                                       shear_info=None)
         self._pdf_inp, self._pdf_res = inp, res
+
+    def _check_aci(self, inp):
+        """Kiểm tra cột theo ACI 318-19: P-M-M, độ mảnh, cắt."""
+        from rc_column.aci_materials import ACIConcrete, ACISteel
+        from rc_column.aci_checker import (check_column_aci, moment_magnification,
+                                          aci_shear_check)
+        try:
+            fc = float(self.en_fc.get().replace(",", "."))
+            fy = float(self.en_fy.get().replace(",", "."))
+        except Exception:
+            messagebox.showerror("Lỗi", "Nhập f'c và fy hợp lệ (MPa).")
+            return
+        tied = self.cb_tie.get().startswith("Tied")
+        conc = ACIConcrete(fc=fc)
+        steel = ACISteel(fy=fy)
+        sec = build_section(inp)
+        # 1. P-M-M (dùng M2, M3 như Mx, My)
+        try:
+            r = check_column_aci(sec, conc, steel, N_kN=inp.N,
+                                 M2_kNm=inp.Mx, M3_kNm=inp.My, tied=tied)
+        except Exception as ex:
+            messagebox.showerror("Lỗi ACI P-M-M", str(ex))
+            return
+        # 2. Độ mảnh (moment magnification) — dùng L0 theo phương 2
+        try:
+            from rc_column.stability import effective_length
+            L0_2 = effective_length(inp.Lx, inp.psi_x) * 1000  # mm
+            Ig = sec.cx * sec.cy**3 / 12  # mm4 (gần đúng chữ nhật)
+            mm = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.Mx, M2_kNm=inp.Mx,
+                                      lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
+                                      Ig_mm4=Ig, beta_dns=0.6)
+            dns_txt = f"δns = {mm['delta_ns']:.3f} (Pc = {mm['Pc_kN']:.0f} kN)"
+        except Exception as ex:
+            dns_txt = f"Không tính được độ mảnh: {ex}"
+        # 3. Cắt
+        try:
+            Acv = sec.cx * sec.cy  # mm2 (gần đúng)
+            d = sec.cy - inp.cover - 10
+            Av = 2 * 3.1416 * (8**2) / 4  # 2 nhánh đai d8 mặc định
+            sh = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
+                                 Nu_kN=inp.N, Vu_kN=abs(inp.Q2),
+                                 Av_mm2=Av, fyt_MPa=fy, s_mm=200, d_mm=d)
+            shear_txt = (f"Vc = {sh['Vc_kN']:.1f} kN, Vs = {sh['Vs_kN']:.1f} kN, "
+                         f"φVn = {sh['phi_Vn_kN']:.1f} kN → "
+                         f"{'ĐẠT' if sh['ok'] else 'KHÔNG ĐẠT'}")
+        except Exception as ex:
+            shear_txt = f"Không tính được cắt: {ex}"
+        # Hiển thị kết quả
+        msg = (f"KẾT QUẢ KIỂM TRA THEO ACI 318-19\n"
+               f"━━━━━━━━━━━━━━━━━━━━━━\n"
+               f"1. P-M-M (biaxial):\n"
+               f"   D/C = {r['dc']:.3f} (FS = {r['fs']:.2f})\n"
+               f"   φ = {r['phi']:.2f} ({'Tied' if tied else 'Spiral'})\n"
+               f"   → {'ĐẠT' if r['ok'] else 'KHÔNG ĐẠT'}\n\n"
+               f"2. Độ mảnh (phương 2):\n"
+               f"   {dns_txt}\n\n"
+               f"3. Cắt (phương 2):\n"
+               f"   {shear_txt}")
+        messagebox.showinfo("Kết quả ACI 318-19", msg)
 
     # ---------------- ETABS ----------------
     def on_import_etabs(self):
