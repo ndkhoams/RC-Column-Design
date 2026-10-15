@@ -1771,24 +1771,20 @@ class App(tk.Tk):
         # Xóa nội dung cũ
         for w in self._calc_inner.winfo_children():
             w.destroy()
-        # Lấy PNG biểu đồ từ tab Tóm tắt (giống hệt)
-        chart_pngs = None
+        # Lấy figure biểu đồ từ tab Tóm tắt (giống hệt, nhúng trực tiếp)
+        chart_figs = None
         try:
-            import io
+            import copy
             nm_fig = getattr(self, "_nm_fig", None)
             m2m3_fig = getattr(self, "_m2m3_fig", None)
             if nm_fig is not None and m2m3_fig is not None:
-                # DPI 80 cho tab Chi tiết (nhỏ hơn để không bị cắt legend)
-                buf1 = io.BytesIO()
-                nm_fig.savefig(buf1, format="png", dpi=80)
-                buf2 = io.BytesIO()
-                m2m3_fig.savefig(buf2, format="png", dpi=80)
-                chart_pngs = (buf1.getvalue(), buf2.getvalue())
+                # Copy figure để dùng cho 2 tab (mỗi figure chỉ gắn 1 canvas)
+                chart_figs = (copy.deepcopy(nm_fig), copy.deepcopy(m2m3_fig))
         except Exception:
-            pass
+            chart_figs = None
         # Mục 1-7: widget kiểu Vietcon
         body = build_calc_widgets(self._calc_inner, inp, res, case_info,
-                                  shear_info, chart_pngs)
+                                  shear_info, chart_figs=chart_figs)
         body.pack(fill=tk.BOTH, expand=True)
         # Cập nhật scroll
         self._calc_inner.update_idletasks()
