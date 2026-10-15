@@ -261,9 +261,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
         ax.spines[_sp].set_visible(False)
     for _sp in ("left", "bottom"):
         ax.spines[_sp].set_color("#9CA3AF")
-    fig.subplots_adjust(bottom=0.32)
+    fig.subplots_adjust(bottom=0.25, top=0.93, left=0.12, right=0.95)
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=dpi)
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return buf.getvalue()
 
@@ -316,9 +316,9 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
         ax.spines[_sp].set_visible(False)
     for _sp in ("left", "bottom"):
         ax.spines[_sp].set_color("#9CA3AF")
-    fig.subplots_adjust(bottom=0.32)
+    fig.subplots_adjust(bottom=0.25, top=0.93, left=0.12, right=0.95)
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=dpi)
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return buf.getvalue()
 
@@ -674,8 +674,8 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             # Gạch dưới tiêu đề section
@@ -821,17 +821,17 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         # Hình mặt cắt
         _sec_png = section_image(sec, width_in=2.2, dpi=150, small=False,
                                  show_stats=False)
-        right_flow.append(_centered_img(_sec_png, 48))
-        right_flow.append(Spacer(1, 2))
+        right_flow.append(_centered_img(_sec_png, 55))
+        right_flow.append(Spacer(1, 3))
         # Biểu đồ N-Mα
         _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
                                     small=True)
-        right_flow.append(_centered_img(_nm_png, 58))
-        right_flow.append(Spacer(1, 2))
+        right_flow.append(_centered_img(_nm_png, 70))
+        right_flow.append(Spacer(1, 3))
         # Biểu đồ M2-M3
         _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
         if isinstance(_m2m3_png, bytes):
-            right_flow.append(_centered_img(_m2m3_png, 58))
+            right_flow.append(_centered_img(_m2m3_png, 70))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 

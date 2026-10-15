@@ -68,9 +68,10 @@ def _aci_charts_png(sec, conc, steel, aci_res, inp, tied):
         draw_fn(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My,
                 tied=tied)
         fig.tight_layout()
-        fig.subplots_adjust(bottom=0.28)
+        fig.subplots_adjust(bottom=0.22, top=0.93, left=0.12, right=0.95)
         buf = _io.BytesIO()
-        fig.savefig(buf, format="png", dpi=150)
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                    pad_inches=0.05)
         plt.close(fig)
         out.append(buf.getvalue())
     return tuple(out)
@@ -250,8 +251,8 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
@@ -372,18 +373,18 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             from rc_column import pdf_export as _pdf_exp
         _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=150,
                                           show_stats=False)
-        right_flow.append(_centered_img(_sec_png, 52))
-        right_flow.append(Spacer(1, 2))
+        right_flow.append(_centered_img(_sec_png, 55))
+        right_flow.append(Spacer(1, 3))
         # 2 biểu đồ ACI
         _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied)
         if _pngs and len(_pngs) >= 2:
-            right_flow.append(_centered_img(_pngs[0], 62))
-            right_flow.append(Spacer(1, 2))
-            right_flow.append(_centered_img(_pngs[1], 62))
+            right_flow.append(_centered_img(_pngs[0], 70))
+            right_flow.append(Spacer(1, 3))
+            right_flow.append(_centered_img(_pngs[1], 70))
         elif chart_pngs and len(chart_pngs) >= 2:
-            right_flow.append(_centered_img(chart_pngs[0], 62))
-            right_flow.append(Spacer(1, 2))
-            right_flow.append(_centered_img(chart_pngs[1], 62))
+            right_flow.append(_centered_img(chart_pngs[0], 70))
+            right_flow.append(Spacer(1, 3))
+            right_flow.append(_centered_img(chart_pngs[1], 70))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 
