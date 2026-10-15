@@ -1350,9 +1350,86 @@ class App(tk.Tk):
         entry.bind("<FocusOut>", lambda e: entry.destroy())
         entry.bind("<Escape>", lambda e: entry.destroy())
 
+    def _check_aci_etabs(self):
+        """Kiểm tra tất cả tổ hợp ETABS theo ACI 318-19."""
+        from rc_column.aci_materials import ACIConcrete, ACISteel
+        from rc_column.aci_checker import check_column_aci
+        try:
+            fc = float(self.en_fc.get().replace(",", "."))
+            fy = float(self.en_fy.get().replace(",", "."))
+        except Exception:
+            from tkinter import messagebox
+            messagebox.showerror("Lỗi", "Nhập f'c và fy hợp lệ (MPa).")
+            return
+        tied = self.cb_tie.get().startswith("Tied")
+        conc = ACIConcrete(fc=fc)
+        steel = ACISteel(fy=fy)
+        self.etabs_info.set("Đang kiểm tra ACI, vui lòng đợi...")
+        self.update_idletasks()
+        import time
+        t0 = time.time()
+        from collections import defaultdict
+        _L_manual = self._f(self.en_Lx, 0.0)
+        _groups = defaultdict(list)
+        for _f in self.etabs_forces:
+            _groups[(_f.story, _f.column)].append(_f)
+        rows = []
+        for (_st, _cl), _flist in _groups.items():
+            if _L_manual > 0:
+                _L_grp = _L_manual
+            else:
+                _L_grp = max(_f.station for _f in _flist)
+            _inp_g = self.collect()
+            _inp_g.Lx = _inp_g.Ly = _L_grp
+            sec_g = build_section(_inp_g)
+            for _f in _flist:
+                try:
+                    _r = check_column_aci(sec_g, conc, steel, N_kN=_f.N,
+                                          M2_kNm=_f.Mx, M3_kNm=_f.My, tied=tied)
+                except Exception:
+                    _r = {"dc": float("nan"), "ok": False}
+                rows.append((_f, _r))
+        rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
+                  else float("inf"))
+        self._fill_etabs_table(rows)
+        worst_f, worst_r = rows[0]
+        children = self.etabs_tree.get_children()
+        if children:
+            self.etabs_tree.item(children[0], tags=("worst",))
+            self.etabs_tree.see(children[0])
+        n_ng = sum(1 for _, r in rows if r["dc"] == r["dc"] and r["dc"] > 1)
+        dt = time.time() - t0
+        self.etabs_info.set(
+            f"Xong {len(rows)} tổ hợp trong {dt:.1f}s (ACI 318-19) — "
+            f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
+            f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
+        self._batch_rows = rows
+        # Tính lại tổ hợp nguy hiểm nhất để hiển thị
+        inp_w = self.collect()
+        inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
+        _Lw = self._f(self.en_Lx, 0.0)
+        if _Lw <= 0:
+            _sts_w = [f.station for f in self.etabs_forces
+                      if f.story == worst_f.story and f.column == worst_f.column]
+            if _sts_w:
+                _Lw = max(_sts_w)
+        if _Lw > 0:
+            inp_w.Lx = inp_w.Ly = _Lw
+        # Gọi _check_aci với inp_w (nó tự vẽ charts + report + lưu PDF data)
+        # nhưng cần giữ case_info cho thuyết minh
+        self._pdf_case = {"case": worst_f.case, "station": worst_f.station,
+                          "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My,
+                          "story": getattr(worst_f, "story", ""),
+                          "column": getattr(worst_f, "column", "")}
+        # Tạm lưu inp gốc để _check_aci dùng đúng nội lực worst
+        self._check_aci(inp_w)
+
     def on_check_etabs(self):
         if not self.etabs_forces:
             messagebox.showinfo("ETABS", "Hãy import file Excel trước.")
+            return
+        if self.is_aci():
+            self._check_aci_etabs()
             return
         try:
             inp = self.collect()
