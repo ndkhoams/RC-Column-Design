@@ -198,7 +198,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     import math
     if small:
         width_in, dpi = 4.0, 200
-    fig, ax = plt.subplots(figsize=(width_in, width_in * 0.75))
+    fig, ax = plt.subplots(figsize=(width_in, width_in))
     from .interaction import FiberSection, uniaxial_curve_fs
     fs = FiberSection(sec)
     alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star))
@@ -273,7 +273,7 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(width_in, width_in * 0.75))
+    fig, ax = plt.subplots(figsize=(width_in, width_in))
     from .interaction import BiaxialCapacity
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     pts = cap.mx_my_curve(res.N)
@@ -331,7 +331,7 @@ def surface_3d_image(sec, inp, res, width_in=4.0, dpi=200) -> bytes:
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
     import numpy as np
     from .interaction import BiaxialCapacity
-    fig = plt.figure(figsize=(width_in, width_in * 0.85))
+    fig = plt.figure(figsize=(width_in, width_in))
     ax = fig.add_subplot(111, projection="3d")
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     n_vals, th_vals, mxg, myg = cap.surface_grid(n_n=25, n_angles=48)
@@ -365,7 +365,7 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
     out = []
     for th, lab, Ms, Mb in [(0, "N-M2", res.Mx_star, res.Bx),
                              (90, "N-M3", res.My_star, res.By)]:
-        fig, ax = plt.subplots(figsize=(width_in, width_in * 0.85))
+        fig, ax = plt.subplots(figsize=(width_in, width_in))
         cv = uniaxial_curve_fs(fs, th, inp.concrete_model)
         ax.plot([p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
         ax.plot([-p[1] for p in cv], [p[0] for p in cv], "b-", lw=1.5)
@@ -652,8 +652,16 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                     facecolor="white")
         plt.close(fig)
         buf.seek(0)
-        if h_mm is None:
-            h_mm = w_mm * 0.8
+        # Luôn giữ tỉ lệ gốc (PIL), không ép khung méo hình
+        try:
+            from PIL import Image as _PIL
+            _pil = _PIL.open(buf)
+            _pw, _ph = _pil.size
+            buf.seek(0)
+            h_mm = w_mm * _ph / _pw if _pw > 0 else w_mm
+        except Exception:
+            if h_mm is None:
+                h_mm = w_mm
         return Image(buf, width=w_mm * mm, height=h_mm * mm)
 
     st_title = ParagraphStyle("t", fontName=FNB, fontSize=13,
@@ -851,7 +859,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     fs = FiberSection(sec)
     GREEN, ORANGE, RED, BLUE = "#059669", "#F97316", "#DC2626", "#2563EB"
     # N-Mα
-    fig2, ax2 = plt.subplots(figsize=(3.6, 2.9))
+    fig2, ax2 = plt.subplots(figsize=(5.0, 5.0))
     cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
     ax2.plot([p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
     ax2.plot([-p[1] for p in cv], [p[0] for p in cv], color=GREEN, lw=2)
@@ -881,7 +889,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ax2.spines[sp].set_visible(False)
     img_nm = fig_to_img(fig2, 70, 52)
     # M2-M3
-    fig3, ax3 = plt.subplots(figsize=(3.6, 2.9))
+    fig3, ax3 = plt.subplots(figsize=(5.0, 5.0))
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     pts = cap.mx_my_curve(res.N)
     xs = [p[0] for p in pts] + [pts[0][0]]
