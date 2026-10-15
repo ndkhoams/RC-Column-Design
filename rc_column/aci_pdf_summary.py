@@ -339,6 +339,10 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         ("Lực cắt theo trục 2, V2", f"{inp.Q2:.1f} kN"),
         ("Lực cắt theo trục 3, V3", f"{inp.Q3:.1f} kN"),
     ]))
+    _BN = aci_res.get("BN", 0)
+    _Bx = aci_res.get("Bx", 0)
+    _By = aci_res.get("By", 0)
+    _Mb_aci = _m.hypot(_Bx, _By)
     left_flow.append(_sec_table("KẾT QUẢ TÍNH TOÁN", [
         ("Góc tác dụng mômen, α", f"{_alpha:.1f}°"),
         ("Hệ số sức kháng, φ", f"{aci_res.get('phi', 0):.2f}"),
@@ -347,6 +351,11 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         ("Lực dọc, N", f"{inp.N:.1f} kN"),
         ("Mômen, M2", f"{inp.Mx:.1f} kNm"),
         ("Mômen, M3", f"{inp.My:.1f} kNm"),
+        ("Điểm giới hạn B", ""),
+        ("Lực dọc, Nu", f"{_BN:.1f} kN"),
+        ("Mômen, M2u", f"{_Bx:.1f} kNm"),
+        ("Mômen, M3u", f"{_By:.1f} kNm"),
+        ("Mômen tổng, Mα,u", f"{_Mb_aci:.1f} kNm"),
         ("Tỉ số sử dụng khả năng chịu lực, D/C", f"{_dc:.3f}"),
         ("Hệ số an toàn, FS", f"{_fs:.2f}"),
         ("Kết luận", _ok_txt),
