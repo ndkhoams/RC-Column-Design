@@ -55,15 +55,15 @@ def _f_dc(dc):
 def _aci_charts_png(sec, conc, steel, aci_res, inp, tied):
     """Tự vẽ 2 biểu đồ ACI -> (png_nm_alpha, png_m2m3) bytes.
 
-    Dùng figure cao hơn (5.0 x 4.6) để trục tung giãn ra, đỡ bị dẹt
-    khi hiển thị (theo yêu cầu user, tham khảo cách TCVN ép khung hình).
+    Dùng figure cao (5.0 x 5.2) để trục tung (trục y) giãn ra tự nhiên,
+    không bị dẹt. Khi nhúng vào PDF giữ đúng tỉ lệ gốc bằng PIL.
     """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     out = []
     for draw_fn in (draw_aci_nm_alpha_ax, draw_aci_m2m3_ax):
-        fig = plt.figure(figsize=(5.0, 4.6))
+        fig = plt.figure(figsize=(5.0, 5.0))
         ax = fig.add_subplot(111)
         draw_fn(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My,
                 tied=tied)
@@ -105,15 +105,6 @@ def _img_keep_ratio(png_bytes, w_mm):
     pil = _PIL.open(_io.BytesIO(png_bytes))
     pw, ph = pil.size
     h_mm = w_mm * ph / pw if pw > 0 else w_mm * 0.75
-    return Image(_io.BytesIO(png_bytes), width=w_mm * mm, height=h_mm * mm)
-
-
-def _img_chart_forced(png_bytes, w_mm=84, h_mm=72):
-    """reportlab Image ép khung hình w×h cố định (kéo giãn nhẹ theo chiều
-    đứng để trục tung đỡ bị dẹt) — theo cách TCVN ép 70×52 trong fig_to_img.
-    Áp dụng cho cả PNG tự vẽ lẫn PNG từ app truyền vào."""
-    from reportlab.lib.units import mm
-    from reportlab.platypus import Image
     return Image(_io.BytesIO(png_bytes), width=w_mm * mm, height=h_mm * mm)
 
 
@@ -253,13 +244,6 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                           leading=11)
     st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
     st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
-    st_box_t = ParagraphStyle("bt", fontName=FN, fontSize=7,
-                              textColor=HexColor("#111827"),
-                              alignment=TA_CENTER)
-    st_box_v = ParagraphStyle("bv", fontName=FN, fontSize=7,
-                              alignment=TA_CENTER, leading=9,
-                              textColor=HexColor("#111827"))
-
     ok = bool(aci_res.get("ok"))
     ok_txt = "ĐẠT" if ok else "KHÔNG ĐẠT"
     dc_bg = HexColor("#D1FAE5") if ok else HexColor("#FEE2E2")
@@ -286,34 +270,21 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     sw_txt = (f"{getattr(inp, 'sw_legs', 2):.0f}"
               f"φ{getattr(inp, 'sw_dia', 8):.0f} "
               f"a{getattr(inp, 'sw_spacing', 200):.0f}")
-    box_data = [
-        [Paragraph("Bê tông", st_box_t),
-         Paragraph("Thép dọc", st_box_t),
-         Paragraph("Loại đai", st_box_t)],
-        [Paragraph(f"f'c = {_f(conc.fc, 0)} MPa", st_box_v),
-         Paragraph(f"fy = {_f(steel.fy, 0)} MPa", st_box_v),
-         Paragraph(tie_txt, st_box_v)],
-        [Paragraph("Số thanh", st_box_t),
-         Paragraph("Tổng As", st_box_t),
-         Paragraph("Hàm lượng μ", st_box_t)],
-        [Paragraph(" + ".join(parts), st_box_v),
-         Paragraph(f"{sec.steel_area:.0f} mm²", st_box_v),
-         Paragraph(f"{sec.reinforcement_ratio * 100:.2f}%", st_box_v)],
-    ]
-    t_box = Table(box_data, colWidths=[30 * mm, 30 * mm, 30 * mm])
-    t_box.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#E5E7EB")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
+    # (Box vật liệu riêng đã xóa theo yêu cầu — thông số chuyển vào
+    # bảng thông số tính toán bên phải)
 
     # ===== Bảng thông số =====
     alpha_deg = (_m.degrees(_m.atan2(inp.My, inp.Mx))
                  if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
     Ma = _m.hypot(inp.Mx, inp.My)
     d_ns, Pc_kN, beta_dns = _slenderness_aci(sec, conc, inp)
+    _as_txt = (f"{' + '.join(parts)} = {sec.steel_area:.0f} mm² "
+               f"(μ={sec.reinforcement_ratio * 100:.2f}%)")
     prows = [
+        ("f'c", "Cường độ bê tông", f"{_f(conc.fc, 0)} MPa"),
+        ("fy", "Cường độ thép dọc", f"{_f(steel.fy, 0)} MPa"),
+        ("Đai", "Loại cốt đai", tie_txt),
+        ("As", "Cốt thép dọc (số thanh)", _as_txt),
         ("N", "Lực dọc tính toán", f"{inp.N:+.1f} kN"),
         ("M2", "Mô men phương 2", f"{inp.Mx:.1f} kN·m"),
         ("M3", "Mô men phương 3", f"{inp.My:.1f} kN·m"),
@@ -341,7 +312,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                   Paragraph("Tỷ số sử dụng khả năng chịu lực", st_cell),
                   Paragraph(f"<b>{_f_dc(aci_res.get('dc'))} "
                             f"(FS = {fs_txt}) {ok_txt}</b>", st_cell_b)])
-    t_param = Table(pdata, colWidths=[11 * mm, 48 * mm, 24 * mm])
+    t_param = Table(pdata, colWidths=[11 * mm, 45 * mm, 27 * mm])
     t_param.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
@@ -373,44 +344,33 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     ]))
     _, _rh = _right_tbl.wrap(83 * mm, 1000)
 
-    # BƯỚC 2: Đo boxes, tính vị trí đáy
-    _, _bh = t_box.wrap(90 * mm, 1000)
+    # BƯỚC 2: Đo tiêu đề (không còn box vật liệu)
     _title_tbl = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para]],
         colWidths=[83 * mm])
     _, _th = _title_tbl.wrap(83 * mm, 1000)
 
-    # BƯỚC 3: Khoảng trống còn lại -> scale hình vào (giữ tỉ lệ)
-    _avail_h = _rh - _th - _bh - 4 * mm
-    _avail_h = max(_avail_h, 20 * mm)
+    # BƯỚC 3: Mặt cắt cố định 60mm như TCVN (fig_to_img 60×48),
+    # giữ tỉ lệ gốc bằng PIL — không giãn theo khoảng trống
     if sec_img_path:
-        from PIL import Image as _PILImage
-        _pil = _PILImage.open(sec_img_path)
-        _w, _h = _pil.size
-        _ratio = _w / _h
-        _max_w = 81 * mm
-        if _max_w / _avail_h > _ratio:
-            _hh = _avail_h
-            _ww = _hh * _ratio
-        else:
-            _ww = _max_w
-            _hh = _ww / _ratio
-        img_sec = Image(sec_img_path, width=_ww, height=_hh)
+        try:
+            png = open(sec_img_path, "rb").read()
+        except Exception:
+            png = None
+        img_sec = _img_keep_ratio(png, 55) if png else Spacer(1, 30 * mm)
     else:
-        # Vẽ kiểu TCVN (draw_section_ax, show_stats=False): không còn dòng
-        # text thống kê "N thanh (...) As = ... μ = ... Khoảng hở..." dưới hình
+        # Vẽ kiểu TCVN (draw_section_ax, show_stats=False)
         try:
             png = _section_png_tcvn(sec)
-            img_sec = _img_keep_ratio(png, 81)
+            img_sec = _img_keep_ratio(png, 60)
         except Exception:
             img_sec = Spacer(1, 30 * mm)
 
     _left_tbl = Table(
         [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
          [_ck_para],
-         [img_sec],
-         [t_box]],
+         [img_sec]],
         colWidths=[83 * mm])
     _left_tbl.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -437,10 +397,10 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     else:
         png_nm, png_m2m3 = _aci_charts_png(sec, conc, steel, aci_res,
                                            inp, tied)
-    # Ép khung 84×72mm để trục tung giãn ra, đỡ bị dẹt (kiểu TCVN)
-    img_nm = _img_chart_forced(png_nm, 84, 72)
-    img_mm = _img_chart_forced(png_m2m3, 84, 72)
-    story.append(Table([[img_nm, img_mm]], colWidths=[84 * mm, 84 * mm],
+    # Giữ đúng tỉ lệ gốc PNG (PIL), giới hạn rộng 84mm — không ép méo
+    img_nm = _img_keep_ratio(png_nm, 74)
+    img_mm = _img_keep_ratio(png_m2m3, 74)
+    story.append(Table([[img_nm, img_mm]], colWidths=[74 * mm, 74 * mm],
                        style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
     story.append(Spacer(1, 1))
 
@@ -527,7 +487,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
-                            topMargin=10 * mm, bottomMargin=10 * mm,
+                            topMargin=8 * mm, bottomMargin=8 * mm,
                             title="Tóm tắt kiểm tra cột BTCT - ACI 318-19")
     doc.build(story)
     return filepath
