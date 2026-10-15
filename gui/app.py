@@ -1110,65 +1110,306 @@ class App(tk.Tk):
         try:
             sections = generate_aci_report_sections(inp, aci_res, mm_res, shear_res,
                                                     conc, steel, tied)
+        except Exception as ex:
+            messagebox.showerror("Lỗi thuyết minh ACI",
+                                 f"Không tạo được thuyết minh ACI:\n{ex}")
+            return
+        try:
             self._render_aci_report(sections)
         except Exception as ex:
-            print("Lỗi render ACI report:", ex)
+            messagebox.showerror("Lỗi hiển thị ACI",
+                                 f"Không hiển thị được tab Chi tiết:\n{ex}")
+            return
         self._pdf_inp, self._pdf_res = inp, None  # đánh dấu ACI mode
 
     def _show_aci_summary(self):
-        """Vẽ 2 biểu đồ ACI trong tab Kết quả tính toán."""
+        """Tab Kết quả tính toán cho ACI: layout 2x2 giống TCVN.
+        Hàng trên: [mặt cắt + thẻ TK | bảng thông số] /
+        Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
         if not HAS_MPL:
             return
+        import math
         sec = self._aci_sec
         inp = self._aci_inp
         aci_res = self._aci_res
         conc = self._aci_conc
         steel = self._aci_steel
         tied = self._aci_tied
-        from rc_column.aci_chart_draw import draw_aci_nm_alpha_ax, draw_aci_m2m3_ax
+        mm_res = getattr(self, "_aci_mm", None)
+        from rc_column.aci_chart_draw import (draw_aci_nm_alpha_ax,
+                                              draw_aci_m2m3_ax)
+        from rc_column.pdf_export import draw_section_ax
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+        def _new_fig(parent, figsize):
+            fig = Figure(figsize=figsize, dpi=100)
+            cv = FigureCanvasTkAgg(fig, master=parent)
+            _w = cv.get_tk_widget()
+            try:
+                _w.configure(highlightthickness=0, takefocus=0,
+                             highlightbackground="white",
+                             highlightcolor="white", borderwidth=0)
+                _bt = list(_w.bindtags())
+                _block = "NoFocus%d" % id(_w)
+                _w.bind_class(_block, "<ButtonPress>",
+                              lambda e: "break")
+                _w.bind_class(_block, "<ButtonRelease>",
+                              lambda e: "break")
+                _bt.insert(1, _block)
+                _w.bindtags(tuple(_bt))
+            except Exception:
+                pass
+            _w.pack(fill=tk.BOTH, expand=True)
+            return fig, cv
+
         # Xóa nội dung cũ
         for w in self._sum_inner.winfo_children():
             w.destroy()
         self._sum_inner.columnconfigure(0, weight=1)
         self._sum_inner.columnconfigure(1, weight=1)
-        # Tiêu đề ACI
-        hdr = ttk.Frame(self._sum_inner)
-        hdr.grid(row=0, column=0, columnspan=2, sticky=tk.EW, padx=4, pady=4)
-        dc_txt = f"D/C = {aci_res['dc']:.3f} (FS = {aci_res['fs']:.2f})"
-        ok_txt = "ĐẠT" if aci_res['ok'] else "KHÔNG ĐẠT"
-        ttk.Label(hdr, text=f"ACI 318-19 — {dc_txt} → {ok_txt}",
-                  font=("", 12, "bold")).pack()
-        # 2 biểu đồ
-        for col, (title, draw_fn) in enumerate([
-                ("Biểu đồ tương tác N-Mα (ACI)", draw_aci_nm_alpha_ax),
-                ("Biểu đồ tương tác M2-M3 (ACI)", draw_aci_m2m3_ax)]):
-            cf = tk.Frame(self._sum_inner, bg="white",
-                          highlightbackground="#E5E7EB", highlightthickness=1,
-                          highlightcolor="#E5E7EB", padx=8, pady=8)
-            cf.grid(row=1, column=col, sticky="nsew", padx=4)
-            tk.Label(cf, text=title, font=("", 10, "bold"),
-                     fg="#111827", bg="white").pack(pady=(0, 4))
-            fig = Figure(figsize=(5.2, 3.9), dpi=100)
-            ax = fig.add_subplot(111)
-            draw_fn(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
-            fig.tight_layout()
-            fig.subplots_adjust(bottom=0.30)
-            cv = FigureCanvasTkAgg(fig, master=cf)
-            cv.draw()
-            _w = cv.get_tk_widget()
+        self._sum_inner.rowconfigure(0, weight=1)
+        self._sum_inner.rowconfigure(1, weight=1)
+
+        # ===== Ô trên-trái: sơ đồ mặt cắt + thẻ thống kê =====
+        f_tl = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightthickness=1)
+        f_tl.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
+                 font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
+        self.ck_var = tk.StringVar(value="ACI 318-19")
+        tk.Label(f_tl, textvariable=self.ck_var,
+                 font=("", 10, "bold"), fg="#92400E",
+                 bg="white").pack(pady=(0, 4))
+        fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
+        a1 = fig_sec.add_subplot(111)
+        draw_section_ax(a1, sec, show_stats=False)
+        fig_sec.tight_layout()
+        cv_sec.draw()
+        self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
+        # Thẻ thống kê ACI: hàng vật liệu + hàng số liệu thép
+        self._build_aci_section_cards(f_tl, sec, conc, steel, tied)
+
+        # ===== Ô trên-phải: bảng thông số tính toán ACI =====
+        f_tr = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightthickness=1)
+        f_tr.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        self._build_aci_param_table(f_tr, inp, aci_res, mm_res)
+
+        # ===== Ô dưới-trái: header + biểu đồ N-Mα (ACI) =====
+        f_bl = ttk.Frame(self._sum_inner)
+        f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_aci_nm_header(f_bl, inp)
+        fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
+        self._aci_nm_fig = fig_nm
+        a3 = fig_nm.add_subplot(111)
+        draw_aci_nm_alpha_ax(a3, sec, conc, steel, aci_res,
+                             inp.N, inp.Mx, inp.My, tied=tied)
+        fig_nm.tight_layout()
+        fig_nm.subplots_adjust(bottom=0.30)
+        cv_nm.draw()
+
+        # ===== Ô dưới-phải: header + biểu đồ M2-M3 (ACI) =====
+        f_br = ttk.Frame(self._sum_inner)
+        f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        self._build_aci_m2m3_header(f_br, inp)
+        fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
+        self._aci_m2m3_fig = fig_mm
+        a4 = fig_mm.add_subplot(111)
+        draw_aci_m2m3_ax(a4, sec, conc, steel, aci_res,
+                         inp.N, inp.Mx, inp.My, tied=tied)
+        fig_mm.tight_layout()
+        fig_mm.subplots_adjust(bottom=0.34)
+        cv_mm.draw()
+
+        # ===== Hàng 3 full-width: chi tiết điểm A/B + D/C =====
+        f_notes = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
+                     padx=4, pady=(4, 12))
+        self._build_aci_notes(f_notes, inp, aci_res)
+        self._sum_inner.rowconfigure(2, weight=0)
+
+        # Gắn lại cuộn chuột cho các widget mới
+        self._bind_wheel(self._sum_inner, self._sum_canvas)
+        def _to_top():
             try:
-                _w.configure(highlightthickness=0, takefocus=0,
-                             highlightbackground="white", highlightcolor="white",
-                             borderwidth=0)
+                self._sum_inner.update_idletasks()
+                self._sum_canvas.configure(
+                    scrollregion=self._sum_canvas.bbox("all"))
+                self._sum_canvas.yview_moveto(0)
             except Exception:
                 pass
-            _w.pack(fill=tk.BOTH, expand=True)
-            if col == 0:
-                self._aci_nm_fig = fig
-            else:
-                self._aci_m2m3_fig = fig
+        self._sum_canvas.after_idle(_to_top)
+
+    def _build_aci_section_cards(self, parent, sec, conc, steel, tied):
+        """6 thẻ thống kê ACI: hàng vật liệu (f'c, fy, đai) + hàng thép."""
+        vals = self._section_card_values(sec)
+
+        def _card(prow, title, value, sub=None):
+            cell = tk.Frame(prow, bg="white",
+                            highlightbackground="#E5E7EB",
+                            highlightthickness=1, height=52)
+            cell.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3, pady=2)
+            cell.pack_propagate(False)
+            tk.Label(cell, text=title, font=("", 8), fg="#6B7280",
+                     bg="white").pack(pady=(6, 0))
+            tk.Label(cell, text=value, font=("", 11, "bold"),
+                     bg="white").pack(pady=2)
+            if sub:
+                tk.Label(cell, text=sub, font=("", 8),
+                         fg="#6B7280", bg="white").pack()
+
+        # Hàng vật liệu ACI
+        mrow = tk.Frame(parent, bg="#F9FAFB")
+        mrow.pack(fill=tk.X, padx=2, pady=2)
+        tie_txt = "Tied" if tied else "Spiral"
+        for title, val in (("Bê tông", f"f'c = {conc.fc:g} MPa"),
+                           ("Thép dọc", f"fy = {steel.fy:g} MPa"),
+                           ("Thép đai", tie_txt)):
+            _card(mrow, title, val)
+        # Hàng số liệu thép
+        row1 = tk.Frame(parent, bg="#F9FAFB")
+        row1.pack(fill=tk.X, padx=2, pady=(2, 4))
+        _card(row1, "Số thanh", vals["n"], vals.get("nsub", ""))
+        _card(row1, "Tổng As", vals["as"])
+        _card(row1, "Hàm lượng μ", vals["mu"])
+
+    def _build_aci_param_table(self, parent, inp, aci_res, mm_res):
+        """Bảng thông số tính toán ACI (Treeview 3 cột)."""
+        import math
+        ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (ACI 318-19)",
+                  font=("", 11, "bold")).pack(pady=(2, 6))
+        cols = ("sym", "desc", "val")
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=14,
+                            style="Param.Treeview")
+        _pst = ttk.Style()
+        _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
+                       background="#F3F4F6", foreground="#111827",
+                       relief="flat", borderwidth=0)
+        tree.heading("sym", text="Ký hiệu")
+        tree.heading("desc", text="Thông số")
+        tree.heading("val", text="Giá trị")
+        tree.column("sym", width=64, anchor="center", stretch=False)
+        tree.column("desc", width=200, anchor="w")
+        tree.column("val", width=220, anchor="e", stretch=False)
+        tree.tag_configure("odd", background="#F9FAFB")
+        dc_bg = "#D1FAE5" if aci_res["ok"] else "#FEE2E2"
+        dc_fg = "#065F46" if aci_res["ok"] else "#991B1B"
+        tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
+        alpha_deg = math.degrees(math.atan2(inp.My, inp.Mx)) \
+            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+        Ma = math.hypot(inp.Mx, inp.My)
+        delta_txt = "—"
+        if mm_res and mm_res.get("delta_ns") is not None:
+            try:
+                delta_txt = f"{mm_res['delta_ns']:.3f}"
+            except Exception:
+                pass
+        rows = [
+            ("N", "Lực dọc tính toán",
+             f"{inp.N:+.1f} kN"),
+            ("M2", "Mô men phương 2",
+             f"{inp.Mx:.1f} kN·m"),
+            ("M3", "Mô men phương 3",
+             f"{inp.My:.1f} kN·m"),
+            ("α", "Góc tác dụng mô men",
+             f"{alpha_deg:.1f} °"),
+            ("Mα", "Mô men tổng hợp",
+             f"{Ma:.1f} kN·m"),
+            ("φ", "Hệ số sức kháng (ACI 21.2.2)",
+             f"{aci_res['phi']:.2f}"),
+            ("εt", "Biến dạng thép chịu kéo xa nhất",
+             f"{aci_res.get('eps_t', 0):.5f}"),
+            ("δns", "Hệ số phóng đại mô men (ACI 6.6.4)",
+             delta_txt),
+            ("φPn,max", "Nén đúng tâm lớn nhất (ACI 22.4.2)",
+             f"{aci_res.get('N_cap', 0):.1f} kN"),
+        ]
+        for i, (a, b, c) in enumerate(rows):
+            tree.insert("", "end", values=(a, b, c),
+                        tags=("odd",) if i % 2 else ())
+        ok_txt = "ĐẠT" if aci_res["ok"] else "KHÔNG ĐẠT"
+        fs_txt = (f"{aci_res['fs']:.2f}"
+                  if math.isfinite(aci_res.get("fs", 0)) else "∞")
+        tree.insert("", "end",
+                    values=("D/C", "Tỷ số sử dụng khả năng chịu lực",
+                            f"{aci_res['dc']:.3f} (FS = {fs_txt})  {ok_txt}"),
+                    tags=("dc",))
+        tree.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+
+    def _build_aci_nm_header(self, parent, inp):
+        """Header trên biểu đồ N-Mα (ACI)."""
+        import math
+        alpha_deg = math.degrees(math.atan2(inp.My, inp.Mx)) \
+            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+        hdr = ttk.Frame(parent)
+        hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
+        left = ttk.Frame(hdr)
+        left.pack(side=tk.LEFT)
+        tk.Label(left, text="● Biểu đồ tương tác N–Mα (ACI)",
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
+        tk.Label(left, text=f"  α = {alpha_deg:.1f}°  ",
+                 font=("", 8, "bold"), fg="#065F46",
+                 bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
+
+    def _build_aci_m2m3_header(self, parent, inp):
+        """Header trên biểu đồ M2-M3 (ACI)."""
+        hdr = ttk.Frame(parent)
+        hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
+        left = ttk.Frame(hdr)
+        left.pack(side=tk.LEFT)
+        tk.Label(left, text="● Mặt cắt M2-M3 (ACI)",
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
+        tk.Label(left, text=f"  N = {inp.N:+.1f} kN  ",
+                 font=("", 8, "bold"), fg="#1D4ED8",
+                 bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
+
+    def _build_aci_notes(self, parent, inp, aci_res):
+        """3 dòng chú thích dưới biểu đồ ACI."""
+        import math
+        mono = ("TkFixedFont", 10)
+        Ma = math.hypot(inp.Mx, inp.My)
+        Mb = math.hypot(aci_res["Bx"], aci_res["By"])
+        alpha_deg = math.degrees(math.atan2(inp.My, inp.Mx)) \
+            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+        box = tk.Frame(parent, bg="white",
+                       highlightbackground="#E5E7EB", highlightthickness=1)
+        box.pack(fill=tk.X, padx=4, pady=4)
+        r1 = tk.Frame(box, bg="white")
+        r1.pack(fill=tk.X, pady=1, padx=4)
+        tk.Label(r1, text=f"● Đường bao kiểm tra: "
+                          f"N-Mα (α = {alpha_deg:.1f}°) — ACI 318-19",
+                 font=mono, fg="#059669", bg="white").pack(side=tk.LEFT)
+        okt = "ĐẠT" if aci_res["ok"] else "KHÔNG ĐẠT"
+        bgc = "#D1FAE5" if aci_res["ok"] else "#FEE2E2"
+        fgc = "#065F46" if aci_res["ok"] else "#991B1B"
+        fs_txt = (f"{aci_res['fs']:.2f}"
+                  if math.isfinite(aci_res.get("fs", 0)) else "∞")
+        tk.Label(r1, text=f"  D/C = {aci_res['dc']:.3f} (FS = {fs_txt}) → {okt}  ",
+                 font=("", 10, "bold"), fg=fgc,
+                 bg=bgc).pack(side=tk.LEFT, padx=6)
+        _case = getattr(self, "_pdf_case", None) or {}
+        _parts = []
+        if _case.get("story"):
+            _parts.append(str(_case.get("story")))
+        if _case.get("column"):
+            _parts.append(str(_case.get("column")))
+        if _case.get("case"):
+            _st = _case.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{_case.get('case')}{_st_txt}")
+        _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
+        tk.Label(box, bg="white",
+                 text=f"● A (điểm tải){_combo_txt}:  "
+                      f"N = {inp.N:+.1f} kN,  "
+                      f"Mα = {Ma:.1f} kN·m  "
+                      f"(M2 = {inp.Mx:.1f}, M3 = {inp.My:.1f})",
+                 font=mono, fg="#2563EB").pack(anchor="w", pady=1)
+        tk.Label(box, bg="white",
+                 text=f"◆ B (điểm giới hạn):  "
+                      f"N = {aci_res['BN']:+.1f} kN,  Mα,u = {Mb:.1f} kN·m  "
+                      f"(M2u = {aci_res['Bx']:.1f}, M3u = {aci_res['By']:.1f})",
+                 font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
     def _render_aci_report(self, sections):
         """Hiển thị thuyết minh ACI trong tab Chi tiết tính toán."""
@@ -1203,6 +1444,11 @@ class App(tk.Tk):
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
         self._bind_wheel(self._calc_inner, self._calc_canvas)
+        # Cuộn về đầu tab sau khi render xong
+        try:
+            self._calc_canvas.yview_moveto(0)
+        except Exception:
+            pass
 
     # ---------------- ETABS ----------------
     def on_import_etabs(self):
