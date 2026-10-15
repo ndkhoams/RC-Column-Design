@@ -305,7 +305,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
     _dc = aci_res.get("dc", 0)
     _fs = aci_res.get("fs", 0)
-    _ok_txt = "ĐẠT" if aci_res.get("ok") else "KHÔNG ĐẠT"
+    _ok_txt = "<b>ĐẠT</b>" if aci_res.get("ok") else "<b>KHÔNG ĐẠT</b>"
     tie_txt = "Tied (đai thường)" if tied else "Spiral (đai xoắn)"
     _fyt = getattr(inp, "fyt", None) or getattr(steel, "fyt", steel.fy)
 
@@ -478,15 +478,15 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             for j in (1, 2):
                 _data[i][j].style.alignment = TA_CENTER
         t_sw = Table(_data, colWidths=[55 * mm, 62.5 * mm, 62.5 * mm],
-                     hAlign="CENTER")
+                     hAlign="LEFT")
         _st = [
-            ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#9CA3AF")),
-            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 2),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
         ]
         for i in range(1, len(_data)):
             if i % 2 == 0:

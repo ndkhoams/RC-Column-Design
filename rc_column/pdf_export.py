@@ -734,7 +734,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
 
     _alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) \
         if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
-    _ok_txt = "ĐẠT" if res.ok else "KHÔNG ĐẠT"
+    _ok_txt = "<b>ĐẠT</b>" if res.ok else "<b>KHÔNG ĐẠT</b>"
 
     # ===== Cột trái: các bảng =====
     left_flow = []
@@ -929,15 +929,16 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             for j in (1, 2):
                 _sw_data[i][j].style.alignment = TA_CENTER
         t_sw = Table(_sw_data, colWidths=[55 * mm, 62.5 * mm, 62.5 * mm],
-                     hAlign="CENTER", repeatRows=1)
+                     hAlign="LEFT", repeatRows=1)
         _sw_style = [
-            ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#9CA3AF")),
-            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
+            # Không kẻ GRID — thể hiện như bảng thông tin (xen kẽ màu)
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 2),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
         ]
         for i in range(1, len(_sw_data)):
             if i % 2 == 0:
