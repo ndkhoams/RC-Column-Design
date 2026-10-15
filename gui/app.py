@@ -1771,20 +1771,10 @@ class App(tk.Tk):
         # Xóa nội dung cũ
         for w in self._calc_inner.winfo_children():
             w.destroy()
-        # Lấy figure biểu đồ từ tab Tóm tắt (giống hệt, nhúng trực tiếp)
-        chart_figs = None
-        try:
-            import copy
-            nm_fig = getattr(self, "_nm_fig", None)
-            m2m3_fig = getattr(self, "_m2m3_fig", None)
-            if nm_fig is not None and m2m3_fig is not None:
-                # Copy figure giữ nguyên kích thước như tab Kết quả
-                chart_figs = (copy.deepcopy(nm_fig), copy.deepcopy(m2m3_fig))
-        except Exception:
-            chart_figs = None
         # Mục 1-7: widget kiểu Vietcon
+        # (tab Chi tiết tự vẽ mới biểu đồ bằng hàm chung chart_draw)
         body = build_calc_widgets(self._calc_inner, inp, res, case_info,
-                                  shear_info, chart_figs=chart_figs)
+                                  shear_info)
         body.pack(fill=tk.BOTH, expand=True)
         # Cập nhật scroll
         self._calc_inner.update_idletasks()
@@ -2149,6 +2139,7 @@ class App(tk.Tk):
         from rc_column.pdf_export import draw_section_ax, _radial_limit
         from rc_column.interaction import (BiaxialCapacity, FiberSection,
                                            uniaxial_curve_fs)
+        from rc_column.chart_draw import draw_nm_alpha_ax, draw_m2m3_ax
         fs = FiberSection(sec)
 
         def _nm_alpha_ax(ax, title_sz=12):
@@ -2306,7 +2297,7 @@ class App(tk.Tk):
         fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
         self._nm_fig = fig_nm
         a3 = fig_nm.add_subplot(111)
-        _nm_alpha_ax(a3)
+        draw_nm_alpha_ax(a3, sec, inp, res, fs)
         fig_nm.tight_layout()
         fig_nm.subplots_adjust(bottom=0.30)
         cv_nm.draw()
@@ -2318,7 +2309,7 @@ class App(tk.Tk):
         fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
         self._m2m3_fig = fig_mm
         a4 = fig_mm.add_subplot(111)
-        _m2m3_ax(a4)
+        draw_m2m3_ax(a4, sec, inp, res)
         fig_mm.tight_layout()
         fig_mm.subplots_adjust(bottom=0.34)
         cv_mm.draw()
