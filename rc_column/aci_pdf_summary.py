@@ -274,7 +274,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     # bảng thông số tính toán bên phải)
 
     # ===== Bảng thông số =====
-    alpha_deg = (_m.degrees(_m.atan2(inp.My, inp.Mx))
+    alpha_deg = (_m.degrees(_m.atan2(inp.Mx, inp.My))
                  if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
     Ma = _m.hypot(inp.Mx, inp.My)
     d_ns, Pc_kN, beta_dns = _slenderness_aci(sec, conc, inp)
