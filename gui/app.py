@@ -391,6 +391,8 @@ class App(tk.Tk):
                                    state="readonly", width=16)
         self.cb_tie.set("Tied (đai thường)")
         self._row(afr, "Loại cốt đai", self.cb_tie, 0)
+        self.en_fyt = ttk.Entry(afr, width=12); self.en_fyt.insert(0, "420")
+        self._row(afr, "Cường độ thép đai fyt (MPa)", self.en_fyt, 1)
         self.frm_aci.grid_remove()
         # Các ô nhập TCVN (giữ nguyên)
         self.cb_conc = ttk.Combobox(fl, values=list(CONCRETE_GRADES),
@@ -1061,8 +1063,9 @@ class App(tk.Tk):
         try:
             fc = float(self.en_fc.get().replace(",", "."))
             fy = float(self.en_fy.get().replace(",", "."))
+            fyt = float(self.en_fyt.get().replace(",", "."))
         except Exception:
-            messagebox.showerror("Lỗi", "Nhập f'c và fy hợp lệ (MPa).")
+            messagebox.showerror("Lỗi", "Nhập f'c, fy và fyt hợp lệ (MPa).")
             return
         tied = self.cb_tie.get().startswith("Tied")
         conc = ACIConcrete(fc=fc)
@@ -1092,7 +1095,7 @@ class App(tk.Tk):
             Av = 2 * 3.1416 * (8**2) / 4
             shear_res = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
                                        Nu_kN=inp.N, Vu_kN=abs(inp.Q2),
-                                       Av_mm2=Av, fyt_MPa=fy, s_mm=200, d_mm=d)
+                                       Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d)
         except Exception:
             shear_res = None
         # Lưu để vẽ lại / xuất PDF
@@ -1109,7 +1112,7 @@ class App(tk.Tk):
         # Vẽ tab Chi tiết
         try:
             sections = generate_aci_report_sections(inp, aci_res, mm_res, shear_res,
-                                                    conc, steel, tied)
+                                                    conc, steel, tied, fyt)
         except Exception as ex:
             messagebox.showerror("Lỗi thuyết minh ACI",
                                  f"Không tạo được thuyết minh ACI:\n{ex}")
@@ -1657,9 +1660,10 @@ class App(tk.Tk):
         try:
             fc = float(self.en_fc.get().replace(",", "."))
             fy = float(self.en_fy.get().replace(",", "."))
+            fyt = float(self.en_fyt.get().replace(",", "."))
         except Exception:
             from tkinter import messagebox
-            messagebox.showerror("Lỗi", "Nhập f'c và fy hợp lệ (MPa).")
+            messagebox.showerror("Lỗi", "Nhập f'c, fy và fyt hợp lệ (MPa).")
             return
         tied = self.cb_tie.get().startswith("Tied")
         conc = ACIConcrete(fc=fc)
@@ -2131,6 +2135,10 @@ class App(tk.Tk):
             "steel": self.cb_steel.get(), "sw_steel": self.cb_sw_steel.get(),
             "gamma_s": ev(self.en_gs),
             "model": self.cb_model.get(),
+            # 1b. Vật liệu ACI
+            "code": self.cb_code.get(),
+            "aci_fc": ev(self.en_fc), "aci_fy": ev(self.en_fy),
+            "aci_fyt": ev(self.en_fyt), "aci_tie": self.cb_tie.get(),
             # 2. Tiết diện
             "kind": self.cb_kind.get(),
             "cx": ev(self.en_cx), "cy": ev(self.en_cy),
@@ -2199,6 +2207,12 @@ class App(tk.Tk):
             self.cb_sw_steel.set(d.get("sw_steel", "CB400-V"))
             se(self.en_gs, d.get("gamma_s", "1.0"))
             self.cb_model.set(d.get("model", self.cb_model.get()))
+            # Vật liệu ACI (tương thích file cũ: giữ mặc định nếu thiếu)
+            self.cb_code.set(d.get("code", self.cb_code.get()))
+            se(self.en_fc, d.get("aci_fc", "30")); se(self.en_fy, d.get("aci_fy", "420"))
+            se(self.en_fyt, d.get("aci_fyt", "420"))
+            self.cb_tie.set(d.get("aci_tie", "Tied (đai thường)"))
+            self._toggle_code()
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
             se(self.sp_cover, d.get("cover", "30"))
