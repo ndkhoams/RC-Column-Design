@@ -478,12 +478,16 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
              f"{_r3['Vs_kN']:.1f} kN"),
             ("φVn = 0.75×(Vc+Vs)", f"{_r2['phi_Vn_kN']:.1f} kN",
              f"{_r3['phi_Vn_kN']:.1f} kN"),
+            ("Kết luận",
+             "<b>ĐẠT</b>" if _r2['ok'] else "<b>KHÔNG ĐẠT</b>",
+             "<b>ĐẠT</b>" if _r3['ok'] else "<b>KHÔNG ĐẠT</b>"),
         ]
         for a, b, c in _sw_lines:
+            _is_kl = "Kết luận" in a
             _data.append([
                 Paragraph(a, st_lbl),
-                Paragraph(b, st_cell),
-                Paragraph(c, st_cell),
+                Paragraph(b, st_cell_b if _is_kl else st_cell),
+                Paragraph(c, st_cell_b if _is_kl else st_cell),
             ])
         for i in range(1, len(_data)):
             for j in (1, 2):
@@ -505,13 +509,6 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                             HexColor("#F2F2F2")))
         t_sw.setStyle(TableStyle(_st))
         _sw_story.append(t_sw)
-        # Kết luận chung (giống app)
-        _ok_all = _r2['ok'] and _r3['ok']
-        _kl_txt = "ĐẠT" if _ok_all else "KHÔNG ĐẠT"
-        _kl_color = "#065F46" if _ok_all else "#991B1B"
-        _sw_story.append(Paragraph(
-            f'<b><font color="{_kl_color}">Kết luận chịu cắt: {_kl_txt}</font></b>',
-            st_cell))
     except Exception as e:
         _sw_story.append(Paragraph(f"Không tính được cắt: {e}", st_cell))
     story.append(KeepTogether(_sw_story))
