@@ -2257,7 +2257,13 @@ class App(tk.Tk):
         def _new_fig(parent, figsize):
             fig = Figure(figsize=figsize, dpi=100)
             cv = FigureCanvasTkAgg(fig, master=parent)
-            cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            _w = cv.get_tk_widget()
+            # Bỏ viền highlight khi click chọn canvas
+            try:
+                _w.configure(highlightthickness=0, takefocus=0)
+            except Exception:
+                pass
+            _w.pack(fill=tk.BOTH, expand=True)
             return fig, cv
 
         # Grid 2x2 trong _sum_inner
