@@ -833,7 +833,8 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
     ]))
     # Bảng ngoài: 2 cột cao bằng nhau (_rh)
-    _outer = Table([[_left_tbl, _right_tbl]],
+    # Đảo vị trí: bảng thông số TRÁI, sơ đồ mặt cắt PHẢI
+    _outer = Table([[_right_tbl, _left_tbl]],
                    colWidths=[84 * mm, 84 * mm])
     _outer.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
