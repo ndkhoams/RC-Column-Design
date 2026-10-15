@@ -217,16 +217,16 @@ class App(tk.Tk):
         bottom_bar.pack(fill=tk.X, side=tk.BOTTOM, padx=2, pady=2)
         data_bar = ttk.Frame(bottom_bar)
         data_bar.pack(fill=tk.X, padx=8, pady=(8, 0))
-        ttk.Button(data_bar, text="💾 SAVE", style="Ghost.TButton",
-                   command=self.on_save_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(0, 4))
-        ttk.Button(data_bar, text="💾 SAVE AS", style="Ghost.TButton",
-                   command=self.on_save_as_data).pack(side=tk.LEFT,
-                                                      expand=True, fill=tk.X,
-                                                      padx=(2, 2))
         ttk.Button(data_bar, text="📂 OPEN", style="Ghost.TButton",
                    command=self.on_load_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(4, 0))
+                                                   fill=tk.X, padx=(0, 4))
+        ttk.Button(data_bar, text="💾 SAVE", style="Ghost.TButton",
+                   command=self.on_save_data).pack(side=tk.LEFT,
+                                                   expand=True, fill=tk.X,
+                                                   padx=(2, 2))
+        ttk.Button(data_bar, text="💾 SAVE AS", style="Ghost.TButton",
+                   command=self.on_save_as_data).pack(side=tk.LEFT, expand=True,
+                                                      fill=tk.X, padx=(2, 2))
         ttk.Button(data_bar, text="📄 XUẤT PDF", style="Ghost.TButton",
                    command=self._export_pdf).pack(side=tk.LEFT, expand=True,
                                                    fill=tk.X, padx=(4, 0))
@@ -239,13 +239,6 @@ class App(tk.Tk):
         # ---- Phải: kết quả ----
         right = ttk.Frame(main)
         main.add(right, weight=1)
-        self.result_var = tk.StringVar(value="Chưa có kết quả")
-        hdr = ttk.Frame(right)
-        hdr.pack(fill=tk.X, padx=4, pady=4)
-        ttk.Label(hdr, textvariable=self.result_var,
-                  font=("", 12, "bold")).pack(side=tk.LEFT, expand=True)
-
-
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.nb = nb
@@ -1000,9 +993,6 @@ class App(tk.Tk):
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
             return
-        ok_txt = "ĐẠT ✓" if res.ok else "KHÔNG ĐẠT ✗"
-        self.result_var.set(
-            f"Kết quả: {ok_txt} — D/C = {res.dc:.3f}")
         # Tóm tắt + biểu đồ + L0
         sec = build_section(inp)
         self._show_summary(sec, inp, res)
@@ -1269,10 +1259,7 @@ class App(tk.Tk):
         # cập nhật cả tab Tóm tắt + biểu đồ cho tổ hợp nguy hiểm nhất
         self._show_summary(sec_w, inp_w, res_w,
                            prefix=f"Tổ hợp {worst_f.case}@{worst_f.station:.2f}m: ")
-        self.result_var.set(
-            f"Tổ hợp nguy hiểm nhất: {worst_f.case} — "
-            f"{'KHÔNG ĐẠT ✗' if worst_r['dc'] > 1 else 'ĐẠT ✓'} "
-            f"(D/C = {worst_r['dc']:.3f})")
+        pass  # (đã bỏ header tổ hợp nguy hiểm nhất)
 
     def _export_pdf(self):
         """Xuất PDF theo tab đang mở: Tóm tắt hoặc Thuyết minh."""
