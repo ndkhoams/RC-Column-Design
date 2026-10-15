@@ -108,7 +108,7 @@ def draw_m2m3_ax(ax, sec, inp, res):
                label="Tia tải O-A-B"),
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.22), ncol=4, frameon=False)
+              bbox_to_anchor=(0.5, -0.18), ncol=4, frameon=False)
     ax.grid(True, color="#E5E7EB", linestyle="--",
             linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
