@@ -8,6 +8,7 @@ vị trí) để 2 tiêu chuẩn hiển thị đồng nhất. Khác biệt duy n
 import math
 
 from .aci_checker import aci_interaction_curve
+from .aci_materials import PHI_SPIRAL, PHI_TIED, max_axial_phi
 
 
 def _design_curve(sec, conc, steel, theta_deg, tied=True, n_points=48):
@@ -17,7 +18,19 @@ def _design_curve(sec, conc, steel, theta_deg, tied=True, n_points=48):
     """
     nom = aci_interaction_curve(sec, conc, steel, theta_deg,
                                 n_points=n_points, tied=tied)
-    pts = [(N * phi, M * phi) for (N, M, _eps_t, phi) in nom]
+    # Cắt phẳng đỉnh ở N_cap = max_axial_phi*phi_c*Po (ACI 22.4.2),
+    # giống ACICapacity — ETABS cũng vẽ đỉnh bằng
+    Ag = sec.gross_area
+    Ast = sec.steel_area
+    Po_nom = (0.85 * conc.fc * (Ag - Ast) + steel.fy * Ast) / 1000.0
+    phi_c = PHI_TIED if tied else PHI_SPIRAL
+    N_cap = max_axial_phi(tied) * phi_c * Po_nom
+    pts = []
+    for (N, M, _eps_t, phi) in nom:
+        Nd = N * phi
+        if Nd > N_cap:
+            Nd = N_cap
+        pts.append((Nd, M * phi))
     pts.sort(key=lambda p: -p[0])
     n_dsgn = [p[0] for p in pts]
     m_dsgn = [p[1] for p in pts]
