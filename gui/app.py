@@ -2308,7 +2308,7 @@ class App(tk.Tk):
         f_bl = ttk.Frame(self._sum_inner)
         f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
         self._build_nm_header(f_bl, res)
-        fig_nm, cv_nm = _new_fig(f_bl, (3.9, 2.9))
+        fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
         self._nm_fig = fig_nm
         a3 = fig_nm.add_subplot(111)
         _nm_alpha_ax(a3)
@@ -2320,7 +2320,7 @@ class App(tk.Tk):
         f_br = ttk.Frame(self._sum_inner)
         f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self._build_m2m3_header(f_br, res)
-        fig_mm, cv_mm = _new_fig(f_br, (3.9, 2.9))
+        fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
         self._m2m3_fig = fig_mm
         a4 = fig_mm.add_subplot(111)
         _m2m3_ax(a4)
