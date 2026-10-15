@@ -188,6 +188,27 @@ class App(tk.Tk):
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
         main.add(left_outer, weight=0)
+        # Cụm nút cố định ĐỈNH (không bị cuộn theo) — theo yêu cầu user 2026-10-16
+        top_bar = ttk.Frame(left_outer, relief=tk.RAISED, borderwidth=1)
+        top_bar.pack(fill=tk.X, side=tk.TOP, padx=2, pady=2)
+        data_bar = ttk.Frame(top_bar)
+        data_bar.pack(fill=tk.X, padx=8, pady=(8, 0))
+        ttk.Button(data_bar, text="📂 OPEN", style="Ghost.TButton",
+                   command=self.on_load_data).pack(side=tk.LEFT, expand=True,
+                                                   fill=tk.X, padx=(0, 4))
+        ttk.Button(data_bar, text="💾 SAVE", style="Ghost.TButton",
+                   command=self.on_save_data).pack(side=tk.LEFT,
+                                                   expand=True, fill=tk.X,
+                                                   padx=(2, 2))
+        ttk.Button(data_bar, text="💾 SAVE AS", style="Ghost.TButton",
+                   command=self.on_save_as_data).pack(side=tk.LEFT, expand=True,
+                                                      fill=tk.X, padx=(2, 2))
+        ttk.Button(data_bar, text="📄 XUẤT PDF", style="Ghost.TButton",
+                   command=self._export_pdf).pack(side=tk.LEFT, expand=True,
+                                                   fill=tk.X, padx=(4, 0))
+        ttk.Button(top_bar, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
+                   style="Accent.TButton",
+                   command=self.on_check).pack(fill=tk.X, padx=10, pady=10)
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
         scroll_area.pack(fill=tk.BOTH, expand=True)
@@ -213,30 +234,8 @@ class App(tk.Tk):
         _spacer.pack(fill=tk.BOTH, expand=True)
         # Cuộn chuột cho vùng nhập liệu
         self._bind_wheel(self.left, self._left_canvas)
-
-        # Cụm nút cố định đáy (không bị cuộn theo)
-        bottom_bar = ttk.Frame(left_outer, relief=tk.RAISED, borderwidth=1)
-        bottom_bar.pack(fill=tk.X, side=tk.BOTTOM, padx=2, pady=2)
-        data_bar = ttk.Frame(bottom_bar)
-        data_bar.pack(fill=tk.X, padx=8, pady=(8, 0))
-        ttk.Button(data_bar, text="📂 OPEN", style="Ghost.TButton",
-                   command=self.on_load_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(0, 4))
-        ttk.Button(data_bar, text="💾 SAVE", style="Ghost.TButton",
-                   command=self.on_save_data).pack(side=tk.LEFT,
-                                                   expand=True, fill=tk.X,
-                                                   padx=(2, 2))
-        ttk.Button(data_bar, text="💾 SAVE AS", style="Ghost.TButton",
-                   command=self.on_save_as_data).pack(side=tk.LEFT, expand=True,
-                                                      fill=tk.X, padx=(2, 2))
-        ttk.Button(data_bar, text="📄 XUẤT PDF", style="Ghost.TButton",
-                   command=self._export_pdf).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(4, 0))
-        ttk.Button(bottom_bar, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
-                   style="Accent.TButton",
-                   command=self.on_check).pack(fill=tk.X, padx=10, pady=10)
-        # Cuộn chuột trên cụm nút cố định -> cuộn vùng nhập liệu
-        self._bind_wheel(bottom_bar, self._left_canvas)
+        # Cuộn chuột trên cụm nút cố định đỉnh -> cuộn vùng nhập liệu
+        self._bind_wheel(top_bar, self._left_canvas)
 
         # ---- Phải: kết quả ----
         right = ttk.Frame(main)
