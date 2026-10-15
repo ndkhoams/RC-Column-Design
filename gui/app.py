@@ -1299,7 +1299,7 @@ class App(tk.Tk):
         dc_bg = "#D1FAE5" if aci_res["ok"] else "#FEE2E2"
         dc_fg = "#065F46" if aci_res["ok"] else "#991B1B"
         tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
-        alpha_deg = math.degrees(math.atan2(inp.My, inp.Mx)) \
+        alpha_deg = math.degrees(math.atan2(inp.Mx, inp.My)) \
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         Ma = math.hypot(inp.Mx, inp.My)
         delta_txt = "—"
@@ -1343,7 +1343,7 @@ class App(tk.Tk):
     def _build_aci_nm_header(self, parent, inp):
         """Header trên biểu đồ N-Mα (ACI)."""
         import math
-        alpha_deg = math.degrees(math.atan2(inp.My, inp.Mx)) \
+        alpha_deg = math.degrees(math.atan2(inp.Mx, inp.My)) \
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
@@ -1384,7 +1384,7 @@ class App(tk.Tk):
             if angle is None:
                 import math
                 inp = self._aci_inp
-                a0 = math.degrees(math.atan2(inp.My, inp.Mx)) \
+                a0 = math.degrees(math.atan2(inp.Mx, inp.My)) \
                     if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
                 self._aci_nm_alpha_lbl.config(text=f"  α = {a0:.1f}°  ")
             else:
@@ -1424,7 +1424,7 @@ class App(tk.Tk):
         mono = ("TkFixedFont", 10)
         Ma = math.hypot(inp.Mx, inp.My)
         Mb = math.hypot(aci_res["Bx"], aci_res["By"])
-        alpha_deg = math.degrees(math.atan2(inp.My, inp.Mx)) \
+        alpha_deg = math.degrees(math.atan2(inp.Mx, inp.My)) \
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         box = tk.Frame(parent, bg="white",
                        highlightbackground="#E5E7EB", highlightthickness=1)
@@ -2514,7 +2514,7 @@ class App(tk.Tk):
         dc_bg = "#D1FAE5" if res.ok else "#FEE2E2"
         dc_fg = "#065F46" if res.ok else "#991B1B"
         tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
-        alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
         rows = [
@@ -2563,7 +2563,7 @@ class App(tk.Tk):
         """3 d\u00f2ng ch\u00fa th\u00edch d\u01b0\u1edbi bi\u1ec3u \u0111\u1ed3 N-M."""
         import math
         mono = ("TkFixedFont", 10)
-        alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
         Mb = math.hypot(res.Bx, res.By)
@@ -2609,7 +2609,7 @@ class App(tk.Tk):
     def _build_nm_header(self, parent, res):
         """Header trên biểu đồ N-M (format giống M2-M3)."""
         import math
-        alpha_deg = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
@@ -2652,7 +2652,7 @@ class App(tk.Tk):
             if angle is None:
                 import math
                 res = self._last_res
-                a0 = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+                a0 = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
                     if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
                 self._nm_alpha_lbl.config(text=f"  \u03b1 = {a0:.1f}\u00b0  ")
             else:
@@ -2829,7 +2829,7 @@ class App(tk.Tk):
                 alpha_deg = view_angle_deg
             else:
                 alpha_deg = math.degrees(
-                    math.atan2(res.My_star, res.Mx_star))
+                    math.atan2(res.Mx_star, res.My_star))
             cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
             m_pos = [p[1] for p in cv]
             n_pos = [p[0] for p in cv]
