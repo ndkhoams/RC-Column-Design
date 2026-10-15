@@ -2756,7 +2756,8 @@ class App(tk.Tk):
                          fg="#111827", borderwidth=0,
                          highlightthickness=0,
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
-                tf.columnconfigure(j, weight=1 if j else 2)
+                # Tỉ lệ cột 90-45-45 (2:1:1), uniform để giữ đúng tỉ lệ
+                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             rows = [
                 ("Thép đai bố trí",
                  cols['2']['sw_txt'], cols['3']['sw_txt']),
