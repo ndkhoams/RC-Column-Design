@@ -13,7 +13,8 @@ import io as _io
 import math as _m
 import os as _os
 
-from .pdf_export import _mpl_font, _find_font, _find_font_bold, section_image
+from .pdf_export import (_mpl_font, _find_font, _find_font_bold, section_image,
+                          draw_section_ax)
 from .aci_chart_draw import draw_aci_nm_alpha_ax, draw_aci_m2m3_ax
 
 
@@ -52,23 +53,48 @@ def _f_dc(dc):
 
 
 def _aci_charts_png(sec, conc, steel, aci_res, inp, tied):
-    """Tự vẽ 2 biểu đồ ACI -> (png_nm_alpha, png_m2m3) bytes."""
+    """Tự vẽ 2 biểu đồ ACI -> (png_nm_alpha, png_m2m3) bytes.
+
+    Dùng figure cao hơn (5.0 x 4.6) để trục tung giãn ra, đỡ bị dẹt
+    khi hiển thị (theo yêu cầu user, tham khảo cách TCVN ép khung hình).
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     out = []
     for draw_fn in (draw_aci_nm_alpha_ax, draw_aci_m2m3_ax):
-        fig = plt.figure(figsize=(5.2, 3.9))
+        fig = plt.figure(figsize=(5.0, 4.6))
         ax = fig.add_subplot(111)
         draw_fn(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My,
                 tied=tied)
         fig.tight_layout()
-        fig.subplots_adjust(bottom=0.30)
+        fig.subplots_adjust(bottom=0.28)
         buf = _io.BytesIO()
         fig.savefig(buf, format="png", dpi=150)
         plt.close(fig)
         out.append(buf.getvalue())
     return tuple(out)
+
+
+def _section_png_tcvn(sec):
+    """Vẽ mặt cắt kiểu TCVN (giống hệt pdf_export.export_summary_pdf):
+    figure (3.9, 3.1), show_stats=False (không dòng text thống kê dưới hình).
+    Trả về PNG bytes."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(3.9, 3.1))
+    draw_section_ax(ax, sec, show_dims=True, show_stats=False)
+    ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
+    ax.set_axisbelow(True)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    buf = _io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                pad_inches=0.1, facecolor="white")
+    plt.close(fig)
+    buf.seek(0)
+    return buf.getvalue()
 
 
 def _img_keep_ratio(png_bytes, w_mm):
@@ -79,6 +105,15 @@ def _img_keep_ratio(png_bytes, w_mm):
     pil = _PIL.open(_io.BytesIO(png_bytes))
     pw, ph = pil.size
     h_mm = w_mm * ph / pw if pw > 0 else w_mm * 0.75
+    return Image(_io.BytesIO(png_bytes), width=w_mm * mm, height=h_mm * mm)
+
+
+def _img_chart_forced(png_bytes, w_mm=84, h_mm=72):
+    """reportlab Image ép khung hình w×h cố định (kéo giãn nhẹ theo chiều
+    đứng để trục tung đỡ bị dẹt) — theo cách TCVN ép 70×52 trong fig_to_img.
+    Áp dụng cho cả PNG tự vẽ lẫn PNG từ app truyền vào."""
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image
     return Image(_io.BytesIO(png_bytes), width=w_mm * mm, height=h_mm * mm)
 
 
@@ -104,31 +139,63 @@ def _slenderness_aci(sec, conc, inp):
         return None, None, None
 
 
-def _shear_aci(sec, inp, steel, conc):
-    """Kiểm tra cắt ACI 22.5.5.1 cho 2 phương. Trả về dict phương -> dict."""
+def _shear_aci(sec, inp, steel, conc, q2_override=None, q3_override=None):
+    """Kiểm tra cắt ACI 22.5.5.1 cho 2 phương. Trả về dict phương -> dict.
+
+    q2_override/q3_override: lực cắt (kN) ghi đè khi inp.Q2/Q3 = 0
+    (chế độ ETABS: gui truyền Q từ combo có |Q| lớn nhất qua shear_info).
+    Nếu Q vẫn = 0 sau override, 'Q' = None -> hiển thị '—' thay vì 0.0
+    để tránh kết luận ĐẠT gây hiểu lầm khi thiếu dữ liệu.
+    """
     from .aci_checker import aci_shear_check
     cols = {}
     try:
         Av = inp.sw_legs * _m.pi * inp.sw_dia ** 2 / 4.0
         fyt = steel.fy
         cover = getattr(inp, "cover", 30.0)
-        for Q, lbl, b_w, h_dim in ((inp.Q2, "2", inp.cy, inp.cx),
-                                   (inp.Q3, "3", inp.cx, inp.cy)):
+        _q2 = q2_override if q2_override not in (None, 0, 0.0) else inp.Q2
+        _q3 = q3_override if q3_override not in (None, 0, 0.0) else inp.Q3
+        for Q, lbl, b_w, h_dim in ((_q2, "2", inp.cy, inp.cx),
+                                   (_q3, "3", inp.cx, inp.cy)):
             d = max(h_dim - cover - inp.sw_dia - 12.0, 1.0)
             Acv = b_w * d
             Ag = sec.cx * sec.cy
             sh = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Ag, fc_MPa=conc.fc,
-                                 Nu_kN=inp.N, Vu_kN=abs(Q),
+                                 Nu_kN=inp.N, Vu_kN=abs(Q or 0.0),
                                  Av_mm2=Av, fyt_MPa=fyt,
                                  s_mm=inp.sw_spacing, d_mm=d)
-            cols[lbl] = {"Q": Q, "b": b_w, "d": d, "sh": sh}
+            cols[lbl] = {"Q": Q if Q else None, "b": b_w, "d": d, "sh": sh}
     except Exception:
         pass
     return cols
 
 
+def _extract_shear_q(shear_info):
+    """Trích Q2/Q3 từ shear_info (hỗ trợ 2 dạng: {'Q2':..,'Q3':..} hoặc
+    kiểu TCVN {'q2': {'Q':..}, 'q3': {'Q':..}}). Trả về (q2, q3) hoặc
+    (None, None)."""
+    if not isinstance(shear_info, dict):
+        return None, None
+    q2 = shear_info.get("Q2")
+    q3 = shear_info.get("Q3")
+    if q2 is None and isinstance(shear_info.get("q2"), dict):
+        q2 = shear_info["q2"].get("Q")
+    if q3 is None and isinstance(shear_info.get("q3"), dict):
+        q3 = shear_info["q3"].get("Q")
+    try:
+        q2 = float(q2) if q2 is not None else None
+    except (TypeError, ValueError):
+        q2 = None
+    try:
+        q3 = float(q3) if q3 is not None else None
+    except (TypeError, ValueError):
+        q3 = None
+    return q2, q3
+
+
 def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
-                           case_info=None, sec_img_path=None, chart_pngs=None):
+                           case_info=None, sec_img_path=None, chart_pngs=None,
+                           shear_info=None):
     """Xuất PDF tóm tắt kiểm tra cột theo ACI 318-19 (A4 dọc, 1 trang).
 
     sec: Section đã bố trí thép. inp: ColumnInput. aci_res: dict từ
@@ -136,6 +203,8 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     conc: ACIConcrete, steel: ACISteel. tied: True = đai thường.
     chart_pngs: tuple (png_nm_alpha, png_m2m3) bytes (tùy chọn, nếu không
     có sẽ tự vẽ bằng aci_chart_draw).
+    shear_info: dict lực cắt ghi đè khi inp.Q2/Q3 = 0 (chế độ ETABS),
+    dạng {'Q2': v, 'Q3': v} hoặc kiểu TCVN {'q2': {'Q': v}, 'q3': {'Q': v}}.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -230,12 +299,6 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         [Paragraph(" + ".join(parts), st_box_v),
          Paragraph(f"{sec.steel_area:.0f} mm²", st_box_v),
          Paragraph(f"{sec.reinforcement_ratio * 100:.2f}%", st_box_v)],
-        [Paragraph("Thép đai bố trí", st_box_t),
-         Paragraph("β1", st_box_t),
-         Paragraph("Ec", st_box_t)],
-        [Paragraph(sw_txt, st_box_v),
-         Paragraph(f"{_f(conc.beta1, 3)}", st_box_v),
-         Paragraph(f"{_f(conc.Ec, 0)} MPa", st_box_v)],
     ]
     t_box = Table(box_data, colWidths=[30 * mm, 30 * mm, 30 * mm])
     t_box.setStyle(TableStyle([
@@ -335,8 +398,10 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             _hh = _ww / _ratio
         img_sec = Image(sec_img_path, width=_ww, height=_hh)
     else:
+        # Vẽ kiểu TCVN (draw_section_ax, show_stats=False): không còn dòng
+        # text thống kê "N thanh (...) As = ... μ = ... Khoảng hở..." dưới hình
         try:
-            png = section_image(sec, small=True)
+            png = _section_png_tcvn(sec)
             img_sec = _img_keep_ratio(png, 81)
         except Exception:
             img_sec = Spacer(1, 30 * mm)
@@ -372,9 +437,10 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     else:
         png_nm, png_m2m3 = _aci_charts_png(sec, conc, steel, aci_res,
                                            inp, tied)
-    img_nm = _img_keep_ratio(png_nm, 88)
-    img_mm = _img_keep_ratio(png_m2m3, 88)
-    story.append(Table([[img_nm, img_mm]], colWidths=[88 * mm, 88 * mm],
+    # Ép khung 84×72mm để trục tung giãn ra, đỡ bị dẹt (kiểu TCVN)
+    img_nm = _img_chart_forced(png_nm, 84, 72)
+    img_mm = _img_chart_forced(png_m2m3, 84, 72)
+    story.append(Table([[img_nm, img_mm]], colWidths=[84 * mm, 84 * mm],
                        style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
     story.append(Spacer(1, 1))
 
@@ -411,26 +477,36 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
 
     # ===== Kiểm tra cắt =====
     story.append(Paragraph("KIỂM TRA CẮT (ACI 22.5)", st_h))
-    cols = _shear_aci(sec, inp, steel, conc)
+    _sq2, _sq3 = _extract_shear_q(shear_info)
+    cols = _shear_aci(sec, inp, steel, conc,
+                      q2_override=_sq2, q3_override=_sq3)
     if cols:
         def _pc(t, bold=False):
             st = st_cell_b if bold else st_cell
             return Paragraph(str(t), st)
+
+        def _vu_txt(lbl):
+            q = cols[lbl]["Q"]
+            return f"{abs(q):.1f}" if q else "—"
+
+        def _kl_txt(lbl):
+            q = cols[lbl]["Q"]
+            if not q:
+                return "—"  # thiếu dữ liệu lực cắt: không kết luận ĐẠT
+            return "ĐẠT" if cols[lbl]["sh"]["ok"] else "KHÔNG ĐẠT"
+
         tdata = [[_pc("Thông số", True), _pc("Phương V2", True),
                   _pc("Phương V3", True)]]
         _rows = [
             ("Thép đai bố trí", sw_txt, sw_txt),
-            ("Vu (kN)", f"{abs(cols['2']['Q']):.1f}",
-             f"{abs(cols['3']['Q']):.1f}"),
+            ("Vu (kN)", _vu_txt("2"), _vu_txt("3")),
             ("Vc (kN)", f"{cols['2']['sh']['Vc_kN']:.1f}",
              f"{cols['3']['sh']['Vc_kN']:.1f}"),
             ("Vs (kN)", f"{cols['2']['sh']['Vs_kN']:.1f}",
              f"{cols['3']['sh']['Vs_kN']:.1f}"),
             ("φVn (kN)", f"{cols['2']['sh']['phi_Vn_kN']:.1f}",
              f"{cols['3']['sh']['phi_Vn_kN']:.1f}"),
-            ("Kết luận",
-             "ĐẠT" if cols["2"]["sh"]["ok"] else "KHÔNG ĐẠT",
-             "ĐẠT" if cols["3"]["sh"]["ok"] else "KHÔNG ĐẠT"),
+            ("Kết luận", _kl_txt("2"), _kl_txt("3")),
         ]
         for a, b, c in _rows:
             tdata.append([_pc(a, True), _pc(b), _pc(c)])
