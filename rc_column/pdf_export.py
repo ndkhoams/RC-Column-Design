@@ -223,16 +223,16 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     ax.plot([0, Ma], [res.N, res.N], color=BLUE_DASH, ls="--",
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
-    ax.scatter([lim[1]], [lim[0]], c=ORANGE, s=60, zorder=5,
-               edgecolors="white", linewidths=1.0, label="Điểm giới hạn B")
-    ax.scatter([Ma], [res.N], c=GREEN, s=60, zorder=6,
-               edgecolors="white", linewidths=1.0, label="Điểm tải A")
-    ax.text(Ma, res.N, "  A", fontsize=8, color=GREEN,
+    ax.scatter([lim[1]], [lim[0]], c=ORANGE, s=70, zorder=5,
+               edgecolors="white", linewidths=1.2)
+    ax.scatter([Ma], [res.N], c=GREEN, s=70, zorder=6,
+               edgecolors="white", linewidths=1.2)
+    ax.text(Ma, res.N, "  A", fontsize=9, color=GREEN,
             weight="bold", va="center", zorder=7)
-    ax.text(lim[1], lim[0], "  B", fontsize=8, color=ORANGE,
+    ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
             weight="bold", va="center", zorder=7)
-    ax.set_xlabel("Mα (kN·m)", fontsize=9, fontweight="bold")
-    ax.set_ylabel("N (kN)", fontsize=9, fontweight="bold")
+    ax.set_xlabel("Mα (kN·m)", fontsize=10, fontweight="bold")
+    ax.set_ylabel("N (kN)", fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
     ax.text(0.05, 0.95, f"α = {alpha_deg:.1f}°",
             transform=ax.transAxes, fontsize=8, color="#4B5563",
@@ -242,8 +242,19 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     if right_half:
         # Chỉ hiện nửa phải (M >= 0)
         ax.set_xlim(left=0)
-    ax.legend(fontsize=7, loc="upper center",
-              bbox_to_anchor=(0.5, -0.25), ncol=2)
+    # Legend 4 mục như tab Kết quả (dùng Line2D custom)
+    from matplotlib.lines import Line2D as _L2D
+    _leg = [
+        _L2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+        _L2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+             markersize=8, markeredgecolor="white", label="Điểm tải A"),
+        _L2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+             markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+        _L2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+             label="Tia tải O-A-B"),
+    ]
+    ax.legend(handles=_leg, fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, -0.18), ncol=4, frameon=False)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     for _sp in ("top", "right"):
@@ -269,23 +280,35 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     BLUE, GREEN, RED, ORANGE = "#2563EB", "#059669", "#DC2626", "#F97316"
     xs = [p[0] for p in pts] + [pts[0][0]]
     ys = [p[1] for p in pts] + [pts[0][1]]
-    ax.plot(xs, ys, color=BLUE, lw=2.0, zorder=3, label="Đường bao M2-M3")
+    ax.plot(xs, ys, color=BLUE, lw=2.2, zorder=3)
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
     ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
-            ls="--", lw=1.5, dashes=(4, 3), zorder=4, label="Tia tải O-A-B")
-    ax.scatter([res.Bx], [res.By], c=ORANGE, s=60, zorder=5,
-               edgecolors="white", linewidths=1.0, label="Điểm giới hạn B")
-    ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=60, zorder=6,
-               edgecolors="white", linewidths=1.0, label="Điểm tải A")
-    ax.text(res.Mx_star, res.My_star, "  A", fontsize=8, color=GREEN,
+            ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+    ax.scatter([res.Bx], [res.By], c=ORANGE, s=70, zorder=5,
+               edgecolors="white", linewidths=1.2)
+    ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70, zorder=6,
+               edgecolors="white", linewidths=1.2)
+    ax.text(res.Mx_star, res.My_star, "  A", fontsize=9, color=GREEN,
+            weight="bold", va="center", zorder=7)
+    ax.text(res.Bx, res.By, "  B", fontsize=9, color=ORANGE,
             weight="bold", va="center", zorder=7)
     ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
-    ax.set_xlabel("M2 (kN·m)", fontsize=9, fontweight="bold")
-    ax.set_ylabel("M3 (kN·m)", fontsize=9, fontweight="bold")
+    ax.set_xlabel("M2 (kN·m)", fontsize=10, fontweight="bold")
+    ax.set_ylabel("M3 (kN·m)", fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
-    ax.legend(fontsize=7, loc="upper center",
-              bbox_to_anchor=(0.5, -0.25), ncol=2)
+    from matplotlib.lines import Line2D as _L2D2
+    _leg2 = [
+        _L2D2([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+        _L2D2([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+              markersize=8, markeredgecolor="white", label="Điểm tải A"),
+        _L2D2([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+              markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+        _L2D2([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+              label="Tia tải O-A-B"),
+    ]
+    ax.legend(handles=_leg2, fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, -0.22), ncol=4, frameon=False)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     ax.set_aspect("equal", adjustable="datalim")
@@ -503,9 +526,15 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
         # N-M full (trái) như tab Tóm tắt, M2-M3 (phải)
         png_nm = interaction_image(sec, inp, res, width_in=4.0)
         png_m2m3 = m2m3_image(sec, inp, res, width_in=4.0)
-        _h = 64*mm
-        img_m6 = [Image(io.BytesIO(png_nm), width=85*mm, height=_h),
-                  Image(io.BytesIO(png_m2m3), width=85*mm, height=_h)]
+        # Giữ tỉ lệ gốc: đọc kích thước PNG rồi tính height theo width
+        from PIL import Image as _PIL
+        def _img_keep_ratio(png_bytes, w_mm):
+            _pil = _PIL.open(io.BytesIO(png_bytes))
+            _pw, _ph = _pil.size
+            _h = w_mm * _ph / _pw if _pw > 0 else w_mm * 0.75
+            return Image(io.BytesIO(png_bytes), width=w_mm*mm, height=_h*mm)
+        img_m6 = [_img_keep_ratio(png_nm, 85),
+                  _img_keep_ratio(png_m2m3, 85)]
     except Exception:
         pass
     captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
