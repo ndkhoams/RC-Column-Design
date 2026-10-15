@@ -2260,7 +2260,12 @@ class App(tk.Tk):
             _w = cv.get_tk_widget()
             # Bỏ viền highlight khi click chọn canvas
             try:
-                _w.configure(highlightthickness=0, takefocus=0)
+                _bg = _w.cget("background")
+                _w.configure(highlightthickness=0, takefocus=0,
+                             highlightbackground=_bg, highlightcolor=_bg,
+                             borderwidth=0)
+                _w.bind("<Button-1>", lambda e: "break", add="+")
+                _w.bind("<FocusIn>", lambda e: parent.focus_set(), add="+")
             except Exception:
                 pass
             _w.pack(fill=tk.BOTH, expand=True)
