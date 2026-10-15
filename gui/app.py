@@ -700,7 +700,7 @@ class App(tk.Tk):
                         variable=self.var_load_mode, value="manual",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
-        ttk.Radiobutton(mode_bar, text="Import Excel ETABS",
+        ttk.Radiobutton(mode_bar, text="Nhập từ ETABS",
                         style="White.TRadiobutton",
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
