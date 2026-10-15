@@ -86,19 +86,22 @@ def aci_interaction_curve(sec: Section, conc: ACIConcrete, steel: ACISteel,
             # Biến dạng đều
             if eps_top >= 0:
                 sf = np.full_like(yp_f, f_block)
+                a_blk = h  # toàn tiết diện nằm trong khối nén
             else:
                 sf = np.zeros_like(yp_f)
+                a_blk = 0.0
             er = np.full_like(yp_r, eps_top) if yp_r.size else yp_r
         else:
             if eps_top <= 0:
                 # Không có vùng nén -> bê tông không chịu lực
                 sf = np.zeros_like(yp_f)
+                a_blk = 0.0
             else:
                 # Chiều sâu trục trung hòa từ mép nén: c = eps_top / kx
                 c = eps_top / kx_p
-                a = b1 * c
+                a_blk = b1 * c
                 dist = y_top - yp_f  # khoảng cách từ mép nén
-                in_block = dist <= a + 1e-9
+                in_block = dist <= a_blk + 1e-9
                 sf = np.where(in_block, f_block, 0.0)
             er = eps0 + kx_p * yp_r if yp_r.size else yp_r
 
@@ -106,6 +109,13 @@ def aci_interaction_curve(sec: Section, conc: ACIConcrete, steel: ACISteel,
         Mf = float(np.sum(sf * fa * yp_f))
         if ra.size:
             sr = np.array([_aci_steel_stress(e, steel) for e in er])
+            # Thép trong khối nén đã chiếm chỗ bê tông -> dùng ứng suất
+            # thực (net): fs - 0.85f'c (theo cách tính tay SP: trừ 0.85f'c
+            # khỏi fs' trước khi tính Cs). Chỉ áp cho thanh chịu nén.
+            if yp_r.size and a_blk > 0.0:
+                dist_r = y_top - yp_r
+                in_blk_r = dist_r <= a_blk + 1e-9
+                sr = np.where(in_blk_r & (sr > 0.0), sr - f_block, sr)
             # eps_t: biến dạng kéo lớn nhất của thép (độ lớn, số dương)
             eps_t = float(np.max(-er))
             Nr = float(np.sum(sr * ra))
