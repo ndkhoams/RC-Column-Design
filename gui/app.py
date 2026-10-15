@@ -1779,11 +1779,9 @@ class App(tk.Tk):
             m2m3_fig = getattr(self, "_m2m3_fig", None)
             if nm_fig is not None and m2m3_fig is not None:
                 buf1 = io.BytesIO()
-                nm_fig.savefig(buf1, format="png", dpi=100,
-                               bbox_inches="tight")
+                nm_fig.savefig(buf1, format="png", dpi=100)
                 buf2 = io.BytesIO()
-                m2m3_fig.savefig(buf2, format="png", dpi=100,
-                                 bbox_inches="tight")
+                m2m3_fig.savefig(buf2, format="png", dpi=100)
                 chart_pngs = (buf1.getvalue(), buf2.getvalue())
         except Exception:
             pass
