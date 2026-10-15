@@ -666,13 +666,21 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
 
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
     st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
+    st_val_b = ParagraphStyle("val_b", parent=st_cell_b, alignment=TA_LEFT)
     st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
     def _sec_table(title, rows):
         """Bảng 2 cột kiểu Excel: tiêu đề section + các dòng xen kẽ màu."""
         data = [[Paragraph(f"<b>{title}</b>", st_sec_title)]]
         for lbl, val in rows:
-            data.append([Paragraph(lbl, st_lbl),
-                         Paragraph(str(val), st_val)])
+            _vs = str(val)
+            # Nếu giá trị có thẻ <b>, dùng style in đậm trực tiếp (tránh lỗi font <b>)
+            if "<b>" in _vs:
+                _vs_clean = _vs.replace("<b>", "").replace("</b>", "")
+                data.append([Paragraph(lbl, st_lbl),
+                             Paragraph(_vs_clean, st_val_b)])
+            else:
+                data.append([Paragraph(lbl, st_lbl),
+                             Paragraph(_vs, st_val)])
         # colWidths: nhãn 60mm (2 phần), giá trị 30mm (1 phần)
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [

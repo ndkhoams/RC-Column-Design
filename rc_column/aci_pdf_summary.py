@@ -242,13 +242,20 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
     st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
+    st_val_b = ParagraphStyle("val_b", parent=st_cell_b, alignment=TA_LEFT)
     st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
 
     def _sec_table(title, rows):
         data = [[Paragraph(f"<b>{title}</b>", st_sec_title)]]
         for lbl, val in rows:
-            data.append([Paragraph(lbl, st_lbl),
-                         Paragraph(str(val), st_val)])
+            _vs = str(val)
+            if "<b>" in _vs:
+                _vs_clean = _vs.replace("<b>", "").replace("</b>", "")
+                data.append([Paragraph(lbl, st_lbl),
+                             Paragraph(_vs_clean, st_val_b)])
+            else:
+                data.append([Paragraph(lbl, st_lbl),
+                             Paragraph(_vs, st_val)])
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
