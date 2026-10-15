@@ -1100,6 +1100,11 @@ class App(tk.Tk):
         # Lưu để vẽ lại / xuất PDF
         self._aci_sec = sec
         self._aci_inp = inp
+        # Đảm bảo có tên file cho PDF (giống TCVN)
+        try:
+            self._aci_inp._filename = getattr(self, "current_save_path", "") or getattr(inp, "_filename", "")
+        except Exception:
+            pass
         self._aci_res = aci_res
         self._aci_conc = conc
         self._aci_steel = steel
@@ -2749,8 +2754,7 @@ class App(tk.Tk):
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
-                         highlightbackground="#D1D5DB",
-                         highlightthickness=1,
+                         highlightthickness=0,
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=1 if j else 2)
             rows = [
@@ -2787,8 +2791,7 @@ class App(tk.Tk):
                     fw = ("", 9, "bold") if j == 0 else ("", 9)
                     tk.Label(tf, text=t, font=fw, bg=bg, fg="#1F2937",
                              borderwidth=0,
-                             highlightbackground="#D1D5DB",
-                             highlightthickness=1,
+                             highlightthickness=0,
                              padx=6, pady=2, anchor="w" if j == 0
                              else "center").grid(row=i + 1, column=j,
                                                  sticky="nsew")
