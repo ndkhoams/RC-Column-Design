@@ -203,7 +203,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Image, Table, TableStyle)
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
     from collections import Counter
     import os as _os
 
