@@ -1053,10 +1053,11 @@ class App(tk.Tk):
         self._pdf_inp, self._pdf_res = inp, res
 
     def _check_aci(self, inp):
-        """Kiểm tra cột theo ACI 318-19: P-M-M, độ mảnh, cắt."""
+        """Kiểm tra cột theo ACI 318-19: P-M-M, độ mảnh, cắt. Vẽ biểu đồ + thuyết minh."""
         from rc_column.aci_materials import ACIConcrete, ACISteel
         from rc_column.aci_checker import (check_column_aci, moment_magnification,
                                           aci_shear_check)
+        from rc_column.aci_report import generate_aci_report_sections
         try:
             fc = float(self.en_fc.get().replace(",", "."))
             fy = float(self.en_fy.get().replace(",", "."))
@@ -1067,49 +1068,141 @@ class App(tk.Tk):
         conc = ACIConcrete(fc=fc)
         steel = ACISteel(fy=fy)
         sec = build_section(inp)
-        # 1. P-M-M (dùng M2, M3 như Mx, My)
+        # 1. P-M-M
         try:
-            r = check_column_aci(sec, conc, steel, N_kN=inp.N,
-                                 M2_kNm=inp.Mx, M3_kNm=inp.My, tied=tied)
+            aci_res = check_column_aci(sec, conc, steel, N_kN=inp.N,
+                                       M2_kNm=inp.Mx, M3_kNm=inp.My, tied=tied)
         except Exception as ex:
             messagebox.showerror("Lỗi ACI P-M-M", str(ex))
             return
-        # 2. Độ mảnh (moment magnification) — dùng L0 theo phương 2
+        # 2. Độ mảnh
         try:
             from rc_column.stability import effective_length
-            L0_2 = effective_length(inp.Lx, inp.psi_x) * 1000  # mm
-            Ig = sec.cx * sec.cy**3 / 12  # mm4 (gần đúng chữ nhật)
-            mm = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.Mx, M2_kNm=inp.Mx,
-                                      lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
-                                      Ig_mm4=Ig, beta_dns=0.6)
-            dns_txt = f"δns = {mm['delta_ns']:.3f} (Pc = {mm['Pc_kN']:.0f} kN)"
-        except Exception as ex:
-            dns_txt = f"Không tính được độ mảnh: {ex}"
+            L0_2 = effective_length(inp.Lx, inp.psi_x) * 1000
+            Ig = sec.cx * sec.cy**3 / 12
+            mm_res = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.Mx, M2_kNm=inp.Mx,
+                                          lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
+                                          Ig_mm4=Ig, beta_dns=0.6)
+        except Exception:
+            mm_res = None
         # 3. Cắt
         try:
-            Acv = sec.cx * sec.cy  # mm2 (gần đúng)
+            Acv = sec.cx * sec.cy
             d = sec.cy - inp.cover - 10
-            Av = 2 * 3.1416 * (8**2) / 4  # 2 nhánh đai d8 mặc định
-            sh = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
-                                 Nu_kN=inp.N, Vu_kN=abs(inp.Q2),
-                                 Av_mm2=Av, fyt_MPa=fy, s_mm=200, d_mm=d)
-            shear_txt = (f"Vc = {sh['Vc_kN']:.1f} kN, Vs = {sh['Vs_kN']:.1f} kN, "
-                         f"φVn = {sh['phi_Vn_kN']:.1f} kN → "
-                         f"{'ĐẠT' if sh['ok'] else 'KHÔNG ĐẠT'}")
+            Av = 2 * 3.1416 * (8**2) / 4
+            shear_res = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
+                                       Nu_kN=inp.N, Vu_kN=abs(inp.Q2),
+                                       Av_mm2=Av, fyt_MPa=fy, s_mm=200, d_mm=d)
+        except Exception:
+            shear_res = None
+        # Lưu để vẽ lại / xuất PDF
+        self._aci_sec = sec
+        self._aci_inp = inp
+        self._aci_res = aci_res
+        self._aci_conc = conc
+        self._aci_steel = steel
+        self._aci_tied = tied
+        self._aci_mm = mm_res
+        self._aci_shear = shear_res
+        # Vẽ tab Kết quả
+        self._show_aci_summary()
+        # Vẽ tab Chi tiết
+        try:
+            sections = generate_aci_report_sections(inp, aci_res, mm_res, shear_res,
+                                                    conc, steel, tied)
+            self._render_aci_report(sections)
         except Exception as ex:
-            shear_txt = f"Không tính được cắt: {ex}"
-        # Hiển thị kết quả
-        msg = (f"KẾT QUẢ KIỂM TRA THEO ACI 318-19\n"
-               f"━━━━━━━━━━━━━━━━━━━━━━\n"
-               f"1. P-M-M (biaxial):\n"
-               f"   D/C = {r['dc']:.3f} (FS = {r['fs']:.2f})\n"
-               f"   φ = {r['phi']:.2f} ({'Tied' if tied else 'Spiral'})\n"
-               f"   → {'ĐẠT' if r['ok'] else 'KHÔNG ĐẠT'}\n\n"
-               f"2. Độ mảnh (phương 2):\n"
-               f"   {dns_txt}\n\n"
-               f"3. Cắt (phương 2):\n"
-               f"   {shear_txt}")
-        messagebox.showinfo("Kết quả ACI 318-19", msg)
+            print("Lỗi render ACI report:", ex)
+        self._pdf_inp, self._pdf_res = inp, None  # đánh dấu ACI mode
+
+    def _show_aci_summary(self):
+        """Vẽ 2 biểu đồ ACI trong tab Kết quả tính toán."""
+        if not HAS_MPL:
+            return
+        sec = self._aci_sec
+        inp = self._aci_inp
+        aci_res = self._aci_res
+        conc = self._aci_conc
+        steel = self._aci_steel
+        tied = self._aci_tied
+        from rc_column.aci_chart_draw import draw_aci_nm_alpha_ax, draw_aci_m2m3_ax
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        # Xóa nội dung cũ
+        for w in self._sum_inner.winfo_children():
+            w.destroy()
+        self._sum_inner.columnconfigure(0, weight=1)
+        self._sum_inner.columnconfigure(1, weight=1)
+        # Tiêu đề ACI
+        hdr = ttk.Frame(self._sum_inner)
+        hdr.grid(row=0, column=0, columnspan=2, sticky=tk.EW, padx=4, pady=4)
+        dc_txt = f"D/C = {aci_res['dc']:.3f} (FS = {aci_res['fs']:.2f})"
+        ok_txt = "ĐẠT" if aci_res['ok'] else "KHÔNG ĐẠT"
+        ttk.Label(hdr, text=f"ACI 318-19 — {dc_txt} → {ok_txt}",
+                  font=("", 12, "bold")).pack()
+        # 2 biểu đồ
+        for col, (title, draw_fn) in enumerate([
+                ("Biểu đồ tương tác N-Mα (ACI)", draw_aci_nm_alpha_ax),
+                ("Biểu đồ tương tác M2-M3 (ACI)", draw_aci_m2m3_ax)]):
+            cf = tk.Frame(self._sum_inner, bg="white",
+                          highlightbackground="#E5E7EB", highlightthickness=1,
+                          highlightcolor="#E5E7EB", padx=8, pady=8)
+            cf.grid(row=1, column=col, sticky="nsew", padx=4)
+            tk.Label(cf, text=title, font=("", 10, "bold"),
+                     fg="#111827", bg="white").pack(pady=(0, 4))
+            fig = Figure(figsize=(5.2, 3.9), dpi=100)
+            ax = fig.add_subplot(111)
+            draw_fn(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
+            fig.tight_layout()
+            fig.subplots_adjust(bottom=0.30)
+            cv = FigureCanvasTkAgg(fig, master=cf)
+            cv.draw()
+            _w = cv.get_tk_widget()
+            try:
+                _w.configure(highlightthickness=0, takefocus=0,
+                             highlightbackground="white", highlightcolor="white",
+                             borderwidth=0)
+            except Exception:
+                pass
+            _w.pack(fill=tk.BOTH, expand=True)
+            if col == 0:
+                self._aci_nm_fig = fig
+            else:
+                self._aci_m2m3_fig = fig
+
+    def _render_aci_report(self, sections):
+        """Hiển thị thuyết minh ACI trong tab Chi tiết tính toán."""
+        for w in self._calc_inner.winfo_children():
+            w.destroy()
+        for sec in sections:
+            # Header mục
+            hdr = tk.Frame(self._calc_inner, bg="white")
+            hdr.pack(fill=tk.X, padx=4, pady=(14, 6))
+            tk.Label(hdr, text=f"● {sec['num']}. {sec['title']}",
+                     font=("", 11, "bold"), fg="#111827", bg="white").pack(side=tk.LEFT)
+            if sec.get('ref'):
+                tk.Label(hdr, text=sec['ref'], font=("", 8), fg="#6B7280",
+                         bg="white").pack(side=tk.RIGHT, padx=4)
+            # Các card
+            for card in sec.get('cards', []):
+                c = tk.Frame(self._calc_inner, bg="white",
+                             highlightbackground="#E5E7EB", highlightthickness=1,
+                             padx=12, pady=10)
+                c.pack(fill=tk.X, padx=8, pady=4)
+                tk.Label(c, text=card.get('title', ''), font=("", 10, "bold"),
+                         fg="#111827", bg="white", anchor="w").pack(fill=tk.X)
+                if card.get('ref'):
+                    tk.Label(c, text=card['ref'], font=("", 8), fg="#6B7280",
+                             bg="white", anchor="w").pack(fill=tk.X)
+                for ln in card.get('lines', []):
+                    tk.Label(c, text=ln, font=("", 9), fg="#374151",
+                             bg="#F9FAFB", anchor="w", justify=tk.LEFT).pack(fill=tk.X, pady=1)
+                if card.get('result'):
+                    tk.Label(c, text=card['result'], font=("", 10, "bold"),
+                             fg="#111827", bg="white", anchor="w").pack(fill=tk.X, pady=(6, 0))
+        self._calc_inner.update_idletasks()
+        self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
+        self._bind_wheel(self._calc_inner, self._calc_canvas)
 
     # ---------------- ETABS ----------------
     def on_import_etabs(self):
