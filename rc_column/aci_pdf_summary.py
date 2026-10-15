@@ -462,24 +462,28 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                                  fyt_MPa=_fyt, s_mm=_sw_s, d_mm=_d)
             _rows.append((Q, _r))
         (_q2, _r2), (_q3, _r3) = _rows
+        _d2 = _t3 - inp.cover - _sw_dia - 12
+        _d3 = _t2 - inp.cover - _sw_dia - 12
         _sw_lines = [
             ("Thép đai bố trí", _sw_txt, _sw_txt),
             ("Lực cắt tính toán, Vu",
              f"{abs(_q2):.1f} kN", f"{abs(_q3):.1f} kN"),
-            ("Vc", f"{_r2['Vc_kN']:.1f} kN", f"{_r3['Vc_kN']:.1f} kN"),
-            ("Vs", f"{_r2['Vs_kN']:.1f} kN", f"{_r3['Vs_kN']:.1f} kN"),
-            ("φVn", f"{_r2['phi_Vn_kN']:.1f} kN",
+            ("Kích thước tiết diện, b × d",
+             f"{_t2:.0f} × {_d2:.0f} mm", f"{_t3:.0f} × {_d3:.0f} mm"),
+            ("Av = n × φ",
+             f"{_Av:.0f} mm²", f"{_Av:.0f} mm²"),
+            ("Vc (bê tông)", f"{_r2['Vc_kN']:.1f} kN",
+             f"{_r3['Vc_kN']:.1f} kN"),
+            ("Vs (cốt đai)", f"{_r2['Vs_kN']:.1f} kN",
+             f"{_r3['Vs_kN']:.1f} kN"),
+            ("φVn = 0.75×(Vc+Vs)", f"{_r2['phi_Vn_kN']:.1f} kN",
              f"{_r3['phi_Vn_kN']:.1f} kN"),
-            ("Kết luận",
-             "<b>ĐẠT</b>" if _r2['ok'] else "<b>KHÔNG ĐẠT</b>",
-             "<b>ĐẠT</b>" if _r3['ok'] else "<b>KHÔNG ĐẠT</b>"),
         ]
         for a, b, c in _sw_lines:
-            _is_kl = "Kết luận" in a
             _data.append([
                 Paragraph(a, st_lbl),
-                Paragraph(b, st_cell_b if _is_kl else st_cell),
-                Paragraph(c, st_cell_b if _is_kl else st_cell),
+                Paragraph(b, st_cell),
+                Paragraph(c, st_cell),
             ])
         for i in range(1, len(_data)):
             for j in (1, 2):
@@ -501,6 +505,13 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                             HexColor("#F2F2F2")))
         t_sw.setStyle(TableStyle(_st))
         _sw_story.append(t_sw)
+        # Kết luận chung (giống app)
+        _ok_all = _r2['ok'] and _r3['ok']
+        _kl_txt = "ĐẠT" if _ok_all else "KHÔNG ĐẠT"
+        _kl_color = "#065F46" if _ok_all else "#991B1B"
+        _sw_story.append(Paragraph(
+            f'<b><font color="{_kl_color}">Kết luận chịu cắt: {_kl_txt}</font></b>',
+            st_cell))
     except Exception as e:
         _sw_story.append(Paragraph(f"Không tính được cắt: {e}", st_cell))
     story.append(KeepTogether(_sw_story))
