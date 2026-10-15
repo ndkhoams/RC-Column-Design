@@ -901,7 +901,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             _cols.append(dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh))
         _r2, _r3 = _cols[0], _cols[1]
         _sw_data = [
-            [Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_hdr_left),
+            [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
@@ -922,7 +922,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
              f"{_r2['sh'].Qb_opt:.1f} kN", f"{_r3['sh'].Qb_opt:.1f} kN"),
             ("Q<sub>sw</sub> = 0.75×q<sub>sw</sub>×C",
              f"{_r2['sh'].Qsw_opt:.1f} kN", f"{_r3['sh'].Qsw_opt:.1f} kN"),
-            ("Chiều dài hình chiếu của vết nứt xiên C cho [Q]min",
+            ("Chiều dài hình chiếu của vết nứt xiên C",
              f"{_r2['sh'].C_opt:.0f} mm", f"{_r3['sh'].C_opt:.0f} mm"),
             ("Độ bền trên vết nứt xiên Q ≤ [Q] = Q<sub>b</sub> + Q<sub>sw</sub>",
              f"{_r2['sh'].Qcap2:.1f} kN", f"{_r3['sh'].Qcap2:.1f} kN"),
@@ -959,7 +959,11 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     except Exception as e:
         _sw_story.append(Paragraph(f"Không tính được thép đai: {e}", st_cell))
     # Giữ toàn bộ bảng thép đai trên cùng 1 trang
-    story.append(KeepTogether(_sw_story))
+    # Dùng KeepTogether với table trực tiếp (không qua list trung gian) để tránh lệch lề
+    if len(_sw_story) == 1 and isinstance(_sw_story[0], Table):
+        story.append(KeepTogether(_sw_story[0]))
+    else:
+        story.append(KeepTogether(_sw_story))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=15 * mm, rightMargin=15 * mm,
