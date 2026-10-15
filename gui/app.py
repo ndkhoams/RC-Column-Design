@@ -396,10 +396,10 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self._row(fl, "Loại tiết diện", self.cb_kind, 0)
-        self.en_cx = ttk.Entry(fl, width=12); self.en_cx.insert(0, "400")
-        self._row(fl, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
         self.en_cy = ttk.Entry(fr, width=12); self.en_cy.insert(0, "400")
         self._row(fr, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
+        self.en_cx = ttk.Entry(fr, width=12); self.en_cx.insert(0, "400")
+        self._row(fr, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
@@ -557,6 +557,10 @@ class App(tk.Tk):
         sw_hdr = ttk.Frame(f)
         sw_hdr.grid(row=0, column=1, sticky=tk.NSEW,
                     padx=4, pady=(4, 2))
+        # Đẩy khung đai xuống 1 hàng để thẳng hàng với các dòng thép dọc:
+        # hàng tiêu đề (Số nhánh/Đ.kính/K.cách) chiếm chỗ của dòng
+        # "Lớp bê tông bảo vệ", Đai bao thẳng hàng "4 thanh thép góc"...
+        sw_hdr.grid_rowconfigure(0, minsize=34)
         for j, t in enumerate(("Số nhánh", "Đ.kính", "K.cách")):
             ttk.Label(sw_hdr, text=t, style="Muted.TLabel").grid(
                 row=0, column=j + 1, padx=2)
