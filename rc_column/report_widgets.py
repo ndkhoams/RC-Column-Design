@@ -495,7 +495,13 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
             _fig.subplots_adjust(bottom=0.30)
             cv = FigureCanvasTkAgg(_fig, master=cf)
             cv.draw()
-            cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            _w = cv.get_tk_widget()
+            # Bỏ viền highlight khi click chọn canvas
+            try:
+                _w.configure(highlightthickness=0, takefocus=0)
+            except Exception:
+                pass
+            _w.pack(fill=tk.BOTH, expand=True)
             if not hasattr(g, "_chart_cvs"):
                 g._chart_cvs = []
             g._chart_cvs.append(cv)
