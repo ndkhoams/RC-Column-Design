@@ -426,7 +426,7 @@ def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
 
 
 def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
-               chart_pngs=None):
+               chart_pngs=None, chart_figs=None):
     _section_header(g, 6,
                     "ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC THEO MÔ HÌNH BIẾN DẠNG PHI TUYẾN (NDM)",
                     "TCVN 5574:2018 Mục 8.1.2.7")
@@ -460,25 +460,44 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
                     [f"D/C = |OA| / |OB| = {_f(OA, 1)} / {_f(OB, 1)}",
                      f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"])
     c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
-    # Biểu đồ tương tác: dùng PNG từ tab Tóm tắt (giống hệt)
-    # chart_pngs: tuple (png_nm, png_m2m3) hoặc None
-    from tkinter import PhotoImage
-    import base64
-    pngs = []
-    if chart_pngs:
-        pngs = list(chart_pngs)
-    else:
-        # Fallback: tạo từ pdf_export nếu không có
+    # Biểu đồ tương tác: ưu tiên dùng figure matplotlib giống hệt tab Kết quả
+    # chart_figs: tuple (fig_nm, fig_m2m3) hoặc None
+    # chart_pngs: tuple (png_nm, png_m2m3) hoặc None (fallback cũ)
+    chart_frame = tk.Frame(g, bg=WHITE)
+    chart_frame.pack(fill=tk.X, padx=8, pady=8)
+    titles = ("Biểu đồ tương tác N-Mα", "Biểu đồ tương tác M2-M3")
+    if chart_figs and len(chart_figs) == 2:
         try:
-            from .pdf_export import interaction_image, m2m3_image
-            pngs = [interaction_image(sec, inp, res, width_in=4.0, dpi=100),
-                    m2m3_image(sec, inp, res, width_in=4.0, dpi=100)]
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            for title, fig in zip(titles, chart_figs):
+                cf = tk.Frame(chart_frame, bg=WHITE,
+                              highlightbackground=BORDER, highlightthickness=1,
+                              padx=8, pady=8)
+                cf.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
+                tk.Label(cf, text=title, font=("", 10, "bold"),
+                         fg=TEXT, bg=WHITE).pack(pady=(0, 4))
+                cv = FigureCanvasTkAgg(fig, master=cf)
+                cv.draw()
+                cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+                if not hasattr(g, "_chart_cvs"):
+                    g._chart_cvs = []
+                g._chart_cvs.append(cv)
         except Exception:
             pass
-    if pngs:
-        chart_frame = tk.Frame(g, bg=WHITE)
-        chart_frame.pack(fill=tk.X, padx=8, pady=8)
-        titles = ("Biểu đồ tương tác N-Mα", "Biểu đồ tương tác M2-M3")
+    else:
+        # Fallback PNG cũ
+        from tkinter import PhotoImage
+        import base64
+        pngs = []
+        if chart_pngs:
+            pngs = list(chart_pngs)
+        else:
+            try:
+                from .pdf_export import interaction_image, m2m3_image
+                pngs = [interaction_image(sec, inp, res, width_in=4.0, dpi=100),
+                        m2m3_image(sec, inp, res, width_in=4.0, dpi=100)]
+            except Exception:
+                pass
         for title, png in zip(titles, pngs):
             try:
                 ph = PhotoImage(data=base64.b64encode(png).decode())
@@ -594,7 +613,7 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
 
 def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
                        case_info=None, shear_info=None,
-                       chart_pngs=None) -> tk.Frame:
+                       chart_pngs=None, chart_figs=None) -> tk.Frame:
     """Dựng toàn bộ thuyết minh mục 1-7 kiểu Vietcon vào parent.
 
     Trả về frame chứa nội dung (để caller pack/grid).
@@ -610,7 +629,7 @@ def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
     _build_sec3(body, inp, res, sec)
     _build_sec4(body, inp, res, sec, case_info)
     _build_sec5(body, inp, res, sec)
-    _build_sec6(body, inp, res, sec, chart_pngs)
+    _build_sec6(body, inp, res, sec, chart_pngs, chart_figs)
     _build_sec7(body, inp, res, sec, shear_info)
     # Spacer hút khoảng trống xuống đáy (fix Canvas Win)
     tk.Frame(body, bg=WHITE).pack(fill=tk.BOTH, expand=True)
