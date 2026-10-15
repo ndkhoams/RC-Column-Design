@@ -325,7 +325,9 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     ]))
     left_flow.append(_sec_table("VẬT LIỆU", [
         ("Cường độ bê tông, f'c", f"{conc.fc:.2f} MPa"),
+        ("Mô đun đàn hồi bê tông, Ec", f"{conc.Ec:.0f} MPa"),
         ("Cường độ thép dọc, fy", f"{steel.fy:.0f} MPa"),
+        ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
         ("Cường độ thép đai, fyt", f"{_fyt:.0f} MPa"),
         ("Loại cốt đai", tie_txt),
     ]))
