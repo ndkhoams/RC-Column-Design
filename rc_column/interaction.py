@@ -4,7 +4,7 @@ Phương pháp:
 - Rời rạc tiết diện thành fiber (numpy, vector hóa).
 - Với mỗi góc uốn theta: xoay hệ tọa độ, phân tích một phương (quét trục
   trung hòa với biến dạng bê tông mép nén đạt eps_cu) -> đường cong (N, M).
-- Kiểm tra (N, Mx, My): tính M = sqrt(Mx²+My²), phi = atan2(My, Mx),
+- Kiểm tra (N, Mx, My): tính M = sqrt(Mx²+My²), phi = atan2(Mx, My)  # quy ước ETABS: đo từ trục M3,
   nội suy khả năng chịu từ các đường cong theo góc -> hệ số sử dụng.
 
 Đơn vị: N (kN), M (kN·m), kích thước (mm).
@@ -88,10 +88,12 @@ def uniaxial_curve_fs(fs: FiberSection, theta_deg: float,
                       n_points: int = 48) -> List[Tuple[float, float]]:
     """Đường cong (N, M) khi uốn với vectơ mô men nghiêng góc theta (độ).
 
+    Quy ước góc kiểu ETABS: theta đo từ trục M3 (theta=0° → thuần M3/My,
+    theta=90° → thuần M2/Mx), tức hướng mô men (M2, M3) = (sin theta, cos theta).
     Thực hiện bằng cách xoay tọa độ fiber rồi phân tích một phương.
     Trả về list (N [kN], M [kN·m]) sắp theo N giảm dần.
     """
-    th = math.radians(theta_deg)
+    th = math.radians(90.0 - theta_deg)
     ct, st = math.cos(th), math.sin(th)
     # Tọa độ xoay: x' = x ct + y st ; y' = -x st + y ct
     # Uốn quanh trục x' -> biến dạng theo y'
@@ -217,7 +219,7 @@ class BiaxialCapacity:
             th = 360.0 * k / n_angles
             m = self.moment_capacity(N, th)
             rad = math.radians(th)
-            pts.append((m * math.cos(rad), m * math.sin(rad)))
+            pts.append((m * math.sin(rad), m * math.cos(rad)))  # quy ước ETABS: M2=M sinθ, M3=M cosθ
         pts.append(pts[0])
         return pts
 
@@ -238,8 +240,8 @@ class BiaxialCapacity:
             for j, th in enumerate(th_vals):
                 m = self.moment_capacity(float(nn), float(th))
                 rad = math.radians(th)
-                mx_grid[i, j] = m * math.cos(rad)
-                my_grid[i, j] = m * math.sin(rad)
+                mx_grid[i, j] = m * math.sin(rad)  # M2
+                my_grid[i, j] = m * math.cos(rad)  # M3
         return n_vals, th_vals, mx_grid, my_grid
 
     def dc_ratio(self, N: float, Mx: float, My: float,
@@ -253,7 +255,7 @@ class BiaxialCapacity:
         if Mstar < 1e-12 and abs(N) < 1e-12:
             return {"dc": 0.0, "lambda_max": float("inf"),
                     "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": True}
-        phi = math.degrees(math.atan2(My, Mx)) if Mstar > 1e-12 else 0.0
+        phi = math.degrees(math.atan2(Mx, My)) if Mstar > 1e-12 else 0.0
 
         def f(lam: float) -> float:
             return self.moment_capacity(lam * N, phi) - lam * Mstar
@@ -284,7 +286,7 @@ class BiaxialCapacity:
     def check(self, N: float, Mx: float, My: float) -> dict:
         """Kiểm tra (N kN, Mx, My kN·m). Trả về dict kết quả."""
         M = math.hypot(Mx, My)
-        phi = math.degrees(math.atan2(My, Mx)) if M > 1e-12 else 0.0
+        phi = math.degrees(math.atan2(Mx, My)) if M > 1e-12 else 0.0
         Mcap = self.moment_capacity(N, phi)
         util = M / Mcap if Mcap > 1e-12 else (float("inf") if M > 1e-12 else 0.0)
         # khả năng chịu dọc trục
