@@ -62,7 +62,7 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
     GREEN, GREEN_LT = "#059669", "#D1FAE5"
     RED, ORANGE = "#DC2626", "#F97316"
     BLUE_DASH = "#3B82F6"
-    load_alpha = math.degrees(math.atan2(M3_kNm, M2_kNm))
+    load_alpha = math.degrees(math.atan2(M2_kNm, M3_kNm))  # quy ước ETABS: đo từ trục M3
     alpha_deg = load_alpha if view_angle_deg is None else view_angle_deg
     n_pos, m_pos = _design_curve(sec, conc, steel, alpha_deg, tied=tied)
     m_neg = [-m for m in m_pos]
@@ -134,8 +134,8 @@ def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
                                 tied=tied, n_points=36)
         Md = _interp_M_at_N(n_d, m_d, N_kN)
         th = math.radians(deg)
-        xs.append(Md * math.cos(th))
-        ys.append(Md * math.sin(th))
+        xs.append(Md * math.sin(th))  # M2 = Md sinθ (quy ước ETABS)
+        ys.append(Md * math.cos(th))  # M3 = Md cosθ
     xs.append(xs[0])
     ys.append(ys[0])
     ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
