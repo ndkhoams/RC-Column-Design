@@ -41,13 +41,16 @@ def _interp_M_at_N(n_list, m_list, N):
 
 
 def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
-                         N_kN, M2_kNm, M3_kNm, tied=True):
+                         N_kN, M2_kNm, M3_kNm, tied=True,
+                         view_angle_deg=None):
     # Biểu đồ N-Mα theo ACI 318-19 tại góc uốn xiên α
+    # view_angle_deg: góc xem đường cong (None = góc tải trọng)
     # Style Y HỆT chart_draw.draw_nm_alpha_ax
     GREEN, GREEN_LT = "#059669", "#D1FAE5"
     RED, ORANGE = "#DC2626", "#F97316"
     BLUE_DASH = "#3B82F6"
-    alpha_deg = math.degrees(math.atan2(M3_kNm, M2_kNm))
+    load_alpha = math.degrees(math.atan2(M3_kNm, M2_kNm))
+    alpha_deg = load_alpha if view_angle_deg is None else view_angle_deg
     n_pos, m_pos = _design_curve(sec, conc, steel, alpha_deg, tied=tied)
     m_neg = [-m for m in m_pos]
     ax.plot(m_pos, n_pos, color=GREEN, linewidth=2.2, zorder=3)
@@ -78,7 +81,8 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
             weight="bold", va="center", zorder=7)
     ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
             weight="bold", va="center", zorder=7)
-    ax.set_xlabel("Mα (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_xlabel(f"Mα (kN·m){'' if view_angle_deg is None else f' @ {view_angle_deg:.0f}°'}",
+                fontweight="bold", fontsize=10)
     ax.set_ylabel("N (kN)", fontweight="bold", fontsize=10)
 
     # Legend 4 mục Y HỆT chart_draw, đặt dưới biểu đồ
