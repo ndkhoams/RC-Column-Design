@@ -1208,6 +1208,9 @@ class App(tk.Tk):
         fig_nm.tight_layout()
         fig_nm.subplots_adjust(bottom=0.30)
         cv_nm.draw()
+        # Lưu tham chiếu để vẽ lại khi đổi góc xem
+        self._aci_nm_ax_ref = a3
+        self._aci_nm_cv_ref = cv_nm
 
         # ===== Ô dưới-phải: header + biểu đồ M2-M3 (ACI) =====
         f_br = ttk.Frame(self._sum_inner)
@@ -1348,9 +1351,60 @@ class App(tk.Tk):
         left.pack(side=tk.LEFT)
         tk.Label(left, text="● Biểu đồ tương tác N–Mα (ACI)",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
-        tk.Label(left, text=f"  α = {alpha_deg:.1f}°  ",
-                 font=("", 8, "bold"), fg="#065F46",
-                 bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
+        self._aci_nm_alpha_lbl = tk.Label(
+            left, text=f"  α = {alpha_deg:.1f}°  ",
+            font=("", 8, "bold"), fg="#065F46", bg="#D1FAE5")
+        self._aci_nm_alpha_lbl.pack(side=tk.LEFT, padx=6)
+        # Combobox chọn góc xem biểu đồ N-M
+        right = ttk.Frame(hdr)
+        right.pack(side=tk.RIGHT)
+        tk.Label(right, text="Góc xem:", font=("", 8),
+                 bg="white").pack(side=tk.LEFT)
+        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)]
+        self._aci_nm_angle_cb = ttk.Combobox(
+            right, values=_vals, width=11, state="readonly", font=("", 8))
+        self._aci_nm_angle_cb.set("α (góc tải)")
+        self._aci_nm_angle_cb.pack(side=tk.LEFT, padx=(4, 0))
+        self._aci_nm_angle_cb.bind("<<ComboboxSelected>>",
+                                   self._on_aci_nm_angle_changed)
+        self._aci_nm_view_angle = None  # None = góc tải mặc định
+
+    def _on_aci_nm_angle_changed(self, event=None):
+        """Vẽ lại biểu đồ N-Mα (ACI) tại góc được chọn."""
+        try:
+            sel = self._aci_nm_angle_cb.get()
+            if sel.startswith("α"):
+                angle = None
+            else:
+                angle = float(sel.replace("°", ""))
+        except Exception:
+            angle = None
+        self._aci_nm_view_angle = angle
+        try:
+            if angle is None:
+                import math
+                inp = self._aci_inp
+                a0 = math.degrees(math.atan2(inp.My, inp.Mx)) \
+                    if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+                self._aci_nm_alpha_lbl.config(text=f"  α = {a0:.1f}°  ")
+            else:
+                self._aci_nm_alpha_lbl.config(text=f"  xem {angle:.0f}°  ")
+        except Exception:
+            pass
+        try:
+            from rc_column.aci_chart_draw import draw_aci_nm_alpha_ax
+            ax = self._aci_nm_ax_ref
+            ax.clear()
+            draw_aci_nm_alpha_ax(
+                ax, self._aci_sec, self._aci_conc, self._aci_steel,
+                self._aci_res, self._aci_inp.N, self._aci_inp.Mx,
+                self._aci_inp.My, tied=self._aci_tied,
+                view_angle_deg=angle)
+            self._aci_nm_fig.tight_layout()
+            self._aci_nm_fig.subplots_adjust(bottom=0.30)
+            self._aci_nm_cv_ref.draw()
+        except Exception:
+            pass
 
     def _build_aci_m2m3_header(self, parent, inp):
         """Header trên biểu đồ M2-M3 (ACI)."""
@@ -2563,9 +2617,59 @@ class App(tk.Tk):
         left.pack(side=tk.LEFT)
         tk.Label(left, text="\u25cf Bi\u1ec3u \u0111\u1ed3 t\u01b0\u01a1ng t\u00e1c N\u2013M\u03b1",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
-        tk.Label(left, text=f"  \u03b1 = {alpha_deg:.1f}\u00b0  ",
-                 font=("", 8, "bold"), fg="#065F46",
-                 bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
+        self._nm_alpha_lbl = tk.Label(
+            left, text=f"  \u03b1 = {alpha_deg:.1f}\u00b0  ",
+            font=("", 8, "bold"), fg="#065F46", bg="#D1FAE5")
+        self._nm_alpha_lbl.pack(side=tk.LEFT, padx=6)
+        # Combobox chọn góc xem biểu đồ N-M
+        right = ttk.Frame(hdr)
+        right.pack(side=tk.RIGHT)
+        tk.Label(right, text="G\u00f3c xem:", font=("", 8),
+                 bg="white").pack(side=tk.LEFT)
+        _vals = ["\u03b1 (g\u00f3c t\u1ea3i)"] + \
+            [f"{d}\u00b0" for d in range(0, 361, 15)]
+        self._nm_angle_cb = ttk.Combobox(right, values=_vals, width=11,
+                                         state="readonly", font=("", 8))
+        self._nm_angle_cb.set("\u03b1 (g\u00f3c t\u1ea3i)")
+        self._nm_angle_cb.pack(side=tk.LEFT, padx=(4, 0))
+        self._nm_angle_cb.bind("<<ComboboxSelected>>",
+                               self._on_nm_angle_changed)
+        self._nm_view_angle = None  # None = góc tải mặc định
+
+    def _on_nm_angle_changed(self, event=None):
+        """Vẽ lại biểu đồ N-M tại góc được chọn trong Combobox."""
+        try:
+            sel = self._nm_angle_cb.get()
+            if sel.startswith("\u03b1"):
+                angle = None
+            else:
+                angle = float(sel.replace("\u00b0", ""))
+        except Exception:
+            angle = None
+        self._nm_view_angle = angle
+        # Cập nhật nhãn α trên header
+        try:
+            if angle is None:
+                import math
+                res = self._last_res
+                a0 = math.degrees(math.atan2(res.My_star, res.Mx_star)) \
+                    if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
+                self._nm_alpha_lbl.config(text=f"  \u03b1 = {a0:.1f}\u00b0  ")
+            else:
+                self._nm_alpha_lbl.config(
+                    text=f"  xem {angle:.0f}\u00b0  ")
+        except Exception:
+            pass
+        # Vẽ lại chỉ biểu đồ N-M
+        try:
+            ax = self._nm_ax_ref
+            ax.clear()
+            self._nm_draw_fn(ax, angle)
+            self._nm_fig.tight_layout()
+            self._nm_fig.subplots_adjust(bottom=0.30)
+            self._nm_cv_ref.draw()
+        except Exception:
+            pass
 
     def _build_m2m3_header(self, parent, res):
         """Header tr\u00ean bi\u1ec3u \u0111\u1ed3 M2-M3."""
@@ -2714,14 +2818,18 @@ class App(tk.Tk):
         from rc_column.chart_draw import draw_nm_alpha_ax, draw_m2m3_ax
         fs = FiberSection(sec)
 
-        def _nm_alpha_ax(ax, title_sz=12):
+        def _nm_alpha_ax(ax, title_sz=12, view_angle_deg=None):
             # Biểu đồ N-M tại góc uốn xiên α (dùng điểm B song trục)
+            # view_angle_deg: góc xem đường cong (None = góc tải trọng)
             # Style theo mẫu: đường xanh lá, fill nhạt, lưới đứt mảnh
             GREEN, GREEN_LT = "#059669", "#D1FAE5"
             RED, ORANGE = "#DC2626", "#F97316"
             BLUE_DASH = "#3B82F6"
-            alpha_deg = math.degrees(
-                math.atan2(res.My_star, res.Mx_star))
+            if view_angle_deg is not None:
+                alpha_deg = view_angle_deg
+            else:
+                alpha_deg = math.degrees(
+                    math.atan2(res.My_star, res.Mx_star))
             cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
             m_pos = [p[1] for p in cv]
             n_pos = [p[0] for p in cv]
@@ -2754,7 +2862,9 @@ class App(tk.Tk):
                     weight="bold", va="center", zorder=7)
             ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
                     weight="bold", va="center", zorder=7)
-            ax.set_xlabel("Mα (kN·m)", fontweight="bold", fontsize=10)
+            _xlbl = ("Mα (kN·m)" if view_angle_deg is None
+                     else f"Mα (kN·m) @ {view_angle_deg:.0f}°")
+            ax.set_xlabel(_xlbl, fontweight="bold", fontsize=10)
             ax.set_ylabel("N (kN)", fontweight="bold", fontsize=10)
 
             # Legend 4 mục như web, đặt dưới biểu đồ
@@ -2890,6 +3000,11 @@ class App(tk.Tk):
         fig_nm.tight_layout()
         fig_nm.subplots_adjust(bottom=0.30)
         cv_nm.draw()
+        # Lưu tham chiếu để vẽ lại khi đổi góc xem
+        self._nm_ax_ref = a3
+        self._nm_cv_ref = cv_nm
+        self._nm_draw_fn = lambda ax, va=None: _nm_alpha_ax(
+            ax, view_angle_deg=va)
 
         # ===== Ô dưới-phải: header + biểu đồ M2-M3 =====
         f_br = ttk.Frame(self._sum_inner)
