@@ -11,7 +11,7 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
     RED, ORANGE = "#DC2626", "#F97316"
     BLUE_DASH = "#3B82F6"
     alpha_deg = math.degrees(
-        math.atan2(res.My_star, res.Mx_star))
+        math.atan2(res.Mx_star, res.My_star))  # quy ước ETABS: đo từ trục M3
     cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
     m_pos = [p[1] for p in cv]
     n_pos = [p[0] for p in cv]
