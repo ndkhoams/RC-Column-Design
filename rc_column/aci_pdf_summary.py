@@ -297,7 +297,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     _story_txt, _label_txt, _combo_txt = "—", "—", "—"
     if case_info:
         _story_txt = str(case_info.get("story", "—"))
-        _label_txt = str(case_info.get("label", "—"))
+        _label_txt = str(case_info.get("label", case_info.get("column", "—")))
         _combo_txt = str(case_info.get("case", case_info.get("combo", "—")))
     _vpos = f"[{_story_txt}]-[{_label_txt}]" if _story_txt != "—" else "—"
 
@@ -432,7 +432,6 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     # ===== KIỂM TRA CẮT (full width, giữ ở trang 1) =====
     from reportlab.platypus import KeepTogether
     _sw_story = []
-    _sw_story.append(Paragraph("<b>KIỂM TRA CẮT (ACI 22.5)</b>", st_sec_title))
     try:
         from .aci_checker import aci_shear_check
         from .sections import bar_area
@@ -442,7 +441,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         _Av = _sw_legs * bar_area(_sw_dia)
         _sw_txt = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
         _data = [
-            [Paragraph("<b>Thông số</b>", st_hdr),
+            [Paragraph("<b>KIỂM TRA CẮT (ACI 22.5)</b>", st_hdr),
              Paragraph("<b>Phương V2</b>", st_hdr),
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]

@@ -60,6 +60,8 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
+    # Chỉ hiện nửa phải (Mα >= 0) có tải — theo yêu cầu user 2026-10-16
+    ax.set_xlim(left=0)
     ax.grid(True, color="#E5E7EB", linestyle="--",
             linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)

@@ -189,9 +189,10 @@ def _radial_limit(curve, N_load: float, M_load: float):
 
 
 def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
-                      right_half=False) -> bytes:
+                      right_half=False, left_half=False) -> bytes:
     """Biểu đồ tương tác N-M tại góc uốn xiên α.
-    right_half=True: chỉ hiện nửa phải (M>=0) có đường nội lực."""
+    right_half=True: chỉ hiện nửa phải (M>=0) có đường nội lực.
+    left_half=True: chỉ hiện nửa trái (M<=0) có đường nội lực."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -242,6 +243,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     if right_half:
         # Chỉ hiện nửa phải (M >= 0)
         ax.set_xlim(left=0)
+    elif left_half:
+        # Chỉ hiện nửa trái (M <= 0)
+        ax.set_xlim(right=0)
     # Legend 4 mục như tab Kết quả (dùng Line2D custom)
     from matplotlib.lines import Line2D as _L2D
     _leg = [
@@ -658,7 +662,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                             borderPadding=(0, 0, 2))
     st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
     st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
-    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=8, leading=10,
+    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
                              alignment=TA_CENTER)
 
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
@@ -728,7 +732,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     _story_txt, _label_txt, _combo_txt = "—", "—", "—"
     if case_info:
         _story_txt = str(case_info.get("story", "—"))
-        _label_txt = str(case_info.get("label", "—"))
+        _label_txt = str(case_info.get("label", case_info.get("column", "—")))
         _combo_txt = str(case_info.get("case", case_info.get("combo", "—")))
     _vpos = f"[{_story_txt}]-[{_label_txt}]" if _story_txt != "—" else "—"
 
@@ -831,9 +835,9 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                                  show_stats=False)
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))
-        # Biểu đồ N-Mα (có tiêu đề như app)
+        # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
         _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
-                                    small=True)
+                                    small=True, right_half=True)
         right_flow.append(Paragraph(
             f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
             st_chart_title))
@@ -870,7 +874,6 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     # Dùng KeepTogether để không bị tách trang
     from reportlab.platypus import KeepTogether
     _sw_story = []
-    _sw_story.append(Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_sec_title))
     try:
         from .stirrup import StirrupInput, check_shear
         from .sections import bar_area
@@ -891,7 +894,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             _cols.append(dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh))
         _r2, _r3 = _cols[0], _cols[1]
         _sw_data = [
-            [Paragraph("<b>Thông số</b>", st_hdr),
+            [Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_hdr),
              Paragraph("<b>Phương V2</b>", st_hdr),
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
