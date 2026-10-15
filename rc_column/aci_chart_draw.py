@@ -71,7 +71,8 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
         return min(d, 360.0 - d)
     _angles = [k * 15.0 for k in range(24)]
     alpha_snap = min(_angles, key=lambda a: _adiff(a, alpha_deg))
-    n_pos, m_pos = _design_curve(sec, conc, steel, alpha_snap, tied=tied)
+    n_pos, m_pos = _design_curve(sec, conc, steel, alpha_snap, tied=tied,
+                                 n_points=96)
     m_neg = [-m for m in m_pos]
     ax.plot(m_pos, n_pos, color=GREEN, linewidth=2.2, zorder=3)
     ax.plot(m_neg, n_pos, color=GREEN, linewidth=2.2, zorder=3)
@@ -142,7 +143,7 @@ def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
     xs, ys = [], []
     for deg in range(0, 360, 15):
         n_d, m_d = _design_curve(sec, conc, steel, float(deg),
-                                tied=tied, n_points=36)
+                                tied=tied, n_points=72)
         Md = _interp_M_at_N(n_d, m_d, N_kN)
         th = math.radians(deg)
         xs.append(Md * math.sin(th))  # M2 = Md sinθ (quy ước ETABS)
