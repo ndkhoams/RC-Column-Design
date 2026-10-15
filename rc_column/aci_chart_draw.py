@@ -104,6 +104,8 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
     ax.set_xlabel(f"Mα (kN·m){'' if view_angle_deg is None else f' @ {view_angle_deg:.0f}°'}",
                 fontweight="bold", fontsize=10)
     ax.set_ylabel("N (kN)", fontweight="bold", fontsize=10)
+    # Chỉ hiện N >= 0 (ẩn vùng chịu kéo) — theo yêu cầu user 2026-10-16
+    ax.set_ylim(bottom=0)
 
     # Legend 4 mục Y HỆT chart_draw, đặt dưới biểu đồ
     from matplotlib.lines import Line2D

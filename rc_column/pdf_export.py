@@ -235,11 +235,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     ax.set_xlabel("Mα (kN·m)", fontsize=10, fontweight="bold")
     ax.set_ylabel("N (kN)", fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
-    ax.text(0.05, 0.95, f"α = {alpha_deg:.1f}°",
-            transform=ax.transAxes, fontsize=8, color="#4B5563",
-            va="top", ha="left",
-            bbox=dict(boxstyle="round,pad=0.3", fc="white",
-                      ec="#E5E7EB", alpha=0.9))
+    # Bỏ textbox α trong hình (đã có trên tiêu đề) — theo yêu cầu user 2026-10-16
+    # Chỉ hiện N >= 0 (ẩn vùng chịu kéo)
+    ax.set_ylim(bottom=0)
     if right_half:
         # Chỉ hiện nửa phải (M >= 0)
         ax.set_xlim(left=0)
