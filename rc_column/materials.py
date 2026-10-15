@@ -48,10 +48,10 @@ class SteelGrade:
 
 
 STEEL_GRADES: Dict[str, SteelGrade] = {
-    "CB240-T": SteelGrade("CB240-T", Rs=210.0, Rsc=210.0, Rsw=170.0, Es=2.1e5),
-    "CB300-V": SteelGrade("CB300-V", Rs=260.0, Rsc=260.0, Rsw=215.0, Es=2.1e5),
-    "CB400-V": SteelGrade("CB400-V", Rs=350.0, Rsc=350.0, Rsw=280.0, Es=2.1e5),
-    "CB500-V": SteelGrade("CB500-V", Rs=435.0, Rsc=400.0, Rsw=300.0, Es=2.1e5),
+    "CB240-T": SteelGrade("CB240-T", Rs=210.0, Rsc=210.0, Rsw=170.0, Es=2.0e5),
+    "CB300-V": SteelGrade("CB300-V", Rs=260.0, Rsc=260.0, Rsw=215.0, Es=2.0e5),
+    "CB400-V": SteelGrade("CB400-V", Rs=350.0, Rsc=350.0, Rsw=280.0, Es=2.0e5),
+    "CB500-V": SteelGrade("CB500-V", Rs=435.0, Rsc=400.0, Rsw=300.0, Es=2.0e5),
 }
 
 
