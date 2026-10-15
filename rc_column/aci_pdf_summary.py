@@ -484,7 +484,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         for i in range(1, len(_data)):
             for j in (1, 2):
                 _data[i][j].style.alignment = TA_CENTER
-        t_sw = Table(_data, colWidths=[60 * mm, 60 * mm, 60 * mm],
+        t_sw = Table(_data, colWidths=[90 * mm, 45 * mm, 45 * mm],
                      hAlign="LEFT")
         _st = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
