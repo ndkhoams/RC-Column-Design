@@ -50,7 +50,9 @@ def aci_interaction_curve(sec: Section, conc: ACIConcrete, steel: ACISteel,
     N, M là DANH NGHĨA (chưa nhân phi); eps_t là biến dạng kéo lớn nhất
     của thép (số dương, độ lớn); phi là hệ số giảm cường độ tại điểm đó.
     """
-    th = math.radians(theta_deg)
+    # Quy ước góc kiểu ETABS: α đo từ trục M3 (α=0° → thuần M3/My,
+    # α=90° → thuần M2/Mx), tức hướng mô men (M2, M3) = (sin α, cos α).
+    th = math.radians(90.0 - theta_deg)
     ct, st = math.cos(th), math.sin(th)
     fx = np.array([f.x for f in sec.fibers], dtype=float)
     fy = np.array([f.y for f in sec.fibers], dtype=float)
@@ -252,7 +254,7 @@ class ACICapacity:
             return {"dc": 0.0, "lambda_max": float("inf"),
                     "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": True,
                     "phi": 0.90, "eps_t": 0.0}
-        phi_deg = math.degrees(math.atan2(My, Mx)) if Mstar > 1e-12 else 0.0
+        phi_deg = math.degrees(math.atan2(Mx, My)) if Mstar > 1e-12 else 0.0
 
         def f(lam: float) -> float:
             return self.moment_capacity(lam * N, phi_deg) - lam * Mstar
@@ -430,7 +432,7 @@ def check_column_aci(sec: Section, conc: ACIConcrete, steel: ACISteel,
     fs = 1.0 / dc if dc > 1e-12 else float("inf")
 
     # Khả năng danh nghĩa tại điểm giới hạn B (để thuyết minh)
-    phi_deg = math.degrees(math.atan2(r["By"], r["Bx"])) if (
+    phi_deg = math.degrees(math.atan2(r["Bx"], r["By"])) if (
         abs(r["Bx"]) > 1e-12 or abs(r["By"]) > 1e-12) else 0.0
     # Nội suy Nn, Mn danh nghĩa tại BN từ đường cong danh nghĩa
     nom = aci_interaction_curve(
