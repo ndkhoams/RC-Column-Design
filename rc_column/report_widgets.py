@@ -469,11 +469,13 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
     if chart_figs and len(chart_figs) == 2:
         try:
             from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-            for title, fig in zip(titles, chart_figs):
+            chart_frame.columnconfigure(0, weight=1)
+            chart_frame.columnconfigure(1, weight=1)
+            for col, (title, fig) in enumerate(zip(titles, chart_figs)):
                 cf = tk.Frame(chart_frame, bg=WHITE,
                               highlightbackground=BORDER, highlightthickness=1,
                               padx=8, pady=8)
-                cf.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
+                cf.grid(row=0, column=col, sticky="nsew", padx=4)
                 tk.Label(cf, text=title, font=("", 10, "bold"),
                          fg=TEXT, bg=WHITE).pack(pady=(0, 4))
                 cv = FigureCanvasTkAgg(fig, master=cf)
