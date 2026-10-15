@@ -939,7 +939,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             for j in (1, 2):
                 _sw_data[i][j].style.alignment = TA_CENTER
         t_sw = Table(_sw_data, colWidths=[60 * mm, 60 * mm, 60 * mm],
-                     hAlign="LEFT", repeatRows=1)
+                     hAlign="LEFT")
         _sw_style = [
             # Không kẻ GRID — thể hiện như bảng thông tin (xen kẽ màu)
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
