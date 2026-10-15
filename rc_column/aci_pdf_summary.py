@@ -449,7 +449,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         _Av = _sw_legs * bar_area(_sw_dia)
         _sw_txt = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
         _data = [
-            [Paragraph("<b>KIỂM TRA CẮT (ACI 22.5)</b>", st_hdr_left),
+            [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
