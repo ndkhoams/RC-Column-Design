@@ -192,8 +192,8 @@ def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
 
     Mres = math.hypot(buck.Mx_star, buck.My_star)
     Mcap_pt = cap.moment_capacity(inp.N,
-                                  math.degrees(math.atan2(buck.My_star,
-                                                          buck.Mx_star))
+                                  math.degrees(math.atan2(buck.Mx_star,
+                                                          buck.My_star))
                                   if Mres > 1e-12 else 0.0)
 
     mu = sec.reinforcement_ratio
