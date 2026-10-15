@@ -25,7 +25,8 @@ def _mk(title: str, ref: str, lines: List[str], result: str = "") -> Dict[str, A
 def generate_aci_report_sections(inp, aci_res: Dict[str, Any],
                                  mm_res: Dict[str, Any],
                                  shear_res: Dict[str, Any],
-                                 conc, steel, tied: bool = True) -> List[Dict[str, Any]]:
+                                 conc, steel, tied: bool = True,
+                                 fyt_MPa: float = None) -> List[Dict[str, Any]]:
     """Tạo các mục thuyết minh kiểm tra cột theo ACI 318-19.
 
     inp: ColumnInput (lấy N, Mx/M2, My/M3, Q2...).
@@ -37,6 +38,8 @@ def generate_aci_report_sections(inp, aci_res: Dict[str, Any],
     fc = conc.fc
     fy = steel.fy
     eps_y = steel.eps_y
+    if fyt_MPa is None:
+        fyt_MPa = fy
     tie_txt = "đai rời (tied)" if tied else "đai xoắn (spiral)"
     phi_c = 0.65 if tied else 0.75
 
@@ -186,7 +189,7 @@ def generate_aci_report_sections(inp, aci_res: Dict[str, Any],
                 f"Vc = {_f(Vc, 1)} kN"),
             _mk("Cốt đai Vs và φVn",
                 "ACI 22.5",
-                [f"Vs = Av·fyt·d/s = {_f(Vs, 1)} kN",
+                [f"Vs = Av·fyt·d/s = {_f(Vs, 1)} kN (fyt = {_f(fyt_MPa, 0)} MPa)",
                  f"φVn = 0.75·(Vc + Vs) = {_f(phi_Vn, 1)} kN"],
                 f"φVn = {_f(phi_Vn, 1)} kN"),
             _mk("Kết luận cắt",
