@@ -238,13 +238,15 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
     st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
                              alignment=TA_CENTER)
+    st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
+    st_val = ParagraphStyle("val", parent=st_cell_b, alignment=TA_LEFT)
 
     def _sec_table(title, rows):
         data = [[Paragraph(f"<b>{title}</b>", st_cell_b)]]
         for lbl, val in rows:
-            data.append([Paragraph(lbl, st_cell),
-                         Paragraph(f"<b>{val}</b>", st_cell)])
-        t = Table(data, colWidths=[60 * mm, 60 * mm], hAlign="LEFT")
+            data.append([Paragraph(lbl, st_lbl),
+                         Paragraph(f"<b>{val}</b>", st_val)])
+        t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 1.5),
@@ -358,23 +360,23 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             from rc_column import pdf_export as _pdf_exp
         _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=150,
                                           show_stats=False)
-        right_flow.append(_img_from_bytes(_sec_png, 55))
+        right_flow.append(_img_from_bytes(_sec_png, 62))
         right_flow.append(Spacer(1, 4))
         # 2 biểu đồ ACI
         _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied)
         if _pngs and len(_pngs) >= 2:
-            right_flow.append(_img_from_bytes(_pngs[0], 55))
+            right_flow.append(_img_from_bytes(_pngs[0], 62))
             right_flow.append(Spacer(1, 4))
-            right_flow.append(_img_from_bytes(_pngs[1], 55))
+            right_flow.append(_img_from_bytes(_pngs[1], 62))
         elif chart_pngs and len(chart_pngs) >= 2:
-            right_flow.append(_img_from_bytes(chart_pngs[0], 55))
+            right_flow.append(_img_from_bytes(chart_pngs[0], 62))
             right_flow.append(Spacer(1, 4))
-            right_flow.append(_img_from_bytes(chart_pngs[1], 55))
+            right_flow.append(_img_from_bytes(chart_pngs[1], 62))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 
     t_main = Table([[left_flow, right_flow]],
-                   colWidths=[120 * mm, 55 * mm], hAlign="CENTER")
+                   colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
     t_main.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -427,7 +429,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         for a, b, c in _sw_lines:
             _is_kl = "Kết luận" in a
             _data.append([
-                Paragraph(a, st_cell),
+                Paragraph(a, st_lbl),
                 Paragraph(b, st_cell_b if _is_kl else st_cell),
                 Paragraph(c, st_cell_b if _is_kl else st_cell),
             ])
