@@ -1078,7 +1078,7 @@ class App(tk.Tk):
         # 2. Độ mảnh
         try:
             from rc_column.stability import effective_length
-            L0_2 = effective_length(inp.Lx, inp.psi_x) * 1000
+            L0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x, inp.psi_x) * 1000
             Ig = sec.cx * sec.cy**3 / 12
             mm_res = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.Mx, M2_kNm=inp.Mx,
                                           lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
