@@ -187,30 +187,21 @@ def _extract_shear_q(shear_info):
 def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                            case_info=None, sec_img_path=None, chart_pngs=None,
                            shear_info=None):
-    """Xuất PDF tóm tắt kiểm tra cột theo ACI 318-19 (A4 dọc, 1 trang).
-
-    sec: Section đã bố trí thép. inp: ColumnInput. aci_res: dict từ
-    check_column_aci (dc, fs, phi, ok, Bx, By, BN, eps_t, N_cap...).
-    conc: ACIConcrete, steel: ACISteel. tied: True = đai thường.
-    chart_pngs: tuple (png_nm_alpha, png_m2m3) bytes (tùy chọn, nếu không
-    có sẽ tự vẽ bằng aci_chart_draw).
-    shear_info: dict lực cắt ghi đè khi inp.Q2/Q3 = 0 (chế độ ETABS),
-    dạng {'Q2': v, 'Q3': v} hoặc kiểu TCVN {'q2': {'Q': v}, 'q3': {'Q': v}}.
-    """
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    """Xuất PDF Kết quả tính toán theo mẫu Excel MAU_TMTT (ACI 318-19)."""
+    import math as _m
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib.colors import HexColor
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Image, Table, TableStyle)
+                                    Table, TableStyle)
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.enums import TA_CENTER
+    from collections import Counter
+    import os as _os
 
-    # --- Font (thử font matplotlib trước, rồi font hệ thống) ---
+    # Font
     FN, FNB = "Helvetica", "Helvetica-Bold"
     try:
         _fp = _find_font()
@@ -233,25 +224,64 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         except Exception:
             pass
 
-    st_title = ParagraphStyle("t", fontName=FNB, fontSize=13,
-                              alignment=TA_CENTER, spaceAfter=4)
-    st_sub2 = ParagraphStyle("sub2", fontName=FN, fontSize=9,
-                             alignment=TA_CENTER, spaceAfter=4,
-                             textColor=HexColor("#6B7280"))
-    st_h = ParagraphStyle("h", fontName=FNB, fontSize=10, spaceBefore=6,
-                          spaceAfter=3)
-    st_b = ParagraphStyle("b", fontName=FN, fontSize=8.5, spaceAfter=1.5,
-                          leading=11)
-    st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
-    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
+    st_title = ParagraphStyle("t", fontName=FNB, fontSize=14,
+                              alignment=TA_CENTER, spaceAfter=6)
+    st_sec = ParagraphStyle("sec", fontName=FNB, fontSize=11,
+                            spaceBefore=10, spaceAfter=4,
+                            textColor=HexColor("#1F2937"))
+    st_row = ParagraphStyle("row", fontName=FN, fontSize=9, leading=12)
+    st_cell = ParagraphStyle("c", fontName=FN, fontSize=9, leading=12)
+    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=9, leading=12,
+                             alignment=TA_CENTER)
+
+    def _tbl(rows, widths):
+        data = []
+        for r in rows:
+            if len(r) == 2:
+                data.append([Paragraph(f"<b>{r[0]}</b>", st_cell),
+                             Paragraph(str(r[1]), st_cell)])
+            else:
+                data.append([Paragraph(f"<b>{r[0]}</b>", st_cell)])
+        t = Table(data, colWidths=widths, hAlign="LEFT")
+        t.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (0, -1), 0),
+        ]))
+        return t
+
+    def _tbl3(headers, rows, widths):
+        data = [[Paragraph(f"<b>{h}</b>", st_hdr) for h in headers]]
+        for r in rows:
+            data.append([Paragraph(f"<b>{r[0]}</b>", st_cell),
+                         Paragraph(str(r[1]), st_cell),
+                         Paragraph(str(r[2]), st_cell)])
+        t = Table(data, colWidths=widths, hAlign="LEFT")
+        t.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#9CA3AF")),
+            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+             [HexColor("#FFFFFF"), HexColor("#F9FAFB")]),
+        ]))
+        return t
+
+    story = []
+    W2 = [60 * mm, 110 * mm]
+    W3 = [60 * mm, 55 * mm, 55 * mm]
     ok = bool(aci_res.get("ok"))
     ok_txt = "ĐẠT" if ok else "KHÔNG ĐẠT"
-    dc_bg = HexColor("#D1FAE5") if ok else HexColor("#FEE2E2")
-    story = []
 
     # ===== Tiêu đề =====
     story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
-    story.append(Paragraph("(Theo ACI 318-19)", st_sub2))
+    story.append(Spacer(1, 4))
+
+    # ===== THÔNG TIN CHUNG =====
+    story.append(Paragraph("THÔNG TIN CHUNG", st_sec))
     _ck_name = ""
     try:
         _fn = getattr(inp, "_filename", "") or ""
@@ -259,236 +289,122 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             _ck_name = _os.path.splitext(_os.path.basename(_fn))[0].upper()
     except Exception:
         pass
-    story.append(Spacer(1, 1))
+    if not _ck_name and case_info:
+        _ck_name = str(case_info.get("name", "")).upper()
+    story.append(_tbl([
+        ("Tiêu chuẩn", "ACI 318-19"),
+        ("Tên cấu kiện", _ck_name or "—"),
+    ], W2))
 
-    # ===== Số liệu chung =====
-    from collections import Counter
-    n = len(sec.rebars)
-    cnt = Counter(r.dia for r in sec.rebars)
-    parts = [f"{cnt[d]}d{d:.0f}" for d in sorted(cnt, reverse=True)]
+    # ===== VẬT LIỆU =====
+    story.append(Paragraph("VẬT LIỆU", st_sec))
     tie_txt = "Tied (đai thường)" if tied else "Spiral (đai xoắn)"
-    sw_txt = (f"{getattr(inp, 'sw_legs', 2):.0f}"
-              f"φ{getattr(inp, 'sw_dia', 8):.0f} "
-              f"a{getattr(inp, 'sw_spacing', 200):.0f}")
-    # (Box vật liệu riêng đã xóa theo yêu cầu — thông số chuyển vào
-    # bảng thông số tính toán bên phải)
+    _fyt = getattr(inp, "fyt", None) or getattr(steel, "fyt", steel.fy)
+    story.append(_tbl([
+        ("Cường độ bê tông, f'c", f"{conc.fc:.2f} MPa"),
+        ("Cường độ thép dọc, fy", f"{steel.fy:.0f} MPa"),
+        ("Cường độ thép đai, fyt", f"{_fyt:.0f} MPa"),
+        ("Loại cốt đai", tie_txt),
+    ], W2))
 
-    # ===== Bảng thông số =====
-    alpha_deg = (_m.degrees(_m.atan2(inp.Mx, inp.My))
-                 if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
-    Ma = _m.hypot(inp.Mx, inp.My)
-    d_ns, Pc_kN, beta_dns = _slenderness_aci(sec, conc, inp)
-    _as_txt = (f"{' + '.join(parts)} = {sec.steel_area:.0f} mm² "
-               f"(μ={sec.reinforcement_ratio * 100:.2f}%)")
-    prows = [
-        ("f'c", "Cường độ bê tông", f"{_f(conc.fc, 0)} MPa"),
-        ("fy", "Cường độ thép dọc", f"{_f(steel.fy, 0)} MPa"),
-        ("Đai", "Loại cốt đai", tie_txt),
-        ("As", "Cốt thép dọc (số thanh)", _as_txt),
-        ("N", "Lực dọc tính toán", f"{inp.N:+.1f} kN"),
-        ("M2", "Mô men phương 2", f"{inp.Mx:.1f} kN·m"),
-        ("M3", "Mô men phương 3", f"{inp.My:.1f} kN·m"),
-        ("α", "Góc tác dụng mô men", f"{alpha_deg:.1f} °"),
-        ("Mα", "Mô men tổng theo phương kiểm tra", f"{Ma:.1f} kN·m"),
-        ("φ", "Hệ số sức kháng tại điểm B (ACI 21.2.2)",
-         f"{_f(aci_res.get('phi'), 3)}"),
-        ("εt", "Biến dạng kéo thép ngoài cùng tại B",
-         f"{_f(aci_res.get('eps_t'), 5)}"),
-        ("δns", "Hệ số phóng đại mô men (ACI 6.6.4.5.2)",
-         _f(d_ns, 3) if d_ns else "—"),
-        ("Pc", "Tải trọng tới hạn Euler",
-         f"{_f(Pc_kN, 1)} kN" if Pc_kN else "—"),
-        ("φPn,max", "Nén thiết kế lớn nhất (ACI 22.4.2.2)",
-         f"{_f(aci_res.get('N_cap'), 1)} kN"),
-    ]
-    pdata = [[Paragraph("<b>Ký hiệu</b>", st_cell_b),
-              Paragraph("<b>Thông số</b>", st_cell_b),
-              Paragraph("<b>Giá trị</b>", st_cell_b)]]
-    for a, b, c in prows:
-        pdata.append([Paragraph(a, st_cell), Paragraph(b, st_cell),
-                      Paragraph(c, st_cell)])
-    fs_txt = _f(aci_res.get("fs"), 2)
-    pdata.append([Paragraph("<b>D/C</b>", st_cell_b),
-                  Paragraph("Tỷ số sử dụng khả năng chịu lực", st_cell),
-                  Paragraph(f"<b>{_f_dc(aci_res.get('dc'))} "
-                            f"(FS = {fs_txt}) {ok_txt}</b>", st_cell_b)])
-    t_param = Table(pdata, colWidths=[11 * mm, 45 * mm, 27 * mm])
-    t_param.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
-        ("BACKGROUND", (0, -1), (-1, -1), dc_bg),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -2),
-         [HexColor("#FFFFFF"), HexColor("#F9FAFB")]),
-    ]))
+    # ===== TIẾT DIỆN =====
+    story.append(Paragraph("TIẾT DIỆN", st_sec))
+    _t3 = getattr(sec, "cx", inp.cx)
+    _t2 = getattr(sec, "cy", inp.cy)
+    story.append(_tbl([
+        ("Chiều rộng, t3", f"{_t3:.0f} mm"),
+        ("Chiều cao, t2", f"{_t2:.0f} mm"),
+        ("Lớp bê tông bảo vệ, c", f"{inp.cover:.0f} mm"),
+    ], W2))
 
-    _ck_style = ParagraphStyle(
-        "ck", fontName=FNB, fontSize=11, alignment=TA_LEFT,
-        textColor=HexColor("#111827"), spaceBefore=2, spaceAfter=2)
-    _ck_para = Paragraph(f"CẤU KIỆN: {_ck_name}", _ck_style) \
-        if _ck_name else Spacer(1, 1)
+    # ===== BỐ TRÍ CỐT THÉP =====
+    story.append(Paragraph("BỐ TRÍ CỐT THÉP", st_sec))
+    _cnt = Counter(r.dia for r in sec.rebars)
+    _parts = [f"{_cnt[d]}-d{d:.0f}" for d in sorted(_cnt, reverse=True)]
+    _mu = getattr(sec, "reinforcement_ratio", 0) or 0
+    story.append(_tbl([
+        ("Cốt thép dọc", " + ".join(_parts)),
+        ("Hàm lượng thép dọc, μ", f"{_mu:.4f}"),
+    ], W2))
 
-    # BƯỚC 1: Đo chiều cao bảng phải
-    _right_tbl = Table(
-        [[Paragraph("BẢNG THÔNG SỐ TÍNH TOÁN", st_h)],
-         [t_param]],
-        colWidths=[83 * mm])
-    _right_tbl.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    _, _rh = _right_tbl.wrap(83 * mm, 1000)
-
-    # BƯỚC 2: Đo tiêu đề (không còn box vật liệu)
-    _title_tbl = Table(
-        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
-         [_ck_para]],
-        colWidths=[83 * mm])
-    _, _th = _title_tbl.wrap(83 * mm, 1000)
-
-    # BƯỚC 3: Mặt cắt cố định 60mm như TCVN (fig_to_img 60×48),
-    # giữ tỉ lệ gốc bằng PIL — không giãn theo khoảng trống
-    if sec_img_path:
-        try:
-            png = open(sec_img_path, "rb").read()
-        except Exception:
-            png = None
-        img_sec = _img_keep_ratio(png, 55) if png else Spacer(1, 30 * mm)
-    else:
-        # Vẽ kiểu TCVN (draw_section_ax, show_stats=False)
-        try:
-            png = _section_png_tcvn(sec)
-            img_sec = _img_keep_ratio(png, 60)
-        except Exception:
-            img_sec = Spacer(1, 30 * mm)
-
-    _left_tbl = Table(
-        [[Paragraph("SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT", st_h)],
-         [_ck_para],
-         [img_sec]],
-        colWidths=[83 * mm])
-    _left_tbl.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("VALIGN", (0, 3), (0, 3), "BOTTOM"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    # Đảo vị trí: bảng thông số TRÁI, sơ đồ mặt cắt PHẢI
-    _outer = Table([[_right_tbl, _left_tbl]],
-                   colWidths=[87 * mm, 87 * mm])
-    _outer.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOX", (0, 0), (-1, -1), 0.6, HexColor("#D1D5DB")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    story.append(_outer)
-    story.append(Spacer(1, 1))
-
-    # ===== Biểu đồ =====
-    story.append(Paragraph("BIỂU ĐỒ TƯƠNG TÁC (ACI 318-19)", st_h))
-    if chart_pngs and len(chart_pngs) == 2:
-        png_nm, png_m2m3 = chart_pngs
-    else:
-        png_nm, png_m2m3 = _aci_charts_png(sec, conc, steel, aci_res,
-                                           inp, tied)
-    # Giữ đúng tỉ lệ gốc PNG (PIL), giới hạn rộng 84mm — không ép méo
-    img_nm = _img_keep_ratio(png_nm, 74)
-    img_mm = _img_keep_ratio(png_m2m3, 74)
-    story.append(Table([[img_nm, img_mm]], colWidths=[74 * mm, 74 * mm],
-                       style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")])))
-    story.append(Spacer(1, 1))
-
-    # ===== Chi tiết điểm A/B =====
-    story.append(Paragraph("CHI TIẾT ĐIỂM TẢI & GIỚI HẠN", st_h))
-    story.append(Paragraph(
-        f"• Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°), "
-        f"D/C = OA/OB = {_f_dc(aci_res.get('dc'))} → <b>{ok_txt}</b>", st_b))
-    _combo = ""
+    # ===== NỘI LỰC TÍNH TOÁN =====
+    story.append(Paragraph("NỘI LỰC TÍNH TOÁN", st_sec))
+    _story_txt, _label_txt, _combo_txt = "—", "—", "—"
     if case_info:
-        _parts = []
-        if case_info.get("story"):
-            _parts.append(str(case_info.get("story")))
-        if case_info.get("column"):
-            _parts.append(str(case_info.get("column")))
-        if case_info.get("case"):
-            _st = case_info.get("station", "")
-            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
-            _parts.append(f"{case_info.get('case')}{_st_txt}")
-        if _parts:
-            _combo = f" [{', '.join(_parts)}]"
-    _p_ind = ParagraphStyle("a2", parent=st_b, leftIndent=12)
-    Mb = _m.hypot(aci_res.get("Bx") or 0.0, aci_res.get("By") or 0.0)
-    story.append(Paragraph(f"• A (điểm tải){_combo}:", st_b))
-    story.append(Paragraph(
-        f"N = {inp.N:+.1f} kN, Mα = {Ma:.1f} kN·m "
-        f"(M2 = {inp.Mx:.1f}, M3 = {inp.My:.1f})", _p_ind))
-    story.append(Paragraph(
-        f"• B (điểm giới hạn): Nu = {_f(aci_res.get('BN'), 1)} kN, "
-        f"Mα,u = {Mb:.1f} kN·m "
-        f"(M2u = {_f(aci_res.get('Bx'), 1)}, "
-        f"M3u = {_f(aci_res.get('By'), 1)})", st_b))
-    story.append(Spacer(1, 1))
+        _story_txt = str(case_info.get("story", "—"))
+        _label_txt = str(case_info.get("label", "—"))
+        _combo_txt = str(case_info.get("case", case_info.get("combo", "—")))
+    _vpos = f"{_story_txt}-{_label_txt}" if _story_txt != "—" else "—"
+    story.append(_tbl([
+        ("Vị trí cột", _vpos),
+        ("Tổ hợp tính toán", _combo_txt),
+        ("Lực dọc, N", f"{inp.N:.1f} kN"),
+        ("Mômen quanh trục 2, M2", f"{inp.Mx:.1f} kN·m"),
+        ("Mômen quanh trục 3, M3", f"{inp.My:.1f} kN·m"),
+        ("Lực cắt theo trục 2, V2", f"{inp.Q2:.1f} kN"),
+        ("Lực cắt theo trục 3, V3", f"{inp.Q3:.1f} kN"),
+    ], W2))
 
-    # ===== Kiểm tra cắt =====
-    story.append(Paragraph("KIỂM TRA CẮT (ACI 22.5)", st_h))
-    _sq2, _sq3 = _extract_shear_q(shear_info)
-    cols = _shear_aci(sec, inp, steel, conc,
-                      q2_override=_sq2, q3_override=_sq3)
-    if cols:
-        def _pc(t, bold=False):
-            st = st_cell_b if bold else st_cell
-            return Paragraph(str(t), st)
+    # ===== KẾT QUẢ TÍNH TOÁN =====
+    story.append(Paragraph("KẾT QUẢ TÍNH TOÁN", st_sec))
+    _alpha = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
+        if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+    _dc = aci_res.get("dc", 0)
+    _fs = aci_res.get("fs", 0)
+    story.append(_tbl([
+        ("Góc tác dụng mômen, α", f"{_alpha:.1f}°"),
+        ("Hệ số sức kháng, φ", f"{aci_res.get('phi', 0):.2f}"),
+        ("Điểm tải trọng A", ""),
+        ("Lực dọc, N", f"{inp.N:.1f} kN"),
+        ("Mômen, M2", f"{inp.Mx:.1f} kN·m"),
+        ("Mômen, M3", f"{inp.My:.1f} kN·m"),
+        ("Tỉ số sử dụng khả năng chịu lực, D/C", f"{_dc:.3f}"),
+        ("Hệ số an toàn, FS", f"{_fs:.2f}"),
+        ("Kết luận", f"<b>{ok_txt}</b>"),
+    ], W2))
 
-        def _vu_txt(lbl):
-            q = cols[lbl]["Q"]
-            return f"{abs(q):.1f}" if q else "—"
-
-        def _kl_txt(lbl):
-            q = cols[lbl]["Q"]
-            if not q:
-                return "—"  # thiếu dữ liệu lực cắt: không kết luận ĐẠT
-            return "ĐẠT" if cols[lbl]["sh"]["ok"] else "KHÔNG ĐẠT"
-
-        tdata = [[_pc("Thông số", True), _pc("Phương V2", True),
-                  _pc("Phương V3", True)]]
-        _rows = [
-            ("Thép đai bố trí", sw_txt, sw_txt),
-            ("Vu (kN)", _vu_txt("2"), _vu_txt("3")),
-            ("Vc (kN)", f"{cols['2']['sh']['Vc_kN']:.1f}",
-             f"{cols['3']['sh']['Vc_kN']:.1f}"),
-            ("Vs (kN)", f"{cols['2']['sh']['Vs_kN']:.1f}",
-             f"{cols['3']['sh']['Vs_kN']:.1f}"),
-            ("φVn (kN)", f"{cols['2']['sh']['phi_Vn_kN']:.1f}",
-             f"{cols['3']['sh']['phi_Vn_kN']:.1f}"),
-            ("Kết luận", _kl_txt("2"), _kl_txt("3")),
-        ]
-        for a, b, c in _rows:
-            tdata.append([_pc(a, True), _pc(b), _pc(c)])
-        t_sw = Table(tdata, colWidths=[56 * mm, 50 * mm, 50 * mm])
-        t_sw.setStyle(TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.4, HexColor("#D1D5DB")),
-            ("BACKGROUND", (0, 0), (-1, 0), HexColor("#F3F4F6")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
-             [HexColor("#FFFFFF"), HexColor("#F9FAFB")]),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
-        story.append(Spacer(1, 3))
-        story.append(t_sw)
-    else:
-        story.append(Paragraph("Không tính được kiểm tra cắt.", st_b))
+    # ===== KIỂM TRA CẮT (ACI 22.5) =====
+    story.append(Paragraph("KIỂM TRA CẮT", st_sec))
+    try:
+        from .aci_checker import aci_shear_check
+        _sw_dia = getattr(inp, "sw_dia", 8)
+        _sw_s = getattr(inp, "sw_spacing", 200)
+        _sw_legs = getattr(inp, "sw_legs", 2)
+        from .sections import bar_area
+        _Av = _sw_legs * bar_area(_sw_dia)
+        _sw_txt = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        _rows = []
+        for Q, lbl, b_w, h_dim in ((inp.Q2, "V2", _t2, _t3),
+                                    (inp.Q3, "V3", _t3, _t2)):
+            _d = h_dim - inp.cover - _sw_dia - 10
+            _r = aci_shear_check(Acv_mm2=b_w * h_dim, Ag_mm2=b_w * h_dim,
+                                 fc_MPa=conc.fc, Nu_kN=inp.N,
+                                 Vu_kN=abs(Q), Av_mm2=_Av,
+                                 fyt_MPa=_fyt, s_mm=_sw_s, d_mm=_d)
+            _rows.append(dict(lbl=lbl, Q=Q, sh=_r))
+        _r2, _r3 = _rows[0], _rows[1]
+        story.append(_tbl3(
+            ["Thông số", "Phương V2", "Phương V3"],
+            [
+                ("Thép đai bố trí", _sw_txt, _sw_txt),
+                ("Lực cắt tính toán, Vu",
+                 f"{abs(_r2['Q']):.1f} kN", f"{abs(_r3['Q']):.1f} kN"),
+                ("Vc", f"{_r2['sh']['Vc_kN']:.1f} kN",
+                 f"{_r3['sh']['Vc_kN']:.1f} kN"),
+                ("Vs", f"{_r2['sh']['Vs_kN']:.1f} kN",
+                 f"{_r3['sh']['Vs_kN']:.1f} kN"),
+                ("φVn", f"{_r2['sh']['phi_Vn_kN']:.1f} kN",
+                 f"{_r3['sh']['phi_Vn_kN']:.1f} kN"),
+                ("Kết luận",
+                 "ĐẠT" if _r2['sh']['ok'] else "KHÔNG ĐẠT",
+                 "ĐẠT" if _r3['sh']['ok'] else "KHÔNG ĐẠT"),
+            ], W3))
+    except Exception as e:
+        story.append(Paragraph(f"Không tính được cắt: {e}", st_row))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
-                            topMargin=8 * mm, bottomMargin=8 * mm,
-                            title="Tóm tắt kiểm tra cột BTCT - ACI 318-19")
+                            topMargin=15 * mm, bottomMargin=15 * mm,
+                            title="Kết quả kiểm tra cột BTCT (ACI 318-19)")
     doc.build(story)
     return filepath
