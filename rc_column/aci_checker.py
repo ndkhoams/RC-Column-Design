@@ -225,9 +225,11 @@ class ACICapacity:
             self.design_curves[th] = clean
 
     def _curve_at(self, phi_deg: float) -> List[Tuple[float, float, float]]:
-        """Đường cong thiết kế tại góc gần nhất."""
-        th = min(self.angles, key=lambda a: abs(a - phi_deg))
-        # Nội suy giữa 2 góc kề để mượt hơn (đơn giản: lấy góc gần nhất)
+        """Đường cong thiết kế tại góc gần nhất (xử lý wrap-around)."""
+        def _adiff(a, b):
+            d = abs(a - b) % 360.0
+            return min(d, 360.0 - d)
+        th = min(self.angles, key=lambda a: _adiff(a, phi_deg))
         return self.design_curves[th]
 
     def moment_capacity(self, N: float, phi_deg: float) -> float:

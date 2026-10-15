@@ -64,7 +64,14 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
     BLUE_DASH = "#3B82F6"
     load_alpha = math.degrees(math.atan2(M2_kNm, M3_kNm))  # quy ước ETABS: đo từ trục M3
     alpha_deg = load_alpha if view_angle_deg is None else view_angle_deg
-    n_pos, m_pos = _design_curve(sec, conc, steel, alpha_deg, tied=tied)
+    # SNAP về góc rời rạc gần nhất (bước 15°, xử lý wrap-around)
+    # để khớp với checker._curve_at
+    def _adiff(a, b):
+        d = abs(a - b) % 360.0
+        return min(d, 360.0 - d)
+    _angles = [k * 15.0 for k in range(24)]
+    alpha_snap = min(_angles, key=lambda a: _adiff(a, alpha_deg))
+    n_pos, m_pos = _design_curve(sec, conc, steel, alpha_snap, tied=tied)
     m_neg = [-m for m in m_pos]
     ax.plot(m_pos, n_pos, color=GREEN, linewidth=2.2, zorder=3)
     ax.plot(m_neg, n_pos, color=GREEN, linewidth=2.2, zorder=3)
