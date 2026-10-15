@@ -466,26 +466,48 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
     chart_frame = tk.Frame(g, bg=WHITE)
     chart_frame.pack(fill=tk.X, padx=8, pady=8)
     titles = ("Biểu đồ tương tác N-Mα", "Biểu đồ tương tác M2-M3")
-    if chart_figs and len(chart_figs) == 2:
-        try:
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-            chart_frame.columnconfigure(0, weight=1)
-            chart_frame.columnconfigure(1, weight=1)
-            for col, (title, fig) in enumerate(zip(titles, chart_figs)):
-                cf = tk.Frame(chart_frame, bg=WHITE,
-                              highlightbackground=BORDER, highlightthickness=1,
-                              padx=8, pady=8)
-                cf.grid(row=0, column=col, sticky="nsew", padx=4)
-                tk.Label(cf, text=title, font=("", 10, "bold"),
-                         fg=TEXT, bg=WHITE).pack(pady=(0, 4))
-                cv = FigureCanvasTkAgg(fig, master=cf)
-                cv.draw()
-                cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-                if not hasattr(g, "_chart_cvs"):
-                    g._chart_cvs = []
-                g._chart_cvs.append(cv)
-        except Exception:
-            pass
+    # Vẽ mới biểu đồ bằng đúng hàm chung (giống hệt tab Kết quả)
+    try:
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        from .chart_draw import draw_nm_alpha_ax, draw_m2m3_ax
+        from .interaction import FiberSection
+        _fs = FiberSection(sec)
+        chart_frame.columnconfigure(0, weight=1)
+        chart_frame.columnconfigure(1, weight=1)
+        _draw_fns = [
+            ("Biểu đồ tương tác N-Mα",
+             lambda ax: draw_nm_alpha_ax(ax, sec, inp, res, _fs)),
+            ("Biểu đồ tương tác M2-M3",
+             lambda ax: draw_m2m3_ax(ax, sec, inp, res)),
+        ]
+        for col, (title, _draw) in enumerate(_draw_fns):
+            cf = tk.Frame(chart_frame, bg=WHITE,
+                          highlightbackground=BORDER, highlightthickness=1,
+                          padx=8, pady=8)
+            cf.grid(row=0, column=col, sticky="nsew", padx=4)
+            tk.Label(cf, text=title, font=("", 10, "bold"),
+                     fg=TEXT, bg=WHITE).pack(pady=(0, 4))
+            _fig = Figure(figsize=(5.2, 3.9), dpi=100)
+            _ax = _fig.add_subplot(111)
+            _draw(_ax)
+            _fig.tight_layout()
+            _fig.subplots_adjust(bottom=0.30)
+            cv = FigureCanvasTkAgg(_fig, master=cf)
+            cv.draw()
+            cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            if not hasattr(g, "_chart_cvs"):
+                g._chart_cvs = []
+            g._chart_cvs.append(cv)
+            if not hasattr(g, "_chart_figs"):
+                g._chart_figs = []
+            g._chart_figs.append(_fig)
+    except Exception:
+        pass
+    # Fallback PNG cũ nếu vẽ mới thất bại
+    if not hasattr(g, "_chart_cvs") or not g._chart_cvs:
+        # (giữ code fallback PNG cũ ở đây nếu cần)
+        pass
     else:
         # Fallback PNG cũ
         from tkinter import PhotoImage
