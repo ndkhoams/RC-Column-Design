@@ -2761,15 +2761,15 @@ class App(tk.Tk):
             from matplotlib.lines import Line2D
             leg_elems = [
                 Line2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+                       label="Tia tải O-A-B"),
                 Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
                        markersize=8, markeredgecolor="white", label="Điểm tải A"),
                 Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
                        markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
-                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-                       label="Tia tải O-A-B"),
             ]
             ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
-                      bbox_to_anchor=(0.5, -0.18), ncol=4, frameon=False)
+                      bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
             ax.set_axisbelow(True)
@@ -2808,15 +2808,15 @@ class App(tk.Tk):
             from matplotlib.lines import Line2D
             leg_elems = [
                 Line2D([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+                       label="Tia tải O-A-B"),
                 Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
                        markersize=8, markeredgecolor="white", label="Điểm tải A"),
                 Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
                        markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
-                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-                       label="Tia tải O-A-B"),
             ]
             ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
-                      bbox_to_anchor=(0.5, -0.22), ncol=4, frameon=False)
+                      bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
             ax.set_axisbelow(True)
