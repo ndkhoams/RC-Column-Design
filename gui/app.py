@@ -1797,10 +1797,6 @@ class App(tk.Tk):
             # Tab đang chọn
             cur = self.nb.select()
             is_summary = (cur == str(self.tab_sum))
-            # --- ACI mode: dùng PDF ACI ---
-            if self.is_aci() and getattr(self, "_aci_res", None) is not None:
-                self._export_pdf_aci(is_summary, path, _show_success)
-                return
             # Tên file mặc định: TMTT-TÊN CẤU KIỆN.pdf
             import os as _os
             _ck = ""
@@ -1868,6 +1864,10 @@ class App(tk.Tk):
                 _tk.Button(btns, text="Đóng", width=12,
                            command=dlg.destroy).pack(side="left", padx=6)
                 dlg.wait_window()
+            # --- ACI mode: dùng PDF ACI (đặt sau khi path & _show_success đã có) ---
+            if self.is_aci() and getattr(self, "_aci_res", None) is not None:
+                self._export_pdf_aci(is_summary, path, _show_success)
+                return
             if is_summary:
                 from rc_column.pdf_export import export_summary_pdf
                 # Gán tên file vào inp để hiển thị "Cấu kiện"
