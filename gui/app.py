@@ -33,7 +33,7 @@ except Exception:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Kiểm tra cột bê tông cốt thép — TCVN 5574:2018")
+        self.title("Kiểm tra cột bê tông cốt thép")
         self.geometry("1360x860")
         # Icon title bar: ưu tiên PNG (ổn định hơn ICO trên tkinter)
         try:
@@ -1128,6 +1128,7 @@ class App(tk.Tk):
                                  f"Không hiển thị được tab Chi tiết:\n{ex}")
             return
         self._pdf_inp, self._pdf_res = inp, None  # đánh dấu ACI mode
+        self._update_ck()  # cập nhật tên cấu kiện
 
     def _show_aci_summary(self):
         """Tab Kết quả tính toán cho ACI: layout 2x2 giống TCVN.
@@ -1184,7 +1185,7 @@ class App(tk.Tk):
         f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
-        self.ck_var = tk.StringVar(value="ACI 318-19")
+        self.ck_var = tk.StringVar(value="")
         tk.Label(f_tl, textvariable=self.ck_var,
                  font=("", 10, "bold"), fg="#92400E",
                  bg="white").pack(pady=(0, 4))
@@ -1239,6 +1240,13 @@ class App(tk.Tk):
         self._build_aci_notes(f_notes, inp, aci_res)
         self._sum_inner.rowconfigure(2, weight=0)
 
+        # ===== Hàng 4 full-width: bảng kiểm tra cắt ACI =====
+        f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
+                  padx=4, pady=4)
+        self._build_aci_shear_summary(f_sw, inp, sec, conc, steel)
+        self._sum_inner.rowconfigure(3, weight=0)
+
         # Gắn lại cuộn chuột cho các widget mới
         self._bind_wheel(self._sum_inner, self._sum_canvas)
         def _to_top():
@@ -1273,9 +1281,10 @@ class App(tk.Tk):
         mrow = tk.Frame(parent, bg="#F9FAFB")
         mrow.pack(fill=tk.X, padx=2, pady=2)
         tie_txt = "Tied" if tied else "Spiral"
+        _fyt = getattr(steel, "fyt", steel.fy)
         for title, val in (("Bê tông", f"f'c = {conc.fc:g} MPa"),
                            ("Thép dọc", f"fy = {steel.fy:g} MPa"),
-                           ("Thép đai", tie_txt)):
+                           ("Thép đai", f"fyt = {_fyt:g} MPa ({tie_txt})")):
             _card(mrow, title, val)
         # Hàng số liệu thép
         row1 = tk.Frame(parent, bg="#F9FAFB")
@@ -1283,6 +1292,83 @@ class App(tk.Tk):
         _card(row1, "Số thanh", vals["n"], vals.get("nsub", ""))
         _card(row1, "Tổng As", vals["as"])
         _card(row1, "Hàm lượng μ", vals["mu"])
+
+    def _build_aci_shear_summary(self, parent, inp, sec, conc, steel):
+        """Bảng kiểm tra khả năng chịu cắt ACI: Phương V2 | Phương V3."""
+        from rc_column.aci_checker import aci_shear_check
+        from rc_column.sections import bar_area
+        try:
+            fc = conc.fc
+            fyt = getattr(steel, "fyt", steel.fy)
+            # Thông tin đai
+            sw_dia = getattr(inp, "sw_dia", 10)
+            sw_spacing = getattr(inp, "sw_spacing", 200)
+            sw_legs = getattr(inp, "sw_legs", 2)
+            Av = sw_legs * bar_area(sw_dia)
+            sw_txt = f"{sw_legs:.0f}φ{sw_dia:.0f} a{sw_spacing:.0f}"
+
+            cols = {}
+            # V2: b = t2 = cy, d từ t3 = cx
+            # V3: b = t3 = cx, d từ t2 = cy
+            for Vu, lbl, b_w, h_dim in (
+                    (abs(inp.Q2), "2", inp.cy, inp.cx),
+                    (abs(inp.Q3), "3", inp.cx, inp.cy)):
+                d = h_dim - inp.cover - sw_dia - 12
+                Acv = b_w * d
+                Ag = inp.cx * inp.cy
+                sr = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Ag, fc_MPa=fc,
+                                    Nu_kN=max(inp.N, 0), Vu_kN=Vu,
+                                    Av_mm2=Av, fyt_MPa=fyt,
+                                    s_mm=sw_spacing, d_mm=d)
+                cols[lbl] = dict(Vu=Vu, b=b_w, d=d, Av=Av,
+                                Vc=sr["Vc_kN"], Vs=sr["Vs_kN"],
+                                phiVn=sr["phi_Vn_kN"], ok=sr["ok"],
+                                sw_txt=sw_txt)
+
+            tf = tk.Frame(parent, bg="white")
+            tf.pack(fill=tk.X, padx=8, pady=6)
+            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT", "Phương V2", "Phương V3"]
+            for j, h in enumerate(headers):
+                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
+                         fg="#111827", borderwidth=0,
+                         highlightthickness=0,
+                         padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
+                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
+            rows = [
+                ("Thép đai bố trí",
+                 cols['2']['sw_txt'], cols['3']['sw_txt']),
+                ("Lực cắt tính toán, Vu",
+                 f"{cols['2']['Vu']:.1f} kN", f"{cols['3']['Vu']:.1f} kN"),
+                ("Kích thước tiết diện, b × d",
+                 f"{cols['2']['b']:.0f} × {cols['2']['d']:.0f} mm",
+                 f"{cols['3']['b']:.0f} × {cols['3']['d']:.0f} mm"),
+                ("Av = n × φ",
+                 f"{cols['2']['Av']:.0f} mm²", f"{cols['3']['Av']:.0f} mm²"),
+                ("Vc (bê tông)",
+                 f"{cols['2']['Vc']:.1f} kN", f"{cols['3']['Vc']:.1f} kN"),
+                ("Vs (cốt đai)",
+                 f"{cols['2']['Vs']:.1f} kN", f"{cols['3']['Vs']:.1f} kN"),
+                ("φVn = 0.75×(Vc+Vs)",
+                 f"{cols['2']['phiVn']:.1f} kN", f"{cols['3']['phiVn']:.1f} kN"),
+            ]
+            for i, (a, b, c) in enumerate(rows):
+                bg = "#F9FAFB" if i % 2 else "white"
+                for j, t in enumerate((a, b, c)):
+                    fw = ("", 9, "bold") if j == 0 else ("", 9)
+                    tk.Label(tf, text=t, font=fw, bg=bg, fg="#1F2937",
+                             borderwidth=0, highlightthickness=0,
+                             padx=6, pady=2, anchor="w" if j == 0
+                             else "center").grid(row=i + 1, column=j,
+                                                 sticky="nsew")
+            ok_all = all(cols[lbl]["ok"] for lbl in ("2", "3"))
+            kl = "ĐẠT" if ok_all else "KHÔNG ĐẠT"
+            fgk = "#065F46" if ok_all else "#991B1B"
+            tk.Label(parent, text=f"Kết luận chịu cắt: {kl}",
+                     font=("", 10, "bold"), fg=fgk, bg="white",
+                     anchor="w").pack(fill=tk.X, padx=8, pady=(4, 6))
+        except Exception as e:
+            tk.Label(parent, text=f"Không tính được chịu cắt: {e}",
+                     fg="#991B1B", bg="white").pack(padx=8, pady=4)
 
     def _build_aci_param_table(self, parent, inp, aci_res, mm_res):
         """Bảng thông số tính toán ACI (Treeview 3 cột)."""
@@ -2316,7 +2402,7 @@ class App(tk.Tk):
     def _update_title(self):
         """Title bar hiện tên file đang lưu."""
         import os
-        base = "Kiểm tra cột bê tông cốt thép — TCVN 5574:2018"
+        base = "Kiểm tra cột bê tông cốt thép"
         p = getattr(self, "current_save_path", None)
         if p:
             self.title(f"{base} — [{os.path.basename(p)}]")
