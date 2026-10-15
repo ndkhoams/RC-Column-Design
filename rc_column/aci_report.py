@@ -102,11 +102,12 @@ def generate_aci_report_sections(inp, aci_res: Dict[str, Any],
     })
 
     # ---- 3. Độ mảnh & δns ----
-    delta_ns = mm_res.get("delta_ns", 1.0) or 1.0
-    Pc = mm_res.get("Pc_kN", 0.0) or 0.0
-    Cm = mm_res.get("Cm", 1.0) or 0.0
-    mm_ok = bool(mm_res.get("ok", True))
-    mm_reason = mm_res.get("reason", "") or ""
+    _mm = mm_res or {}
+    delta_ns = _mm.get("delta_ns", 1.0) or 1.0
+    Pc = _mm.get("Pc_kN", 0.0) or 0.0
+    Cm = _mm.get("Cm", 1.0) or 0.0
+    mm_ok = bool(_mm.get("ok", True))
+    mm_reason = _mm.get("reason", "") or ""
     mm_lines = [f"Cm = {_f(Cm, 3)}",
                 f"Pc = {_f(Pc, 0)} kN",
                 f"δns = {_f(delta_ns, 3)}"]
@@ -166,11 +167,12 @@ def generate_aci_report_sections(inp, aci_res: Dict[str, Any],
     })
 
     # ---- 5. Kiểm tra cắt ----
-    Vc = shear_res.get("Vc_kN", 0.0) or 0.0
-    Vs = shear_res.get("Vs_kN", 0.0) or 0.0
-    phi_Vn = shear_res.get("phi_Vn_kN", 0.0) or 0.0
-    lam_s = shear_res.get("lambda_s", 1.0) or 0.0
-    sh_ok = bool(shear_res.get("ok", False))
+    _sh = shear_res or {}
+    Vc = _sh.get("Vc_kN", 0.0) or 0.0
+    Vs = _sh.get("Vs_kN", 0.0) or 0.0
+    phi_Vn = _sh.get("phi_Vn_kN", 0.0) or 0.0
+    lam_s = _sh.get("lambda_s", 1.0) or 0.0
+    sh_ok = bool(_sh.get("ok", False))
     cmp = "≤" if Vu <= phi_Vn else ">"
     sections.append({
         "num": 5,
