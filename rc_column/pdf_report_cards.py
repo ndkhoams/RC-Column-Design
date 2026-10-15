@@ -476,8 +476,15 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             _pngs = None
     if _pngs:
         from reportlab.platypus import Table as _T2, TableStyle as _TS2
-        img1 = Image(io.BytesIO(_pngs[0]), width=88*mm, height=66*mm)
-        img2 = Image(io.BytesIO(_pngs[1]), width=88*mm, height=66*mm)
+        # Giữ tỉ lệ gốc bằng PIL, không ép khung méo hình
+        from PIL import Image as _PIL
+        def _keep(png_bytes, w_mm):
+            _pil = _PIL.open(io.BytesIO(png_bytes))
+            _pw, _ph = _pil.size
+            _h = w_mm * _ph / _pw if _pw > 0 else w_mm
+            return Image(io.BytesIO(png_bytes), width=w_mm*mm, height=_h*mm)
+        img1 = _keep(_pngs[0], 88)
+        img2 = _keep(_pngs[1], 88)
         # 2 biểu đồ đặt ngang nhau
         _ct = _T2([[[P("Biểu đồ tương tác N-Mα", st["cap"]), img1],
                     [P("Biểu đồ tương tác M2-M3", st["cap"]), img2]]])
