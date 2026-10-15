@@ -1474,6 +1474,10 @@ class App(tk.Tk):
             # Tab đang chọn
             cur = self.nb.select()
             is_summary = (cur == str(self.tab_sum))
+            # --- ACI mode: dùng PDF ACI ---
+            if self.is_aci() and getattr(self, "_aci_res", None) is not None:
+                self._export_pdf_aci(is_summary, path, _show_success)
+                return
             # Tên file mặc định: TMTT-TÊN CẤU KIỆN.pdf
             import os as _os
             _ck = ""
@@ -1610,6 +1614,42 @@ class App(tk.Tk):
             sec, inp, res, case_info=case_info,
             shear_info=shear_info)
         self._pdf_batch = batch
+
+    def _export_pdf_aci(self, is_summary, path, _show_success):
+        """Xuất PDF cho chế độ ACI 318-19."""
+        try:
+            import io
+            def _get_pngs():
+                try:
+                    f1 = getattr(self, "_aci_nm_fig", None)
+                    f2 = getattr(self, "_aci_m2m3_fig", None)
+                    if f1 is not None and f2 is not None:
+                        b1, b2 = io.BytesIO(), io.BytesIO()
+                        f1.savefig(b1, format="png", dpi=150, bbox_inches="tight")
+                        f2.savefig(b2, format="png", dpi=150, bbox_inches="tight")
+                        return (b1.getvalue(), b2.getvalue())
+                except Exception:
+                    pass
+                return None
+            pngs = _get_pngs()
+            if is_summary:
+                from rc_column.aci_pdf_summary import export_aci_summary_pdf
+                export_aci_summary_pdf(
+                    self._aci_sec, self._aci_inp, self._aci_res,
+                    self._aci_conc, self._aci_steel, self._aci_tied, path,
+                    case_info=getattr(self, "_pdf_case", None),
+                    chart_pngs=pngs)
+            else:
+                from rc_column.aci_pdf_report import export_aci_pdf_cards
+                export_aci_pdf_cards(
+                    self._aci_inp, self._aci_res, self._aci_mm,
+                    self._aci_shear, self._aci_conc, self._aci_steel,
+                    self._aci_tied, path, chart_pngs=pngs,
+                    case_info=getattr(self, "_pdf_case", None))
+            _show_success(path)
+        except Exception as ex:
+            from tkinter import messagebox
+            messagebox.showerror("Xuất PDF ACI", str(ex))
 
     def on_export_pdf(self):
         """Xuất thuyết minh ra PDF."""
