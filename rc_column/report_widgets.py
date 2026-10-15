@@ -496,15 +496,20 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
             cv = FigureCanvasTkAgg(_fig, master=cf)
             cv.draw()
             _w = cv.get_tk_widget()
-            # Bỏ viền highlight khi click chọn canvas
+            # Bỏ viền highlight khi click chọn canvas:
+            # chặn focus ngay từ bindtags (trước class binding của tkinter)
             try:
-                _bg = _w.cget("background")
                 _w.configure(highlightthickness=0, takefocus=0,
-                             highlightbackground=_bg, highlightcolor=_bg,
+                             highlightbackground="white", highlightcolor="white",
                              borderwidth=0)
-                # Chặn focus hoàn toàn: click không chuyển focus vào canvas
-                _w.bind("<Button-1>", lambda e: "break", add="+")
-                _w.bind("<FocusIn>", lambda e: cf.focus_set(), add="+")
+                _bt = list(_w.bindtags())
+                _block = "NoFocus%d" % id(_w)
+                _w.bind_class(_block, "<ButtonPress>",
+                              lambda e: "break")
+                _w.bind_class(_block, "<ButtonRelease>",
+                              lambda e: "break")
+                _bt.insert(1, _block)
+                _w.bindtags(tuple(_bt))
             except Exception:
                 pass
             _w.pack(fill=tk.BOTH, expand=True)
