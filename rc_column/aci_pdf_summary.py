@@ -364,6 +364,9 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         ]))
         return _t
 
+    st_chart_title = ParagraphStyle("ct", parent=st_cell_b, alignment=TA_CENTER,
+                                      fontSize=8, spaceBefore=2, spaceAfter=2)
+
     right_flow = []
     try:
         # Mặt cắt (dùng hàm TCVN vì giống nhau)
@@ -373,18 +376,32 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             from rc_column import pdf_export as _pdf_exp
         _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=150,
                                           show_stats=False)
-        right_flow.append(_centered_img(_sec_png, 55))
-        right_flow.append(Spacer(1, 3))
-        # 2 biểu đồ ACI
+        right_flow.append(_centered_img(_sec_png, 52))
+        right_flow.append(Spacer(1, 2))
+        # 2 biểu đồ ACI (có tiêu đề)
+        _alpha_aci = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
+            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied)
         if _pngs and len(_pngs) >= 2:
-            right_flow.append(_centered_img(_pngs[0], 70))
-            right_flow.append(Spacer(1, 3))
-            right_flow.append(_centered_img(_pngs[1], 70))
+            right_flow.append(Paragraph(
+                f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
+                st_chart_title))
+            right_flow.append(_centered_img(_pngs[0], 66))
+            right_flow.append(Spacer(1, 2))
+            right_flow.append(Paragraph(
+                f"<b>Mặt cắt M2-M3</b> (N = {inp.N:+.1f} kN)",
+                st_chart_title))
+            right_flow.append(_centered_img(_pngs[1], 66))
         elif chart_pngs and len(chart_pngs) >= 2:
-            right_flow.append(_centered_img(chart_pngs[0], 70))
-            right_flow.append(Spacer(1, 3))
-            right_flow.append(_centered_img(chart_pngs[1], 70))
+            right_flow.append(Paragraph(
+                f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
+                st_chart_title))
+            right_flow.append(_centered_img(chart_pngs[0], 66))
+            right_flow.append(Spacer(1, 2))
+            right_flow.append(Paragraph(
+                f"<b>Mặt cắt M2-M3</b> (N = {inp.N:+.1f} kN)",
+                st_chart_title))
+            right_flow.append(_centered_img(chart_pngs[1], 66))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 
@@ -401,10 +418,12 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     story = []
     story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
     story.append(t_main)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
-    # ===== KIỂM TRA CẮT (full width) =====
-    story.append(Paragraph("<b>KIỂM TRA CẮT (ACI 22.5)</b>", st_sec))
+    # ===== KIỂM TRA CẮT (full width, giữ ở trang 1) =====
+    from reportlab.platypus import KeepTogether
+    _sw_story = []
+    _sw_story.append(Paragraph("<b>KIỂM TRA CẮT (ACI 22.5)</b>", st_sec))
     try:
         from .aci_checker import aci_shear_check
         from .sections import bar_area
@@ -465,13 +484,14 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                 _st.append(("BACKGROUND", (0, i), (-1, i),
                             HexColor("#F2F2F2")))
         t_sw.setStyle(TableStyle(_st))
-        story.append(t_sw)
+        _sw_story.append(t_sw)
     except Exception as e:
-        story.append(Paragraph(f"Không tính được cắt: {e}", st_cell))
+        _sw_story.append(Paragraph(f"Không tính được cắt: {e}", st_cell))
+    story.append(KeepTogether(_sw_story))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=12 * mm, bottomMargin=12 * mm,
+                            topMargin=10 * mm, bottomMargin=10 * mm,
                             title="Kết quả kiểm tra cột BTCT (ACI 318-19)")
     doc.build(story)
     return filepath

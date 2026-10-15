@@ -816,22 +816,30 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         ]))
         return _t
 
+    st_chart_title = ParagraphStyle("ct", parent=st_cell_b, alignment=TA_CENTER,
+                                      fontSize=8, spaceBefore=2, spaceAfter=2)
     right_flow = []
     try:
         # Hình mặt cắt
         _sec_png = section_image(sec, width_in=2.2, dpi=150, small=False,
                                  show_stats=False)
-        right_flow.append(_centered_img(_sec_png, 55))
-        right_flow.append(Spacer(1, 3))
-        # Biểu đồ N-Mα
+        right_flow.append(_centered_img(_sec_png, 52))
+        right_flow.append(Spacer(1, 2))
+        # Biểu đồ N-Mα (có tiêu đề như app)
         _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
                                     small=True)
-        right_flow.append(_centered_img(_nm_png, 70))
-        right_flow.append(Spacer(1, 3))
-        # Biểu đồ M2-M3
+        right_flow.append(Paragraph(
+            f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
+            st_chart_title))
+        right_flow.append(_centered_img(_nm_png, 66))
+        right_flow.append(Spacer(1, 2))
+        # Biểu đồ M2-M3 (có tiêu đề như app)
         _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
         if isinstance(_m2m3_png, bytes):
-            right_flow.append(_centered_img(_m2m3_png, 70))
+            right_flow.append(Paragraph(
+                f"<b>Mặt cắt M2-M3</b> (N = {res.N:+.1f} kN)",
+                st_chart_title))
+            right_flow.append(_centered_img(_m2m3_png, 66))
     except Exception as e:
         right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
 
@@ -850,10 +858,13 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     story = []
     story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
     story.append(t_main)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
-    # ===== KIỂM TRA THÉP ĐAI (full width) =====
-    story.append(Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_sec))
+    # ===== KIỂM TRA THÉP ĐAI (full width, giữ ở trang 1) =====
+    # Dùng KeepTogether để không bị tách trang
+    from reportlab.platypus import KeepTogether
+    _sw_story = []
+    _sw_story.append(Paragraph("<b>KIỂM TRA THÉP ĐAI</b>", st_sec))
     try:
         from .stirrup import StirrupInput, check_shear
         from .sections import bar_area
@@ -927,13 +938,15 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                 _sw_style.append(("BACKGROUND", (0, i), (-1, i),
                                   HexColor("#F2F2F2")))
         t_sw.setStyle(TableStyle(_sw_style))
-        story.append(t_sw)
+        _sw_story.append(t_sw)
     except Exception as e:
-        story.append(Paragraph(f"Không tính được thép đai: {e}", st_cell))
+        _sw_story.append(Paragraph(f"Không tính được thép đai: {e}", st_cell))
+    # Giữ toàn bộ bảng thép đai trên cùng 1 trang
+    story.append(KeepTogether(_sw_story))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=12 * mm, bottomMargin=12 * mm,
+                            topMargin=10 * mm, bottomMargin=10 * mm,
                             title="Kết quả kiểm tra cột BTCT")
     doc.build(story)
     return filepath
