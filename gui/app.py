@@ -1779,7 +1779,14 @@ class App(tk.Tk):
             m2m3_fig = getattr(self, "_m2m3_fig", None)
             if nm_fig is not None and m2m3_fig is not None:
                 # Copy figure để dùng cho 2 tab (mỗi figure chỉ gắn 1 canvas)
-                chart_figs = (copy.deepcopy(nm_fig), copy.deepcopy(m2m3_fig))
+                # Thu nhỏ 80% để vừa khung tab Chi tiết (không bị cắt legend)
+                _f1 = copy.deepcopy(nm_fig)
+                _f2 = copy.deepcopy(m2m3_fig)
+                _f1.set_size_inches(4.2, 3.15)
+                _f2.set_size_inches(4.2, 3.15)
+                _f1.tight_layout()
+                _f2.tight_layout()
+                chart_figs = (_f1, _f2)
         except Exception:
             chart_figs = None
         # Mục 1-7: widget kiểu Vietcon
