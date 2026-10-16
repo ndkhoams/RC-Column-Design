@@ -85,7 +85,7 @@ class _ToolTip:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(f"Kiểm tra cột bê tông cốt thép [{APP_BUILD}]")
+        self.title(f"RC Column Design [{APP_BUILD}]")
         self.geometry("1360x860")
         # Icon title bar: ưu tiên PNG (ổn định hơn ICO trên tkinter)
         try:
@@ -240,19 +240,6 @@ class App(tk.Tk):
             self.on_check()
 
     def _build(self):
-        # Thanh công cụ trên cùng: nút chuyển ngôn ngữ VN|EN (góc phải)
-        from rc_column import lang as _lang
-        _toolbar = ttk.Frame(self)
-        _toolbar.pack(fill=tk.X, padx=6, pady=(4, 0))
-        self._lang_var = tk.StringVar(value="VN")
-        _lang_frame = ttk.Frame(_toolbar)
-        _lang_frame.pack(side=tk.RIGHT)
-        ttk.Button(_lang_frame, text="VN", width=4,
-                   command=lambda: self._switch_lang("VN")).pack(side=tk.LEFT)
-        ttk.Label(_lang_frame, text="|").pack(side=tk.LEFT, padx=2)
-        ttk.Button(_lang_frame, text="EN", width=4,
-                   command=lambda: self._switch_lang("EN")).pack(side=tk.LEFT)
-
         self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
@@ -349,6 +336,15 @@ class App(tk.Tk):
         # ---- Phải: kết quả ----
         right = ttk.Frame(main)
         main.add(right, weight=1)
+        # Nút VN|EN đặt cùng hàng với tab (góc phải, đè lên vùng trống của tab)
+        self._lang_var = tk.StringVar(value="VN")
+        _lang_frame = ttk.Frame(right)
+        _lang_frame.place(relx=1.0, x=-4, y=2, anchor=tk.NE)
+        ttk.Button(_lang_frame, text="VN", width=4,
+                   command=lambda: self._switch_lang("VN")).pack(side=tk.LEFT)
+        ttk.Label(_lang_frame, text="|").pack(side=tk.LEFT, padx=2)
+        ttk.Button(_lang_frame, text="EN", width=4,
+                   command=lambda: self._switch_lang("EN")).pack(side=tk.LEFT)
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.nb = nb
@@ -3662,7 +3658,7 @@ class App(tk.Tk):
     def _update_title(self):
         """Title bar hiện tên file đang lưu + mã bản build."""
         import os
-        base = f"Kiểm tra cột bê tông cốt thép [{APP_BUILD}]"
+        base = f"RC Column Design [{APP_BUILD}]"
         p = getattr(self, "current_save_path", None)
         if p:
             self.title(f"{base} — [{os.path.basename(p)}]")
