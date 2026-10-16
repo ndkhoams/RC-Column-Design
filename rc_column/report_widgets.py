@@ -721,7 +721,22 @@ def render_report_sections(parent, sections, chart_figs=None):
             else:
                 i += 1
             row += 1
-        # Box kết luận D/C sau mục 6 (style TCVN) cho ACI/EC2
+        # Mục 6: nhúng 2 biểu đồ tương tác (giống TCVN)
+        if sec["num"] == 6 and chart_figs:
+            try:
+                from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+                chart_frame = tk.Frame(parent, bg=WHITE)
+                chart_frame.pack(fill=tk.X, padx=8, pady=8)
+                for fig in chart_figs:
+                    if fig is not None:
+                        cv = FigureCanvasTkAgg(fig, master=chart_frame)
+                        cv.draw()
+                        cv.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH,
+                                                expand=True, padx=4)
+            except Exception:
+                pass
+
+        # Box kết luận D/C DƯỚI biểu đồ (style TCVN) cho ACI/EC2
         if sec["num"] == 6:
             _dc_card = None
             for _cd in cards:
@@ -741,18 +756,3 @@ def render_report_sections(parent, sections, chart_figs=None):
                          font=("", 11, "bold"), fg=_fg, bg=_bg).pack(anchor="w")
                 tk.Label(_box, text="✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000",
                          font=("", 10, "bold"), fg=_fg, bg=_bg).pack(anchor="w", pady=(4, 0))
-
-        # Mục 6: nhúng 2 biểu đồ tương tác (giống TCVN)
-        if sec["num"] == 6 and chart_figs:
-            try:
-                from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-                chart_frame = tk.Frame(parent, bg=WHITE)
-                chart_frame.pack(fill=tk.X, padx=8, pady=8)
-                for fig in chart_figs:
-                    if fig is not None:
-                        cv = FigureCanvasTkAgg(fig, master=chart_frame)
-                        cv.draw()
-                        cv.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH,
-                                                expand=True, padx=4)
-            except Exception:
-                pass
