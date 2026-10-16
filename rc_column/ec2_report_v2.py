@@ -234,7 +234,7 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                 "",
                 [f"D/C = |OA| / |OB| = {_f(math.sqrt(MEd2**2 + MEd3**2 + NEd**2), 1)} / {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)}",
                  f"= {_f(dc, 3)} (FS = {_f(fs, 2)})"],
-                "✓ ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT"),
+                "Kết luận: ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT"),
         ],
     })
 

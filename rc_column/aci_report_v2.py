@@ -307,7 +307,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                 "",
                 [f"D/C = |OA| / |OB| = {_f(math.sqrt(M2_star**2 + M3_star**2 + N**2), 1)} / {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)}",
                  f"= {_f(dc, 3)} (FS = {_f(fs, 2)})"],
-                "✓ ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT"),
+                "Kết luận: ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT"),
         ],
     })
 
@@ -340,7 +340,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                      f"Vs = Av·fyt·d/s = {_f(Vs, 1)} kN",
                      f"φVn = 0.75·(Vc+Vs) = {_f(phi_Vn, 1)} kN",
                      f"Vu = {_f(abs(Q), 1)} kN ≤ φVn = {_f(phi_Vn, 1)} kN"],
-                    "ĐẠT" if ok else "KHÔNG ĐẠT")
+                    "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
     _ok2 = bool(_d2.get("ok", False)) if _d2 else True
     _ok3 = bool(_d3.get("ok", False)) if _d3 else True
     _cfg_card["title"] = _cfg_card["title"] + " [FULL]"
