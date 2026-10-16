@@ -108,54 +108,37 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
     _section_header(g, 1, "ĐẶC TRƯNG VẬT LIỆU",
                     "TCVN 5574:2018 Mục 6.1 & 6.2")
     grid = _grid2(g)
-
-    # Rb*
-    c = _param_card(grid, "Bê tông: Cường độ chịu nén tính toán Rb*",
-                    "Bảng 6 & Mục 6.1.2.3",
-                    [f"Rb* = γb · Rb",
-                     f"= {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
-                     f"= {_f(conc.Rb)} MPa (N/mm²)"])
-    c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-    # Eb
-    c = _param_card(grid, "Bê tông: Mô đun đàn hồi ban đầu Eb", "Bảng 10",
-                    [f"Eb (Cấp độ bền {inp.concrete_grade})",
-                     f"= {conc.Eb:,.0f} N/mm²",
-                     f"= {_f(conc.Eb / 1000, 1)} × 10³ MPa"])
-    c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-    # Rs
-    c = _param_card(grid, "Cốt thép: Cường độ chịu kéo tính toán Rs",
-                    "Bảng 13 & Mục 6.2.2",
-                    [f"Rs = (Rsn / γs) · γsi",
-                     f"= ({steel.grade.Rs:.0f} / 1.15) × {_f(inp.gamma_s)}",
-                     f"= {_f(steel.Rs, 1)} MPa"])
-    c.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
-    # Rsc
-    c = _param_card(grid, "Cốt thép: Cường độ chịu nén tính toán Rsc",
-                    "Bảng 13 & Mục 6.2.2.2",
-                    [f"Tác dụng ngắn hạn: Rsc = {steel.Rsc:.0f} MPa",
-                     f"Tác dụng dài hạn: Rsc = {steel.Rsc:.0f} MPa",
-                     f"= {_f(steel.Rsc, 1)} MPa"])
-    c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
-    # Es
-    c = _param_card(grid, "Cốt thép dọc: Mô đun đàn hồi Es", "Mục 6.2.2.4",
-                    [f"Es (Cốt thép {inp.steel_grade})",
-                     f"= {steel.Es:,.0f} N/mm²",
-                     f"= {_f(steel.Es / 1000)} × 10³ MPa"])
-    c.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
-    # Thép đai
     from .materials import STEEL_GRADES as _SG
     _swg = _SG.get(getattr(inp, "sw_steel_grade", "CB400-V"), _SG["CB400-V"])
-    c = _param_card(grid, "Cốt thép đai: Cường độ tính toán Rsw", "Bảng 13",
+
+    # Bê tông (gộp các chỉ tiêu)
+    c = _param_card(grid, "Bê tông",
+                    "Bảng 6, Bảng 10 & Mục 6.1.2.3",
+                    [f"Rb* = γb·Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
+                     f"= {_f(conc.Rb)} MPa",
+                     f"Eb ({inp.concrete_grade}) = {conc.Eb:,.0f} N/mm²",
+                     f"= {_f(conc.Eb / 1000, 1)} × 10³ MPa"])
+    c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+    # Cốt thép dọc (gộp các chỉ tiêu)
+    c = _param_card(grid, "Cốt thép dọc",
+                    "Bảng 13 & Mục 6.2.2",
+                    [f"Rs = (Rsn/γs)·γsi = {_f(steel.Rs, 1)} MPa",
+                     f"Rsc = {_f(steel.Rsc, 1)} MPa",
+                     f"Es = {steel.Es:,.0f} N/mm²"])
+    c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+    # Cốt thép đai (gộp các chỉ tiêu)
+    c = _param_card(grid, "Cốt thép đai",
+                    "Bảng 13",
                     [f"Rsw = {_f(_swg.Rsw * inp.gamma_s, 1)} MPa",
                      f"(Thép {getattr(inp, 'sw_steel_grade', 'CB400-V')})",
                      f"Es = {steel.Es:,.0f} N/mm²"])
-    c.grid(row=2, column=1, sticky="nsew", padx=4, pady=4)
-    # αe
+    c.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+    # Thông tin khác
     c = _param_card(grid, "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
                     [f"αe = Es / Eb",
                      f"= {steel.Es:,.0f} / {conc.Eb:,.0f}",
                      f"= {_f(res.alpha_e)} -"])
-    c.grid(row=3, column=0, sticky="nsew", padx=4, pady=4)
+    c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
 
     # Bảng biến dạng giới hạn
     tk.Label(g, text="Biến dạng tỷ đối giới hạn của vật liệu",
