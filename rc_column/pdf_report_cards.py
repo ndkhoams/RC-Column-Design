@@ -533,7 +533,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             _rows.append([P(_ln, st["formula"])])
         if result:
             _rows.append([P(result, st["result"])])
-        _t = _T(_rows)
+        _t = _T(_rows, colWidths=[190*mm])
+        _t.hAlign = "LEFT"
         _t.setStyle(_TS([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),

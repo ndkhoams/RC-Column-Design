@@ -152,7 +152,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                     _rows.append([P(_ln, st["formula"])])
                 if _cd.get("result"):
                     _rows.append([P(_cd["result"], st["result"])])
-                _tf = _Tf(_rows, colWidths=[170*mm])
+                _tf = _Tf(_rows, colWidths=[190*mm])
+                _tf.hAlign = "LEFT"
                 _tf.setStyle(_TSf([
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),
