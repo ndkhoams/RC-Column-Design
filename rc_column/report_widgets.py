@@ -709,3 +709,29 @@ def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
     # Spacer hút khoảng trống xuống đáy (fix Canvas Win)
     tk.Frame(body, bg=WHITE).pack(fill=tk.BOTH, expand=True)
     return outer
+
+
+def render_report_sections(parent, sections):
+    """Render danh sách section (dict) kiểu TCVN cho mọi tiêu chuẩn.
+
+    sections: list dict {num, title, ref, cards: [{title, ref, lines, result}]}.
+    Dùng chung cho TCVN/ACI/EC2 để layout đồng nhất.
+    """
+    for sec in sections:
+        _section_header(parent, sec["num"], sec["title"], sec.get("ref", ""))
+        cards = sec.get("cards", [])
+        grid = _grid2(parent)
+        row = 0
+        i = 0
+        while i < len(cards):
+            c1 = cards[i]
+            c2 = cards[i + 1] if i + 1 < len(cards) else None
+            w1 = _param_card(grid, c1.get("title", ""), c1.get("ref", ""),
+                             c1.get("lines", []), c1.get("result", ""))
+            w1.grid(row=row, column=0, sticky="nsew", padx=4, pady=4)
+            if c2:
+                w2 = _param_card(grid, c2.get("title", ""), c2.get("ref", ""),
+                                 c2.get("lines", []), c2.get("result", ""))
+                w2.grid(row=row, column=1, sticky="nsew", padx=4, pady=4)
+            row += 1
+            i += 2
