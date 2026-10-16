@@ -130,7 +130,6 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
     c = _param_card(grid, f"Cốt thép đai ({getattr(inp, 'sw_steel_grade', 'CB400-V')})",
                     "Bảng 13",
                     [f"Rsw = {_f(_swg.Rsw * inp.gamma_s, 1)} MPa",
-                     f"(Thép {getattr(inp, 'sw_steel_grade', 'CB400-V')})",
                      f"Es = {steel.Es:,.0f} MPa"])
     c.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
     # Thông tin khác
