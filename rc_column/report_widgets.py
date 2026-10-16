@@ -116,8 +116,7 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
                     "Bảng 6, Bảng 10 & Mục 6.1.2.3",
                     [f"Rb* = γb·Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
                      f"= {_f(conc.Rb)} MPa",
-                     f"Eb ({inp.concrete_grade}) = {conc.Eb:,.0f} MPa",
-                     f"= {_f(conc.Eb / 1000, 1)} × 10³ MPa"])
+                     f"Eb ({inp.concrete_grade}) = {conc.Eb:,.0f} MPa"])
     c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
     # Cốt thép dọc (gộp các chỉ tiêu)
     c = _param_card(grid, f"Cốt thép dọc ({inp.steel_grade})",
@@ -136,45 +135,10 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
     c = _param_card(grid, "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
                     [f"αe = Es / Eb",
                      f"= {steel.Es:,.0f} / {conc.Eb:,.0f}",
-                     f"= {_f(res.alpha_e)} -"])
+                     f"= {_f(res.alpha_e)}"])
     c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
 
-    # Bảng biến dạng giới hạn
-    tk.Label(g, text="Biến dạng tỷ đối giới hạn của vật liệu",
-             font=("", 10, "bold"), fg=TEXT, bg=WHITE,
-             anchor="w").pack(fill=tk.X, padx=8, pady=(10, 4))
-    tbl = tk.Frame(g, bg=WHITE, highlightbackground=BORDER,
-                   highlightthickness=1)
-    tbl.pack(fill=tk.X, padx=8, pady=4)
-    headers = ["BÊ TÔNG CHỊU NÉN", "BÊ TÔNG CHỊU KÉO", "CỐT THÉP"]
-    for j, h in enumerate(headers):
-        tk.Label(tbl, text=h, font=("", 9, "bold"), fg=TEXT, bg="#F3F4F6",
-                 padx=8, pady=6).grid(row=0, column=j, sticky="nsew")
-        tbl.columnconfigure(j, weight=1)
-    rows = [
-        ("Biến dạng quy đổi: εb1,red = 0.0015 (1.50‰)",
-         "Biến dạng quy đổi: εbt1,red = 0.00008 (0.08‰)",
-         f"Biến dạng khi đạt Rs: εs0 = {_f(steel.Rs / steel.Es, 6)}"),
-        (f"Tham số εb0: εb0 = {EPS_B1} (2.00‰)",
-         "Tham số εbt0: εbt0 = 0.00010 (0.10‰)",
-         f"Biến dạng khi đạt Rsc: εsc0 = {_f(steel.Rsc / steel.Es, 6)}"),
-        (f"Biến dạng nén giới hạn: εb2 = {EPS_B2} (3.50‰)",
-         "Biến dạng kéo giới hạn: εbt2 = 0.00015 (0.15‰)",
-         f"Biến dạng giới hạn: εs2 = {EPS_S2} (25.00‰)"),
-    ]
-    for i, (a, b, cc) in enumerate(rows):
-        bg = "#F9FAFB" if i % 2 else WHITE
-        for j, t in enumerate((a, b, cc)):
-            tk.Label(tbl, text=t, font=("", 9), fg="#374151", bg=bg,
-                     padx=8, pady=6, anchor="w",
-                     wraplength=280, justify=tk.LEFT).grid(
-                         row=i + 1, column=j, sticky="nsew")
-    tk.Label(g, text="* NDM – TCVN 5574:2018, Điều 8.1.2.7: εbu được xác định "
-             "theo trạng thái ứng suất-biến dạng tiết diện theo Công thức (86), "
-             "với εb0 ≤ εbu ≤ εb2. Bê tông vùng kéo không tham gia kiểm tra "
-             "khả năng chịu lực TTGH I.",
-             font=("", 8), fg=GRAY, bg=WHITE, wraplength=900,
-             justify=tk.LEFT, anchor="w").pack(fill=tk.X, padx=8, pady=4)
+
 
 
 def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
@@ -213,7 +177,7 @@ def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
         c = _param_card(grid, "Bán kính quán tính (i2 = i3)", "",
                         [f"i = √(I / A) = D / 4",
                          f"= {D:.0f} / 4",
-                         f"= {_f(res.ix, 2)} mm (= {_f(res.ix / 1000, 4)} m)"])
+                         f"= {_f(res.ix, 2)} mm "])
         c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         return
     # A
@@ -244,12 +208,12 @@ def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
     c = _param_card(grid, "Bán kính quán tính phương 2 (i2)", "",
                     [f"i₂ = √(I₂ / A) = t2 / √12",
                      f"= {inp.cy:.0f} / 3.464",
-                     f"= {_f(res.ix, 2)} mm (= {_f(res.ix / 1000, 4)} m)"])
+                     f"= {_f(res.ix, 2)} mm "])
     c.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
     c = _param_card(grid, "Bán kính quán tính phương 3 (i3)", "",
                     [f"i₃ = √(I₃ / A) = t3 / √12",
                      f"= {inp.cx:.0f} / 3.464",
-                     f"= {_f(res.iy, 2)} mm (= {_f(res.iy / 1000, 4)} m)"])
+                     f"= {_f(res.iy, 2)} mm "])
     c.grid(row=2, column=1, sticky="nsew", padx=4, pady=4)
 
 
