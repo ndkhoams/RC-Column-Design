@@ -1720,7 +1720,7 @@ class App(tk.Tk):
                 bg = "#F9FAFB" if i % 2 else "white"
                 is_kl = (a == "Kết luận")
                 for j, t in enumerate((a, b, c)):
-                    fw = ("", 9, "bold")
+                    fw = ("", 9)  # nội dung bảng không in đậm
                     fg = "#1F2937"
                     if is_kl and j > 0:
                         fg = "#065F46" if t == "ĐẠT" else "#991B1B"
@@ -1807,7 +1807,7 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
-        tk.Label(left, text="● Biểu đồ tương tác N–Mα (ACI)",
+        tk.Label(left, text="● Biểu đồ tương tác N–Mα",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         self._aci_nm_alpha_lbl = tk.Label(
             left, text=f"  α = {alpha_deg:.1f}°  ",
@@ -1870,7 +1870,7 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
-        tk.Label(left, text="● Mặt cắt M2-M3 (ACI)",
+        tk.Label(left, text="● Mặt cắt M2-M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         tk.Label(left, text=f"  N = {inp.N:+.1f} kN  ",
                  font=("", 8, "bold"), fg="#1D4ED8",
@@ -2154,7 +2154,7 @@ class App(tk.Tk):
                     ok=bool(sr.get("ok", False)))
             tf = tk.Frame(parent, bg="white")
             tf.pack(fill=tk.X, padx=8, pady=6)
-            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT (EC2)",
+            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT",
                        "Phương V2", "Phương V3"]
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
@@ -2192,7 +2192,7 @@ class App(tk.Tk):
                 bg = "#F9FAFB" if i % 2 else "white"
                 is_kl = (a == "Kết luận")
                 for j, t in enumerate((a, b, c)):
-                    fw = ("", 9, "bold")
+                    fw = ("", 9)  # nội dung bảng không in đậm
                     fg = "#1F2937"
                     if is_kl and j > 0:
                         fg = "#065F46" if t == "ĐẠT" else "#991B1B"
@@ -2294,7 +2294,7 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
-        tk.Label(left, text="● Biểu đồ tương tác N–Mα (EC2)",
+        tk.Label(left, text="● Biểu đồ tương tác N–Mα",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         self._ec2_nm_alpha_lbl = tk.Label(
             left, text=f"  α = {alpha_deg:.1f}°  ",
@@ -2358,11 +2358,12 @@ class App(tk.Tk):
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
         left.pack(side=tk.LEFT)
-        tk.Label(left, text="● Mặt cắt M2-M3 (EC2)",
+        tk.Label(left, text="● Mặt cắt M2-M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         tk.Label(left, text=f"  N = {inp.N:+.1f} kN  ",
                  font=("", 8, "bold"), fg="#1D4ED8",
                  bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
+        # Góc xem (EC2)
 
     def _build_ec2_notes(self, parent, inp, ec2_res):
         """3 dòng chú thích dưới biểu đồ EC2."""
@@ -3811,7 +3812,7 @@ class App(tk.Tk):
     def _build_param_table(self, parent, inp, res):
         """B\u1ea3ng th\u00f4ng s\u1ed1 t\u00ednh to\u00e1n (Treeview 3 c\u1ed9t)."""
         import math
-        ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN",
+        ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (TCVN 5574:2018)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
         tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
