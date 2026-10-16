@@ -1747,7 +1747,7 @@ class App(tk.Tk):
         self._refresh_rebar_panel()
         # Tự chạy kiểm tra lại để mặt cắt/biểu đồ cập nhật theo DXF
         try:
-            self._check()
+            self.on_check()
         except Exception:
             pass
 
@@ -1802,7 +1802,7 @@ class App(tk.Tk):
             f"As={As:.0f} mm² (d={new_dia:.0f})")
         # Chạy lại kiểm tra để cập nhật kết quả
         try:
-            self._check()
+            self.on_check()
         except Exception:
             pass
 
