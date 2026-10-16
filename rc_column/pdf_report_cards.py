@@ -480,7 +480,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _mk( "Tỷ số D/C", "",
               [f"D/C = |OA| / |OB| = {_f(OA, 1)} / {_f(OB, 1)}",
                f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"],
-              "✓ ĐẠT — D/C ≤ 1.000" if res.ok else "✗ KHÔNG ĐẠT"))))
+              ""))))
     # Biểu đồ: luôn tạo vuông (5x5 inch) cho PDF để không bị dẹt
     # (không dùng lại figure app vì tỉ lệ khác)
     _pngs = None
@@ -513,6 +513,26 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
         ]))
         S.append(_ct)
+        S.append(Spacer(1, 4*mm))
+        # Box kết luận D/C xanh dưới biểu đồ
+        _ok = res.ok
+        _bg = "#D1FAE5" if _ok else "#FEE2E2"
+        _fg = "#065F46" if _ok else "#991B1B"
+        _t = Table([
+            [P(f"TỶ SỐ SỬ DỤNG (D/C) = {res.dc:.3f}  (FS = {res.fs:.2f})", st["b"])],
+            [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["b"])],
+        ])
+        _t.setStyle(_TS2([
+            ("BACKGROUND", (0, 0), (-1, -1), _HC(_bg)),
+            ("TEXTCOLOR", (0, 0), (-1, -1), _HC(_fg)),
+            ("BOX", (0, 0), (-1, -1), 0.5, _HC("#E5E7EB")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        S.append(_t)
+        S.append(Spacer(1, 4*mm))
 
 
     # ================= MỤC 7 =================
