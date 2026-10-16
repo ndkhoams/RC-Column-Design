@@ -258,7 +258,6 @@ class App(tk.Tk):
         _divider = ttk.Frame(main, width=4)
         _divider.pack(side=tk.LEFT, fill=tk.Y)
         _divider.pack_propagate(False)
-        main.add(left_outer, stretch="never")
         # Cụm nút cố định ĐỈNH (không bị cuộn theo) — theo yêu cầu user 2026-10-16
         top_bar = ttk.Frame(left_outer, relief=tk.RAISED, borderwidth=1)
         top_bar.pack(fill=tk.X, side=tk.TOP, padx=2, pady=2)
