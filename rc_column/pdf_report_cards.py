@@ -64,7 +64,7 @@ def _get_styles():
                                    textColor=HexColor(GRAY), leading=9,
                                    spaceAfter=2),
         "formula": ParagraphStyle("formula", fontName="VN", fontSize=7,
-                                  textColor=HexColor("#374151"), leading=10,
+                                  textColor=HexColor("#000000"), leading=10,
                                   leftIndent=6, spaceAfter=1),
         "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=7.5,
                                  textColor=HexColor(TEXT), leading=10,
