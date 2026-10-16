@@ -4080,25 +4080,24 @@ class App(tk.Tk):
                 ("Độ bền trên vết nứt xiên Q ≤ [Q] = Qb + Qsw",
                  f"{cols['2']['sh'].Qcap2:.1f} kN",
                  f"{cols['3']['sh'].Qcap2:.1f} kN"),
+                ("Kết luận",
+                 "ĐẠT" if cols['2']['sh'].ok else "KHÔNG ĐẠT",
+                 "ĐẠT" if cols['3']['sh'].ok else "KHÔNG ĐẠT"),
             ]
             for i, (a, b, c) in enumerate(rows):
                 bg = "#F9FAFB" if i % 2 else "white"
+                is_kl = (a == "Kết luận")
                 for j, t in enumerate((a, b, c)):
-                    fw = ("", 9, "bold") if j == 0 else ("", 9)
-                    tk.Label(tf, text=t, font=fw, bg=bg, fg="#1F2937",
+                    fw = ("", 9)  # nội dung bảng không in đậm
+                    fg = "#1F2937"
+                    if is_kl and j > 0:
+                        fg = "#065F46" if t == "ĐẠT" else "#991B1B"
+                    tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
                              borderwidth=0,
                              highlightthickness=0,
                              padx=6, pady=2, anchor="w" if j == 0
                              else "center").grid(row=i + 1, column=j,
                                                  sticky="nsew")
-            # Kết luận từ chịu cắt
-            ok_all = all(cols[lbl]["sh"].ok for lbl in ("2", "3"))
-            # Kết luận
-            kl = "ĐẠT" if ok_all else "KHÔNG ĐẠT"
-            fgk = "#065F46" if ok_all else "#991B1B"
-            tk.Label(parent, text=f"Kết luận thép đai: {kl}",
-                     font=("", 10, "bold"), fg=fgk, bg="white",
-                     anchor="w").pack(fill=tk.X, padx=8, pady=(4, 6))
         except Exception as e:
             tk.Label(parent, text=f"Không tính được thép đai: {e}",
                      fg="#991B1B", bg="white").pack(padx=8, pady=4)
