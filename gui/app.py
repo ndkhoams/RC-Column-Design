@@ -240,8 +240,13 @@ class App(tk.Tk):
             self.on_check()
 
     def _build(self):
-        self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL,
-                                       sashwidth=0, sashrelief=tk.FLAT)
+        self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        # Ẩn sash divider qua style (ttk không hỗ trợ sashwidth ở constructor)
+        try:
+            _ps = ttk.Style()
+            _ps.configure("TPanedwindow", sashwidth=2, sashrelief=tk.FLAT)
+        except Exception:
+            pass
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         # Panel trái rộng 700px để hiện đủ bảng nội lực
