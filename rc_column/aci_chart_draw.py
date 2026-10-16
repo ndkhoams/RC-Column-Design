@@ -31,7 +31,8 @@ def _design_curve(sec, conc, steel, theta_deg, tied=True, n_points=48):
         if Nd > N_cap:
             Nd = N_cap
         pts.append((Nd, M * phi))
-    pts.sort(key=lambda p: -p[0])
+    # KHÔNG sort lại: giữ đúng thứ tự từ aci_interaction_curve
+    # (sort lại sau khi nhân φ biến thiên làm xáo trộn M gây zigzag)
     n_dsgn = [p[0] for p in pts]
     m_dsgn = [p[1] for p in pts]
     return n_dsgn, m_dsgn
