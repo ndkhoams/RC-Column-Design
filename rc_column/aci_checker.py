@@ -396,6 +396,12 @@ def aci_shear_check(Acv_mm2: float, Ag_mm2: float, fc_MPa: float, Nu_kN: float,
     else:
         Vs_kN = 0.0
 
+    # ACI 22.5.1.2: Vs ≤ 8·λs·λ·√f'c·bw·d
+    if d_mm > 0 and Acv_mm2 > 0:
+        bw_in = (Acv_mm2 / d_mm) / 25.4  # bw = Acv/d
+        Vs_max_lbf = 8.0 * lambda_s * lambda_ * sqrt_fc * bw_in * d_in
+        Vs_kN = min(Vs_kN, Vs_max_lbf / _LBF_PER_KN)
+
     phi = 0.75  # hệ số phi cho cắt (ACI 21.2.1)
     phi_Vn_kN = phi * (Vc_kN + Vs_kN)
     ok = phi_Vn_kN >= Vu_kN

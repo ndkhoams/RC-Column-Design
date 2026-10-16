@@ -106,14 +106,27 @@ def generate_aci_report_sections(inp, aci_res: Dict[str, Any],
 
     # ---- 3. Độ mảnh & δns ----
     _mm = mm_res or {}
-    delta_ns = _mm.get("delta_ns", 1.0) or 1.0
-    Pc = _mm.get("Pc_kN", 0.0) or 0.0
-    Cm = _mm.get("Cm", 1.0) or 0.0
-    mm_ok = bool(_mm.get("ok", True))
-    mm_reason = _mm.get("reason", "") or ""
-    mm_lines = [f"Cm = {_f(Cm, 3)}",
-                f"Pc = {_f(Pc, 0)} kN",
-                f"δns = {_f(delta_ns, 3)}"]
+    # Hỗ trợ cấu trúc mới {dir2, dir3, delta2, delta3} và cũ {delta_ns, ...}
+    if "dir2" in _mm:
+        _d2 = _mm.get("dir2", {})
+        _d3 = _mm.get("dir3", {})
+        delta_ns = max(_mm.get("delta2", 1.0), _mm.get("delta3", 1.0))
+        Pc = min(_d2.get("Pc_kN", float("inf")), _d3.get("Pc_kN", float("inf")))
+        Cm = _d2.get("Cm", 1.0)
+        mm_ok = bool(_d2.get("ok", True) and _d3.get("ok", True))
+        mm_reason = (_d2.get("reason", "") or "") + ("; " if _d2.get("reason") and _d3.get("reason") else "") + (_d3.get("reason", "") or "")
+        mm_lines = [f"Cm2 = {_f(_d2.get('Cm', 0), 3)}, Cm3 = {_f(_d3.get('Cm', 0), 3)}",
+                    f"Pc2 = {_f(_d2.get('Pc_kN', 0), 0)} kN, Pc3 = {_f(_d3.get('Pc_kN', 0), 0)} kN",
+                    f"δns2 = {_f(_mm.get('delta2', 1.0), 3)}, δns3 = {_f(_mm.get('delta3', 1.0), 3)}"]
+    else:
+        delta_ns = _mm.get("delta_ns", 1.0) or 1.0
+        Pc = _mm.get("Pc_kN", 0.0) or 0.0
+        Cm = _mm.get("Cm", 1.0) or 0.0
+        mm_ok = bool(_mm.get("ok", True))
+        mm_reason = _mm.get("reason", "") or ""
+        mm_lines = [f"Cm = {_f(Cm, 3)}",
+                    f"Pc = {_f(Pc, 0)} kN",
+                    f"δns = {_f(delta_ns, 3)}"]
     if mm_reason:
         mm_lines.append(mm_reason)
     sections.append({
