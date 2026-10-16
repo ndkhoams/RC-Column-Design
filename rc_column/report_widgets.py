@@ -625,21 +625,13 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
             f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN "
             f"→ {'ĐẠT' if sh.ok else 'KHÔNG ĐẠT'}",
         ]
-        c = _param_card(grid, f"Kiểm tra chịu cắt phương {dnum}", "", lines)
+        c = _param_card(grid, f"Kiểm tra chịu cắt phương {dnum}", "", lines,
+                        "Kết luận: ĐẠT" if sh.ok else "Kết luận: KHÔNG ĐẠT")
         c.grid(row=row, column=int(dnum) - 2, sticky="nsew", padx=4, pady=4)
         shear_ok &= sh.ok
         if dnum == "2":
             row += 0  # giữ cùng hàng cho phương 3
-    # Kết luận
-    ok = stir_res.ok and shear_ok
-    bg = "#D1FAE5" if ok else "#FEE2E2"
-    fg = "#065F46" if ok else "#991B1B"
-    box = tk.Frame(g, bg=bg, highlightbackground=BORDER,
-                   highlightthickness=1, padx=12, pady=10)
-    box.pack(fill=tk.X, padx=8, pady=8)
-    tk.Label(box, text="✓ ĐẠT — Cốt đai thỏa TCVN 5574:2018" if ok else
-             "✗ KHÔNG ĐẠT — Xem lại cốt đai",
-             font=("", 11, "bold"), fg=fg, bg=bg).pack(anchor="w")
+
 
 
 def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
