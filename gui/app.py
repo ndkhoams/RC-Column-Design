@@ -315,9 +315,9 @@ class App(tk.Tk):
         self._sec_rebar()
         self._sec_stability()
         self._sec_loads()
-        # Spacer hút khoảng trống xuống đáy (fix Canvas Win đẩy content xuống)
+        # Spacer (không expand để bảng nội lực ở mục 5 fill hết không gian)
         _spacer = ttk.Frame(self.left)
-        _spacer.pack(fill=tk.BOTH, expand=True)
+        _spacer.pack(fill=tk.X)
         # Cuộn chuột cho vùng nhập liệu
         self._bind_wheel(self.left, self._left_canvas)
         # Cuộn chuột trên cụm nút cố định đỉnh -> cuộn vùng nhập liệu
@@ -597,14 +597,12 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self.cb_kind.grid(row=0, column=1, sticky=tk.W, padx=4, pady=5)
-        # Nút import/export: đặt trong fl ngay dưới combobox (không để khoảng trống)
-        # Mỗi nút rộng 50% fl = 25% section = bằng OPEN/SAVE
-        fl.columnconfigure(0, weight=1, uniform="dxf2")
-        fl.columnconfigure(1, weight=1, uniform="dxf2")
-        self.btn_dxf = ttk.Button(fl, text="📐 Import (.dxf)",
+        # Nút import/export: đặt trực tiếp ở grid 4 cột của section f
+        # (cột 0-1 = vị trí OPEN/SAVE), không qua fl để tránh lệch
+        self.btn_dxf = ttk.Button(f, text="📐 Import (.dxf)",
                                   command=self.on_import_dxf)
         self.btn_dxf.grid(row=1, column=0, sticky=tk.EW, padx=4, pady=2)
-        self.btn_dxf_export = ttk.Button(fl, text="📤 Export (.dxf)",
+        self.btn_dxf_export = ttk.Button(f, text="📤 Export (.dxf)",
                                          command=self.on_export_dxf)
         self.btn_dxf_export.grid(row=1, column=1, sticky=tk.EW, padx=4, pady=2)
         for w in (self.en_cx, self.en_cy):
@@ -1676,15 +1674,7 @@ class App(tk.Tk):
                 tk.Label(cell, text=sub, font=("", 8),
                          fg="#6B7280", bg="white").pack()
 
-        # Hàng vật liệu ACI
-        mrow = tk.Frame(parent, bg="#F9FAFB")
-        mrow.pack(fill=tk.X, padx=2, pady=2)
-        tie_txt = "Tied" if tied else "Spiral"
-        _fyt = getattr(steel, "fyt", steel.fy)
-        for title, val in (("Bê tông", f"f'c = {conc.fc:g} MPa"),
-                           ("Thép dọc", f"fy = {steel.fy:g} MPa"),
-                           ("Thép đai", f"fyt = {_fyt:g} MPa ({tie_txt})")):
-            _card(mrow, title, val)
+        # (Đã bỏ hàng vật liệu ACI theo yêu cầu user — chỉ giữ hàng thép)
         # Hàng số liệu thép
         row1 = tk.Frame(parent, bg="#F9FAFB")
         row1.pack(fill=tk.X, padx=2, pady=(2, 4))
@@ -2149,17 +2139,7 @@ class App(tk.Tk):
                 tk.Label(cell, text=sub, font=("", 8),
                          fg="#6B7280", bg="white").pack()
 
-        # Hàng vật liệu EC2
-        mrow = tk.Frame(parent, bg="#F9FAFB")
-        mrow.pack(fill=tk.X, padx=2, pady=2)
-        try:
-            fyk_sw = float(self.en_ec2_fyt.get().replace(",", "."))
-        except Exception:
-            fyk_sw = 500.0
-        for title, val in (("Bê tông", f"fck = {conc.fck:g} MPa"),
-                           ("Thép dọc", f"fyk = {steel.fyk:g} MPa"),
-                           ("Thép đai", f"fyk = {fyk_sw:g} MPa")):
-            _card(mrow, title, val)
+        # (Đã bỏ hàng vật liệu EC2 theo yêu cầu user — chỉ giữ hàng thép)
         # Hàng số liệu thép
         row1 = tk.Frame(parent, bg="#F9FAFB")
         row1.pack(fill=tk.X, padx=2, pady=(2, 4))
@@ -3823,23 +3803,7 @@ class App(tk.Tk):
                          fg="#6B7280", bg="white").pack()
                 varmap[subkey] = svar
 
-        # 3 box vật liệu lên trên
-        if inp is not None:
-            mrow = tk.Frame(parent, bg="#F9FAFB")
-            mrow.pack(fill=tk.X, padx=2, pady=2)
-            for title, val in (("Bê tông", inp.concrete_grade),
-                               ("Thép dọc", inp.steel_grade),
-                               ("Thép đai", inp.sw_steel_grade)):
-                mb = tk.Frame(mrow, bg="white",
-                              highlightbackground="#E5E7EB",
-                              highlightthickness=1, height=52)
-                mb.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3, pady=2)
-                mb.pack_propagate(False)
-                tk.Label(mb, text=title, font=("", 8), fg="#6B7280",
-                         bg="white").pack(pady=(6, 0))
-                tk.Label(mb, text=val, font=("", 10, "bold"),
-                         bg="white").pack()
-            varmap["_mat"] = None
+        # (Đã bỏ 3 box vật liệu theo yêu cầu user — chỉ giữ box thép)
         row1 = tk.Frame(parent, bg="#F9FAFB")
         row1.pack(fill=tk.X, padx=2, pady=(2, 4))
         _card(row1, "S\u1ed1 thanh", "n", "nsub")
