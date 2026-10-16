@@ -15,8 +15,8 @@ def _f(x: float, nd: int = 2) -> str:
     return f"{x:.{nd}f}"
 
 
-def _mk(title: str, ref: str, lines: List[str], result: str = "", full: bool = False, conclusion: bool = False) -> Dict[str, Any]:
-    return {"title": title, "ref": ref, "lines": lines, "result": result, "full": full, "conclusion": conclusion}
+def _mk(title: str, ref: str, lines: List[str], result: str = "", full: bool = False, conclusion: bool = False, dc_conclusion: bool = False, dc: float = 0.0, fs: float = 0.0, ok: bool = True, shear_conclusion: bool = False) -> Dict[str, Any]:
+    return {"title": title, "ref": ref, "lines": lines, "result": result, "full": full, "conclusion": conclusion, "dc_conclusion": dc_conclusion, "dc": dc, "fs": fs, "ok": ok, "shear_conclusion": shear_conclusion}
 
 
 def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
@@ -307,7 +307,8 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                 "",
                 [f"D/C = |OA| / |OB| = {_f(math.sqrt(M2_star**2 + M3_star**2 + N**2), 1)} / {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)}",
                  f"= {_f(dc, 3)} (FS = {_f(fs, 2)})"],
-                "Kết luận: ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT"),
+                "Kết luận: ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT",
+                 dc_conclusion=True, dc=dc, fs=fs, ok=pm_ok),
         ],
     })
 
@@ -353,7 +354,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                  [f"Phương 2: {'ĐẠT' if _ok2 else 'KHÔNG ĐẠT'}",
                   f"Phương 3: {'ĐẠT' if _ok3 else 'KHÔNG ĐẠT'}"],
                  "Kết luận: ĐẠT" if _all_ok else "Kết luận: KHÔNG ĐẠT",
-                 full=True, conclusion=True)
+                 full=True, conclusion=True, shear_conclusion=True, ok=_all_ok)
     _cards7.append(_total)
     sections.append({
         "num": 7,

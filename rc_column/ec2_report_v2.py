@@ -10,8 +10,8 @@ def _f(x: float, nd: int = 2) -> str:
     return f"{x:.{nd}f}"
 
 
-def _mk(title: str, ref: str, lines: List[str], result: str = "") -> Dict[str, Any]:
-    return {"title": title, "ref": ref, "lines": lines, "result": result}
+def _mk(title: str, ref: str, lines: List[str], result: str = "", dc_conclusion: bool = False, dc: float = 0.0, fs: float = 0.0, ok: bool = True, shear_conclusion: bool = False) -> Dict[str, Any]:
+    return {"title": title, "ref": ref, "lines": lines, "result": result, "dc_conclusion": dc_conclusion, "dc": dc, "fs": fs, "ok": ok, "shear_conclusion": shear_conclusion, "full": False, "conclusion": False}
 
 
 def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
@@ -234,7 +234,8 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                 "",
                 [f"D/C = |OA| / |OB| = {_f(math.sqrt(MEd2**2 + MEd3**2 + NEd**2), 1)} / {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)}",
                  f"= {_f(dc, 3)} (FS = {_f(fs, 2)})"],
-                "Kết luận: ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT"),
+                "Kết luận: ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT",
+                 dc_conclusion=True, dc=dc, fs=fs, ok=pm_ok),
         ],
     })
 
@@ -287,7 +288,7 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                    "lines": [f"Phương 2: {'ĐẠT' if _ok2e else 'KHÔNG ĐẠT'}",
                              f"Phương 3: {'ĐẠT' if _ok3e else 'KHÔNG ĐẠT'}"],
                    "result": "Kết luận: ĐẠT" if _all_oke else "Kết luận: KHÔNG ĐẠT",
-                   "full": True, "conclusion": True}
+                   "full": True, "conclusion": True, "shear_conclusion": True, "ok": _all_oke}
         sh_cards.append(_totale)
     else:
         sh_cards = [_sh_card(shear_res or {}, VEd2, "V2/V3")]

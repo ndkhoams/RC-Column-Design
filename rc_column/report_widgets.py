@@ -721,6 +721,42 @@ def render_report_sections(parent, sections, chart_figs=None):
             else:
                 i += 1
             row += 1
+        # Box kết luận D/C sau mục 6 (style TCVN) cho ACI/EC2
+        if sec["num"] == 6:
+            _dc_card = None
+            for _cd in cards:
+                if "Tỷ số D/C" in _cd.get("title", "") or "D/C" in _cd.get("title", ""):
+                    _dc_card = _cd
+                    break
+            if _dc_card and _dc_card.get("dc_conclusion"):
+                _d = _dc_card
+                _ok = _d.get("ok", True)
+                _bg = "#D1FAE5" if _ok else "#FEE2E2"
+                _fg = "#065F46" if _ok else "#991B1B"
+                _box = tk.Frame(parent, bg=_bg, highlightbackground=BORDER,
+                               highlightthickness=1, padx=12, pady=10)
+                _box.pack(fill=tk.X, padx=8, pady=8)
+                tk.Label(_box, text=f"TỶ SỐ SỬ DỤNG (D/C) = {_f(_d.get('dc', 0), 3)}  "
+                         f"(FS = {_f(_d.get('fs', 0), 2)})",
+                         font=("", 11, "bold"), fg=_fg, bg=_bg).pack(anchor="w")
+                tk.Label(_box, text="✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000",
+                         font=("", 10, "bold"), fg=_fg, bg=_bg).pack(anchor="w", pady=(4, 0))
+        # Box kết luận cắt sau mục 7 (style TCVN) cho ACI/EC2
+        if sec["num"] == 7:
+            _sh_concl = None
+            for _cd in cards:
+                if _cd.get("shear_conclusion"):
+                    _sh_concl = _cd
+                    break
+            if _sh_concl:
+                _ok = _sh_concl.get("ok", True)
+                _bg = "#D1FAE5" if _ok else "#FEE2E2"
+                _fg = "#065F46" if _ok else "#991B1B"
+                _box = tk.Frame(parent, bg=_bg, highlightbackground=BORDER,
+                               highlightthickness=1, padx=12, pady=10)
+                _box.pack(fill=tk.X, padx=8, pady=8)
+                tk.Label(_box, text=_sh_concl.get("result", ""),
+                         font=("", 10, "bold"), fg=_fg, bg=_bg).pack(anchor="w")
         # Mục 6: nhúng 2 biểu đồ tương tác (giống TCVN)
         if sec["num"] == 6 and chart_figs:
             try:
