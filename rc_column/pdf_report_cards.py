@@ -294,8 +294,6 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
 
 
     # ================= MỤC 3 =================
-    from reportlab.platypus import PageBreak as _PB3
-    S.append(_PB3())  # Mục 3 luôn sang trang mới
     S.append(_sec_head(P, st, 3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
                        "TCVN 5574:2018 Mục 8.1.2.4"))
     S.extend(_two(P, st,
