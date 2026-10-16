@@ -8,7 +8,7 @@ Không phụ thuộc GUI/matplotlib trực tiếp.
 
 import io
 
-from .ec2_report import generate_ec2_report_sections
+from .ec2_report_v2 import generate_ec2_report_sections_v2
 
 
 def _f(x: float, nd: int = 2) -> str:
@@ -91,21 +91,21 @@ def _get_styles():
                               textColor=HexColor(GRAY), alignment=TA_CENTER,
                               spaceAfter=10),
         "sec_title": ParagraphStyle("sec_title", fontName="VN-Bold",
-                                    fontSize=12, textColor=HexColor(TEXT),
+                                    fontSize=10, textColor=HexColor(TEXT),
                                     spaceBefore=12, spaceAfter=6),
         "sec_ref": ParagraphStyle("sec_ref", fontName="VN", fontSize=8,
                                   textColor=HexColor(GRAY), leading=10,
                                   spaceAfter=4),
         "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
-                                     fontSize=10, textColor=HexColor(TEXT),
+                                     fontSize=8, textColor=HexColor(TEXT),
                                      leading=12, spaceAfter=2),
-        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=8,
+        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=7,
                                    textColor=HexColor(GRAY), leading=10,
                                    spaceAfter=2),
-        "formula": ParagraphStyle("formula", fontName="VN", fontSize=9,
+        "formula": ParagraphStyle("formula", fontName="VN", fontSize=7,
                                   textColor=HexColor("#374151"), leading=12,
                                   leftIndent=6, spaceAfter=1),
-        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=10,
+        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=7.5,
                                  textColor=HexColor(TEXT), leading=12,
                                  spaceBefore=4),
         "result_ok": ParagraphStyle("result_ok", fontName="VN-Bold",
@@ -266,7 +266,8 @@ def _full_case(d):
 
 
 def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
-                         filepath, chart_pngs=None, case_info=None, tied=None):
+                         filepath, chart_pngs=None, case_info=None, tied=None,
+                         sec=None):
     """Xuất PDF thuyết minh EC2 (EN 1992-1-1) kiểu card giống hệt app.
 
     inp: ColumnInput. ec2_res/slend_res/shear_res: dict kết quả EC2.
@@ -283,8 +284,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
     st = _get_styles()
     P = Paragraph
 
-    sections = generate_ec2_report_sections(inp, ec2_res, slend_res,
-                                            shear_res, conc, steel)
+    sections = generate_ec2_report_sections_v2(inp, ec2_res, slend_res,
+                                                  shear_res, conc, steel, sec)
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
@@ -315,7 +316,22 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             i += 2
 
         # Mục 3 (P-M-M): nhúng 2 biểu đồ ngang nhau, giữ tỉ lệ
-        if sec["num"] == 3 and chart_pngs:
+        # Mục 2: nhúng sơ đồ mặt cắt
+        if sec["num"] == 2 and sec is not None:
+            try:
+                from .pdf_export import section_image as _si
+                import io as _io
+                _sec_png = _si(sec, width_in=2.8, show_stats=False)
+                if _sec_png:
+                    from reportlab.platypus import Image as _Img
+                    _simg = _Img(_io.BytesIO(_sec_png), width=65*mm, height=65*mm)
+                    _simg.hAlign = "CENTER"
+                    S.append(_simg)
+                    S.append(Spacer(1, 4*mm))
+            except Exception:
+                pass
+
+        if sec["num"] == 6 and chart_pngs:
             try:
                 img1 = _img_keep_aspect(chart_pngs[0])
                 img2 = _img_keep_aspect(chart_pngs[1])
