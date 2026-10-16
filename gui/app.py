@@ -3380,7 +3380,8 @@ class App(tk.Tk):
                     self._aci_inp, self._aci_res, self._aci_mm,
                     self._aci_shear, self._aci_conc, self._aci_steel,
                     self._aci_tied, path, chart_pngs=pngs,
-                    case_info=getattr(self, "_pdf_case", None))
+                    case_info=getattr(self, "_pdf_case", None),
+                    sec=self._aci_sec)
             _show_success(path)
         except Exception as ex:
             from tkinter import messagebox
@@ -3424,7 +3425,8 @@ class App(tk.Tk):
                     self._ec2_inp, self._ec2_res, self._ec2_slend,
                     self._ec2_shear, self._ec2_conc, self._ec2_steel,
                     path, chart_pngs=pngs,
-                    case_info=getattr(self, "_pdf_case", None))
+                    case_info=getattr(self, "_pdf_case", None),
+                    sec=self._ec2_sec)
             _show_success(path)
         except Exception as ex:
             from tkinter import messagebox
