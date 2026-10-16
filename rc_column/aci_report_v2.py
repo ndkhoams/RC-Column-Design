@@ -347,6 +347,14 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _cards7 = [_cfg_card, _sh_card(_d2, Q2, "V2")]
     if _d3:
         _cards7.append(_sh_card(_d3, Q3, "V3"))
+    # Kết luận tổng
+    _all_ok = _ok2 and _ok3
+    _total = _mk("Kết luận kiểm tra cắt", "",
+                 [f"Phương 2: {'ĐẠT' if _ok2 else 'KHÔNG ĐẠT'}",
+                  f"Phương 3: {'ĐẠT' if _ok3 else 'KHÔNG ĐẠT'}"],
+                 "Kết luận: ĐẠT" if _all_ok else "Kết luận: KHÔNG ĐẠT",
+                 full=True)
+    _cards7.append(_total)
     sections.append({
         "num": 7,
         "title": "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
