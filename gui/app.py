@@ -455,10 +455,9 @@ class App(tk.Tk):
                                         state="readonly", width=12)
         self.cb_ec2_conc.set("C30/37")
         self._row(efl, "Mác bê tông (fck)", self.cb_ec2_conc, 0)
-        self.cb_ec2_steel = ttk.Combobox(efl, values=list(EC2_STEEL_GRADES),
-                                         state="readonly", width=12)
-        self.cb_ec2_steel.set("B500")
-        self._row(efl, "Cấp thép dọc (fyk)", self.cb_ec2_steel, 1)
+        self.en_ec2_fyk = ttk.Entry(efl, width=12)
+        self.en_ec2_fyk.insert(0, "500")
+        self._row(efl, "Cường độ thép dọc fyk (MPa)", self.en_ec2_fyk, 1)
         self.cb_ec2_method = ttk.Combobox(efr, values=["Độ cứng danh nghĩa",
                                                        "Độ cong danh nghĩa"],
                                           state="readonly", width=16)
@@ -1341,7 +1340,7 @@ class App(tk.Tk):
         from rc_column.sections import bar_area
         try:
             fck = EC2_CONCRETE_GRADES.get(self.cb_ec2_conc.get(), 30.0)
-            fyk = EC2_STEEL_GRADES.get(self.cb_ec2_steel.get(), 500.0)
+            fyk = float(self.en_ec2_fyk.get().replace(",", "."))
             fyk_sw = float(self.en_ec2_fyt.get().replace(",", "."))
         except Exception:
             messagebox.showerror("Lỗi", "Nhập fyk thép đai hợp lệ (MPa).")
@@ -1375,13 +1374,6 @@ class App(tk.Tk):
             geom[lbl] = {"h": h_dim, "Ic": Ic,
                          "i": math.sqrt(Ic / Ac) if Ac > 0 else h_dim,
                          "l0": l0_2 if lbl == "dir2" else l0_3}
-        # Momen quan tinh cua thep theo tung phuong (pp do cung danh nghia):
-        # dir2 (M2, uon quanh truc 2) -> Is = SA*y^2;
-        # dir3 (M3, uon quanh truc 3) -> Is = SA*x^2.
-        # (Truoc day truyen Is=0.0 -> EI thieu so hang Es*Is -> NB sai thap,
-        # cot manh bi bao 'qua manh' sai.)
-        Is_2 = sum(r.area * r.y * r.y for r in sec.rebars)
-        Is_3 = sum(r.area * r.x * r.x for r in sec.rebars)
         # n_bal cho phương pháp độ cong danh nghĩa (Kr)
         n_bal = 0.0
         if method == "curvature":
@@ -1400,8 +1392,7 @@ class App(tk.Tk):
                     M_bot_kNm=abs(Mdir), l0_mm=g["l0"], i_mm=g["i"],
                     h_mm=g["h"], Ac_mm2=Ac, As_mm2=As,
                     fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
-                    Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"],
-                    Is_mm4=Is_2 if lbl == "dir2" else Is_3,
+                    Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"], Is_mm4=0.0,
                     Es_MPa=steel.Es, fck_MPa=fck,
                     unbraced=False, method=method,
                     d_mm=max(g["h"] - inp.cover - 10.0, 0.5 * g["h"]),
@@ -2856,7 +2847,7 @@ class App(tk.Tk):
         from rc_column.stability import effective_length
         import math
         fck = EC2_CONCRETE_GRADES.get(self.cb_ec2_conc.get(), 30.0)
-        fyk = EC2_STEEL_GRADES.get(self.cb_ec2_steel.get(), 500.0)
+        fyk = float(self.en_ec2_fyk.get().replace(",", "."))
         conc = EC2Concrete(fck=fck)
         steel = EC2Steel(fyk=fyk)
         method = ("curvature"
@@ -2892,9 +2883,6 @@ class App(tk.Tk):
                 l0_2 = l0_3 = _L_grp * 1000.0
             geom = {"dir2": (cy, cx * cy**3 / 12.0, l0_2),
                     "dir3": (cx, cy * cx**3 / 12.0, l0_3)}
-            # Momen quan tinh cua thep theo tung phuong (pp do cung danh nghia)
-            Is2_g = sum(r.area * r.y * r.y for r in sec_g.rebars)
-            Is3_g = sum(r.area * r.x * r.x for r in sec_g.rebars)
             # Tối ưu: dựng EC2Capacity 1 lần cho cả nhóm,
             # mỗi tổ hợp chỉ tính mô men bậc 2 + D/C tia
             try:
@@ -2921,8 +2909,7 @@ class App(tk.Tk):
                             i_mm=math.sqrt(Ic / Ac) if Ac > 0 else h_dim,
                             h_mm=h_dim, Ac_mm2=Ac, As_mm2=As,
                             fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
-                            Ecm_MPa=conc.Ecm, Ic_mm4=Ic,
-                            Is_mm4=Is2_g if lbl == "dir2" else Is3_g,
+                            Ecm_MPa=conc.Ecm, Ic_mm4=Ic, Is_mm4=0.0,
                             Es_MPa=steel.Es, fck_MPa=fck,
                             unbraced=False, method=method,
                             d_mm=max(h_dim - (_inp_g.cover or 30) - 10.0,
@@ -3427,7 +3414,7 @@ class App(tk.Tk):
             "aci_fyt": ev(self.en_fyt), "aci_tie": self.cb_tie.get(),
             # 1c. Vật liệu EC2
             "ec2_conc": self.cb_ec2_conc.get(),
-            "ec2_steel": self.cb_ec2_steel.get(),
+            "ec2_steel": ev(self.en_ec2_fyk),
             "ec2_method": self.cb_ec2_method.get(),
             "ec2_fyt": ev(self.en_ec2_fyt),
             # 2. Tiết diện
@@ -3505,7 +3492,7 @@ class App(tk.Tk):
             self.cb_tie.set(d.get("aci_tie", "Tied (đai thường)"))
             # Vật liệu EC2 (tương thích file cũ: giữ mặc định nếu thiếu)
             self.cb_ec2_conc.set(d.get("ec2_conc", "C30/37"))
-            self.cb_ec2_steel.set(d.get("ec2_steel", "B500"))
+            se(self.en_ec2_fyk, d.get("ec2_steel", "500"))
             self.cb_ec2_method.set(d.get("ec2_method", "Độ cứng danh nghĩa"))
             se(self.en_ec2_fyt, d.get("ec2_fyt", "500"))
             self._toggle_code()
