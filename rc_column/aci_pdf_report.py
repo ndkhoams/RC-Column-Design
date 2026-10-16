@@ -65,7 +65,7 @@ def _find_aci_font_bold():
         return None
 
 
-def _img_keep_aspect(png_bytes, w_mm=95):
+def _img_keep_aspect(png_bytes, w_mm=80):
     """Tạo Image giữ tỉ lệ gốc bằng PIL."""
     from reportlab.platypus import Image
     from reportlab.lib.units import mm
@@ -174,26 +174,6 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
             except Exception:
                 pass
 
-        # Banner kết luận cho mục 4 (P-M-M) và mục 5 (cắt)
-        if _s["num"] in (6, 7):
-            if _s["num"] == 6:
-                ok = bool(aci_res.get("ok", False))
-                dc = aci_res.get("dc", 0.0) or 0.0
-                fs = aci_res.get("fs", 0.0) or 0.0
-                dc_txt = f"{dc:.3f}" if dc != float("inf") else "∞"
-                fs_txt = f"{fs:.2f}" if fs != float("inf") else "∞"
-                txt = (f"TỶ SỐ SỬ DỤNG (D/C) = {dc_txt} (FS = {fs_txt}) — "
-                       f"{'✓ ĐẠT — D/C ≤ 1.000' if ok else '✗ KHÔNG ĐẠT'}")
-            else:
-                _shr = shear_res or {}
-                ok = bool(_shr.get("ok", False))
-                Vu = abs(getattr(inp, "Q2", 0.0) or 0.0)
-                phi_vn = _shr.get("phi_Vn_kN", 0.0) or 0.0
-                txt = (f"Vu = {_f(Vu, 1)} kN "
-                       f"{'≤' if Vu <= phi_vn else '>'} "
-                       f"φVn = {_f(phi_vn, 1)} kN — "
-                       f"{'✓ ĐẠT' if ok else '✗ KHÔNG ĐẠT'}")
-            S.append(P(txt, st["dc_ok"] if ok else st["dc_ng"]))
 
     doc.build(S)
     return filepath

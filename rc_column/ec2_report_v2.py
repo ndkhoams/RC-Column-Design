@@ -42,12 +42,17 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                  f"fcd = {_f(conc.fcd, 2)} MPa",
                  f"Ecm = {_f(conc.Ecm, 0)} MPa"],
                 f"fcd = {_f(conc.fcd, 2)} MPa"),
-            _mk("Cốt thép",
+            _mk("Cốt thép dọc",
                 "EC2 3.2",
                 [f"fyk = {_f(fyk, 0)} MPa",
                  f"fyd = {_f(steel.fyd, 1)} MPa",
                  "Es = 200000 MPa"],
                 f"fyd = {_f(steel.fyd, 1)} MPa"),
+            _mk("Cốt thép đai",
+                "EC2 3.2",
+                [f"fyk,đai = {_f(getattr(steel, 'fyk_sw', fyk), 0)} MPa",
+                 "Es = 200000 MPa"],
+                f"fyk,đai = {_f(getattr(steel, 'fyk_sw', fyk), 0)} MPa"),
         ],
     })
 
@@ -56,6 +61,10 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     Ast = sec.steel_area if hasattr(sec, 'steel_area') else 0
     cx = getattr(sec, 'cx', 0) or getattr(inp, 'cx', 0)
     cy = getattr(sec, 'cy', 0) or getattr(inp, 'cy', 0)
+    from collections import Counter as _Ctr
+    _cnt = _Ctr(getattr(r, "dia", 0) for r in getattr(sec, "rebars", []))
+    _bar_str = " + ".join(f"{_cnt[d]:.0f}d{d:.0f}"
+                          for d in sorted(_cnt, reverse=True)) if _cnt else "—"
     sections.append({
         "num": 2,
         "title": "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
@@ -68,20 +77,33 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                 ""),
             _mk("Cốt thép dọc",
                 "",
-                [f"As = {_f(Ast, 0)} mm²"],
+                [f"Số thanh: {_bar_str}",
+                 f"Tổng As = {_f(Ast, 0)} mm²"],
                 ""),
         ],
     })
 
     # ---- 3. Chiều dài tính toán & độ mảnh ----
+    _sl = slend_res or {}
+    _l02 = _sl.get("l0_2", 0) or _sl.get("l02", 0) or 0
+    _l03 = _sl.get("l0_3", 0) or _sl.get("l03", 0) or 0
+    _lam2 = _sl.get("lambda_2", 0) or _sl.get("lam2", 0) or 0
+    _lam3 = _sl.get("lambda_3", 0) or _sl.get("lam3", 0) or 0
     sections.append({
         "num": 3,
         "title": "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
         "ref": "EC2 5.8.3",
         "cards": [
+            _mk("Chiều dài tính toán",
+                "EC2 5.8.3.2",
+                [f"l0,2 = {_f(_l02, 2)} m",
+                 f"l0,3 = {_f(_l03, 2)} m"],
+                ""),
             _mk("Độ mảnh",
                 "EC2 5.8.3.1",
-                ["λ = l0/i, λlim = 20·A·B·C/√n"],
+                [f"λ2 = l0/i = {_f(_lam2, 1)}",
+                 f"λ3 = l0/i = {_f(_lam3, 1)}",
+                 "λlim = 20·A·B·C/√n"],
                 ""),
         ],
     })

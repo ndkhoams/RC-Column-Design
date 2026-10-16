@@ -64,7 +64,7 @@ def _find_ec2_font_bold():
         return None
 
 
-def _img_keep_aspect(png_bytes, w_mm=95):
+def _img_keep_aspect(png_bytes, w_mm=80):
     """Tạo Image giữ tỉ lệ gốc bằng PIL."""
     from reportlab.platypus import Image
     from reportlab.lib.units import mm
@@ -174,29 +174,6 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             except Exception:
                 pass
 
-        # Banner kết luận cho mục 3 (P-M-M) và mục 4 (cắt)
-        if _s["num"] in (6, 7):
-            if _s["num"] == 6:
-                ok = bool(ec2_res.get("ok", False))
-                dc = ec2_res.get("dc", 0.0) or 0.0
-                fs = ec2_res.get("fs", 0.0) or 0.0
-                dc_txt = f"{dc:.3f}" if dc != float("inf") else "∞"
-                fs_txt = f"{fs:.2f}" if fs != float("inf") else "∞"
-                txt = (f"TỶ SỐ SỬ DỤNG (D/C) = {dc_txt} (FS = {fs_txt}) — "
-                       f"{'✓ ĐẠT — D/C ≤ 1.000' if ok else '✗ KHÔNG ĐẠT'}")
-            else:
-                _shr = shear_res or {}
-                _d2 = _shr.get("dir2", {}) if isinstance(_shr, dict) else {}
-                _d3 = _shr.get("dir3", {}) if isinstance(_shr, dict) else {}
-                ok = bool(_d2.get("ok", False) and _d3.get("ok", False))
-                _v2 = abs(getattr(inp, "Q2", 0.0) or 0.0)
-                _v3 = abs(getattr(inp, "Q3", 0.0) or 0.0)
-                _r2 = _d2.get("VRd_kN", 0.0) or 0.0
-                _r3 = _d3.get("VRd_kN", 0.0) or 0.0
-                txt = (f"VEd2 = {_f(_v2, 1)} kN ≤ VRd = {_f(_r2, 1)} kN; "
-                       f"VEd3 = {_f(_v3, 1)} kN ≤ VRd = {_f(_r3, 1)} kN — "
-                       f"{'✓ ĐẠT' if ok else '✗ KHÔNG ĐẠT'}")
-            S.append(P(txt, st["dc_ok"] if ok else st["dc_ng"]))
 
     doc.build(S)
     return filepath

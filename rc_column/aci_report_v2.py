@@ -56,12 +56,18 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                  f"β1 = {_f(conc.beta1, 4)}",
                  f"0.85f'c = {_f(conc.f_block, 2)} MPa"],
                 f"f'c = {_f(fc, 0)} MPa"),
-            _mk("Cốt thép",
+            _mk("Cốt thép dọc",
                 "ACI 20.2.2",
                 [f"fy = {_f(fy, 0)} MPa",
                  "Es = 200000 MPa",
                  f"εy = {_f(eps_y, 5)}"],
                 f"fy = {_f(fy, 0)} MPa"),
+            _mk("Cốt thép đai",
+                "ACI 20.2.2",
+                [f"fyt = {_f(fyt_MPa, 0)} MPa",
+                 "Es = 200000 MPa",
+                 f"Loại: {tie_txt}"],
+                f"fyt = {_f(fyt_MPa, 0)} MPa"),
             _mk("Hệ số sức kháng φ",
                 "ACI 21.2.2",
                 [f"φc = {_f(phi_c, 2)} ({tie_txt})",
@@ -75,6 +81,11 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     Ast = sec.steel_area if hasattr(sec, 'steel_area') else 0
     cx = getattr(sec, 'cx', 0) or getattr(inp, 'cx', 0)
     cy = getattr(sec, 'cy', 0) or getattr(inp, 'cy', 0)
+    # Số thanh-đường kính (như TCVN)
+    from collections import Counter as _Ctr
+    _cnt = _Ctr(getattr(r, "dia", 0) for r in getattr(sec, "rebars", []))
+    _bar_str = " + ".join(f"{_cnt[d]:.0f}d{d:.0f}"
+                          for d in sorted(_cnt, reverse=True)) if _cnt else "—"
     sections.append({
         "num": 2,
         "title": "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
@@ -95,11 +106,18 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
 
     # ---- 3. Chiều dài tính toán & độ mảnh ----
     _mm = mm_res or {}
+    _L02 = _mm.get("L0_2", 0) or 0
+    _L03 = _mm.get("L0_3", 0) or 0
     sections.append({
         "num": 3,
         "title": "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
         "ref": "ACI 6.6.4",
         "cards": [
+            _mk("Chiều dài tính toán",
+                "ACI 6.6.4.4",
+                [f"L0,2 = {_f(_L02, 2)} m",
+                 f"L0,3 = {_f(_L03, 2)} m"],
+                ""),
             _mk("Độ mảnh",
                 "ACI 6.6.4.1",
                 ["klu/r ≤ 34 - 12(M1/M2) (khung không chuyển vị)",
