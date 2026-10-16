@@ -1406,8 +1406,10 @@ class App(tk.Tk):
         self._show_aci_summary()
         # Vẽ tab Chi tiết
         try:
-            sections = generate_aci_report_sections(inp, aci_res, mm_res, shear_res,
-                                                    conc, steel, tied, fyt)
+            from rc_column.aci_report_v2 import generate_aci_report_sections_v2
+            sections = generate_aci_report_sections_v2(
+                inp, aci_res, mm_res, shear_res, conc, steel, sec,
+                tied, fyt)
         except Exception as ex:
             messagebox.showerror("Lỗi thuyết minh ACI",
                                  f"Không tạo được thuyết minh ACI:\n{ex}")
@@ -1550,8 +1552,9 @@ class App(tk.Tk):
         self._show_ec2_summary()
         # Vẽ tab Chi tiết
         try:
-            sections = generate_ec2_report_sections(inp, ec2_res, dm,
-                                                    shear_res, conc, steel)
+            from rc_column.ec2_report_v2 import generate_ec2_report_sections_v2
+            sections = generate_ec2_report_sections_v2(
+                inp, ec2_res, dm, shear_res, conc, steel, sec)
         except Exception as ex:
             messagebox.showerror("Lỗi thuyết minh EC2",
                                  f"Không tạo được thuyết minh EC2:\n{ex}")
