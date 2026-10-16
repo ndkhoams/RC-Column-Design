@@ -135,6 +135,37 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
             except Exception:
                 pass
         cards = _s.get("cards", [])
+        # Xử lý card [FULL]: render full-width, bỏ marker
+        _filtered = []
+        for _cd in cards:
+            if "[FULL]" in _cd.get("title", ""):
+                _cd = dict(_cd)
+                _cd["title"] = _cd["title"].replace(" [FULL]", "")
+                from reportlab.platypus import Table as _Tf, TableStyle as _TSf
+                from reportlab.lib.colors import HexColor as _HCf
+                _rows = []
+                if _cd["title"]:
+                    _rows.append([P(f'<b>{_cd["title"]}</b>', st["card_title"])])
+                if _cd["ref"]:
+                    _rows.append([P(_cd["ref"], st["card_ref"])])
+                for _ln in _cd["lines"]:
+                    _rows.append([P(_ln, st["formula"])])
+                if _cd.get("result"):
+                    _rows.append([P(_cd["result"], st["result"])])
+                _tf = _Tf(_rows)
+                _tf.setStyle(_TSf([
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("BACKGROUND", (0, 1), (-1, -1), _HCf("#F9FAFB")),
+                    ("LINEBEFORE", (0, 1), (0, -1), 2, _HCf("#D1D5DB")),
+                    ("LEFTPADDING", (0, 1), (-1, -1), 10),
+                ]))
+                S.append(_tf)
+                S.append(Spacer(1, 4*mm))
+            else:
+                _filtered.append(_cd)
+        cards = _filtered
         # Mục 7: card cấu tạo full-width (span 2 cột), V2/V3 ngang hàng
         if _s["num"] == 7 and len(cards) >= 3 and "Cấu tạo" in cards[0].get("title", ""):
             _cfg = cards[0]
@@ -170,21 +201,6 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 {"title": "", "ref": "", "lines": [], "result": ""}
             S.extend(_two(P, st, c1, c2))
             i += 2
-
-        # Mục 2: nhúng sơ đồ mặt cắt
-        if _s["num"] == 2 and sec is not None:
-            try:
-                from .pdf_export import section_image as _si
-                import io as _io
-                _sec_png = _si(sec, width_in=2.8, show_stats=False)
-                if _sec_png:
-                    from reportlab.platypus import Image as _Img
-                    _simg = _Img(_io.BytesIO(_sec_png), width=65*mm, height=65*mm)
-                    _simg.hAlign = "CENTER"
-                    S.append(_simg)
-                    S.append(Spacer(1, 4*mm))
-            except Exception:
-                pass
 
         # Mục 6 (P-M-M): tự tạo biểu đồ vuông 5x5 cho PDF (không dùng figure app)
         if _s["num"] == 6:
