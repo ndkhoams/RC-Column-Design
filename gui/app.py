@@ -7,7 +7,7 @@ Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu
          thuyết minh tính toán chi tiết.
 """
 
-APP_BUILD = "2026-10-16 EC2+tieuchuan"
+APP_BUILD = "2026-10-17 00:12"
 
 import math
 import tkinter as tk
@@ -276,11 +276,11 @@ class App(tk.Tk):
                                              padx=(4, 6), pady=2)
         self.cb_code = ttk.Combobox(code_frame, values=["TCVN 5574:2018", "ACI 318-19",
                                                         "EC2 (EN 1992-1-1)"],
-                                    state="readonly", width=14)
+                                    state="readonly")
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
-        # Đặt ở cột 1 (vị trí nút SAVE), bề rộng cố định
-        self.cb_code.grid(row=0, column=1, sticky=tk.W, padx=4, pady=2)
+        # Đặt ở cột 1 (vị trí nút SAVE), giãn full bằng nút SAVE
+        self.cb_code.grid(row=0, column=1, sticky=tk.EW, padx=4, pady=2)
         ttk.Button(top_grid, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    style="Accent.TButton",
                    command=self.on_check).grid(row=1, column=2, columnspan=2,
@@ -774,6 +774,8 @@ class App(tk.Tk):
         # Đẩy khung đai xuống 1 hàng để thẳng hàng với các dòng thép dọc:
         # hàng tiêu đề (Số nhánh/Đ.kính/K.cách) chiếm chỗ của dòng
         # "Lớp bảo vệ", Đai bao thẳng hàng "4 thanh thép góc"...
+        # Ép chiều cao hàng tiêu đề bằng hàng có ô nhập bên trái
+        sw_hdr.grid_rowconfigure(0, minsize=36)
         for j, t in enumerate(("Số nhánh", "Đ.kính", "K.cách")):
             ttk.Label(sw_hdr, text=t, style="Muted.TLabel").grid(
                 row=0, column=j + 1, padx=2, pady=5)
@@ -887,13 +889,13 @@ class App(tk.Tk):
         self.en_Lx = ttk.Entry(f, width=12)
         self.en_Ly = ttk.Entry(f, width=12)
         self.cb_tx = ttk.Combobox(f, values=bn, state="readonly", width=12)
-        self.cb_tx.set("Ngàm nửa cứng")
+        self.cb_tx.set("Ngàm cứng")
         self.cb_bx = ttk.Combobox(f, values=bn, state="readonly", width=12)
-        self.cb_bx.set("Ngàm nửa cứng")
+        self.cb_bx.set("Ngàm cứng")
         self.cb_ty = ttk.Combobox(f, values=bn, state="readonly", width=12)
-        self.cb_ty.set("Ngàm nửa cứng")
+        self.cb_ty.set("Ngàm cứng")
         self.cb_by = ttk.Combobox(f, values=bn, state="readonly", width=12)
-        self.cb_by.set("Ngàm nửa cứng")
+        self.cb_by.set("Ngàm cứng")
         self.en_psix = ttk.Entry(f, width=12)
         self.en_psiy = ttk.Entry(f, width=12)
         rows = [
@@ -935,7 +937,7 @@ class App(tk.Tk):
         mode_bar.grid(row=0, column=0, columnspan=2, sticky=tk.W,
                       padx=4, pady=4)
         st = ttk.Style()
-        st.configure("White.TRadiobutton", background="white", font=("", 10))
+        st.configure("White.TRadiobutton", background="white", font=("", 9))
         ttk.Radiobutton(mode_bar, text="Nhập tay", style="White.TRadiobutton",
                         variable=self.var_load_mode, value="manual",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
@@ -992,8 +994,9 @@ class App(tk.Tk):
 
         # ---- Chế độ import Excel ----
         self.etabs_frame = ttk.Frame(f)
-        self.etabs_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW)
+        self.etabs_frame.grid(row=1, column=0, columnspan=2, sticky=tk.NSEW)
         self.etabs_frame.grid_remove()
+        f.grid_rowconfigure(1, weight=1)
         # 3 nút Import từ Etabs: giãn đều theo cửa sổ như SAVE/SAVE AS/OPEN
         btn_row = ttk.Frame(self.etabs_frame)
         btn_row.grid(row=0, column=0, columnspan=3, sticky=tk.EW,
@@ -1036,8 +1039,10 @@ class App(tk.Tk):
         _st.configure("Etabs.Treeview", rowheight=22,
                       borderwidth=1, relief="solid")
         self.etabs_tree.configure(style="Etabs.Treeview")
+        # Fill dọc hết cửa sổ
         self.etabs_tree.grid(row=4, column=0, columnspan=2, padx=4, pady=4,
-                             sticky=tk.EW)
+                             sticky=tk.NSEW)
+        self.etabs_frame.grid_rowconfigure(4, weight=1)
         vsb = ttk.Scrollbar(self.etabs_frame, orient=tk.VERTICAL,
                             command=self.etabs_tree.yview)
         vsb.grid(row=4, column=2, sticky=tk.NS)
