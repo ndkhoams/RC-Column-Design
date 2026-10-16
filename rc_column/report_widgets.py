@@ -112,7 +112,7 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
     _swg = _SG.get(getattr(inp, "sw_steel_grade", "CB400-V"), _SG["CB400-V"])
 
     # Bê tông (gộp các chỉ tiêu)
-    c = _param_card(grid, "Bê tông",
+    c = _param_card(grid, f"Bê tông ({inp.concrete_grade})",
                     "Bảng 6, Bảng 10 & Mục 6.1.2.3",
                     [f"Rb* = γb·Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
                      f"= {_f(conc.Rb)} MPa",
@@ -120,14 +120,14 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
                      f"= {_f(conc.Eb / 1000, 1)} × 10³ MPa"])
     c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
     # Cốt thép dọc (gộp các chỉ tiêu)
-    c = _param_card(grid, "Cốt thép dọc",
+    c = _param_card(grid, f"Cốt thép dọc ({inp.steel_grade})",
                     "Bảng 13 & Mục 6.2.2",
                     [f"Rs = (Rsn/γs)·γsi = {_f(steel.Rs, 1)} MPa",
                      f"Rsc = {_f(steel.Rsc, 1)} MPa",
                      f"Es = {steel.Es:,.0f} MPa"])
     c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
     # Cốt thép đai (gộp các chỉ tiêu)
-    c = _param_card(grid, "Cốt thép đai",
+    c = _param_card(grid, f"Cốt thép đai ({getattr(inp, 'sw_steel_grade', 'CB400-V')})",
                     "Bảng 13",
                     [f"Rsw = {_f(_swg.Rsw * inp.gamma_s, 1)} MPa",
                      f"(Thép {getattr(inp, 'sw_steel_grade', 'CB400-V')})",
