@@ -282,14 +282,7 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         sh_cards = [_cfg_card,
                     _sh_card(_d2e, VEd2, "V2"),
                     _sh_card(_d3e, VEd3, "V3")]
-        # Kết luận tổng
-        _all_oke = _ok2e and _ok3e
-        _totale = {"title": "Kết luận kiểm tra cắt", "ref": "",
-                   "lines": [f"Phương 2: {'ĐẠT' if _ok2e else 'KHÔNG ĐẠT'}",
-                             f"Phương 3: {'ĐẠT' if _ok3e else 'KHÔNG ĐẠT'}"],
-                   "result": "Kết luận: ĐẠT" if _all_oke else "Kết luận: KHÔNG ĐẠT",
-                   "full": True, "conclusion": True, "shear_conclusion": True, "ok": _all_oke}
-        sh_cards.append(_totale)
+
     else:
         sh_cards = [_sh_card(shear_res or {}, VEd2, "V2/V3")]
     sections.append({
