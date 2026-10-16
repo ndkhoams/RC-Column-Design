@@ -1,3 +1,12 @@
+"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
+
+Bố cục:
+ 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
+ 5. Nội lực kiểm tra
+Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
+         thuyết minh tính toán chi tiết.
+"""
+
 import os as _os, datetime as _dt
 APP_BUILD = _dt.datetime.fromtimestamp(
     _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
@@ -1764,7 +1773,7 @@ class App(tk.Tk):
                  f"{cols['3']['b']:.0f} × {cols['3']['d']:.0f} mm"),
                 ("Av = n × φ",
                  f"{cols['2']['Av']:.0f} mm²", f"{cols['3']['Av']:.0f} mm²"),
-                ("Vc = 0.17·λ·√f'c·bw·d (ACI 22.5.5)",
+                ("Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d (ACI 22.5.5)",
                  f"{cols['2']['Vc']:.1f} kN", f"{cols['3']['Vc']:.1f} kN"),
                 ("Vs = Av·fyt·d/s (ACI 22.5.8)",
                  f"{cols['2']['Vs']:.1f} kN", f"{cols['3']['Vs']:.1f} kN"),
