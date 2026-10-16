@@ -1682,6 +1682,7 @@ class App(tk.Tk):
         row1.pack(fill=tk.X, padx=2, pady=(2, 4))
         _card(row1, "Số thanh", vals["n"], vals.get("nsub", ""))
         _card(row1, "Tổng As", vals["as"])
+        _card(row1, "Diện tích Ab", vals["ab"])
         _card(row1, "Hàm lượng μ", vals["mu"])
 
     def _build_aci_shear_summary(self, parent, inp, sec, conc, steel):
@@ -1722,7 +1723,8 @@ class App(tk.Tk):
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
-                         highlightthickness=0, anchor="w",
+                         highlightthickness=0,
+                         anchor="w" if j == 0 else "center",
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             rows = [
@@ -2147,6 +2149,7 @@ class App(tk.Tk):
         row1.pack(fill=tk.X, padx=2, pady=(2, 4))
         _card(row1, "Số thanh", vals["n"], vals.get("nsub", ""))
         _card(row1, "Tổng As", vals["as"])
+        _card(row1, "Diện tích Ab", vals["ab"])
         _card(row1, "Hàm lượng μ", vals["mu"])
 
     def _build_ec2_shear_summary(self, parent, inp, sec, conc, steel):
@@ -2179,7 +2182,8 @@ class App(tk.Tk):
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
-                         highlightthickness=0, anchor="w",
+                         highlightthickness=0,
+                         anchor="w" if j == 0 else "center",
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             def _asws(v):
@@ -3771,6 +3775,7 @@ class App(tk.Tk):
             "n": " + ".join(parts),
             "nsub": "",
             "as": f"{sec.steel_area:.0f} mm\u00b2",
+            "ab": f"{sec.concrete_area:.0f} mm\u00b2",
             "mu": f"{sec.reinforcement_ratio * 100:.2f}%",
         }
         if math.isfinite(ccx):
@@ -3810,6 +3815,7 @@ class App(tk.Tk):
         row1.pack(fill=tk.X, padx=2, pady=(2, 4))
         _card(row1, "S\u1ed1 thanh", "n", "nsub")
         _card(row1, "T\u1ed5ng As", "as")
+        _card(row1, "Di\u1ec7n t\u00edch Ab", "ab")
         _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
         return varmap
 
@@ -4057,7 +4063,8 @@ class App(tk.Tk):
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
-                         highlightthickness=0, anchor="w",
+                         highlightthickness=0,
+                         anchor="w" if j == 0 else "center",
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 # Tỉ lệ cột 90-45-45 (2:1:1), uniform để giữ đúng tỉ lệ
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
