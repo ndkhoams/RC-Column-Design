@@ -9,7 +9,7 @@ Không phụ thuộc GUI/matplotlib trực tiếp.
 import io
 
 from .ec2_report_v2 import generate_ec2_report_sections_v2
-from .pdf_report_cards import (_get_styles, _two, _sec_head, _full_case)
+from .pdf_report_cards import (_get_styles, _two, _sec_head, _full_case, _mk)
 
 
 def _f(x: float, nd: int = 2) -> str:
@@ -130,6 +130,33 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             except Exception:
                 pass
         cards = _s.get("cards", [])
+        # Mục 7: card cấu tạo full-width (span 2 cột), V2/V3 ngang hàng
+        if _s["num"] == 7 and len(cards) >= 3 and "Cấu tạo" in cards[0].get("title", ""):
+            _cfg = cards[0]
+            # Render full-width bằng table 1 cột
+            from reportlab.platypus import Table as _T, TableStyle as _TS
+            from reportlab.lib.colors import HexColor as _HC
+            _rows = []
+            if _cfg["title"]:
+                _rows.append([P(f'<b>{_cfg["title"]}</b>', st["card_title"])])
+            if _cfg["ref"]:
+                _rows.append([P(_cfg["ref"], st["card_ref"])])
+            for _ln in _cfg["lines"]:
+                _rows.append([P(_ln, st["formula"])])
+            if _cfg.get("result"):
+                _rows.append([P(_cfg["result"], st["result"])])
+            _t1 = _T(_rows)
+            _t1.setStyle(_TS([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("BACKGROUND", (0, 1), (-1, -1), _HC("#F9FAFB")),
+                ("LINEBEFORE", (0, 1), (0, -1), 2, _HC("#D1D5DB")),
+                ("LEFTPADDING", (0, 1), (-1, -1), 10),
+            ]))
+            S.append(_t1)
+            S.append(Spacer(1, 4*mm))
+            cards = cards[1:]
         # Xếp card 2 cột
         i = 0
         while i < len(cards):
