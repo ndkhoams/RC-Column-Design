@@ -303,6 +303,8 @@ class App(tk.Tk):
             canvas.itemconfigure(self._left_win, width=e.width)
             # Ép chiều cao bằng canvas để bảng nội lực fill hết cửa sổ
             canvas.itemconfigure(self._left_win, height=e.height)
+            # Buộc cập nhật layout để section 5 giãn
+            self.left.update_idletasks()
         canvas.bind("<Configure>", _fit_left_window)
         canvas.configure(yscrollcommand=scr.set)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -595,12 +597,14 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self.cb_kind.grid(row=0, column=1, sticky=tk.W, padx=4, pady=5)
-        # Nút import/export: đặt trực tiếp ở grid 4 cột của section,
-        # mỗi nút rộng đúng 25% = bằng OPEN/SAVE bên trên
-        self.btn_dxf = ttk.Button(f, text="📐 Import (.dxf)",
+        # Nút import/export: đặt trong fl ngay dưới combobox (không để khoảng trống)
+        # Mỗi nút rộng 50% fl = 25% section = bằng OPEN/SAVE
+        fl.columnconfigure(0, weight=1, uniform="dxf2")
+        fl.columnconfigure(1, weight=1, uniform="dxf2")
+        self.btn_dxf = ttk.Button(fl, text="📐 Import (.dxf)",
                                   command=self.on_import_dxf)
         self.btn_dxf.grid(row=1, column=0, sticky=tk.EW, padx=4, pady=2)
-        self.btn_dxf_export = ttk.Button(f, text="📤 Export (.dxf)",
+        self.btn_dxf_export = ttk.Button(fl, text="📤 Export (.dxf)",
                                          command=self.on_export_dxf)
         self.btn_dxf_export.grid(row=1, column=1, sticky=tk.EW, padx=4, pady=2)
         for w in (self.en_cx, self.en_cy):
