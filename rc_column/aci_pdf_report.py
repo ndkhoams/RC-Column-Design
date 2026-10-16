@@ -118,6 +118,10 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
         if _s["num"] == 7:
             from reportlab.platypus import PageBreak as _PB7
             S.append(_PB7())
+        # Mục 3, 6: luôn sang trang mới
+        if _s["num"] in (3, 6):
+            from reportlab.platypus import PageBreak as _PB36
+            S.append(_PB36())
         S.append(_sec_head(P, st, _s["num"], _s["title"],
                            _s.get("ref", "")))
         # Mục 2: sơ đồ mặt cắt TRƯỚC (như TCVN)
