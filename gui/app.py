@@ -1383,9 +1383,27 @@ class App(tk.Tk):
             Acv = sec.cx * sec.cy
             d = sec.cy - inp.cover - 10
             Av = 2 * 3.1416 * (8**2) / 4
-            shear_res = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
+            try:
+                _sh2 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
                                        Nu_kN=inp.N, Vu_kN=abs(inp.Q2),
                                        Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d)
+            except Exception:
+                _sh2 = None
+            try:
+                _sh3 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
+                                       Nu_kN=inp.N, Vu_kN=abs(inp.Q3),
+                                       Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d)
+            except Exception:
+                _sh3 = None
+            # Gộp 2 phương vào shear_res
+            if _sh2 is not None or _sh3 is not None:
+                shear_res = {"dir2": _sh2 or {}, "dir3": _sh3 or {}}
+                # Giữ tương thích: các key cũ lấy từ phương có Vu lớn nhất
+                _mx = _sh2 if abs(inp.Q2) >= abs(inp.Q3) else _sh3
+                if _mx:
+                    shear_res.update(_mx)
+            else:
+                shear_res = None
         except Exception:
             shear_res = None
         # Lưu để vẽ lại / xuất PDF
