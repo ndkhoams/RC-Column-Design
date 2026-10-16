@@ -143,6 +143,9 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
         for _cd in cards:
             if _cd.get("full"):
                 _cd = dict(_cd)
+                # Style kết luận: nền xanh/đỏ
+                _is_concl = _cd.get("conclusion", False)
+                _concl_bg = "#D1FAE5" if "KHÔNG ĐẠT" not in _cd.get("result", "") else "#FEE2E2"
                 from reportlab.platypus import Table as _Tf2, TableStyle as _TSf2
                 from reportlab.lib.colors import HexColor as _HCf2
                 _rows2 = []
@@ -161,7 +164,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                    ("BACKGROUND", (0, 1), (-1, -1), _HCf2("#F9FAFB")),
+                    ("BACKGROUND", (0, 0), (-1, -1), _HCf2(_concl_bg if _is_concl else "#F9FAFB")),
                     ("LINEBEFORE", (0, 1), (0, -1), 2, _HCf2("#D1D5DB")),
                     ("LEFTPADDING", (0, 1), (-1, -1), 10),
                 ]))

@@ -287,7 +287,7 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                    "lines": [f"Phương 2: {'ĐẠT' if _ok2e else 'KHÔNG ĐẠT'}",
                              f"Phương 3: {'ĐẠT' if _ok3e else 'KHÔNG ĐẠT'}"],
                    "result": "Kết luận: ĐẠT" if _all_oke else "Kết luận: KHÔNG ĐẠT",
-                   "full": True}
+                   "full": True, "conclusion": True}
         sh_cards.append(_totale)
     else:
         sh_cards = [_sh_card(shear_res or {}, VEd2, "V2/V3")]

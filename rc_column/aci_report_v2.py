@@ -15,8 +15,8 @@ def _f(x: float, nd: int = 2) -> str:
     return f"{x:.{nd}f}"
 
 
-def _mk(title: str, ref: str, lines: List[str], result: str = "", full: bool = False) -> Dict[str, Any]:
-    return {"title": title, "ref": ref, "lines": lines, "result": result, "full": full}
+def _mk(title: str, ref: str, lines: List[str], result: str = "", full: bool = False, conclusion: bool = False) -> Dict[str, Any]:
+    return {"title": title, "ref": ref, "lines": lines, "result": result, "full": full, "conclusion": conclusion}
 
 
 def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
@@ -353,7 +353,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                  [f"Phương 2: {'ĐẠT' if _ok2 else 'KHÔNG ĐẠT'}",
                   f"Phương 3: {'ĐẠT' if _ok3 else 'KHÔNG ĐẠT'}"],
                  "Kết luận: ĐẠT" if _all_ok else "Kết luận: KHÔNG ĐẠT",
-                 full=True)
+                 full=True, conclusion=True)
     _cards7.append(_total)
     sections.append({
         "num": 7,

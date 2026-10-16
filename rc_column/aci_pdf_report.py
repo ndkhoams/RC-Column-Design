@@ -140,6 +140,9 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
         for _cd in cards:
             if _cd.get("full"):
                 _cd = dict(_cd)
+                # Style kết luận: nền xanh/đỏ
+                _is_concl = _cd.get("conclusion", False)
+                _concl_bg = "#D1FAE5" if "KHÔNG ĐẠT" not in _cd.get("result", "") else "#FEE2E2"
                 from reportlab.platypus import Table as _Tf, TableStyle as _TSf
                 from reportlab.lib.colors import HexColor as _HCf
                 _rows = []
@@ -157,7 +160,7 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                    ("BACKGROUND", (0, 1), (-1, -1), _HCf("#F9FAFB")),
+                    ("BACKGROUND", (0, 0), (-1, -1), _HCf(_concl_bg if _is_concl else "#F9FAFB")),
                     ("LINEBEFORE", (0, 1), (0, -1), 2, _HCf("#D1D5DB")),
                     ("LEFTPADDING", (0, 1), (-1, -1), 10),
                 ]))

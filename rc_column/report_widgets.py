@@ -684,9 +684,25 @@ def render_report_sections(parent, sections, chart_figs=None):
             c1 = cards[i]
             # Card full-width: span 2 cột
             if c1.get("full"):
-                w1 = _param_card(grid, c1.get("title", ""), c1.get("ref", ""),
-                                 c1.get("lines", []), c1.get("result", ""))
-                w1.grid(row=row, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
+                # Card kết luận: style nền xanh/đỏ giống TCVN
+                if c1.get("conclusion"):
+                    _ok = "KHÔNG ĐẠT" not in c1.get("result", "")
+                    _bg = "#D1FAE5" if _ok else "#FEE2E2"
+                    _fg = "#065F46" if _ok else "#991B1B"
+                    _box = tk.Frame(grid, bg=_bg, highlightbackground=BORDER,
+                                    highlightthickness=1, padx=12, pady=10)
+                    _box.grid(row=row, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
+                    tk.Label(_box, text=c1.get("title", ""), font=("", 10, "bold"),
+                             fg=_fg, bg=_bg, anchor="w").pack(fill=tk.X)
+                    for _ln in c1.get("lines", []):
+                        tk.Label(_box, text=_ln, font=("", 9),
+                                 fg=_fg, bg=_bg, anchor="w").pack(fill=tk.X)
+                    tk.Label(_box, text=c1.get("result", ""), font=("", 10, "bold"),
+                             fg=_fg, bg=_bg, anchor="w").pack(fill=tk.X, pady=(4, 0))
+                else:
+                    w1 = _param_card(grid, c1.get("title", ""), c1.get("ref", ""),
+                                     c1.get("lines", []), c1.get("result", ""))
+                    w1.grid(row=row, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
                 row += 1
                 i += 1
                 continue
