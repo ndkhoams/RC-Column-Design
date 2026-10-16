@@ -7,7 +7,7 @@ Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu
          thuyết minh tính toán chi tiết.
 """
 
-APP_BUILD = "2026-10-17 00:12"
+APP_BUILD = "202610170113"
 
 import math
 import tkinter as tk
@@ -338,13 +338,18 @@ class App(tk.Tk):
         main.add(right, weight=1)
         # Nút VN|EN đặt cùng hàng với tab (góc phải, đè lên vùng trống của tab)
         self._lang_var = tk.StringVar(value="VN")
-        _lang_frame = ttk.Frame(right)
-        _lang_frame.place(relx=1.0, x=-4, y=2, anchor=tk.NE)
-        ttk.Button(_lang_frame, text="VN", width=4,
+        # Nút VN|EN: đặt tuyệt đối ở góc phải trên của cửa sổ chính,
+        # ngang hàng với tab (dùng after để đảm bảo layout xong)
+        self._lang_frame = ttk.Frame(self)
+        ttk.Button(self._lang_frame, text="VN", width=4,
                    command=lambda: self._switch_lang("VN")).pack(side=tk.LEFT)
-        ttk.Label(_lang_frame, text="|").pack(side=tk.LEFT, padx=2)
-        ttk.Button(_lang_frame, text="EN", width=4,
+        ttk.Label(self._lang_frame, text="|").pack(side=tk.LEFT, padx=2)
+        ttk.Button(self._lang_frame, text="EN", width=4,
                    command=lambda: self._switch_lang("EN")).pack(side=tk.LEFT)
+        def _place_lang():
+            self._lang_frame.place(relx=1.0, x=-10, y=6, anchor=tk.NE)
+            self._lang_frame.lift()
+        self.after(100, _place_lang)
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.nb = nb
@@ -544,8 +549,8 @@ class App(tk.Tk):
         self.en_ec2_fyt = ttk.Entry(self.frm_ec2, width=12); self.en_ec2_fyt.insert(0, "500")
         _mat_row(self.frm_ec2, 0, "Bê tông", self.cb_ec2_conc,
                  "Phương pháp tính bậc 2", self.cb_ec2_method)
-        _mat_row(self.frm_ec2, 1, "C. độ thép dọc fyk (MPa)", self.en_ec2_fyk,
-                 "C. độ thép đai fyk (MPa)", self.en_ec2_fyt)
+        _mat_row(self.frm_ec2, 1, "Thép dọc fyk (MPa)", self.en_ec2_fyk,
+                 "Thép đai fyk (MPa)", self.en_ec2_fyt)
         self.frm_ec2.grid_remove()
 
     def _toggle_code(self):
@@ -616,16 +621,20 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self.cb_kind.grid(row=0, column=1, sticky=tk.W, padx=4, pady=5)
-        # Nút import/export: đặt trong fl ngay dưới combobox (đẩy lên, không khoảng trống)
-        # Dùng 2 cột đều trong fl để mỗi nút rộng 25% section = bằng OPEN/SAVE
-        fl.columnconfigure(0, weight=1, uniform="dxf3")
-        fl.columnconfigure(1, weight=1, uniform="dxf3")
-        self.btn_dxf = ttk.Button(fl, text="📐 Import (.dxf)",
+        # Nút import/export: frame riêng với 2 cột đều 50/50,
+        # không chung cột với label để tránh bị lệch
+        _dxf_btn_frame = ttk.Frame(fl)
+        _dxf_btn_frame.grid(row=1, column=0, columnspan=2,
+                            sticky=tk.EW, padx=0, pady=2)
+        _dxf_btn_frame.columnconfigure(0, weight=1, uniform="dxfbtn")
+        _dxf_btn_frame.columnconfigure(1, weight=1, uniform="dxfbtn")
+        self.btn_dxf = ttk.Button(_dxf_btn_frame, text="📐 Import (.dxf)",
                                   command=self.on_import_dxf)
-        self.btn_dxf.grid(row=1, column=0, sticky=tk.EW, padx=4, pady=2)
-        self.btn_dxf_export = ttk.Button(fl, text="📤 Export (.dxf)",
+        self.btn_dxf.grid(row=0, column=0, sticky=tk.EW, padx=4)
+        self.btn_dxf_export = ttk.Button(_dxf_btn_frame,
+                                         text="📤 Export (.dxf)",
                                          command=self.on_export_dxf)
-        self.btn_dxf_export.grid(row=1, column=1, sticky=tk.EW, padx=4, pady=2)
+        self.btn_dxf_export.grid(row=0, column=1, sticky=tk.EW, padx=4)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
