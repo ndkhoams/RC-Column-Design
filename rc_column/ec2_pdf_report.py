@@ -159,8 +159,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 img1 = _img_keep_aspect(_pngs[0])
                 img2 = _img_keep_aspect(_pngs[1])
                 ct = Table([
-                    [[P("Biểu đồ tương tác N-Mα (EC2)", st["cap"]), img1],
-                     [P("Biểu đồ tương tác M2-M3 (EC2)", st["cap"]), img2]]
+                    [[P("Biểu đồ tương tác N-Mα", st["cap"]), img1],
+                     [P("Biểu đồ tương tác M2-M3", st["cap"]), img2]]
                 ])
                 ct.setStyle(TableStyle([
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
