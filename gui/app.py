@@ -1922,6 +1922,9 @@ class App(tk.Tk):
         """Vẽ lại biểu đồ N-Mα (ACI) tại góc được chọn."""
         try:
             sel = self._aci_nm_angle_cb.get()
+            if sel == "3D":
+                self._draw_3d_aci()
+                return
             if sel.startswith("α"):
                 angle = None
             else:
@@ -2295,7 +2298,7 @@ class App(tk.Tk):
         ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (EC2 EN 1992-1-1)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
-        tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=17,
                             style="Param.Treeview")
         _pst = ttk.Style()
         _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
@@ -2410,6 +2413,9 @@ class App(tk.Tk):
         """Vẽ lại biểu đồ N-Mα (EC2) tại góc được chọn."""
         try:
             sel = self._ec2_nm_angle_cb.get()
+            if sel == "3D":
+                self._draw_3d_ec2()
+                return
             if sel.startswith("α"):
                 angle = None
             else:
@@ -4066,6 +4072,42 @@ class App(tk.Tk):
             self._nm_cv_ref.draw()
         except Exception:
             pass
+
+    def _draw_3d_aci(self):
+        """Vẽ 3D cho ACI (tạm dùng khung, cần bổ sung engine)."""
+        try:
+            from mpl_toolkits.mplot3d import Axes3D  # noqa
+            fig = self._aci_nm_fig
+            fig.clear()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.text2D(0.5, 0.5, "Biểu đồ 3D ACI đang phát triển",
+                      transform=ax.transAxes, ha='center', fontsize=12)
+            ax.set_xlabel('M2 (kN·m)')
+            ax.set_ylabel('M3 (kN·m)')
+            ax.set_zlabel('N (kN)')
+            ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (ACI 318-19)')
+            fig.tight_layout()
+            self._aci_nm_cv_ref.draw()
+        except Exception as ex:
+            print(f"Lỗi vẽ 3D ACI: {ex}")
+
+    def _draw_3d_ec2(self):
+        """Vẽ 3D cho EC2 (tạm dùng khung, cần bổ sung engine)."""
+        try:
+            from mpl_toolkits.mplot3d import Axes3D  # noqa
+            fig = self._ec2_nm_fig
+            fig.clear()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.text2D(0.5, 0.5, "Biểu đồ 3D EC2 đang phát triển",
+                      transform=ax.transAxes, ha='center', fontsize=12)
+            ax.set_xlabel('M2 (kN·m)')
+            ax.set_ylabel('M3 (kN·m)')
+            ax.set_zlabel('N (kN)')
+            ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (EC2)')
+            fig.tight_layout()
+            self._ec2_nm_cv_ref.draw()
+        except Exception as ex:
+            print(f"Lỗi vẽ 3D EC2: {ex}")
 
     def _draw_3d_interaction(self):
         """Vẽ biểu đồ tương tác 3D (N-M2-M3) cho TCVN."""
