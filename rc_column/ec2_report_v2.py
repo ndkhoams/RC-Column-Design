@@ -236,6 +236,14 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     })
 
     # ---- 7. Kiểm tra cắt ----
+    _sw_dia = getattr(inp, "sw_dia", 10) or 10
+    _sw_s = getattr(inp, "sw_spacing", 100) or 100
+    _dia_max = max((getattr(r, "dia", 0) for r in getattr(sec, "rebars", [])), default=25)
+    _cfg_card = _mk("Cấu tạo cốt đai (9.5.3)",
+                "EC2 9.5.3",
+                [f"✓ Đường kính đai (9.5.3(1)): yêu cầu ≥ max(6, 0.25×{_dia_max:.0f}) = {max(6, 0.25*_dia_max):.1f} mm, chọn φ{_sw_dia:.0f}",
+                 f"✓ Bước đai (9.5.3(3)): yêu cầu ≤ min(20×{_dia_max:.0f}, min(b,h), 400) = {min(20*_dia_max, min(cx, cy), 400):.0f} mm, chọn {_sw_s:.0f} mm"],
+                "")
     def _sh_card(d: Dict[str, Any], VEd: float, lbl: str):
         if not d:
             return _mk(f"Phương {lbl}", "", ["—"], "")
@@ -254,7 +262,8 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                     "ĐẠT" if ok else "KHÔNG ĐẠT")
 
     if isinstance(shear_res, dict) and "dir2" in shear_res:
-        sh_cards = [_sh_card(shear_res.get("dir2"), VEd2, "V2"),
+        sh_cards = [_cfg_card,
+                    _sh_card(shear_res.get("dir2"), VEd2, "V2"),
                     _sh_card(shear_res.get("dir3"), VEd3, "V3")]
     else:
         sh_cards = [_sh_card(shear_res or {}, VEd2, "V2/V3")]

@@ -157,7 +157,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         ],
     })
 
-    # ---- 5. Phóng đại mô men ----
+    # ---- 5. Phóng đại mô men (chi tiết như TCVN) ----
     if "dir2" in _mm:
         _d2 = _mm.get("dir2", {})
         _d3 = _mm.get("dir3", {})
@@ -165,35 +165,54 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         _dl3 = _mm.get("delta3", 1.0)
         _pc2 = _d2.get("Pc_kN", 0) or 0
         _pc3 = _d3.get("Pc_kN", 0) or 0
-        mm_lines = [
-            f"Pc = π²·EI / (k·lu)²",
-            f"Pc2 = {_f(_pc2, 0)} kN",
-            f"Pc3 = {_f(_pc3, 0)} kN",
-            f"δns = Cm / (1 - Pu/(0.75·Pc)) ≥ 1.0",
-            f"δns2 = {_f(_dl2, 3)}",
-            f"δns3 = {_f(_dl3, 3)}",
-        ]
+        _cm2 = _d2.get("Cm", 1.0) or 1.0
+        _cm3 = _d3.get("Cm", 1.0) or 1.0
         delta_ns = max(_dl2, _dl3)
+        _cards5 = [
+            _mk("Tải trọng tới hạn Euler Pc",
+                "ACI 6.6.4.4.2",
+                [f"Pc = π²·EI / (k·lu)²",
+                 f"Pc2 = {_f(_pc2, 0)} kN",
+                 f"Pc3 = {_f(_pc3, 0)} kN"],
+                ""),
+            _mk("Hệ số mô men tương đương Cm",
+                "ACI 6.6.4.5.3",
+                [f"Cm2 = {_f(_cm2, 3)}",
+                 f"Cm3 = {_f(_cm3, 3)}"],
+                ""),
+            _mk("Hệ số phóng đại δns",
+                "ACI 6.6.4.5.2",
+                [f"δns = Cm / [1 - Pu/(0.75·Pc)] ≥ 1.0",
+                 f"δns2 = {_f(_cm2, 3)} / [1 - {_f(abs(N), 1)}/(0.75×{_f(_pc2, 0)})]",
+                 f"= {_f(_dl2, 3)}",
+                 f"δns3 = {_f(_cm3, 3)} / [1 - {_f(abs(N), 1)}/(0.75×{_f(_pc3, 0)})]",
+                 f"= {_f(_dl3, 3)}"],
+                f"δns = {_f(delta_ns, 3)}"),
+            _mk("Mô men sau phóng đại",
+                "ACI 6.6.4.5.1",
+                [f"M2* = δns · M2",
+                 f"= {_f(delta_ns, 3)} × {_f(M2, 1)}",
+                 f"= {_f(M2*delta_ns, 1)} kN·m",
+                 f"M3* = δns · M3",
+                 f"= {_f(delta_ns, 3)} × {_f(M3, 1)}",
+                 f"= {_f(M3*delta_ns, 1)} kN·m"],
+                ""),
+        ]
     else:
-        mm_lines = [f"δns = {_f(_mm.get('delta_ns', 1.0), 3)}"]
         delta_ns = _mm.get("delta_ns", 1.0)
+        _cards5 = [
+            _mk("Hệ số phóng đại δns",
+                "ACI 6.6.4.5.2",
+                [f"δns = {_f(delta_ns, 3)}"],
+                f"δns = {_f(delta_ns, 3)}"),
+        ]
     M2_star = M2 * delta_ns
     M3_star = M3 * delta_ns
     sections.append({
         "num": 5,
         "title": "PHÓNG ĐẠI MÔ MEN UỐN DỌC",
         "ref": "ACI 6.6.4.5",
-        "cards": [
-            _mk("Hệ số phóng đại δns",
-                "ACI 6.6.4.5.2",
-                mm_lines + ["δns = Cm/(1 - Pu/(0.75·Pc)) ≥ 1.0"],
-                f"δns = {_f(delta_ns, 3)}"),
-            _mk("Mô men sau phóng đại",
-                "",
-                [f"M2* = {_f(M2_star, 1)} kN·m",
-                 f"M3* = {_f(M3_star, 1)} kN·m"],
-                ""),
-        ],
+        "cards": _cards5,
     })
 
     # ---- 6. Kiểm tra P-M-M ----
@@ -237,6 +256,17 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     })
 
     # ---- 7. Kiểm tra cắt (2 phương) ----
+    # Card cấu tạo đai (như TCVN)
+    _sw_dia = getattr(inp, "sw_dia", 10) or 10
+    _sw_s = getattr(inp, "sw_spacing", 100) or 100
+    _sw_legs = getattr(inp, "sw_legs", 2) or 2
+    _dia_max = max((getattr(r, "dia", 0) for r in getattr(sec, "rebars", [])), default=25)
+    _cfg_card = _mk("Cấu tạo cốt đai (25.7.2)",
+                "ACI 25.7.2",
+                [f"✓ Đường kính đai (25.7.2.2): yêu cầu ≥ max(0.25×{_dia_max:.0f}, 10) = {max(0.25*_dia_max, 10):.1f} mm, chọn φ{_sw_dia:.0f}",
+                 f"✓ Bước đai (25.7.2.1): yêu cầu ≤ min(16×{_dia_max:.0f}, 48×{_sw_dia:.0f}, min(b,h)) = {min(16*_dia_max, 48*_sw_dia, min(cx, cy)):.0f} mm, chọn {_sw_s:.0f} mm",
+                 f"✓ Số nhánh đai: {_sw_legs} nhánh"],
+                "")
     _sh = shear_res or {}
     _d2 = _sh.get("dir2", {}) if isinstance(_sh.get("dir2"), dict) else {}
     _d3 = _sh.get("dir3", {}) if isinstance(_sh.get("dir3"), dict) else {}
