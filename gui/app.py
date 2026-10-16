@@ -241,6 +241,14 @@ class App(tk.Tk):
 
     def _build(self):
         self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        # Ẩn ký hiệu tay kéo ở divider (đã fix cứng không cho kéo)
+        _pw_style = ttk.Style()
+        try:
+            _pw_style.layout("TPanedwindow", [
+                ("TPanedwindow.sash", {"sticky": "ns"})
+            ])
+        except Exception:
+            pass
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         # Panel trái rộng 700px để hiện đủ bảng nội lực
@@ -341,16 +349,21 @@ class App(tk.Tk):
         # Nút VN|EN: đặt tuyệt đối ở góc phải trên của cửa sổ chính,
         # ngang hàng với tab (dùng after để đảm bảo layout xong)
         self._lang_frame = ttk.Frame(self)
-        ttk.Button(self._lang_frame, text="VN", width=4,
+        _btn_style = ttk.Style()
+        _btn_style.configure("Lang.TButton", padding=(6, 10))
+        ttk.Button(self._lang_frame, text="VN", width=4, style="Lang.TButton",
                    command=lambda: self._switch_lang("VN")).pack(side=tk.LEFT)
         ttk.Label(self._lang_frame, text="|").pack(side=tk.LEFT, padx=2)
-        ttk.Button(self._lang_frame, text="EN", width=4,
+        ttk.Button(self._lang_frame, text="EN", width=4, style="Lang.TButton",
                    command=lambda: self._switch_lang("EN")).pack(side=tk.LEFT)
         def _place_lang():
-            self._lang_frame.place(relx=1.0, x=-10, y=6, anchor=tk.NE)
+            self._lang_frame.place(relx=1.0, x=-10, y=8, anchor=tk.NE)
             self._lang_frame.lift()
         self.after(100, _place_lang)
         nb = ttk.Notebook(right)
+        # Tăng chiều cao tab cho bằng cụm nút OPEN/SAVE bên trái
+        _nb_style = ttk.Style()
+        _nb_style.configure("TNotebook.Tab", padding=(12, 12))
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.nb = nb
         self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text=T("Kết quả tính toán"))
