@@ -109,20 +109,30 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     })
 
     # ---- 4. Sai lệch & độ lệch tâm ----
-    e2 = abs(MEd2/max(abs(NEd), 1e-9)*1000) if abs(NEd) > 1e-9 else 0
-    e3 = abs(MEd3/max(abs(NEd), 1e-9)*1000) if abs(NEd) > 1e-9 else 0
+    _Nabs = abs(NEd) if abs(NEd) > 1e-9 else 1.0
+    e2 = abs(MEd2/_Nabs*1000)
+    e3 = abs(MEd3/_Nabs*1000)
     sections.append({
         "num": 4,
         "title": "SAI LỆCH THI CÔNG & ĐỘ LỆCH TÂM",
         "ref": "EC2 5.2, 6.1(4)",
         "cards": [
-            _mk("Sai lệch thi công",
+            _mk("Sai lệch thi công ei",
                 "EC2 5.2",
-                ["ei = θi·l0/2, emin = max(h/30, 20mm)"],
+                ["ei = θi·l0/2",
+                 "emin = max(h/30, 20mm)"],
                 ""),
-            _mk("Độ lệch tâm",
-                "",
-                [f"e2 = {_f(e2, 1)} mm, e3 = {_f(e3, 1)} mm"],
+            _mk("Độ lệch tâm phương 2 (e2)",
+                "EC2 6.1(4)",
+                [f"e₂ = |MEd2| / NEd",
+                 f"= ({_f(abs(MEd2), 2)} × 10³) / {_f(_Nabs, 1)}",
+                 f"= {_f(e2, 1)} mm"],
+                ""),
+            _mk("Độ lệch tâm phương 3 (e3)",
+                "EC2 6.1(4)",
+                [f"e₃ = |MEd3| / NEd",
+                 f"= ({_f(abs(MEd3), 2)} × 10³) / {_f(_Nabs, 1)}",
+                 f"= {_f(e3, 1)} mm"],
                 ""),
         ],
     })

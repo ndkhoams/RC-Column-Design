@@ -127,17 +127,25 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     })
 
     # ---- 4. Độ lệch tâm ----
-    e2 = abs(M2/max(abs(N), 1e-9)*1000) if abs(N) > 1e-9 else 0
-    e3 = abs(M3/max(abs(N), 1e-9)*1000) if abs(N) > 1e-9 else 0
+    _Nabs = abs(N) if abs(N) > 1e-9 else 1.0
+    e2 = abs(M2/_Nabs*1000)
+    e3 = abs(M3/_Nabs*1000)
     sections.append({
         "num": 4,
         "title": "ĐỘ LỆCH TÂM",
         "ref": "ACI 6.6.4.5.4",
         "cards": [
-            _mk("Độ lệch tâm tính toán",
-                "",
-                [f"e2 = |M2/N| = {_f(e2, 1)} mm",
-                 f"e3 = |M3/N| = {_f(e3, 1)} mm"],
+            _mk("Độ lệch tâm phương 2 (e2)",
+                "ACI 6.6.4.5.4",
+                [f"e₂ = |M₂| / N",
+                 f"= ({_f(abs(M2), 2)} × 10³) / {_f(_Nabs, 1)}",
+                 f"= {_f(e2, 1)} mm"],
+                ""),
+            _mk("Độ lệch tâm phương 3 (e3)",
+                "ACI 6.6.4.5.4",
+                [f"e₃ = |M₃| / N",
+                 f"= ({_f(abs(M3), 2)} × 10³) / {_f(_Nabs, 1)}",
+                 f"= {_f(e3, 1)} mm"],
                 ""),
         ],
     })
@@ -146,13 +154,19 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     if "dir2" in _mm:
         _d2 = _mm.get("dir2", {})
         _d3 = _mm.get("dir3", {})
+        _dl2 = _mm.get("delta2", 1.0)
+        _dl3 = _mm.get("delta3", 1.0)
+        _pc2 = _d2.get("Pc_kN", 0) or 0
+        _pc3 = _d3.get("Pc_kN", 0) or 0
         mm_lines = [
-            f"δns2 = {_f(_mm.get('delta2', 1.0), 3)}, "
-            f"δns3 = {_f(_mm.get('delta3', 1.0), 3)}",
-            f"Pc2 = {_f(_d2.get('Pc_kN', 0), 0)} kN, "
-            f"Pc3 = {_f(_d3.get('Pc_kN', 0), 0)} kN",
+            f"Pc = π²·EI / (k·lu)²",
+            f"Pc2 = {_f(_pc2, 0)} kN",
+            f"Pc3 = {_f(_pc3, 0)} kN",
+            f"δns = Cm / (1 - Pu/(0.75·Pc)) ≥ 1.0",
+            f"δns2 = {_f(_dl2, 3)}",
+            f"δns3 = {_f(_dl3, 3)}",
         ]
-        delta_ns = max(_mm.get("delta2", 1.0), _mm.get("delta3", 1.0))
+        delta_ns = max(_dl2, _dl3)
     else:
         mm_lines = [f"δns = {_f(_mm.get('delta_ns', 1.0), 3)}"]
         delta_ns = _mm.get("delta_ns", 1.0)
