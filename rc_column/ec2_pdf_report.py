@@ -142,10 +142,23 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             except Exception:
                 pass
 
-        if _s["num"] == 6 and chart_pngs:
+        # Mục 6: tự tạo biểu đồ vuông 5x5 cho PDF (không dùng figure app)
+        if _s["num"] == 6:
             try:
-                img1 = _img_keep_aspect(chart_pngs[0])
-                img2 = _img_keep_aspect(chart_pngs[1])
+                from .ec2_chart_draw import (ec2_interaction_image,
+                                             ec2_m2m3_image)
+                _N = float(getattr(inp, "N", 0) or 0)
+                _M2 = float(getattr(inp, "M2", 0) or 0)
+                _M3 = float(getattr(inp, "M3", 0) or 0)
+                _pngs = (ec2_interaction_image(sec, conc, steel, ec2_res,
+                                               _N, _M2, _M3),
+                         ec2_m2m3_image(sec, conc, steel, ec2_res,
+                                        _N, _M2, _M3))
+            except Exception:
+                _pngs = chart_pngs
+            try:
+                img1 = _img_keep_aspect(_pngs[0])
+                img2 = _img_keep_aspect(_pngs[1])
                 ct = Table([
                     [[P("Biểu đồ tương tác N-Mα (EC2)", st["cap"]), img1],
                      [P("Biểu đồ tương tác M2-M3 (EC2)", st["cap"]), img2]]

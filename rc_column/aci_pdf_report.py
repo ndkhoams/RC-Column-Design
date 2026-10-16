@@ -142,11 +142,23 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
             except Exception:
                 pass
 
-        # Mục 6 (P-M-M): nhúng 2 biểu đồ ngang nhau, giữ tỉ lệ
-        if _s["num"] == 6 and chart_pngs:
+        # Mục 6 (P-M-M): tự tạo biểu đồ vuông 5x5 cho PDF (không dùng figure app)
+        if _s["num"] == 6:
             try:
-                img1 = _img_keep_aspect(chart_pngs[0])
-                img2 = _img_keep_aspect(chart_pngs[1])
+                from .aci_chart_draw import (aci_interaction_image,
+                                             aci_m2m3_image)
+                _N = float(getattr(inp, "N", 0) or 0)
+                _M2 = float(getattr(inp, "M2", 0) or 0)
+                _M3 = float(getattr(inp, "M3", 0) or 0)
+                _pngs = (aci_interaction_image(sec, conc, steel, aci_res,
+                                               _N, _M2, _M3, tied=tied),
+                         aci_m2m3_image(sec, conc, steel, aci_res,
+                                        _N, _M2, _M3, tied=tied))
+            except Exception:
+                _pngs = chart_pngs
+            try:
+                img1 = _img_keep_aspect(_pngs[0])
+                img2 = _img_keep_aspect(_pngs[1])
                 ct = Table([
                     [[P("Biểu đồ tương tác N-Mα (ACI)", st["cap"]), img1],
                      [P("Biểu đồ tương tác M2-M3 (ACI)", st["cap"]), img2]]

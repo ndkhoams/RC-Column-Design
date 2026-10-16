@@ -189,3 +189,35 @@ def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
         ax.spines[sp].set_visible(False)
     for sp in ("left", "bottom"):
         ax.spines[sp].set_color("#9CA3AF")
+
+
+def aci_interaction_image(sec, conc, steel, aci_res, N_kN, M2_kNm, M3_kNm,
+                          tied=True, width_in=5.0, dpi=200) -> bytes:
+    """Tạo PNG biểu đồ N-Mα vuông cho PDF ACI."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import io
+    fig, ax = plt.subplots(figsize=(width_in, width_in))
+    draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
+                         N_kN, M2_kNm, M3_kNm, tied=tied)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def aci_m2m3_image(sec, conc, steel, aci_res, N_kN, M2_kNm, M3_kNm,
+                   tied=True, width_in=5.0, dpi=200) -> bytes:
+    """Tạo PNG biểu đồ M2-M3 vuông cho PDF ACI."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import io
+    fig, ax = plt.subplots(figsize=(width_in, width_in))
+    draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
+                     N_kN, M2_kNm, M3_kNm, tied=tied)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return buf.getvalue()

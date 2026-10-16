@@ -174,3 +174,35 @@ def draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res,
         ax.spines[sp].set_visible(False)
     for sp in ("left", "bottom"):
         ax.spines[sp].set_color("#9CA3AF")
+
+
+def ec2_interaction_image(sec, conc, steel, ec2_res, N_kN, M2_kNm, M3_kNm,
+                          width_in=5.0, dpi=200) -> bytes:
+    """Tạo PNG biểu đồ N-Mα vuông cho PDF EC2."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import io
+    fig, ax = plt.subplots(figsize=(width_in, width_in))
+    draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res,
+                         N_kN, M2_kNm, M3_kNm)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def ec2_m2m3_image(sec, conc, steel, ec2_res, N_kN, M2_kNm, M3_kNm,
+                   width_in=5.0, dpi=200) -> bytes:
+    """Tạo PNG biểu đồ M2-M3 vuông cho PDF EC2."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import io
+    fig, ax = plt.subplots(figsize=(width_in, width_in))
+    draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res,
+                     N_kN, M2_kNm, M3_kNm)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return buf.getvalue()
