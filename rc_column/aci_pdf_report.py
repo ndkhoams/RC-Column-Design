@@ -114,10 +114,6 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                    st["note"]))
 
     for _s in sections:
-        # Mục 7 luôn sang trang mới (không để tiêu đề ở cuối trang)
-        if _s["num"] == 7:
-            from reportlab.platypus import PageBreak as _PB7
-            S.append(_PB7())
         # Mục 3, 6: luôn sang trang mới
         if _s["num"] in (3, 6):
             from reportlab.platypus import PageBreak as _PB36
