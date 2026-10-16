@@ -267,15 +267,20 @@ class App(tk.Tk):
         code_frame = ttk.Frame(top_grid)
         code_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
                         padx=(0, 2), pady=(8, 0))
+        # Chia code_frame thành 2 cột đều: nhãn ở cột 0, combobox ở cột 1
+        # (căn với nút SAVE bên trên)
+        code_frame.columnconfigure(0, weight=1, uniform="code")
+        code_frame.columnconfigure(1, weight=1, uniform="code")
         ttk.Label(code_frame, text="Tiêu chuẩn:",
-                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 6))
+                  style="Muted.TLabel").grid(row=0, column=0, sticky=tk.W,
+                                             padx=(4, 6), pady=2)
         self.cb_code = ttk.Combobox(code_frame, values=["TCVN 5574:2018", "ACI 318-19",
                                                         "EC2 (EN 1992-1-1)"],
                                     state="readonly", width=14)
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
-        # Bề rộng bằng nút SAVE (không giãn)
-        self.cb_code.pack(side=tk.LEFT, padx=4)
+        # Đặt ở cột 1 (vị trí nút SAVE), bề rộng cố định
+        self.cb_code.grid(row=0, column=1, sticky=tk.W, padx=4, pady=2)
         ttk.Button(top_grid, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    style="Accent.TButton",
                    command=self.on_check).grid(row=1, column=2, columnspan=2,
