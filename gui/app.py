@@ -1909,7 +1909,7 @@ class App(tk.Tk):
         right.pack(side=tk.RIGHT)
         tk.Label(right, text="Góc xem:", font=("", 9),
                  bg="white").pack(side=tk.LEFT)
-        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)] + ["3D"]
+        _vals = ["α (góc tải)", "3D"] + [f"{d}°" for d in range(0, 361, 15)]
         self._aci_nm_angle_cb = ttk.Combobox(
             right, values=_vals, width=11, state="readonly", font=("", 9))
         self._aci_nm_angle_cb.set("α (góc tải)")
@@ -2298,7 +2298,7 @@ class App(tk.Tk):
         ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (EC2 EN 1992-1-1)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
-        tree = ttk.Treeview(parent, columns=cols, show="headings", height=17,
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
                             style="Param.Treeview")
         _pst = ttk.Style()
         _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
@@ -2361,8 +2361,6 @@ class App(tk.Tk):
              f"{inp.Mx:.1f} kN·m"),
             ("M3_0", "Mô men bậc 1 phương 3",
              f"{inp.My:.1f} kN·m"),
-            ("PP", "Phương pháp tính hiệu ứng bậc 2",
-             method_txt),
             ("N_Rd,max", "Nén đúng tâm lớn nhất",
              f"{ec2_res.get('N_Rd_max', 0):.1f} kN"),
         ]
@@ -2400,7 +2398,7 @@ class App(tk.Tk):
         right.pack(side=tk.RIGHT)
         tk.Label(right, text="Góc xem:", font=("", 9),
                  bg="white").pack(side=tk.LEFT)
-        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)] + ["3D"]
+        _vals = ["α (góc tải)", "3D"] + [f"{d}°" for d in range(0, 361, 15)]
         self._ec2_nm_angle_cb = ttk.Combobox(
             right, values=_vals, width=11, state="readonly", font=("", 9))
         self._ec2_nm_angle_cb.set("α (góc tải)")
@@ -4025,8 +4023,8 @@ class App(tk.Tk):
         right.pack(side=tk.RIGHT)
         tk.Label(right, text="G\u00f3c xem:", font=("", 8),
                  bg="white").pack(side=tk.LEFT)
-        _vals = ["\u03b1 (g\u00f3c t\u1ea3i)"] + \
-            [f"{d}\u00b0" for d in range(0, 361, 15)] + ["3D"]
+        _vals = ["\u03b1 (g\u00f3c t\u1ea3i)", "3D"] + \
+            [f"{d}\u00b0" for d in range(0, 361, 15)]
         self._nm_angle_cb = ttk.Combobox(right, values=_vals, width=11,
                                          state="readonly", font=("", 8))
         self._nm_angle_cb.set("\u03b1 (g\u00f3c t\u1ea3i)")
@@ -4074,40 +4072,71 @@ class App(tk.Tk):
             pass
 
     def _draw_3d_aci(self):
-        """Vẽ 3D cho ACI (tạm dùng khung, cần bổ sung engine)."""
+        """Vẽ biểu đồ tương tác 3D cho ACI."""
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
+            import numpy as np
             fig = self._aci_nm_fig
             fig.clear()
             ax = fig.add_subplot(111, projection='3d')
-            ax.text2D(0.5, 0.5, "Biểu đồ 3D ACI đang phát triển",
-                      transform=ax.transAxes, ha='center', fontsize=12)
+            sec = getattr(self, '_aci_sec', None)
+            conc = getattr(self, '_aci_conc', None)
+            steel = getattr(self, '_aci_steel', None)
+            tied = getattr(self, '_aci_tied', True)
+            if sec is None or conc is None or steel is None:
+                ax.text2D(0.5, 0.5, "Chưa có dữ liệu - hãy bấm KIỂM TRA",
+                          transform=ax.transAxes, ha='center')
+            else:
+                from rc_column.aci_checker import ACICapacity
+                cap = ACICapacity(sec, conc, steel, tied=tied, n_angles=24)
+                n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
+                    n_n=25, n_angles=36)
+                ax.plot_surface(m2_grid, m3_grid,
+                                np.tile(n_vals[:, None], (1, len(th_vals))),
+                                cmap='Blues', alpha=0.7, edgecolor='none')
+                ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (ACI 318-19)')
             ax.set_xlabel('M2 (kN·m)')
             ax.set_ylabel('M3 (kN·m)')
             ax.set_zlabel('N (kN)')
-            ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (ACI 318-19)')
             fig.tight_layout()
             self._aci_nm_cv_ref.draw()
         except Exception as ex:
             print(f"Lỗi vẽ 3D ACI: {ex}")
+            import traceback
+            traceback.print_exc()
 
     def _draw_3d_ec2(self):
-        """Vẽ 3D cho EC2 (tạm dùng khung, cần bổ sung engine)."""
+        """Vẽ biểu đồ tương tác 3D cho EC2."""
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
+            import numpy as np
             fig = self._ec2_nm_fig
             fig.clear()
             ax = fig.add_subplot(111, projection='3d')
-            ax.text2D(0.5, 0.5, "Biểu đồ 3D EC2 đang phát triển",
-                      transform=ax.transAxes, ha='center', fontsize=12)
+            sec = getattr(self, '_ec2_sec', None)
+            conc = getattr(self, '_ec2_conc', None)
+            steel = getattr(self, '_ec2_steel', None)
+            if sec is None or conc is None or steel is None:
+                ax.text2D(0.5, 0.5, "Chưa có dữ liệu - hãy bấm KIỂM TRA",
+                          transform=ax.transAxes, ha='center')
+            else:
+                from rc_column.ec2_checker import EC2Capacity
+                cap = EC2Capacity(sec, conc, steel, n_angles=24)
+                n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
+                    n_n=25, n_angles=36)
+                ax.plot_surface(m2_grid, m3_grid,
+                                np.tile(n_vals[:, None], (1, len(th_vals))),
+                                cmap='Oranges', alpha=0.7, edgecolor='none')
+                ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (EC2)')
             ax.set_xlabel('M2 (kN·m)')
             ax.set_ylabel('M3 (kN·m)')
             ax.set_zlabel('N (kN)')
-            ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (EC2)')
             fig.tight_layout()
             self._ec2_nm_cv_ref.draw()
         except Exception as ex:
             print(f"Lỗi vẽ 3D EC2: {ex}")
+            import traceback
+            traceback.print_exc()
 
     def _draw_3d_interaction(self):
         """Vẽ biểu đồ tương tác 3D (N-M2-M3) cho TCVN."""
