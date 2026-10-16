@@ -258,8 +258,9 @@ class App(tk.Tk):
                    command=self._export_pdf).pack(side=tk.LEFT, expand=True,
                                                    fill=tk.X, padx=(4, 0))
         # Hàng kiểm tra: chia đôi — trái chọn tiêu chuẩn, phải nút kiểm tra
+        # (căn lề khớp với hàng 4 nút bên trên: cùng padx=8)
         check_bar = ttk.Frame(top_bar)
-        check_bar.pack(fill=tk.X, padx=10, pady=10)
+        check_bar.pack(fill=tk.X, padx=8, pady=(8, 8))
         # Nửa trái: tiêu chuẩn thiết kế
         code_frame = ttk.Frame(check_bar)
         code_frame.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
