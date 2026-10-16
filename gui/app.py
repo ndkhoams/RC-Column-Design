@@ -1,3 +1,11 @@
+"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
+
+Bố cục:
+ 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
+ 5. Nội lực kiểm tra
+Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
+         thuyết minh tính toán chi tiết.
+"""
 
 import os as _os, datetime as _dt
 APP_BUILD = _dt.datetime.fromtimestamp(
@@ -3183,7 +3191,15 @@ class App(tk.Tk):
         """Xuất PDF theo tab đang mở: Tóm tắt hoặc Thuyết minh."""
         try:
             from tkinter import filedialog, messagebox
-            if self._last_sec is None:
+            # Kiểm tra kết quả theo tiêu chuẩn đang chọn
+            # (trước đây chỉ kiểm tra _last_sec của TCVN nên ACI/EC2 báo lỗi)
+            if self.is_aci():
+                has_result = getattr(self, "_aci_res", None) is not None
+            elif self.is_ec2():
+                has_result = getattr(self, "_ec2_res", None) is not None
+            else:
+                has_result = self._last_sec is not None
+            if not has_result:
                 messagebox.showwarning("Xuất PDF",
                                        "Chưa có kết quả để xuất.")
                 return
