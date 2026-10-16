@@ -1070,23 +1070,42 @@ class App(tk.Tk):
         conc = ACIConcrete(fc=fc)
         steel = ACISteel(fy=fy)
         sec = build_section(inp)
-        # 1. P-M-M
+        # 1. Độ mảnh & phóng đại mô men (ACI 6.6.4) — tính TRƯỚC, áp vào mô men
+        # P0-1/P0-3: Mc = δns·M theo từng phương, rồi mới check P-M-M
+        try:
+            from rc_column.stability import effective_length
+            # Phương 2 (M2): lu = Lx, Ig = t3·t2³/12
+            L0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x, inp.psi_x) * 1000
+            Ig2 = sec.cx * sec.cy**3 / 12
+            mm2 = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.Mx, M2_kNm=inp.Mx,
+                                      lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
+                                      Ig_mm4=Ig2, beta_dns=0.6)
+            # Phương 3 (M3): lu = Ly, Ig = t2·t3³/12
+            L0_3 = effective_length(inp.Ly, inp.top_y, inp.bottom_y, inp.psi_y) * 1000
+            Ig3 = sec.cy * sec.cx**3 / 12
+            mm3 = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.My, M2_kNm=inp.My,
+                                      lu_mm=L0_3, k=1.0, Ec_MPa=conc.Ec,
+                                      Ig_mm4=Ig3, beta_dns=0.6)
+            d2 = mm2.get("delta_ns", 1.0)
+            d3 = mm3.get("delta_ns", 1.0)
+            Mc2 = d2 * inp.Mx
+            Mc3 = d3 * inp.My
+            mm_res = {"dir2": mm2, "dir3": mm3, "delta2": d2, "delta3": d3}
+        except Exception:
+            Mc2, Mc3 = inp.Mx, inp.My
+            mm_res = None
+        # 2. P-M-M với mô men đã phóng đại
         try:
             aci_res = check_column_aci(sec, conc, steel, N_kN=inp.N,
-                                       M2_kNm=inp.Mx, M3_kNm=inp.My, tied=tied)
+                                       M2_kNm=Mc2, M3_kNm=Mc3, tied=tied)
+            # Lưu mô men gốc và phóng đại để thuyết minh
+            aci_res["M2_orig"] = inp.Mx
+            aci_res["M3_orig"] = inp.My
+            aci_res["M2_mag"] = Mc2
+            aci_res["M3_mag"] = Mc3
         except Exception as ex:
             messagebox.showerror("Lỗi ACI P-M-M", str(ex))
             return
-        # 2. Độ mảnh
-        try:
-            from rc_column.stability import effective_length
-            L0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x, inp.psi_x) * 1000
-            Ig = sec.cx * sec.cy**3 / 12
-            mm_res = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.Mx, M2_kNm=inp.Mx,
-                                          lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
-                                          Ig_mm4=Ig, beta_dns=0.6)
-        except Exception:
-            mm_res = None
         # 3. Cắt
         try:
             Acv = sec.cx * sec.cy
@@ -1397,9 +1416,11 @@ class App(tk.Tk):
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         Ma = math.hypot(inp.Mx, inp.My)
         delta_txt = "—"
-        if mm_res and mm_res.get("delta_ns") is not None:
+        if mm_res:
             try:
-                delta_txt = f"{mm_res['delta_ns']:.3f}"
+                d2 = mm_res.get("delta2", 1.0)
+                d3 = mm_res.get("delta3", 1.0)
+                delta_txt = f"δ2={d2:.3f}, δ3={d3:.3f}"
             except Exception:
                 pass
         rows = [
