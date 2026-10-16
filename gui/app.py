@@ -296,7 +296,16 @@ class App(tk.Tk):
         self.left = ttk.Frame(canvas)
         self.left.bind("<Configure>",
                        lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self.left, anchor=tk.NW)
+        self._left_win = canvas.create_window((0, 0), window=self.left,
+                                              anchor=tk.NW)
+        # Khi canvas rộng/cao hơn nội dung, giãn window fill hết
+        def _fit_left_window(e):
+            canvas.itemconfigure(self._left_win, width=e.width)
+            # Chiều cao: ít nhất bằng canvas để bảng nội lực fill hết
+            req_h = self.left.winfo_reqheight()
+            canvas.itemconfigure(self._left_win,
+                                 height=max(req_h, e.height))
+        canvas.bind("<Configure>", _fit_left_window)
         canvas.configure(yscrollcommand=scr.set)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scr.pack(side=tk.RIGHT, fill=tk.Y)
@@ -544,9 +553,13 @@ class App(tk.Tk):
     # ---- 2. Tiết diện ----
     def _sec_section(self):
         f = self._frame("2. Tiết diện")
-        fl = ttk.Frame(f); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
-        fr = ttk.Frame(f); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
-        f.columnconfigure(0, weight=1); f.columnconfigure(1, weight=1)
+        # Dùng grid 4 cột đều (khớp 4 nút bên trên) cho toàn section
+        for _c in range(4):
+            f.columnconfigure(_c, weight=1, uniform="sec2")
+        fl = ttk.Frame(f); fl.grid(row=0, column=0, columnspan=2,
+                                   sticky=tk.NSEW, padx=2)
+        fr = ttk.Frame(f); fr.grid(row=0, column=2, columnspan=2,
+                                   sticky=tk.NSEW, padx=2)
         # Khung phải: chứa ô kích thước (chữ nhật/tròn) hoặc note DXF
         dim_box = ttk.Frame(fr)
         dim_box.grid(row=0, column=0, sticky=tk.NSEW)
@@ -584,13 +597,14 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self.cb_kind.grid(row=0, column=1, sticky=tk.W, padx=4, pady=5)
-        # Nút import/export DXF: mỗi nút rộng bằng OPEN/SAVE (không giãn full)
-        self.btn_dxf = ttk.Button(fl, text="📐 Import (.dxf)",
-                                  command=self.on_import_dxf, width=14)
-        self.btn_dxf.grid(row=1, column=0, sticky=tk.W, padx=4, pady=2)
-        self.btn_dxf_export = ttk.Button(fl, text="📤 Export (.dxf)",
-                                         command=self.on_export_dxf, width=14)
-        self.btn_dxf_export.grid(row=1, column=1, sticky=tk.W, padx=4, pady=2)
+        # Nút import/export: đặt trực tiếp ở grid 4 cột của section,
+        # mỗi nút rộng đúng 25% = bằng OPEN/SAVE bên trên
+        self.btn_dxf = ttk.Button(f, text="📐 Import (.dxf)",
+                                  command=self.on_import_dxf)
+        self.btn_dxf.grid(row=1, column=0, sticky=tk.EW, padx=4, pady=2)
+        self.btn_dxf_export = ttk.Button(f, text="📤 Export (.dxf)",
+                                         command=self.on_export_dxf)
+        self.btn_dxf_export.grid(row=1, column=1, sticky=tk.EW, padx=4, pady=2)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
@@ -931,6 +945,8 @@ class App(tk.Tk):
     # ---- 5. Nội lực ----
     def _sec_loads(self):
         f = self._frame("5. Nội lực kiểm tra")
+        # Cho phép giãn dọc để bảng fill hết cửa sổ
+        f.pack_configure(fill=tk.BOTH, expand=True)
         # Chọn chế độ: nhập tay / import Excel
         self.var_load_mode = tk.StringVar(value="etabs")
         mode_bar = ttk.Frame(f)
@@ -1001,7 +1017,7 @@ class App(tk.Tk):
         btn_row = ttk.Frame(self.etabs_frame)
         btn_row.grid(row=0, column=0, columnspan=3, sticky=tk.EW,
                      padx=4, pady=4)
-        st.configure("Big.TButton", font=("", 12), padding=(8, 6))
+        st.configure("Big.TButton", font=("", 9), padding=(6, 4))
         ttk.Button(btn_row, text="📂 Chọn file Excel", style="Big.TButton",
                    command=self.on_import_etabs).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
