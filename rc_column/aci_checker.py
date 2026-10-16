@@ -287,6 +287,53 @@ class ACICapacity:
                 "Bx": lam * Mx, "By": lam * My, "BN": BN,
                 "ok": dc <= 1.0, "phi": phi_lim, "eps_t": eps_t}
 
+    def dc_ratios(self, N: float, Mx: float, My: float) -> dict:
+        """5 loại D/C theo CSiCol (lấy max làm kết luận).
+
+        1. moment_sum_at_p: |M2|/φMn2(Pu) + |M3|/φMn3(Pu)
+        2. moment_vector_at_p: |M|/|Mcap| cùng hướng tại Pu
+        3. axial_compression: Pu/φPn,max (chỉ khi N>0)
+        4. axial_tension: |Pu|/φPn,kéo (chỉ khi N<0)
+        5. pm_vector: tia 3D (dc_ratio hiện tại)
+        """
+        out = {}
+        # 1. Moment sum at P
+        phi_M2 = self.moment_capacity(N, 90.0)   # thuần M2
+        phi_M3 = self.moment_capacity(N, 0.0)    # thuần M3
+        dc_sum = 0.0
+        if phi_M2 > 1e-12:
+            dc_sum += abs(Mx) / phi_M2
+        if phi_M3 > 1e-12:
+            dc_sum += abs(My) / phi_M3
+        out["moment_sum_at_p"] = dc_sum
+        # 2. Moment vector at P
+        Mstar = math.hypot(Mx, My)
+        if Mstar > 1e-12:
+            phi_deg = math.degrees(math.atan2(Mx, My))
+            Mcap = self.moment_capacity(N, phi_deg)
+            out["moment_vector_at_p"] = Mstar / Mcap if Mcap > 1e-12 else float("inf")
+        else:
+            out["moment_vector_at_p"] = 0.0
+        # 3 & 4. Axial
+        if N >= 0:
+            out["axial_compression"] = N / self.N_cap if self.N_cap > 1e-12 else float("inf")
+            out["axial_tension"] = 0.0
+        else:
+            out["axial_compression"] = 0.0
+            # φPn kéo = φt * fy * Ast
+            Ast = sum(r.area for r in self.sec.rebars) if hasattr(self.sec, "rebars") else 0.0
+            phi_Pn_t = 0.90 * self.steel.fy * Ast / 1000.0  # kN
+            out["axial_tension"] = abs(N) / phi_Pn_t if phi_Pn_t > 1e-12 else float("inf")
+        # 5. PM vector (3D)
+        pm = self.dc_ratio(N, Mx, My)
+        out["pm_vector"] = pm["dc"]
+        out["pm_detail"] = pm
+        # Max
+        vals = [v for k, v in out.items() if k != "pm_detail" and v == v]  # loại NaN
+        out["max"] = max(vals) if vals else 0.0
+        out["ok"] = out["max"] <= 1.0
+        return out
+
 
 # ---------------------------------------------------------------------------
 # 2. Hệ số phóng đại mô men cho cột mảnh (ACI 6.6.4.5)
