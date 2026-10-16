@@ -1,12 +1,3 @@
-"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
-
-Bố cục:
- 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
- 5. Nội lực kiểm tra
-Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
-         thuyết minh tính toán chi tiết.
-"""
-
 import os as _os, datetime as _dt
 APP_BUILD = _dt.datetime.fromtimestamp(
     _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
@@ -534,9 +525,9 @@ class App(tk.Tk):
         _mat_grid(self.frm_aci)
         self.en_fc = ttk.Entry(self.frm_aci, width=12); self.en_fc.insert(0, "30")
         self.en_fy = ttk.Entry(self.frm_aci, width=12); self.en_fy.insert(0, "420")
-        self.cb_tie = ttk.Combobox(self.frm_aci, values=["Tied (đai thường)", "Spiral (xoắn)"],
+        self.cb_tie = ttk.Combobox(self.frm_aci, values=["Đai rời (tied)", "Đai xoắn (spiral)"],
                                    state="readonly", width=12)
-        self.cb_tie.set("Tied (đai thường)")
+        self.cb_tie.set("Đai rời (tied)")
         self.en_fyt = ttk.Entry(self.frm_aci, width=12); self.en_fyt.insert(0, "420")
         _mat_row(self.frm_aci, 0, "Bê tông f'c (MPa)", self.en_fc,
                  "Loại cốt đai", self.cb_tie)
@@ -1328,7 +1319,7 @@ class App(tk.Tk):
         except Exception:
             messagebox.showerror("Lỗi", "Nhập f'c, fy và fyt hợp lệ (MPa).")
             return
-        tied = self.cb_tie.get().startswith("Tied")
+        tied = "tied" in self.cb_tie.get().lower()
         conc = ACIConcrete(fc=fc)
         steel = ACISteel(fy=fy)
         sec = build_section(inp)
@@ -2844,7 +2835,7 @@ class App(tk.Tk):
             from tkinter import messagebox
             messagebox.showerror("Lỗi", "Nhập f'c, fy và fyt hợp lệ (MPa).")
             return
-        tied = self.cb_tie.get().startswith("Tied")
+        tied = "tied" in self.cb_tie.get().lower()
         conc = ACIConcrete(fc=fc)
         steel = ACISteel(fy=fy)
         self.etabs_info.set("Đang kiểm tra ACI, vui lòng đợi...")
@@ -3594,7 +3585,7 @@ class App(tk.Tk):
             self.cb_code.set(d.get("code", self.cb_code.get()))
             se(self.en_fc, d.get("aci_fc", "30")); se(self.en_fy, d.get("aci_fy", "420"))
             se(self.en_fyt, d.get("aci_fyt", "420"))
-            self.cb_tie.set(d.get("aci_tie", "Tied (đai thường)"))
+            self.cb_tie.set(d.get("aci_tie", "Đai rời (tied)"))
             # Vật liệu EC2 (tương thích file cũ: giữ mặc định nếu thiếu)
             self.cb_ec2_conc.set(d.get("ec2_conc", "C30/37"))
             se(self.en_ec2_fyk, d.get("ec2_steel", "500"))
