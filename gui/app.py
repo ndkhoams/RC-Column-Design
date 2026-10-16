@@ -1352,7 +1352,8 @@ class App(tk.Tk):
             d3 = mm3.get("delta_ns", 1.0)
             Mc2 = d2 * inp.Mx
             Mc3 = d3 * inp.My
-            mm_res = {"dir2": mm2, "dir3": mm3, "delta2": d2, "delta3": d3}
+            mm_res = {"dir2": mm2, "dir3": mm3, "delta2": d2, "delta3": d3,
+                        "L0_2": L0_2/1000, "L0_3": L0_3/1000}
         except Exception:
             Mc2, Mc3 = inp.Mx, inp.My
             mm_res = None
@@ -1515,6 +1516,11 @@ class App(tk.Tk):
             return
         MEd2 = dm["dir2"]["MEd"]
         MEd3 = dm["dir3"]["MEd"]
+        # Lưu l0 (m) và lambda để report dùng
+        dm["l0_2"] = l0_2 / 1000.0
+        dm["l0_3"] = l0_3 / 1000.0
+        dm["lambda_2"] = (l0_2 / geom["dir2"]["i"]) if geom["dir2"]["i"] > 0 else 0
+        dm["lambda_3"] = (l0_3 / geom["dir3"]["i"]) if geom["dir3"]["i"] > 0 else 0
         # 3. P-M-M với mô men thiết kế
         try:
             ec2_res = check_column_ec2(sec, conc, steel, N_kN=inp.N,
