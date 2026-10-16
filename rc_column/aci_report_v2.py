@@ -139,6 +139,10 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _mm = mm_res or {}
     _L02 = _mm.get("L0_2", 0) or 0
     _L03 = _mm.get("L0_3", 0) or 0
+    _k2 = _mm.get("k2", 1.0) or 1.0
+    _k3 = _mm.get("k3", 1.0) or 1.0
+    _klr2 = _k2 * _L02 * 1000 / _ix if _ix > 0 else 0
+    _klr3 = _k3 * _L03 * 1000 / _iy if _iy > 0 else 0
     sections.append({
         "num": 3,
         "title": "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
@@ -146,13 +150,27 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         "cards": [
             _mk("Chiều dài tính toán",
                 "ACI 6.6.4.4",
-                [f"L0,2 = {_f(_L02, 2)} m",
+                [f"L0,2 = k·lu = {_f(_k2, 2)} × {_f(_L02/_k2 if _k2 else 0, 2)}",
+                 f"= {_f(_L02, 2)} m",
                  f"L0,3 = {_f(_L03, 2)} m"],
                 ""),
-            _mk("Độ mảnh",
+            _mk("Bán kính quán tính r",
+                "ACI 6.6.4.3.1",
+                [f"r ≈ 0.3h (tiết diện chữ nhật)",
+                 f"r2 = {_f(_ix, 1)} mm",
+                 f"r3 = {_f(_iy, 1)} mm"],
+                ""),
+            _mk("Tỉ số độ mảnh klu/r",
                 "ACI 6.6.4.1",
-                ["klu/r ≤ 34 - 12(M1/M2) (khung không chuyển vị)",
-                 "klu/r ≤ 22 (khung chuyển vị)"],
+                [f"(klu/r)₂ = {_f(_k2, 2)}×{_f(_L02*1000, 0)}/{_f(_ix, 1)}",
+                 f"= {_f(_klr2, 1)}",
+                 f"(klu/r)₃ = {_f(_klr3, 1)}"],
+                ""),
+            _mk("Giới hạn độ mảnh",
+                "ACI 6.6.4.1",
+                ["Khung không chuyển vị: klu/r ≤ 34 - 12(M1/M2) ≤ 40",
+                 "Khung chuyển vị: klu/r ≤ 22",
+                 f"{'→ Xét uốn dọc' if max(_klr2, _klr3) > 22 else '→ Bỏ qua uốn dọc'}"],
                 ""),
         ],
     })
@@ -161,11 +179,23 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _Nabs = abs(N) if abs(N) > 1e-9 else 1.0
     e2 = abs(M2/_Nabs*1000)
     e3 = abs(M3/_Nabs*1000)
+    # M2,min theo ACI 6.6.4.5.4
+    _h2 = cy
+    _h3 = cx
+    _Mmin2 = _Nabs * (15 + 0.03 * _h2) / 1e6  # kN·m (15mm + 0.03h)
+    _Mmin3 = _Nabs * (15 + 0.03 * _h3) / 1e6
     sections.append({
         "num": 4,
         "title": "ĐỘ LỆCH TÂM",
         "ref": "ACI 6.6.4.5.4",
         "cards": [
+            _mk("Mô men tối thiểu Mmin",
+                "ACI 6.6.4.5.4",
+                [f"Mmin = Pu·(15 + 0.03h)",
+                 f"Mmin,2 = {_f(_Nabs, 1)} × (15 + 0.03×{_f(_h2, 0)})/1000",
+                 f"= {_f(_Mmin2, 1)} kN·m",
+                 f"Mmin,3 = {_f(_Mmin3, 1)} kN·m"],
+                ""),
             _mk("Độ lệch tâm phương 2 (e2)",
                 "ACI 6.6.4.5.4",
                 [f"e₂ = |M₂| / N",
