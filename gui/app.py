@@ -2014,7 +2014,9 @@ class App(tk.Tk):
         for w in self._calc_inner.winfo_children():
             w.destroy()
         from rc_column.report_widgets import render_report_sections
-        render_report_sections(self._calc_inner, sections)
+        _figs = (getattr(self, "_aci_nm_fig", None),
+                 getattr(self, "_aci_m2m3_fig", None))
+        render_report_sections(self._calc_inner, sections, chart_figs=_figs)
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
         self._bind_wheel(self._calc_inner, self._calc_canvas)
@@ -2482,7 +2484,9 @@ class App(tk.Tk):
         for w in self._calc_inner.winfo_children():
             w.destroy()
         from rc_column.report_widgets import render_report_sections
-        render_report_sections(self._calc_inner, sections)
+        _figs = (getattr(self, "_ec2_nm_fig", None),
+                 getattr(self, "_ec2_m2m3_fig", None))
+        render_report_sections(self._calc_inner, sections, chart_figs=_figs)
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
         self._bind_wheel(self._calc_inner, self._calc_canvas)
