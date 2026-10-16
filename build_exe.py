@@ -59,6 +59,8 @@ def main() -> int:
         "--hidden-import", "reportlab.lib.pagesizes",
         "--hidden-import", "reportlab.pdfbase.ttfonts",
         "--hidden-import", "reportlab.platypus",
+        "--hidden-import", "ezdxf",
+        "--hidden-import", "ezdxf.entities",
         ENTRY,
     ]
     print("Chạy:", " ".join(cmd))

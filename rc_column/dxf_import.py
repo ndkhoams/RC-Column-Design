@@ -130,7 +130,10 @@ def read_dxf_section(path: str, layer_concrete: str = "BT",
                      unit_override: Optional[float] = None) -> DxfSection:
     """Đọc tiết diện từ file DXF."""
     if not HAS_EZDXF:
-        raise ImportError("Cần cài ezdxf: pip install ezdxf")
+        raise ImportError(
+            "Chưa cài thư viện ezdxf.\n"
+            "Chạy lệnh sau rồi thử lại:\n"
+            "    pip install ezdxf")
     doc = ezdxf.readfile(path)
     msp = doc.modelspace()
     res = DxfSection()
