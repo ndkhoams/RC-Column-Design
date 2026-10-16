@@ -158,19 +158,9 @@ class App(tk.Tk):
             pass
 
     def _fix_left_width(self, _retry=0):
+        # Layout đã fix cứng bằng pack (không dùng PanedWindow), không cần set sash
         try:
-            self.update_idletasks()
-            # Chỉ set sash khi window đã có kích thước thực (>100px)
-            if self.winfo_width() > 100:
-                self._paned.sashpos(0, self._left_width)
-                # Vô hiệu hóa sash: không cho kéo
-                self._paned.bind("<B1-Motion>", lambda e: "break", add="+")
-                self._paned.bind("<ButtonPress-1>", lambda e: "break", add="+")
-                # Sau khi set sash xong, refresh layout
-                self.after(200, self._refresh_layout)
-            elif _retry < 5:
-                # Thử lại sau 200ms nếu window chưa sẵn sàng
-                self.after(200, lambda: self._fix_left_width(_retry + 1))
+            self.after(200, self._refresh_layout)
         except Exception:
             pass
 
@@ -232,6 +222,17 @@ class App(tk.Tk):
                foreground=[("selected", TEXT)])
 
     # ============================ UI ============================
+    def _show_tab(self, which):
+        """Chuyển giữa tab Kết quả / Chi tiết."""
+        if which == "sum":
+            self.tab_calc.pack_forget()
+            self.tab_sum.pack(fill=tk.BOTH, expand=True)
+            self._current_tab = "sum"
+        else:
+            self.tab_sum.pack_forget()
+            self.tab_calc.pack(fill=tk.BOTH, expand=True)
+            self._current_tab = "calc"
+
     def _switch_lang(self, lang):
         """Chuyển ngôn ngữ VN/EN. Áp dụng cho kết quả mới tính."""
         from rc_column import lang as _lang
@@ -242,16 +243,21 @@ class App(tk.Tk):
             self.on_check()
 
     def _build(self):
-        self._paned = tk.PanedWindow(self, orient=tk.HORIZONTAL,
-                                       sashwidth=4, sashrelief=tk.FLAT,
-                                       showhandle=False, bg="#E5E7EB")
-        main = self._paned
+        # Layout cố định: không dùng PanedWindow (đã ẩn sash + fix cứng bề rộng)
+        main = ttk.Frame(self)
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+        self._paned = main  # giữ tên để code cũ không lỗi
         # Panel trái rộng 700px để hiện đủ bảng nội lực
         self._left_width = 700
 
         # ---- Trái: nhập liệu (cuộn được) ----
-        left_outer = ttk.Frame(main)
+        left_outer = ttk.Frame(main, width=self._left_width)
+        left_outer.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 2))
+        left_outer.pack_propagate(False)
+        # Divider mỏng (thay sash, không kéo được)
+        _divider = ttk.Frame(main, width=4)
+        _divider.pack(side=tk.LEFT, fill=tk.Y)
+        _divider.pack_propagate(False)
         main.add(left_outer, stretch="never")
         # Cụm nút cố định ĐỈNH (không bị cuộn theo) — theo yêu cầu user 2026-10-16
         top_bar = ttk.Frame(left_outer, relief=tk.RAISED, borderwidth=1)
@@ -339,7 +345,7 @@ class App(tk.Tk):
 
         # ---- Phải: kết quả ----
         right = ttk.Frame(main)
-        main.add(right, stretch="always")
+        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(2, 0))
         # Nút VN|EN đặt cùng hàng với tab (góc phải, đè lên vùng trống của tab)
         self._lang_var = tk.StringVar(value="VN")
         # Nút VN|EN: style giống 4 nút bên trái (Ghost.TButton)
@@ -353,11 +359,24 @@ class App(tk.Tk):
             self._lang_frame.place(relx=1.0, x=-10, y=8, anchor=tk.NE)
             self._lang_frame.lift()
         self.after(100, _place_lang)
-        nb = ttk.Notebook(right)
-        nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
-        self.nb = nb
-        self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text=T("Kết quả tính toán"))
-        self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text=T("Chi tiết tính toán"))
+        # Hàng nút chuyển tab (style giống 4 nút bên trái)
+        _tab_bar = ttk.Frame(right)
+        _tab_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
+        self._tab_btn_sum = ttk.Button(_tab_bar, text=T("Kết quả tính toán"),
+                                       style="Ghost.TButton",
+                                       command=lambda: self._show_tab("sum"))
+        self._tab_btn_sum.pack(side=tk.LEFT, padx=(0, 4))
+        self._tab_btn_calc = ttk.Button(_tab_bar, text=T("Chi tiết tính toán"),
+                                        style="Ghost.TButton",
+                                        command=lambda: self._show_tab("calc"))
+        self._tab_btn_calc.pack(side=tk.LEFT)
+        # Container chứa 2 tab (thay Notebook)
+        _tab_container = ttk.Frame(right)
+        _tab_container.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        self.tab_sum = ttk.Frame(_tab_container)
+        self.tab_calc = ttk.Frame(_tab_container)
+        self.tab_sum.pack(fill=tk.BOTH, expand=True)
+        self._current_tab = "sum"
 
         # Tab Tóm tắt bọc trong canvas cuộn được
         sum_canvas = tk.Canvas(self.tab_sum, highlightthickness=0)
@@ -3167,8 +3186,7 @@ class App(tk.Tk):
                                        "Chưa có kết quả để xuất.")
                 return
             # Tab đang chọn
-            cur = self.nb.select()
-            is_summary = (cur == str(self.tab_sum))
+            is_summary = (self._current_tab == "sum")
             # Tên file mặc định: TMTT-TÊN CẤU KIỆN.pdf
             import os as _os
             _ck = ""
