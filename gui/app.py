@@ -271,10 +271,11 @@ class App(tk.Tk):
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 6))
         self.cb_code = ttk.Combobox(code_frame, values=["TCVN 5574:2018", "ACI 318-19",
                                                         "EC2 (EN 1992-1-1)"],
-                                    state="readonly", width=16)
+                                    state="readonly", width=14)
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
-        self.cb_code.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=4)
+        # Bề rộng bằng nút SAVE (không giãn)
+        self.cb_code.pack(side=tk.LEFT, padx=4)
         ttk.Button(top_grid, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    style="Accent.TButton",
                    command=self.on_check).grid(row=1, column=2, columnspan=2,
@@ -438,73 +439,80 @@ class App(tk.Tk):
     def _sec_materials(self):
         f = self._frame("1. Vật liệu")
         # Bộ chọn tiêu chuẩn đã chuyển lên hàng nút kiểm tra (top_bar)
+        # Grid 4 cột đều nhau (khớp với 4 nút bên trên):
+        # col 0: nhãn trái, col 1: nhãn phải, col 2: ô nhập trái (= SAVE AS),
+        # col 3: ô nhập phải (= XUẤT PDF)
+        def _mat_grid(parent):
+            for _c in range(4):
+                parent.columnconfigure(_c, weight=1, uniform="mat")
+        def _mat_row(parent, r, llab, lwid, rlab, rwid):
+            ttk.Label(parent, text=llab, style="Muted.TLabel").grid(
+                row=r, column=0, sticky=tk.W, padx=(4, 8), pady=5)
+            ttk.Label(parent, text=rlab, style="Muted.TLabel").grid(
+                row=r, column=1, sticky=tk.W, padx=(4, 8), pady=5)
+            lwid.grid(row=r, column=2, sticky=tk.EW, padx=4, pady=5)
+            rwid.grid(row=r, column=3, sticky=tk.EW, padx=4, pady=5)
         # Khung TCVN (hiện mặc định)
         self.frm_tcvn = ttk.Frame(f)
-        self.frm_tcvn.grid(row=0, column=0, columnspan=2, sticky=tk.NSEW)
-        fl = ttk.Frame(self.frm_tcvn); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
-        fr = ttk.Frame(self.frm_tcvn); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
-        self.frm_tcvn.columnconfigure(0, weight=1); self.frm_tcvn.columnconfigure(1, weight=1)
+        self.frm_tcvn.grid(row=0, column=0, sticky=tk.NSEW)
+        f.columnconfigure(0, weight=1)
+        _mat_grid(self.frm_tcvn)
+        self.cb_conc = ttk.Combobox(self.frm_tcvn, values=list(CONCRETE_GRADES),
+                                    state="readonly", width=12)
+        self.cb_conc.set("B25")
+        self.en_gb = ttk.Entry(self.frm_tcvn, width=12); self.en_gb.insert(0, "0.85")
+        self.en_gs = ttk.Entry(self.frm_tcvn, width=12); self.en_gs.insert(0, "1.0")
+        self.cb_steel = ttk.Combobox(self.frm_tcvn, values=list(STEEL_GRADES),
+                                     state="readonly", width=12)
+        self.cb_steel.set("CB400-V")
+        self.cb_sw_steel = ttk.Combobox(self.frm_tcvn, values=list(STEEL_GRADES),
+                                        state="readonly", width=12)
+        self.cb_sw_steel.set("CB400-V")
+        self.cb_model = ttk.Combobox(
+            self.frm_tcvn, values=["3 đoạn thẳng (MH3ĐT)", "2 đoạn thẳng (MH2ĐT)"],
+            state="readonly", width=12)
+        self.cb_model.set("3 đoạn thẳng (MH3ĐT)")
+        _mat_row(self.frm_tcvn, 0, "Cấp độ bền bê tông", self.cb_conc,
+                 "Cấp độ bền thép dọc", self.cb_steel)
+        _mat_row(self.frm_tcvn, 1, "Hệ số γb", self.en_gb,
+                 "Cấp độ bền thép đai", self.cb_sw_steel)
+        _mat_row(self.frm_tcvn, 2, "Hệ số γs", self.en_gs,
+                 "Mô hình bê tông", self.cb_model)
         # Khung ACI (ẩn mặc định)
         self.frm_aci = ttk.Frame(f)
-        self.frm_aci.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW)
-        afl = ttk.Frame(self.frm_aci); afl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
-        afr = ttk.Frame(self.frm_aci); afr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
-        self.frm_aci.columnconfigure(0, weight=1); self.frm_aci.columnconfigure(1, weight=1)
-        self.en_fc = ttk.Entry(afl, width=12); self.en_fc.insert(0, "30")
-        self._row(afl, "Cường độ bê tông f'c (MPa)", self.en_fc, 0)
-        self.en_fy = ttk.Entry(afl, width=12); self.en_fy.insert(0, "420")
-        self._row(afl, "Cường độ thép fy (MPa)", self.en_fy, 1)
-        self.cb_tie = ttk.Combobox(afr, values=["Tied (đai thường)", "Spiral (xoắn)"],
-                                   state="readonly", width=16)
+        self.frm_aci.grid(row=1, column=0, sticky=tk.NSEW)
+        _mat_grid(self.frm_aci)
+        self.en_fc = ttk.Entry(self.frm_aci, width=12); self.en_fc.insert(0, "30")
+        self.en_fy = ttk.Entry(self.frm_aci, width=12); self.en_fy.insert(0, "420")
+        self.cb_tie = ttk.Combobox(self.frm_aci, values=["Tied (đai thường)", "Spiral (xoắn)"],
+                                   state="readonly", width=12)
         self.cb_tie.set("Tied (đai thường)")
-        self._row(afr, "Loại cốt đai", self.cb_tie, 0)
-        self.en_fyt = ttk.Entry(afr, width=12); self.en_fyt.insert(0, "420")
-        self._row(afr, "Cường độ thép đai fyt (MPa)", self.en_fyt, 1)
+        self.en_fyt = ttk.Entry(self.frm_aci, width=12); self.en_fyt.insert(0, "420")
+        _mat_row(self.frm_aci, 0, "Cường độ bê tông f'c (MPa)", self.en_fc,
+                 "Loại cốt đai", self.cb_tie)
+        _mat_row(self.frm_aci, 1, "Cường độ thép fy (MPa)", self.en_fy,
+                 "Cường độ thép đai fyt (MPa)", self.en_fyt)
         self.frm_aci.grid_remove()
         # Khung EC2 (ẩn mặc định)
         self.frm_ec2 = ttk.Frame(f)
-        self.frm_ec2.grid(row=3, column=0, columnspan=2, sticky=tk.NSEW)
-        efl = ttk.Frame(self.frm_ec2); efl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
-        efr = ttk.Frame(self.frm_ec2); efr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
-        self.frm_ec2.columnconfigure(0, weight=1); self.frm_ec2.columnconfigure(1, weight=1)
+        self.frm_ec2.grid(row=2, column=0, sticky=tk.NSEW)
+        _mat_grid(self.frm_ec2)
         from rc_column.ec2_materials import EC2_CONCRETE_GRADES, EC2_STEEL_GRADES
-        self.cb_ec2_conc = ttk.Combobox(efl, values=list(EC2_CONCRETE_GRADES),
+        self.cb_ec2_conc = ttk.Combobox(self.frm_ec2, values=list(EC2_CONCRETE_GRADES),
                                         state="readonly", width=12)
         self.cb_ec2_conc.set("C30/37")
-        self._row(efl, "Mác bê tông (fck)", self.cb_ec2_conc, 0)
-        self.en_ec2_fyk = ttk.Entry(efl, width=12)
+        self.en_ec2_fyk = ttk.Entry(self.frm_ec2, width=12)
         self.en_ec2_fyk.insert(0, "500")
-        self._row(efl, "Cường độ thép dọc fyk (MPa)", self.en_ec2_fyk, 1)
-        self.cb_ec2_method = ttk.Combobox(efr, values=["Độ cứng danh nghĩa",
-                                                       "Độ cong danh nghĩa"],
-                                          state="readonly", width=16)
+        self.cb_ec2_method = ttk.Combobox(self.frm_ec2, values=["Độ cứng danh nghĩa",
+                                                               "Độ cong danh nghĩa"],
+                                          state="readonly", width=12)
         self.cb_ec2_method.set("Độ cứng danh nghĩa")
-        self._row(efr, "Phương pháp tính bậc 2", self.cb_ec2_method, 0)
-        self.en_ec2_fyt = ttk.Entry(efr, width=12); self.en_ec2_fyt.insert(0, "500")
-        self._row(efr, "Cường độ thép đai fyk (MPa)", self.en_ec2_fyt, 1)
+        self.en_ec2_fyt = ttk.Entry(self.frm_ec2, width=12); self.en_ec2_fyt.insert(0, "500")
+        _mat_row(self.frm_ec2, 0, "Mác bê tông (fck)", self.cb_ec2_conc,
+                 "Phương pháp tính bậc 2", self.cb_ec2_method)
+        _mat_row(self.frm_ec2, 1, "Cường độ thép dọc fyk (MPa)", self.en_ec2_fyk,
+                 "Cường độ thép đai fyk (MPa)", self.en_ec2_fyt)
         self.frm_ec2.grid_remove()
-        # Các ô nhập TCVN (giữ nguyên)
-        self.cb_conc = ttk.Combobox(fl, values=list(CONCRETE_GRADES),
-                                    state="readonly", width=12)
-        self.cb_conc.set("B25")
-        self._row(fl, "Cấp độ bền bê tông", self.cb_conc, 0)
-        self.en_gb = ttk.Entry(fl, width=12); self.en_gb.insert(0, "0.85")
-        self._row(fl, "Hệ số γb", self.en_gb, 1)
-        self.en_gs = ttk.Entry(fl, width=12); self.en_gs.insert(0, "1.0")
-        self._row(fl, "Hệ số γs", self.en_gs, 2)
-        self.cb_steel = ttk.Combobox(fr, values=list(STEEL_GRADES),
-                                     state="readonly", width=12)
-        self.cb_steel.set("CB400-V")
-        self._row(fr, "Cấp độ bền thép dọc", self.cb_steel, 0)
-        self.cb_sw_steel = ttk.Combobox(fr, values=list(STEEL_GRADES),
-                                        state="readonly", width=12)
-        self.cb_sw_steel.set("CB400-V")
-        self._row(fr, "Cấp độ bền thép đai", self.cb_sw_steel, 1)
-        self.cb_model = ttk.Combobox(
-            fr, values=["3 đoạn thẳng (MH3ĐT)", "2 đoạn thẳng (MH2ĐT)"],
-            state="readonly", width=12)
-        self.cb_model.set("3 đoạn thẳng (MH3ĐT)")
-        self._row(fr, "Mô hình bê tông", self.cb_model, 2)
 
     def _toggle_code(self):
         """Ẩn/hiện khung nhập liệu theo tiêu chuẩn được chọn."""
@@ -570,16 +578,16 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self.cb_kind.grid(row=0, column=1, sticky=tk.W, padx=4, pady=5)
-        # Nút import/export DXF
-        dxf_row = ttk.Frame(fl)
-        dxf_row.grid(row=1, column=0, columnspan=2, sticky=tk.W,
-                     padx=4, pady=2)
-        self.btn_dxf = ttk.Button(dxf_row, text="📐 Import (.dxf)",
-                                  command=self.on_import_dxf, width=14)
-        self.btn_dxf.pack(side=tk.LEFT)
-        self.btn_dxf_export = ttk.Button(dxf_row, text="📤 Export (.dxf)",
-                                         command=self.on_export_dxf, width=14)
-        self.btn_dxf_export.pack(side=tk.LEFT, padx=(4, 0))
+        # Nút import/export DXF: căn thẳng hàng với nút OPEN/SAVE bên trên
+        # (dùng grid 2 cột đều nhau trong fl)
+        fl.columnconfigure(0, weight=1, uniform="dxfbtn")
+        fl.columnconfigure(1, weight=1, uniform="dxfbtn")
+        self.btn_dxf = ttk.Button(fl, text="📐 Import (.dxf)",
+                                  command=self.on_import_dxf)
+        self.btn_dxf.grid(row=1, column=0, sticky=tk.EW, padx=(4, 2), pady=2)
+        self.btn_dxf_export = ttk.Button(fl, text="📤 Export (.dxf)",
+                                         command=self.on_export_dxf)
+        self.btn_dxf_export.grid(row=1, column=1, sticky=tk.EW, padx=(2, 4), pady=2)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
@@ -593,8 +601,9 @@ class App(tk.Tk):
         # ===== Panel cho tiết diện chữ nhật =====
         self.rebar_rect = ttk.Frame(f)
         self.rebar_rect.grid(row=0, column=0, sticky=tk.NSEW)
-        f.columnconfigure(0, weight=2)
-        f.columnconfigure(1, weight=3)
+        # Chia 50/50 để mép phải ô nhập căn với nút SAVE bên trên
+        f.columnconfigure(0, weight=1, uniform="rebar")
+        f.columnconfigure(1, weight=1, uniform="rebar")
         rr = self.rebar_rect
         r = 0
         self.sp_cover = ttk.Entry(rr, width=8)
@@ -614,7 +623,7 @@ class App(tk.Tk):
         self.cb_e2d = ttk.Entry(fr2, width=5)
         self.cb_e2d.insert(0, "20")
         self.sp_e2n.pack(side=tk.LEFT)
-        ttk.Label(fr2, text="thanh/mặt – d").pack(side=tk.LEFT, padx=2)
+        ttk.Label(fr2, text="– d").pack(side=tk.LEFT, padx=2)
         self.cb_e2d.pack(side=tk.LEFT)
         self._row(rr, "Thép cạnh t2 (2 mặt trái/phải)", fr2, r)
         r += 1
@@ -625,7 +634,7 @@ class App(tk.Tk):
         self.cb_e3d = ttk.Entry(fr3, width=5)
         self.cb_e3d.insert(0, "20")
         self.sp_e3n.pack(side=tk.LEFT)
-        ttk.Label(fr3, text="thanh/mặt – d").pack(side=tk.LEFT, padx=2)
+        ttk.Label(fr3, text="– d").pack(side=tk.LEFT, padx=2)
         self.cb_e3d.pack(side=tk.LEFT)
         self._row(rr, "Thép cạnh t3 (2 mặt trên/dưới)", fr3, r)
         r += 1
@@ -770,11 +779,11 @@ class App(tk.Tk):
         self.sw_inputs = {}
         for i, lbl in enumerate(("Đai bao:", "Đai giữa t2:", "Đai giữa t3:")):
             ttk.Label(sw_hdr, text=lbl, style="Muted.TLabel").grid(
-                row=i + 1, column=0, sticky=tk.W, padx=2, pady=2)
+                row=i + 1, column=0, sticky=tk.W, padx=2, pady=5)
             row = {}
             for j, key in enumerate(("legs", "dia", "s")):
                 e = ttk.Entry(sw_hdr, width=6)
-                e.grid(row=i + 1, column=j + 1, padx=2, pady=2,
+                e.grid(row=i + 1, column=j + 1, padx=2, pady=5,
                        sticky=tk.EW)
                 row[key] = e
             self.sw_inputs[lbl] = row
