@@ -16,8 +16,8 @@ STRINGS = {
     # Section 1
     "1. Vật liệu": {"EN": "1. Materials"},
     "Bê tông": {"EN": "Concrete"},
-    "C. độ thép dọc fyk (MPa)": {"EN": "Long. steel fyk (MPa)"},
-    "C. độ thép đai fyk (MPa)": {"EN": "Stirrup fyk (MPa)"},
+    "Thép dọc fyk (MPa)": {"EN": "Long. steel fyk (MPa)"},
+    "Thép đai fyk (MPa)": {"EN": "Stirrup fyk (MPa)"},
     "Cường độ bê tông fc (MPa)": {"EN": "Concrete fc (MPa)"},
     "Cường độ thép fy (MPa)": {"EN": "Steel fy (MPa)"},
     "Cường độ thép đai fyt (MPa)": {"EN": "Stirrup fyt (MPa)"},
