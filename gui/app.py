@@ -1,3 +1,12 @@
+"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
+
+Bố cục:
+ 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
+ 5. Nội lực kiểm tra
+Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
+         thuyết minh tính toán chi tiết.
+"""
+
 import os as _os, datetime as _dt
 APP_BUILD = _dt.datetime.fromtimestamp(
     _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
