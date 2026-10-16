@@ -251,9 +251,9 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _bg = "#D1FAE5" if _ok else "#FEE2E2"
                 _fg = "#065F46" if _ok else "#991B1B"
                 _t = Table([
-                    [P(f"TỶ SỐ SỬ DỤNG (D/C) = {_dc.get('dc', 0):.3f}  (FS = {_dc.get('fs', 0):.2f})", st["b"]),
+                    [P(f"TỶ SỐ SỬ DỤNG (D/C) = {_dc.get('dc', 0):.3f}  (FS = {_dc.get('fs', 0):.2f})", st["result"]),
                      ],
-                    [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["b"])],
+                    [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["result"])],
                 ])
                 _t.setStyle(TableStyle([
                     ("BACKGROUND", (0, 0), (-1, -1), _HCf(_bg)),

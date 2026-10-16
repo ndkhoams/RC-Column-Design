@@ -519,8 +519,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _bg = "#D1FAE5" if _ok else "#FEE2E2"
         _fg = "#065F46" if _ok else "#991B1B"
         _t = Table([
-            [P(f"TỶ SỐ SỬ DỤNG (D/C) = {res.dc:.3f}  (FS = {res.fs:.2f})", st["b"])],
-            [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["b"])],
+            [P(f"TỶ SỐ SỬ DỤNG (D/C) = {res.dc:.3f}  (FS = {res.fs:.2f})", st["result"])],
+            [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["result"])],
         ])
         _t.setStyle(_TS2([
             ("BACKGROUND", (0, 0), (-1, -1), _HC(_bg)),
