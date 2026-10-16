@@ -115,8 +115,11 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                     color="black", lw=0.8)
         ax.text(-cx/2 - doff, 0, f"t2 = {cy:.0f}", fontsize=8,
                 weight="bold", ha="right", va="center", rotation=90)
-    elif show_dims:
-        pass  # (đã bỏ chữ "D = ..." dưới mặt cắt tròn theo yêu cầu user)
+    elif show_dims and sec.kind == "circle":
+        # Hình tròn: ghi đường kính D; mặt cắt DXF (poly) không ghi
+        # vì kích thước bao không có ý nghĩa
+        ax.text(0, -cy/2 - max(cx, cy)*0.10, f"D = {cx:.0f}", fontsize=8,
+                weight="bold", ha="center", va="top")
     # Thẻ thống kê bên dưới
     if show_stats and sec.rebars:
         from collections import Counter
