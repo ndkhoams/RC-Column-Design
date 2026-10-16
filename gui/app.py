@@ -567,10 +567,6 @@ class App(tk.Tk):
         self.btn_dxf_export = ttk.Button(dxf_row, text="📤 Export (.dxf)",
                                          command=self.on_export_dxf, width=14)
         self.btn_dxf_export.pack(side=tk.LEFT, padx=(4, 0))
-        self.en_cy = ttk.Entry(fr, width=12); self.en_cy.insert(0, "400")
-        self._row(fr, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
-        self.en_cx = ttk.Entry(fr, width=12); self.en_cx.insert(0, "400")
-        self._row(fr, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
