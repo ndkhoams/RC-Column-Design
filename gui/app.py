@@ -528,7 +528,24 @@ class App(tk.Tk):
         fl = ttk.Frame(f); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
         fr = ttk.Frame(f); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
         f.columnconfigure(0, weight=1); f.columnconfigure(1, weight=1)
-        self.sec_dim_frame = fr  # để ẩn khi chọn DXF
+        # Khung phải: chứa ô kích thước (chữ nhật/tròn) hoặc note DXF
+        dim_box = ttk.Frame(fr)
+        dim_box.grid(row=0, column=0, sticky=tk.NSEW)
+        fr.columnconfigure(0, weight=1)
+        self.sec_dim_frame = dim_box  # để ẩn khi chọn DXF
+        # Note import DXF: nằm bên phải, hiện thay chỗ ô kích thước
+        self.dxf_info = tk.StringVar(value="")
+        self.dxf_info_label = ttk.Label(fr, textvariable=self.dxf_info,
+                                        font=("", 8, "italic"),
+                                        foreground="#0a4d8c", wraplength=280,
+                                        justify=tk.LEFT)
+        self.dxf_info_label.grid(row=0, column=0, sticky=tk.NW,
+                                 padx=4, pady=4)
+        self.dxf_info_label.grid_remove()  # mặc định ẩn
+        self.en_cy = ttk.Entry(dim_box, width=12); self.en_cy.insert(0, "400")
+        self._row(dim_box, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
+        self.en_cx = ttk.Entry(dim_box, width=12); self.en_cx.insert(0, "400")
+        self._row(dim_box, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
         # Hàng loại tiết diện: combobox gọn, không giãn full
         ttk.Label(fl, text="Loại tiết diện",
                   style="Muted.TLabel").grid(row=0, column=0, sticky=tk.W,
@@ -550,16 +567,6 @@ class App(tk.Tk):
         self.btn_dxf_export = ttk.Button(dxf_row, text="📤 Export (.dxf)",
                                          command=self.on_export_dxf, width=14)
         self.btn_dxf_export.pack(side=tk.LEFT, padx=(4, 0))
-        # Thông báo import: hàng riêng bên dưới 2 nút,
-        # chỉ hiện khi chọn tiết diện bất kỳ
-        self.dxf_info = tk.StringVar(value="")
-        self.dxf_info_label = ttk.Label(fl, textvariable=self.dxf_info,
-                                        font=("", 8, "italic"),
-                                        foreground="#0a4d8c", wraplength=300,
-                                        justify=tk.LEFT)
-        self.dxf_info_label.grid(row=2, column=0, columnspan=2,
-                                 sticky=tk.W, padx=4, pady=(0, 4))
-        self.dxf_info_label.grid_remove()  # mặc định ẩn
         self.en_cy = ttk.Entry(fr, width=12); self.en_cy.insert(0, "400")
         self._row(fr, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
         self.en_cx = ttk.Entry(fr, width=12); self.en_cx.insert(0, "400")
