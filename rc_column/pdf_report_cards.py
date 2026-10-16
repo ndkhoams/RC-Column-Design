@@ -440,14 +440,12 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             return _mk( f"Hệ số uốn dọc phương {d} (η{d})",
                          "Công thức (44)",
                          [f"η{d} = 1 / [1 - N / Ncr,{d}]",
-                          f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}]",
-                          f"= {_f(eta, 3)} ≥ 1.0"])
+                          f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}] = {_f(eta, 3)} ≥ 1.0"])
         if kind == "Ms":
             return _mk( f"Mô men tính toán phương {d} (M{d}*)",
                          "Mục 8.1.2.4",
                          [f"M{d}* = η{d} · M{d}",
-                          f"= {_f(eta, 3)} × {_f(Morig, 2)}",
-                          f"= {_f(abs(Mstar), 2)} kN·m"])
+                          f"= {_f(eta, 3)} × {_f(Morig, 2)} = {_f(abs(Mstar), 2)} kN·m"])
         return None
     for kind in ["phi", "de", "kb", "D", "Ncr", "eta", "Ms"]:
         c1 = _mk5(*dirs[0], kind)
@@ -457,16 +455,11 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     alpha = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
         if Ma > 1e-9 else 0.0
     S.append(KeepTogether(_two(P, st,
-        _mk( "Góc tác dụng mô men uốn tổng hợp α", "Góc uốn xiên",
-              ["α = arctan(M₃* / M₂*)",
-               f"= arctan({_f(abs(res.My_star), 2)} / "
-               f"{_f(abs(res.Mx_star), 2)})",
-               f"= {_f(alpha, 2)} độ (°)"]),
-        _mk( "Mô men uốn xiên tổng hợp Mα", "Véc-tơ tổng hợp",
-              ["Mα = √((M₂*)² + (M₃*)²)",
-               f"= √({_f(abs(res.Mx_star), 2)}² + "
-               f"{_f(abs(res.My_star), 2)}²)",
-               f"= {_f(Ma, 2)} kN·m"]))))
+        _mk( "Mô men uốn xiên tổng hợp Mα", "",
+              [f"Mα = √((M₂*)² + (M₃*)²)",
+               f"= √({_f(abs(res.Mx_star), 2)}² + {_f(abs(res.My_star), 2)}²)",
+               f"= {_f(Ma, 2)} kN·m"]),
+        _mk( "", "", [""]))))
 
     # ================= MỤC 6 =================
     S.append(_sec_head(P, st, 6,
