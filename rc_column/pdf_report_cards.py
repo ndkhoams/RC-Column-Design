@@ -228,7 +228,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
 
 
     # ================= MỤC 2 =================
-    S.append(_sec_head(P, st, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT"))
+    _is_circle2 = getattr(sec, "kind", "rect") == "circle"
+    _D2 = getattr(inp, "cx", 0) or 0
+    if _is_circle2:
+        S.append(_sec_head(P, st, 2,
+                           "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT TRÒN"))
+    else:
+        S.append(_sec_head(P, st, 2,
+                           "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT"))
     from collections import Counter as _Ctr2
     _cnt2 = _Ctr2(getattr(r, "dia", 0) for r in sec.rebars)
     _bar_str2 = " + ".join(f"{_cnt2[d]:.0f}d{d:.0f}"
@@ -244,7 +251,28 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _simg2.hAlign = "CENTER"
         S.append(_simg2)
         S.append(Spacer(1, 4*mm))
-    S.extend(_two(P, st,
+    if _is_circle2:
+        S.extend(_two(P, st,
+            _mk( "Diện tích tiết diện bê tông nguyên A", "",
+                  [f"A = π·D²/4",
+                   f"= π × {_D2:.0f}² / 4",
+                   f"= {sec.gross_area:,.0f} mm² "
+                   f"(= {_f(sec.gross_area / 1e6, 4)} m²)"]),
+            _mk( "Diện tích cốt thép dọc As", "",
+                  [f"Số thanh: {_bar_str2}",
+                   f"Tổng As: {sec.steel_area:.0f} mm²",
+                   f"Hàm lượng μ: {100*sec.reinforcement_ratio:.2f}%"])))
+        S.extend(_two(P, st,
+            _mk( "Mô men quán tính (I2 = I3)", "",
+                  [f"I = π·D⁴/64",
+                   f"= π × {_D2:.0f}⁴ / 64",
+                   f"= {_f(res.Ix / 1e9, 3)} × 10⁹ mm⁴"]),
+            _mk( "Bán kính quán tính (i2 = i3)", "",
+                  [f"i = √(I / A) = D / 4",
+                   f"= {_D2:.0f} / 4",
+                   f"= {_f(res.ix, 2)} mm (= {_f(res.ix / 1000, 4)} m)"])))
+    else:
+        S.extend(_two(P, st,
         _mk( "Diện tích tiết diện bê tông nguyên A", "",
               ["A = t2 · t3",
                f"= {inp.cy:.0f} × {inp.cx:.0f}",
@@ -254,7 +282,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               [f"Số thanh: {_bar_str2}",
                f"Tổng As: {sec.steel_area:.0f} mm²",
                f"Hàm lượng μ: {100*sec.reinforcement_ratio:.2f}%"])))
-    S.extend(_two(P, st,
+        S.extend(_two(P, st,
         _mk( "Mô men quán tính trục 2 (I2)", "",
               ["I₂ = (t3 · t2³) / 12",
                f"= ({inp.cx:.0f} × {inp.cy:.0f}³) / 12",
@@ -263,7 +291,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               ["I₃ = (t2 · t3³) / 12",
                f"= ({inp.cy:.0f} × {inp.cx:.0f}³) / 12",
                f"= {_f(res.Iy / 1e9, 3)} × 10⁹ mm⁴"])))
-    S.extend(_two(P, st,
+        S.extend(_two(P, st,
         _mk( "Bán kính quán tính phương 2 (i2)", "",
               ["i₂ = √(I₂ / A) = t2 / √12",
                f"= {inp.cy:.0f} / 3.464",
@@ -272,6 +300,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               ["i₃ = √(I₃ / A) = t3 / √12",
                f"= {inp.cx:.0f} / 3.464",
                f"= {_f(res.iy, 2)} mm (= {_f(res.iy / 1000, 4)} m)"])))
+
 
     # ================= MỤC 3 =================
     S.append(_sec_head(P, st, 3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",

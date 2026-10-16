@@ -188,9 +188,42 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
 
 
 def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
-    _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
-                    f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm")
+    is_circle = getattr(sec, "kind", "rect") == "circle"
+    if is_circle:
+        D = getattr(inp, "cx", 0) or 0
+        _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT TRÒN",
+                        f"Đường kính D = {D:.0f} mm")
+    else:
+        _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
+                        f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm")
     grid = _grid2(g)
+    if is_circle:
+        D = getattr(inp, "cx", 0) or 0
+        # A = πD²/4
+        c = _param_card(grid, "Diện tích tiết diện bê tông nguyên A", "",
+                        [f"A = π·D²/4",
+                         f"= π × {D:.0f}² / 4",
+                         f"= {sec.gross_area:,.0f} mm² "
+                         f"(= {_f(sec.gross_area / 1e6, 4)} m²)"])
+        c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        # c
+        c = _param_card(grid, "Lớp bê tông bảo vệ cốt dọc c", "",
+                        [f"c = {inp.cover:.0f} mm",
+                         "Chiều dày lớp bê tông bảo vệ",
+                         f"= {inp.cover:.0f} mm"])
+        c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        # I = πD⁴/64 (đối xứng trục)
+        c = _param_card(grid, "Mô men quán tính (I2 = I3)", "",
+                        [f"I = π·D⁴/64",
+                         f"= π × {D:.0f}⁴ / 64",
+                         f"= {_f(res.Ix / 1e9, 3)} × 10⁹ mm⁴"])
+        c.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        c = _param_card(grid, "Bán kính quán tính (i2 = i3)", "",
+                        [f"i = √(I / A) = D / 4",
+                         f"= {D:.0f} / 4",
+                         f"= {_f(res.ix, 2)} mm (= {_f(res.ix / 1000, 4)} m)"])
+        c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        return
     # A
     c = _param_card(grid, "Diện tích tiết diện bê tông nguyên A", "",
                     [f"A = t2 · t3",
