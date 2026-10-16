@@ -7,9 +7,17 @@ Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu
          thuyết minh tính toán chi tiết.
 """
 
-import os as _os, datetime as _dt
-APP_BUILD = _dt.datetime.fromtimestamp(
-    _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
+# Thời điểm build: lấy từ build_info.py (do build_exe.py sinh khi đóng gói).
+# Khi chạy source, fallback dùng mtime của file này (bọc try để không crash trên exe).
+try:
+    from build_info import BUILD_TIME as APP_BUILD
+except Exception:
+    try:
+        import os as _os, datetime as _dt
+        APP_BUILD = _dt.datetime.fromtimestamp(
+            _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
+    except Exception:
+        APP_BUILD = "000000000000"
 
 import math
 import tkinter as tk
