@@ -343,7 +343,8 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                     "ĐẠT" if ok else "KHÔNG ĐẠT")
     _ok2 = bool(_d2.get("ok", False)) if _d2 else True
     _ok3 = bool(_d3.get("ok", False)) if _d3 else True
-    _cards7 = [_sh_card(_d2, Q2, "V2")]
+    _cfg_card["title"] = _cfg_card["title"] + " [FULL]"
+    _cards7 = [_cfg_card, _sh_card(_d2, Q2, "V2")]
     if _d3:
         _cards7.append(_sh_card(_d3, Q3, "V3"))
     sections.append({
