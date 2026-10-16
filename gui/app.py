@@ -546,6 +546,14 @@ class App(tk.Tk):
         self._row(dim_box, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
         self.en_cx = ttk.Entry(dim_box, width=12); self.en_cx.insert(0, "400")
         self._row(dim_box, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
+        # Ô đường kính cho tiết diện tròn (hiện thay dim_box khi chọn Tròn)
+        dia_box = ttk.Frame(fr)
+        dia_box.grid(row=0, column=0, sticky=tk.NSEW)
+        self.sec_dia_frame = dia_box
+        self.en_dia = ttk.Entry(dia_box, width=12); self.en_dia.insert(0, "600")
+        self._row(dia_box, "Đường kính D (mm)", self.en_dia, 0)
+        dia_box.grid_remove()  # mặc định ẩn (chỉ hiện khi chọn Tròn)
+        self.en_dia.bind("<FocusOut>", lambda e: self._refresh_rebar())
         # Hàng loại tiết diện: combobox gọn, không giãn full
         ttk.Label(fl, text="Loại tiết diện",
                   style="Muted.TLabel").grid(row=0, column=0, sticky=tk.W,
@@ -818,21 +826,22 @@ class App(tk.Tk):
         """Hiện panel chữ nhật/tròn theo loại tiết diện."""
         is_dxf = self.cb_kind.get().startswith("Tiết diện bất kỳ")
         is_rect = self.cb_kind.get() == "Chữ nhật"
-        # Ẩn ô nhập kích thước t2/t3 khi dùng DXF
+        is_circ = self.cb_kind.get() == "Tròn"
+        # Khung phải mục 2: chữ nhật → t2/t3, tròn → đường kính,
+        # DXF → note import (chỉ hiện 1 trong 3)
         try:
             if is_dxf:
                 self.sec_dim_frame.grid_remove()
-            else:
-                self.sec_dim_frame.grid()
-        except Exception:
-            pass
-        # Ẩn panel bố trí thép khi dùng DXF (thép lấy từ file)
-        # Dòng thông báo import chỉ hiện khi chọn tiết diện bất kỳ
-        try:
-            if is_dxf:
+                self.sec_dia_frame.grid_remove()
                 self.dxf_info_label.grid()
-            else:
+            elif is_circ:
+                self.sec_dim_frame.grid_remove()
                 self.dxf_info_label.grid_remove()
+                self.sec_dia_frame.grid()
+            else:  # chữ nhật
+                self.sec_dia_frame.grid_remove()
+                self.dxf_info_label.grid_remove()
+                self.sec_dim_frame.grid()
         except Exception:
             pass
         if is_dxf:
@@ -1078,6 +1087,10 @@ class App(tk.Tk):
             corner_dia = _gd(self.cb_cdia, 20.0)
         l2_side_txt = self.cb_l2_side.get()
         bundle_txt = self.cb_bundle_pos.get()
+        # Tiết diện tròn: đường kính D dùng cho cả 2 chiều
+        _dia = self._f(self.en_dia, 600.0)
+        _cx = self._f(self.en_cx, 400.0) if is_rect else _dia
+        _cy = self._f(self.en_cy, 400.0) if is_rect else _dia
         inp = ColumnInput(
             concrete_grade=self.cb_conc.get(), gamma_b=self._f(self.en_gb, 0.85),
             steel_grade=self.cb_steel.get(),
@@ -1085,7 +1098,7 @@ class App(tk.Tk):
             gamma_s=self._f(self.en_gs, 1.0),
             concrete_model=model,
             section_type="poly" if is_dxf else ("rect" if is_rect else "circle"),
-            cx=self._f(self.en_cx, 400.0), cy=self._f(self.en_cy, 400.0),
+            cx=_cx, cy=_cy,
             bar_dia=_gd(self.cb_cdia, 20.0),
             nx=e3n + 2, ny=e2n + 2,  # giữ tương thích (số thanh mỗi cạnh kể cả góc)
             n_bars=max(4, _gi(self.sp_cnbars, 8)),
@@ -3421,6 +3434,7 @@ class App(tk.Tk):
             # 2. Tiết diện
             "kind": self.cb_kind.get(),
             "cx": ev(self.en_cx), "cy": ev(self.en_cy),
+            "dia": ev(self.en_dia),
             "cover": self.sp_cover.get(),
             # 3. Cốt thép dọc (kiểu VietconSoft)
             "corner_dia": self.cb_corner_dia.get(),
@@ -3499,6 +3513,7 @@ class App(tk.Tk):
             self._toggle_code()
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
+            se(self.en_dia, d.get("dia", "600"))
             se(self.sp_cover, d.get("cover", "30"))
             # Cốt thép dọc kiểu mới (fallback về field cũ nếu file cũ)
             se(self.cb_corner_dia, d.get("corner_dia", d.get("dia", "20")))
