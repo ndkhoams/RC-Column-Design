@@ -3208,10 +3208,10 @@ class App(tk.Tk):
                     m2m3_fig = getattr(self, "_m2m3_fig", None)
                     if nm_fig is not None and m2m3_fig is not None:
                         buf1 = io.BytesIO()
-                        nm_fig.savefig(buf1, format="png", dpi=150,
+                        nm_fig.savefig(buf1, format="png", dpi=200,
                                        bbox_inches="tight")
                         buf2 = io.BytesIO()
-                        m2m3_fig.savefig(buf2, format="png", dpi=150,
+                        m2m3_fig.savefig(buf2, format="png", dpi=200,
                                          bbox_inches="tight")
                         return (buf1.getvalue(), buf2.getvalue())
                 except Exception:
@@ -3338,8 +3338,8 @@ class App(tk.Tk):
                     f2 = getattr(self, "_aci_m2m3_fig", None)
                     if f1 is not None and f2 is not None:
                         b1, b2 = io.BytesIO(), io.BytesIO()
-                        f1.savefig(b1, format="png", dpi=150, bbox_inches="tight")
-                        f2.savefig(b2, format="png", dpi=150, bbox_inches="tight")
+                        f1.savefig(b1, format="png", dpi=200, bbox_inches="tight")
+                        f2.savefig(b2, format="png", dpi=200, bbox_inches="tight")
                         return (b1.getvalue(), b2.getvalue())
                 except Exception:
                     pass
@@ -3375,8 +3375,8 @@ class App(tk.Tk):
                     f2 = getattr(self, "_ec2_m2m3_fig", None)
                     if f1 is not None and f2 is not None:
                         b1, b2 = io.BytesIO(), io.BytesIO()
-                        f1.savefig(b1, format="png", dpi=150, bbox_inches="tight")
-                        f2.savefig(b2, format="png", dpi=150, bbox_inches="tight")
+                        f1.savefig(b1, format="png", dpi=200, bbox_inches="tight")
+                        f2.savefig(b2, format="png", dpi=200, bbox_inches="tight")
                         return (b1.getvalue(), b2.getvalue())
                 except Exception:
                     pass
