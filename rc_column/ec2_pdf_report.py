@@ -134,6 +134,38 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             except Exception:
                 pass
         cards = _s.get("cards", [])
+        # Xử lý card [FULL]: render full-width, bỏ marker
+        _filtered = []
+        for _cd in cards:
+            if "[FULL]" in _cd.get("title", ""):
+                _cd = dict(_cd)
+                _cd["title"] = _cd["title"].replace(" [FULL]", "")
+                from reportlab.platypus import Table as _Tf2, TableStyle as _TSf2
+                from reportlab.lib.colors import HexColor as _HCf2
+                _rows2 = []
+                if _cd["title"]:
+                    _rows2.append([P(f'<b>{_cd["title"]}</b>', st["card_title"])])
+                if _cd["ref"]:
+                    _rows2.append([P(_cd["ref"], st["card_ref"])])
+                for _ln in _cd["lines"]:
+                    if _ln:  # Bỏ dòng trống
+                        _rows2.append([P(_ln, st["formula"])])
+                if _cd.get("result"):
+                    _rows2.append([P(_cd["result"], st["result"])])
+                _tf2 = _Tf2(_rows2)
+                _tf2.setStyle(_TSf2([
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("BACKGROUND", (0, 1), (-1, -1), _HCf2("#F9FAFB")),
+                    ("LINEBEFORE", (0, 1), (0, -1), 2, _HCf2("#D1D5DB")),
+                    ("LEFTPADDING", (0, 1), (-1, -1), 10),
+                ]))
+                S.append(_tf2)
+                S.append(Spacer(1, 4*mm))
+            else:
+                _filtered.append(_cd)
+        cards = _filtered
         # Mục 7: card cấu tạo full-width (span 2 cột), V2/V3 ngang hàng
         if _s["num"] == 7 and len(cards) >= 3 and "Cấu tạo" in cards[0].get("title", ""):
             _cfg = cards[0]
