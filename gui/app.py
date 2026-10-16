@@ -1909,7 +1909,7 @@ class App(tk.Tk):
         right.pack(side=tk.RIGHT)
         tk.Label(right, text="Góc xem:", font=("", 9),
                  bg="white").pack(side=tk.LEFT)
-        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)]
+        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)] + ["3D"]
         self._aci_nm_angle_cb = ttk.Combobox(
             right, values=_vals, width=11, state="readonly", font=("", 9))
         self._aci_nm_angle_cb.set("α (góc tải)")
@@ -2350,6 +2350,14 @@ class App(tk.Tk):
              _sl("dir2")),
             ("λ3", "Độ mảnh phương 3 (EC2 5.8.3)",
              _sl("dir3")),
+            ("e2", "Độ lệch tâm phương 2 (MEd2/NEd)",
+             f"{abs(M2m/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
+            ("e3", "Độ lệch tâm phương 3 (MEd3/NEd)",
+             f"{abs(M3m/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
+            ("M2_0", "Mô men bậc 1 phương 2",
+             f"{inp.Mx:.1f} kN·m"),
+            ("M3_0", "Mô men bậc 1 phương 3",
+             f"{inp.My:.1f} kN·m"),
             ("PP", "Phương pháp tính hiệu ứng bậc 2",
              method_txt),
             ("N_Rd,max", "Nén đúng tâm lớn nhất",
@@ -2389,7 +2397,7 @@ class App(tk.Tk):
         right.pack(side=tk.RIGHT)
         tk.Label(right, text="Góc xem:", font=("", 9),
                  bg="white").pack(side=tk.LEFT)
-        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)]
+        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)] + ["3D"]
         self._ec2_nm_angle_cb = ttk.Combobox(
             right, values=_vals, width=11, state="readonly", font=("", 9))
         self._ec2_nm_angle_cb.set("α (góc tải)")
@@ -4012,7 +4020,7 @@ class App(tk.Tk):
         tk.Label(right, text="G\u00f3c xem:", font=("", 8),
                  bg="white").pack(side=tk.LEFT)
         _vals = ["\u03b1 (g\u00f3c t\u1ea3i)"] + \
-            [f"{d}\u00b0" for d in range(0, 361, 15)]
+            [f"{d}\u00b0" for d in range(0, 361, 15)] + ["3D"]
         self._nm_angle_cb = ttk.Combobox(right, values=_vals, width=11,
                                          state="readonly", font=("", 8))
         self._nm_angle_cb.set("\u03b1 (g\u00f3c t\u1ea3i)")
@@ -4025,6 +4033,9 @@ class App(tk.Tk):
         """Vẽ lại biểu đồ N-M tại góc được chọn trong Combobox."""
         try:
             sel = self._nm_angle_cb.get()
+            if sel == "3D":
+                self._draw_3d_interaction()
+                return
             if sel.startswith("\u03b1"):
                 angle = None
             else:
@@ -4055,6 +4066,48 @@ class App(tk.Tk):
             self._nm_cv_ref.draw()
         except Exception:
             pass
+
+    def _draw_3d_interaction(self):
+        """Vẽ biểu đồ tương tác 3D (N-M2-M3) cho TCVN."""
+        try:
+            from mpl_toolkits.mplot3d import Axes3D  # noqa
+            import numpy as np
+            fig = self._nm_fig
+            fig.clear()
+            ax = fig.add_subplot(111, projection='3d')
+            # Lấy sec và inp từ lần tính cuối, dựng BiaxialCapacity
+            sec = getattr(self, '_last_sec', None)
+            inp = getattr(self, '_last_inp', None)
+            if sec is None or inp is None:
+                ax.text2D(0.5, 0.5, "Chưa có dữ liệu - hãy bấm KIỂM TRA",
+                          transform=ax.transAxes, ha='center')
+            else:
+                from rc_column.interaction import BiaxialCapacity
+                cap = BiaxialCapacity(sec, model=inp.concrete_model,
+                                      n_angles=24)
+                n_vals, th_vals, mx_grid, my_grid = cap.surface_grid(
+                    n_n=25, n_angles=36)
+                # Vẽ mặt 3D
+                ax.plot_surface(mx_grid, my_grid,
+                                np.tile(n_vals[:, None], (1, len(th_vals))),
+                                cmap='Greens', alpha=0.7, edgecolor='none')
+                # Vẽ điểm tải trọng A
+                res = getattr(self, '_last_res', None)
+                if res is not None:
+                    ax.scatter([res.Mx_star], [res.My_star], [res.N],
+                               color='red', s=50, label='Điểm tải A')
+                    ax.legend()
+            ax.set_xlabel('M2 (kN·m)')
+            ax.set_ylabel('M3 (kN·m)')
+            ax.set_zlabel('N (kN)')
+            ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (TCVN 5574:2018)')
+            fig.tight_layout()
+            self._nm_cv_ref.draw()
+            self._nm_ax_ref = None
+        except Exception as ex:
+            print(f"Lỗi vẽ 3D: {ex}")
+            import traceback
+            traceback.print_exc()
 
     def _build_m2m3_header(self, parent, res):
         """Header tr\u00ean bi\u1ec3u \u0111\u1ed3 M2-M3."""
