@@ -1,12 +1,3 @@
-"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
-
-Bố cục:
- 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
- 5. Nội lực kiểm tra
-Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
-         thuyết minh tính toán chi tiết.
-"""
-
 import os as _os, datetime as _dt
 APP_BUILD = _dt.datetime.fromtimestamp(
     _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
@@ -4029,7 +4020,7 @@ class App(tk.Tk):
         _vals = ["\u03b1 (g\u00f3c t\u1ea3i)", "3D"] + \
             [f"{d}\u00b0" for d in range(0, 361, 15)]
         self._nm_angle_cb = ttk.Combobox(right, values=_vals, width=11,
-                                         state="readonly", font=("", 8))
+                                         state="readonly", font=("", 9))
         self._nm_angle_cb.set("\u03b1 (g\u00f3c t\u1ea3i)")
         self._nm_angle_cb.pack(side=tk.LEFT, padx=(4, 0))
         self._nm_angle_cb.bind("<<ComboboxSelected>>",
