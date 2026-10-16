@@ -334,6 +334,43 @@ def moment_magnification(Pu_kN: float, M1_kNm: float, M2_kNm: float,
 
 
 # ---------------------------------------------------------------------------
+# 2b. Hệ số phóng đại mô men sway delta_s (ACI 6.6.4.6.2a)
+# ---------------------------------------------------------------------------
+def sway_magnification(Q: float = None, sum_Pu_kN: float = None,
+                       delta_o_mm: float = None, Vus_kN: float = None,
+                       lc_mm: float = None) -> dict:
+    """Hệ số phóng đại mô men cho khung sway (ACI 6.6.4.6.2a).
+
+    δs = 1 / (1 - Q) ≥ 1.0
+    Q = ΣPu · Δo / (Vus · lc) — chỉ số ổn định tầng.
+
+    Có thể truyền trực tiếp Q, hoặc truyền 4 thông số để tự tính Q:
+    - sum_Pu_kN: tổng tải dọc tính toán của tầng (kN)
+    - delta_o_mm: chuyển vị lệch tầng bậc 1 (mm)
+    - Vus_kN: tổng lực cắt tầng (kN)
+    - lc_mm: chiều cao tầng (mm)
+
+    Trả về dict {delta_s, Q, ok, reason}.
+    """
+    if Q is None:
+        if None in (sum_Pu_kN, delta_o_mm, Vus_kN, lc_mm):
+            return {"delta_s": 1.0, "Q": 0.0, "ok": True,
+                    "reason": "Thiếu thông số Q — bỏ qua sway (δs=1.0)"}
+        if Vus_kN == 0 or lc_mm == 0:
+            return {"delta_s": 1.0, "Q": 0.0, "ok": True,
+                    "reason": "Vus=0 hoặc lc=0 — bỏ qua sway"}
+        Q = (sum_Pu_kN * delta_o_mm) / (Vus_kN * lc_mm)
+    if Q < 0:
+        Q = 0.0
+    if Q >= 1.0:
+        return {"delta_s": float("inf"), "Q": Q, "ok": False,
+                "reason": "Q ≥ 1.0: khung không ổn định, cần phân tích bậc 2"}
+    delta_s = 1.0 / (1.0 - Q)
+    delta_s = max(delta_s, 1.0)
+    return {"delta_s": delta_s, "Q": Q, "ok": True, "reason": ""}
+
+
+# ---------------------------------------------------------------------------
 # 3. Kiểm tra cắt theo ACI 22.5.5.1
 # ---------------------------------------------------------------------------
 _PSI_PER_MPA = 145.038
