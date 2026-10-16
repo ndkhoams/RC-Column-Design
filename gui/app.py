@@ -416,14 +416,19 @@ class App(tk.Tk):
 
     def _frame(self, title):
         # Title dạng "1. Vật liệu" -> số xanh lá
+        # padx=8 để lề trái khớp với hàng 4 nút bên trên
         f = ttk.LabelFrame(self.left, text=title, padding=(12, 10),
                            style="Card.TLabelframe")
-        f.pack(fill=tk.X, padx=10, pady=8)
+        f.pack(fill=tk.X, padx=8, pady=8)
         return f
 
+    # Độ rộng chuẩn cho cột label (để các ô nhập thẳng hàng dọc)
+    _LBL_WIDTH = 24
+
     def _row(self, parent, label, widget, r, c0=0):
-        # Label xám nhỏ, widget thoáng
-        lbl = ttk.Label(parent, text=label, style="Muted.TLabel")
+        # Label xám nhỏ, độ rộng cố định để ô nhập thẳng hàng
+        lbl = ttk.Label(parent, text=label, style="Muted.TLabel",
+                        width=self._LBL_WIDTH, anchor=tk.W)
         lbl.grid(row=r, column=c0, sticky=tk.W, padx=(4, 8), pady=5)
         widget.grid(row=r, column=c0 + 1, sticky=tk.EW, padx=4, pady=5)
         parent.columnconfigure(c0 + 1, weight=1)
@@ -555,9 +560,9 @@ class App(tk.Tk):
         dia_box.grid_remove()  # mặc định ẩn (chỉ hiện khi chọn Tròn)
         self.en_dia.bind("<FocusOut>", lambda e: self._refresh_rebar())
         # Hàng loại tiết diện: combobox gọn, không giãn full
-        ttk.Label(fl, text="Loại tiết diện",
-                  style="Muted.TLabel").grid(row=0, column=0, sticky=tk.W,
-                                             padx=(4, 8), pady=5)
+        ttk.Label(fl, text="Loại tiết diện", style="Muted.TLabel",
+                  width=self._LBL_WIDTH, anchor=tk.W).grid(
+                      row=0, column=0, sticky=tk.W, padx=(4, 8), pady=5)
         self.cb_kind = ttk.Combobox(fl, values=["Chữ nhật", "Tròn",
                                                  "Tiết diện bất kỳ (DXF)"],
                                     state="readonly", width=16)
@@ -887,7 +892,8 @@ class App(tk.Tk):
             ("Hệ số ψ (tự điền theo LK)", self.en_psix, self.en_psiy),
         ]
         for i, (lab, wx, wy) in enumerate(rows, start=1):
-            ttk.Label(f, text=lab).grid(row=i, column=0, sticky=tk.W,
+            ttk.Label(f, text=lab, width=self._LBL_WIDTH,
+                      anchor=tk.W).grid(row=i, column=0, sticky=tk.W,
                                        padx=4, pady=2)
             wx.grid(row=i, column=1, padx=4, pady=2, sticky=tk.EW)
             wy.grid(row=i, column=2, padx=4, pady=2, sticky=tk.EW)
