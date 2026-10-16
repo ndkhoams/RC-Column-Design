@@ -4094,7 +4094,7 @@ class App(tk.Tk):
                 ax.plot_surface(m2_grid, m3_grid,
                                 np.tile(n_vals[:, None], (1, len(th_vals))),
                                 cmap='Blues', alpha=0.7, edgecolor='none')
-                ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (ACI 318-19)')
+                # (bỏ title theo yêu cầu)
             ax.set_xlabel('M2 (kN·m)')
             ax.set_ylabel('M3 (kN·m)')
             ax.set_zlabel('N (kN)')
@@ -4127,7 +4127,7 @@ class App(tk.Tk):
                 ax.plot_surface(m2_grid, m3_grid,
                                 np.tile(n_vals[:, None], (1, len(th_vals))),
                                 cmap='Oranges', alpha=0.7, edgecolor='none')
-                ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (EC2)')
+                # (bỏ title theo yêu cầu)
             ax.set_xlabel('M2 (kN·m)')
             ax.set_ylabel('M3 (kN·m)')
             ax.set_zlabel('N (kN)')
@@ -4158,9 +4158,13 @@ class App(tk.Tk):
                                       n_angles=24)
                 n_vals, th_vals, mx_grid, my_grid = cap.surface_grid(
                     n_n=25, n_angles=36)
+                # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để fill kín
+                mx_grid = np.hstack([mx_grid, mx_grid[:, :1]])
+                my_grid = np.hstack([my_grid, my_grid[:, :1]])
+                n_angles_closed = len(th_vals) + 1
                 # Vẽ mặt 3D
                 ax.plot_surface(mx_grid, my_grid,
-                                np.tile(n_vals[:, None], (1, len(th_vals))),
+                                np.tile(n_vals[:, None], (1, n_angles_closed)),
                                 cmap='Greens', alpha=0.7, edgecolor='none')
                 # Vẽ điểm tải trọng A
                 res = getattr(self, '_last_res', None)
@@ -4171,7 +4175,7 @@ class App(tk.Tk):
             ax.set_xlabel('M2 (kN·m)')
             ax.set_ylabel('M3 (kN·m)')
             ax.set_zlabel('N (kN)')
-            ax.set_title('Biểu đồ tương tác 3D N-M2-M3 (TCVN 5574:2018)')
+            # (bỏ title theo yêu cầu)
             fig.tight_layout()
             self._nm_cv_ref.draw()
             self._nm_ax_ref = None
