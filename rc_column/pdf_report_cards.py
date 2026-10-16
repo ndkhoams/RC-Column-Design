@@ -494,15 +494,15 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _mk( "Tỷ số D/C", "",
               [f"D/C = |OA| / |OB| = {_f(OA, 1)} / {_f(OB, 1)}",
                f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"]))))
-    # Biểu đồ
-    _pngs = chart_pngs
-    if not _pngs:
-        try:
-            from .pdf_export import interaction_image, m2m3_image
-            _pngs = (interaction_image(sec, inp, res, width_in=4.0),
-                     m2m3_image(sec, inp, res, width_in=4.0))
-        except Exception:
-            _pngs = None
+    # Biểu đồ: luôn tạo vuông (5x5 inch) cho PDF để không bị dẹt
+    # (không dùng lại figure app vì tỉ lệ khác)
+    _pngs = None
+    try:
+        from .pdf_export import interaction_image, m2m3_image
+        _pngs = (interaction_image(sec, inp, res, width_in=5.0),
+                 m2m3_image(sec, inp, res, width_in=5.0))
+    except Exception:
+        _pngs = chart_pngs  # fallback dùng PNG từ app nếu lỗi
     if _pngs:
         from reportlab.platypus import Table as _T2, TableStyle as _TS2
         # Giữ tỉ lệ gốc bằng PIL, không ép khung méo hình
