@@ -21,6 +21,17 @@ MATPLOTLIB_HOOKS = [
 ]
 
 
+def _write_build_info():
+    """Sinh file build_info.py chứa thời điểm đóng gói exe."""
+    import datetime
+    ts = datetime.datetime.now().strftime("%Y%m%d%H%M")
+    with open("build_info.py", "w", encoding="utf-8") as f:
+        f.write(f'"""Build info - tự động sinh bởi build_exe.py. Không sửa tay."""\n')
+        f.write(f'BUILD_TIME = "{ts}"\n')
+    print(f"Build time: {ts}")
+    return ts
+
+
 def _make_icon():
     """Tạo icon.ico từ icon.png bằng Pillow local (tương thích PyInstaller)."""
     if not os.path.exists("icon.png"):

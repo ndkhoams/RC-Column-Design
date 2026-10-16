@@ -1,20 +1,5 @@
-# Visual Studio / VS Code
-.vs/
-.vscode/
-
-# Python
+build_info.py
 __pycache__/
-*.py[cod]
-*.pyo
-.venv/
-venv/
-.env
-
-# PyInstaller
+*.pyc
 dist/
 build/
-*.spec
-
-# OS
-Thumbs.db
-.DS_Store
