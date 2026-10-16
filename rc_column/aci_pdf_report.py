@@ -236,6 +236,32 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 S.append(Spacer(1, 4 * mm))
             except Exception:
                 pass
+            # Box kết luận D/C xanh dưới biểu đồ
+            _dc = None
+            for _cd in _s.get("cards", []):
+                if _cd.get("dc_conclusion"):
+                    _dc = _cd
+                    break
+            if _dc:
+                _ok = _dc.get("ok", True)
+                _bg = "#D1FAE5" if _ok else "#FEE2E2"
+                _fg = "#065F46" if _ok else "#991B1B"
+                _t = Table([
+                    [P(f"TỶ SỐ SỬ DỤNG (D/C) = {_dc.get('dc', 0):.3f}  (FS = {_dc.get('fs', 0):.2f})", st["b"]),
+                     ],
+                    [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["b"])],
+                ])
+                _t.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), _HCf(_bg)),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), _HCf(_fg)),
+                    ("BOX", (0, 0), (-1, -1), 0.5, _HCf("#E5E7EB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]))
+                S.append(_t)
+                S.append(Spacer(1, 4 * mm))
 
 
     doc.build(S)
