@@ -12,6 +12,15 @@ from .ec2_report_v2 import generate_ec2_report_sections_v2
 from .pdf_report_cards import (_get_styles, _two, _sec_head, _full_case, _mk)
 
 
+
+def _member_name(inp):
+    """Lấy tên cấu kiện IN HOA từ _filename."""
+    import os
+    fn = getattr(inp, "_filename", "") or ""
+    if fn:
+        return os.path.splitext(os.path.basename(fn))[0].upper()
+    return ""
+
 def _f(x: float, nd: int = 2) -> str:
     try:
         return f"{x:,.{nd}f}"
@@ -104,6 +113,10 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
     S.append(P("(Tiêu chuẩn EC2 EN 1992-1-1)", st["sub"]))
+    _mn = _member_name(inp)
+    if _mn:
+        S.append(P(f"CẤU KIỆN: {_mn}", st["title"]))
+        S.append(Spacer(1, 4*mm))
 
     if case_info:
         S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "

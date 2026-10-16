@@ -11,6 +11,15 @@ from .checker import ColumnInput, CheckResult, build_section
 from .materials import STEEL_GRADES, EPS_B1, EPS_B2, EPS_S2
 
 
+
+def _member_name(inp):
+    """Lấy tên cấu kiện IN HOA từ _filename."""
+    import os
+    fn = getattr(inp, "_filename", "") or ""
+    if fn:
+        return os.path.splitext(os.path.basename(fn))[0].upper()
+    return ""
+
 def _f(x: float, nd: int = 2) -> str:
     try:
         return f"{x:,.{nd}f}"
@@ -195,6 +204,10 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
     S.append(P("(Tiêu chuẩn TCVN 5574:2018)", st["sub"]))
+    _mn = _member_name(inp)
+    if _mn:
+        S.append(P(f"CẤU KIỆN: {_mn}", st["title"]))
+        S.append(Spacer(1, 4*mm))
     if case_info:
         S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
                    f"N = {_f(case_info.get('N', 0), 1)} kN, "
