@@ -1,11 +1,3 @@
-"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
-
-Bố cục:
- 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
- 5. Nội lực kiểm tra
-Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
-         thuyết minh tính toán chi tiết.
-"""
 
 import math
 import tkinter as tk
@@ -434,12 +426,22 @@ class App(tk.Tk):
         fl = ttk.Frame(f); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
         fr = ttk.Frame(f); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
         f.columnconfigure(0, weight=1); f.columnconfigure(1, weight=1)
-        self.cb_kind = ttk.Combobox(fl, values=["Chữ nhật", "Tròn"],
-                                    state="readonly", width=12)
+        self.cb_kind = ttk.Combobox(fl, values=["Chữ nhật", "Tròn",
+                                                 "Tiết diện bất kỳ (DXF)"],
+                                    state="readonly", width=18)
         self.cb_kind.set("Chữ nhật")
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self._row(fl, "Loại tiết diện", self.cb_kind, 0)
+        # Nút import DXF
+        self.btn_dxf = ttk.Button(fl, text="📐 Import tiết diện (.dxf)",
+                                  command=self.on_import_dxf)
+        self.btn_dxf.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
+                          padx=4, pady=4)
+        self.dxf_info = tk.StringVar(value="")
+        ttk.Label(fl, textvariable=self.dxf_info, font=("", 9, "italic"),
+                  foreground="#0a4d8c").grid(row=2, column=0, columnspan=2,
+                                             sticky=tk.W, padx=4)
         self.en_cy = ttk.Entry(fr, width=12); self.en_cy.insert(0, "400")
         self._row(fr, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
         self.en_cx = ttk.Entry(fr, width=12); self.en_cx.insert(0, "400")
@@ -671,6 +673,7 @@ class App(tk.Tk):
 
     def _refresh_rebar_panel(self):
         """Hiện panel chữ nhật/tròn theo loại tiết diện."""
+        is_dxf = self.cb_kind.get().startswith("Tiết diện bất kỳ")
         is_rect = self.cb_kind.get() == "Chữ nhật"
         if is_rect:
             self.rebar_rect.grid()
@@ -891,6 +894,7 @@ class App(tk.Tk):
 
     def _draft_input(self) -> ColumnInput:
         """Dựng input nháp (chưa cần nội lực) để vẽ sơ đồ & thống kê thép."""
+        is_dxf = self.cb_kind.get().startswith("Tiết diện bất kỳ")
         is_rect = self.cb_kind.get() == "Chữ nhật"
         model = "3line" if self.cb_model.get().startswith("3") else "2line"
 
@@ -923,7 +927,7 @@ class App(tk.Tk):
             sw_steel_grade=self.cb_sw_steel.get(),
             gamma_s=self._f(self.en_gs, 1.0),
             concrete_model=model,
-            section_type="rect" if is_rect else "circle",
+            section_type="poly" if is_dxf else ("rect" if is_rect else "circle"),
             cx=self._f(self.en_cx, 400.0), cy=self._f(self.en_cy, 400.0),
             bar_dia=_gd(self.cb_cdia, 20.0),
             nx=e3n + 2, ny=e2n + 2,  # giữ tương thích (số thanh mỗi cạnh kể cả góc)
@@ -954,6 +958,9 @@ class App(tk.Tk):
             swm3_spacing=self._f(self.sw_inputs["Đai giữa t3:"]["s"], 200.0),
             swm3_legs=int(self._f(self.sw_inputs["Đai giữa t3:"]["legs"], 0)),
         )
+        if is_dxf:
+            inp.poly_section = getattr(self, "_dxf_section", None)
+        return inp
 
     def _refresh_rebar(self):
         """Cập nhật thống kê thép kiểu VietconSoft khi đổi tiết diện/thép."""
@@ -1647,6 +1654,110 @@ class App(tk.Tk):
         if not path:
             return
         self._load_etabs_file(path)
+
+    def on_import_dxf(self):
+        """Import tiết diện bất kỳ từ file DXF (AutoCAD Save As DXF).
+
+        Quy ước: biên bê tông = LWPOLYLINE kín (layer BT),
+        thép = CIRCLE (layer THEP).
+        """
+        from tkinter import filedialog, messagebox
+        path = filedialog.askopenfilename(
+            title="Chọn file DXF tiết diện",
+            filetypes=[("DXF", "*.dxf"), ("All", "*.*")])
+        if not path:
+            return
+        try:
+            from rc_column.dxf_import import (
+                read_dxf_section, build_polygon_section, polygon_area)
+            dxf = read_dxf_section(path)
+            # Dựng section với vật liệu hiện tại
+            from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
+                                             ConcreteMaterial, SteelMaterial)
+            conc = ConcreteMaterial(
+                CONCRETE_GRADES[self.cb_conc.get()], 1.0)
+            steel = SteelMaterial(STEEL_GRADES[self.cb_steel.get()], 1.0)
+            sec = build_polygon_section(dxf, conc, steel, fiber_step=10.0)
+        except Exception as ex:
+            messagebox.showerror("Lỗi đọc DXF", str(ex))
+            return
+        # Preview dialog
+        if not self._preview_dxf_section(sec, dxf, path):
+            return
+        self._dxf_section = sec
+        self._dxf_path = path
+        self.cb_kind.set("Tiết diện bất kỳ (DXF)")
+        Ag = sec.gross_area
+        As = sec.steel_area
+        self.dxf_info.set(
+            f"Đã import: {path.split('/')[-1]} — "
+            f"Ag={Ag:.0f} mm², {len(sec.rebars)} thép, "
+            f"As={As:.0f} mm²")
+        if dxf.warnings:
+            messagebox.showwarning(
+                "Cảnh báo import DXF", "\n".join(dxf.warnings))
+        self._refresh_rebar_panel()
+
+    def _preview_dxf_section(self, sec, dxf, path) -> bool:
+        """Dialog preview tiết diện trước khi nhận. Trả về True nếu đồng ý."""
+        from tkinter import messagebox
+        win = tk.Toplevel(self)
+        win.title("Preview tiết diện DXF")
+        win.geometry("520x560")
+        win.transient(self)
+        try:
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            from matplotlib.patches import Polygon as MplPolygon
+            fig = Figure(figsize=(5, 4.5), dpi=100)
+            ax = fig.add_subplot(111)
+            for verts in sec.poly_verts:
+                ax.add_patch(MplPolygon(verts, closed=True, fill=True,
+                                        facecolor="#DBEAFE", edgecolor="#1D4ED8",
+                                        linewidth=1.5))
+            for verts in sec.poly_holes:
+                ax.add_patch(MplPolygon(verts, closed=True, fill=True,
+                                        facecolor="white", edgecolor="#DC2626",
+                                        linewidth=1.0, linestyle="--"))
+            import matplotlib.patches as mpatches
+            for r in sec.rebars:
+                ax.add_patch(mpatches.Circle((r.x, r.y), r.dia / 2.0,
+                                             facecolor="#DC2626",
+                                             edgecolor="#7F1D1D"))
+            ax.set_aspect("equal")
+            ax.set_title(f"{path.split('/')[-1]}\n"
+                         f"Ag={sec.gross_area:.0f} mm², "
+                         f"{len(sec.rebars)} thép")
+            ax.axhline(0, color="#9CA3AF", linewidth=0.5)
+            ax.axvline(0, color="#9CA3AF", linewidth=0.5)
+            fig.tight_layout()
+            cv = FigureCanvasTkAgg(fig, master=win)
+            cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            cv.draw()
+        except Exception as ex:
+            messagebox.showerror("Lỗi preview", str(ex))
+            win.destroy()
+            return False
+        result = {"ok": False}
+
+        def _ok():
+            result["ok"] = True
+            win.destroy()
+
+        btnf = ttk.Frame(win)
+        btnf.pack(fill=tk.X, padx=8, pady=8)
+        ttk.Button(btnf, text="✓ Dùng tiết diện này",
+                   command=_ok).pack(side=tk.LEFT, expand=True,
+                                     fill=tk.X, padx=2)
+        ttk.Button(btnf, text="Hủy",
+                   command=win.destroy).pack(side=tk.LEFT, expand=True,
+                                             fill=tk.X, padx=2)
+        if dxf.warnings:
+            ttk.Label(win, text="\n".join(dxf.warnings),
+                      foreground="#92400E", wraplength=480,
+                      justify=tk.LEFT).pack(padx=8, pady=4)
+        self.wait_window(win)
+        return result["ok"]
 
     def on_paste_etabs(self):
         """Dán nội lực ETABS từ clipboard (copy từ bảng Element Forces)."""
