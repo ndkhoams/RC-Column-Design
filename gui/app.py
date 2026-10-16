@@ -2010,39 +2010,14 @@ class App(tk.Tk):
                  font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
     def _render_aci_report(self, sections):
-        """Hiển thị thuyết minh ACI trong tab Chi tiết tính toán."""
+        """Hiển thị thuyết minh ACI trong tab Chi tiết tính toán (dùng chung renderer TCVN)."""
         for w in self._calc_inner.winfo_children():
             w.destroy()
-        for sec in sections:
-            # Header mục
-            hdr = tk.Frame(self._calc_inner, bg="white")
-            hdr.pack(fill=tk.X, padx=4, pady=(14, 6))
-            tk.Label(hdr, text=f"● {sec['num']}. {sec['title']}",
-                     font=("", 11, "bold"), fg="#111827", bg="white").pack(side=tk.LEFT)
-            if sec.get('ref'):
-                tk.Label(hdr, text=sec['ref'], font=("", 8), fg="#6B7280",
-                         bg="white").pack(side=tk.RIGHT, padx=4)
-            # Các card
-            for card in sec.get('cards', []):
-                c = tk.Frame(self._calc_inner, bg="white",
-                             highlightbackground="#E5E7EB", highlightthickness=1,
-                             padx=12, pady=10)
-                c.pack(fill=tk.X, padx=8, pady=4)
-                tk.Label(c, text=card.get('title', ''), font=("", 10, "bold"),
-                         fg="#111827", bg="white", anchor="w").pack(fill=tk.X)
-                if card.get('ref'):
-                    tk.Label(c, text=card['ref'], font=("", 8), fg="#6B7280",
-                             bg="white", anchor="w").pack(fill=tk.X)
-                for ln in card.get('lines', []):
-                    tk.Label(c, text=ln, font=("", 9), fg="#374151",
-                             bg="#F9FAFB", anchor="w", justify=tk.LEFT).pack(fill=tk.X, pady=1)
-                if card.get('result'):
-                    tk.Label(c, text=card['result'], font=("", 10, "bold"),
-                             fg="#111827", bg="white", anchor="w").pack(fill=tk.X, pady=(6, 0))
+        from rc_column.report_widgets import render_report_sections
+        render_report_sections(self._calc_inner, sections)
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
         self._bind_wheel(self._calc_inner, self._calc_canvas)
-        # Cuộn về đầu tab sau khi render xong
         try:
             self._calc_canvas.yview_moveto(0)
         except Exception:
@@ -2503,39 +2478,14 @@ class App(tk.Tk):
                  font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
     def _render_ec2_report(self, sections):
-        """Hiển thị thuyết minh EC2 trong tab Chi tiết tính toán."""
+        """Hiển thị thuyết minh EC2 trong tab Chi tiết tính toán (dùng chung renderer TCVN)."""
         for w in self._calc_inner.winfo_children():
             w.destroy()
-        for sec in sections:
-            # Header mục
-            hdr = tk.Frame(self._calc_inner, bg="white")
-            hdr.pack(fill=tk.X, padx=4, pady=(14, 6))
-            tk.Label(hdr, text=f"● {sec['num']}. {sec['title']}",
-                     font=("", 11, "bold"), fg="#111827", bg="white").pack(side=tk.LEFT)
-            if sec.get('ref'):
-                tk.Label(hdr, text=sec['ref'], font=("", 8), fg="#6B7280",
-                         bg="white").pack(side=tk.RIGHT, padx=4)
-            # Các card
-            for card in sec.get('cards', []):
-                c = tk.Frame(self._calc_inner, bg="white",
-                             highlightbackground="#E5E7EB", highlightthickness=1,
-                             padx=12, pady=10)
-                c.pack(fill=tk.X, padx=8, pady=4)
-                tk.Label(c, text=card.get('title', ''), font=("", 10, "bold"),
-                         fg="#111827", bg="white", anchor="w").pack(fill=tk.X)
-                if card.get('ref'):
-                    tk.Label(c, text=card['ref'], font=("", 8), fg="#6B7280",
-                             bg="white", anchor="w").pack(fill=tk.X)
-                for ln in card.get('lines', []):
-                    tk.Label(c, text=ln, font=("", 9), fg="#374151",
-                             bg="#F9FAFB", anchor="w", justify=tk.LEFT).pack(fill=tk.X, pady=1)
-                if card.get('result'):
-                    tk.Label(c, text=card['result'], font=("", 10, "bold"),
-                             fg="#111827", bg="white", anchor="w").pack(fill=tk.X, pady=(6, 0))
+        from rc_column.report_widgets import render_report_sections
+        render_report_sections(self._calc_inner, sections)
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
         self._bind_wheel(self._calc_inner, self._calc_canvas)
-        # Cuộn về đầu tab sau khi render xong
         try:
             self._calc_canvas.yview_moveto(0)
         except Exception:
