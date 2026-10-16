@@ -580,7 +580,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
              f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm",
              f"{'✓' if sh.ok else '✗'} So sánh: |Q| = {_f(abs(Q), 1)} kN "
              f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN"],
-              "✓ ĐẠT" if sh.ok else "✗ KHÔNG ĐẠT"))
+              "Kết luận: ĐẠT" if sh.ok else "Kết luận: KHÔNG ĐẠT"))
         shear_ok &= sh.ok
     if len(cards7) == 2:
         S.extend(_two(P, st, cards7[0], cards7[1]))
