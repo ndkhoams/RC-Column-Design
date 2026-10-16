@@ -4091,9 +4091,19 @@ class App(tk.Tk):
                 cap = ACICapacity(sec, conc, steel, tied=tied, n_angles=24)
                 n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
                     n_n=25, n_angles=36)
+                # Đóng vòng mặt 3D để fill kín 100%
+                m2_grid = np.hstack([m2_grid, m2_grid[:, :1]])
+                m3_grid = np.hstack([m3_grid, m3_grid[:, :1]])
+                n_closed = len(th_vals) + 1
                 ax.plot_surface(m2_grid, m3_grid,
-                                np.tile(n_vals[:, None], (1, len(th_vals))),
+                                np.tile(n_vals[:, None], (1, n_closed)),
                                 cmap='Blues', alpha=0.7, edgecolor='none')
+                # Điểm tải trọng A
+                aci_inp = getattr(self, '_aci_inp', None)
+                if aci_inp is not None:
+                    ax.scatter([aci_inp.Mx], [aci_inp.My], [aci_inp.N],
+                               color='red', s=50, label='Điểm tải A')
+                    ax.legend()
                 # (bỏ title theo yêu cầu)
             ax.set_xlabel('M2 (kN·m)')
             ax.set_ylabel('M3 (kN·m)')
@@ -4124,9 +4134,19 @@ class App(tk.Tk):
                 cap = EC2Capacity(sec, conc, steel, n_angles=24)
                 n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
                     n_n=25, n_angles=36)
+                # Đóng vòng mặt 3D để fill kín 100%
+                m2_grid = np.hstack([m2_grid, m2_grid[:, :1]])
+                m3_grid = np.hstack([m3_grid, m3_grid[:, :1]])
+                n_closed = len(th_vals) + 1
                 ax.plot_surface(m2_grid, m3_grid,
-                                np.tile(n_vals[:, None], (1, len(th_vals))),
+                                np.tile(n_vals[:, None], (1, n_closed)),
                                 cmap='Oranges', alpha=0.7, edgecolor='none')
+                # Điểm tải trọng A
+                ec2_inp = getattr(self, '_ec2_inp', None)
+                if ec2_inp is not None:
+                    ax.scatter([ec2_inp.Mx], [ec2_inp.My], [ec2_inp.N],
+                               color='red', s=50, label='Điểm tải A')
+                    ax.legend()
                 # (bỏ title theo yêu cầu)
             ax.set_xlabel('M2 (kN·m)')
             ax.set_ylabel('M3 (kN·m)')
