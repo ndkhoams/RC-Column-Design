@@ -147,8 +147,9 @@ def aci_interaction_curve(sec: Section, conc: ACIConcrete, steel: ACISteel,
     # Kéo đúng tâm
     add_point(-eps_s_max, 0.0)
 
-    # Sắp theo N giảm dần, loại điểm trùng
-    pts.sort(key=lambda p: -p[0])
+    # Giữ đúng thứ tự sinh điểm (từ nén đúng tâm đến kéo đúng tâm),
+    # KHÔNG sort lại vì N có thể không đơn điệu tuyệt đối do sai số số
+    # học -> sort làm xáo trộn M gây zigzag khi vẽ
     clean: List[Tuple[float, float, float, float]] = []
     for p in pts:
         if (not clean or abs(p[0] - clean[-1][0]) > 1e-6
