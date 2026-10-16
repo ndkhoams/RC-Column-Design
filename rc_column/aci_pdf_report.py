@@ -103,9 +103,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                             leftMargin=20 * mm, rightMargin=20 * mm,
                             topMargin=15 * mm, bottomMargin=15 * mm)
     S = []
-    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT — ACI 318-19", st["title"]))
-    S.append(P("Tiêu chuẩn: ACI 318-19 — Kiểm tra P-M-M, độ mảnh và cắt",
-               st["sub"]))
+    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
+    S.append(P("(Tiêu chuẩn ACI 318-19)", st["sub"]))
 
     if case_info:
         S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "

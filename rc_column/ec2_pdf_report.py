@@ -102,9 +102,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                             leftMargin=20 * mm, rightMargin=20 * mm,
                             topMargin=15 * mm, bottomMargin=15 * mm)
     S = []
-    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT — EC2 (EN 1992-1-1)", st["title"]))
-    S.append(P("Tiêu chuẩn: EC2 (EN 1992-1-1) — Kiểm tra P-M-M, độ mảnh và cắt",
-               st["sub"]))
+    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
+    S.append(P("(Tiêu chuẩn EC2 EN 1992-1-1)", st["sub"]))
 
     if case_info:
         S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "

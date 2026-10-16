@@ -76,16 +76,23 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         ],
     })
 
-    # ---- 2. Tiết diện ----
+    # ---- 2. Tiết diện (cấu trúc giống TCVN) ----
     Ag = sec.gross_area if hasattr(sec, 'gross_area') else 0
     Ast = sec.steel_area if hasattr(sec, 'steel_area') else 0
     cx = getattr(sec, 'cx', 0) or getattr(inp, 'cx', 0)
     cy = getattr(sec, 'cy', 0) or getattr(inp, 'cy', 0)
+    cover = getattr(inp, 'cover', 40) or 40
     # Số thanh-đường kính (như TCVN)
     from collections import Counter as _Ctr
     _cnt = _Ctr(getattr(r, "dia", 0) for r in getattr(sec, "rebars", []))
     _bar_str = " + ".join(f"{_cnt[d]:.0f}d{d:.0f}"
                           for d in sorted(_cnt, reverse=True)) if _cnt else "—"
+    # I, i (tiết diện chữ nhật)
+    _Ix = cx * cy**3 / 12 if cx and cy else 0
+    _Iy = cy * cx**3 / 12 if cx and cy else 0
+    _ix = math.sqrt(_Ix / Ag) if Ag > 0 else 0
+    _iy = math.sqrt(_Iy / Ag) if Ag > 0 else 0
+    _rho = 100 * Ast / Ag if Ag > 0 else 0
     sections.append({
         "num": 2,
         "title": "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",

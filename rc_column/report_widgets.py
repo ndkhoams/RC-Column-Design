@@ -137,17 +137,25 @@ def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
                      f"= {_f(steel.Rsc, 1)} MPa"])
     c.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
     # Es
-    c = _param_card(grid, "Cốt thép: Mô đun đàn hồi Es", "Mục 6.2.2.4",
+    c = _param_card(grid, "Cốt thép dọc: Mô đun đàn hồi Es", "Mục 6.2.2.4",
                     [f"Es (Cốt thép {inp.steel_grade})",
                      f"= {steel.Es:,.0f} N/mm²",
                      f"= {_f(steel.Es / 1000)} × 10³ MPa"])
     c.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
+    # Thép đai
+    from .materials import STEEL_GRADES as _SG
+    _swg = _SG.get(getattr(inp, "sw_steel_grade", "CB400-V"), _SG["CB400-V"])
+    c = _param_card(grid, "Cốt thép đai: Cường độ tính toán Rsw", "Bảng 13",
+                    [f"Rsw = {_f(_swg.Rsw * inp.gamma_s, 1)} MPa",
+                     f"(Thép {getattr(inp, 'sw_steel_grade', 'CB400-V')})",
+                     f"Es = {steel.Es:,.0f} N/mm²"])
+    c.grid(row=2, column=1, sticky="nsew", padx=4, pady=4)
     # αe
     c = _param_card(grid, "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
                     [f"αe = Es / Eb",
                      f"= {steel.Es:,.0f} / {conc.Eb:,.0f}",
                      f"= {_f(res.alpha_e)} -"])
-    c.grid(row=2, column=1, sticky="nsew", padx=4, pady=4)
+    c.grid(row=3, column=0, sticky="nsew", padx=4, pady=4)
 
     # Bảng biến dạng giới hạn
     tk.Label(g, text="Biến dạng tỷ đối giới hạn của vật liệu",

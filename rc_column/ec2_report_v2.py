@@ -61,24 +61,60 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     Ast = sec.steel_area if hasattr(sec, 'steel_area') else 0
     cx = getattr(sec, 'cx', 0) or getattr(inp, 'cx', 0)
     cy = getattr(sec, 'cy', 0) or getattr(inp, 'cy', 0)
+    cover = getattr(inp, 'cover', 40) or 40
     from collections import Counter as _Ctr
     _cnt = _Ctr(getattr(r, "dia", 0) for r in getattr(sec, "rebars", []))
     _bar_str = " + ".join(f"{_cnt[d]:.0f}d{d:.0f}"
                           for d in sorted(_cnt, reverse=True)) if _cnt else "—"
+    _Ix = cx * cy**3 / 12 if cx and cy else 0
+    _Iy = cy * cx**3 / 12 if cx and cy else 0
+    _ix = math.sqrt(_Ix / Ag) if Ag > 0 else 0
+    _iy = math.sqrt(_Iy / Ag) if Ag > 0 else 0
+    _rho = 100 * Ast / Ag if Ag > 0 else 0
     sections.append({
         "num": 2,
         "title": "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
         "ref": "",
         "cards": [
-            _mk("Kích thước tiết diện",
+            _mk("Diện tích tiết diện bê tông nguyên Ac",
                 "",
-                [f"t2 × t3 = {_f(cx, 0)} × {_f(cy, 0)} mm",
-                 f"Ac = {_f(Ag, 0)} mm²"],
+                [f"Ac = t2 × t3",
+                 f"= {_f(cx, 0)} × {_f(cy, 0)}",
+                 f"= {_f(Ag, 0)} mm² (= {_f(Ag/1e6, 4)} m²)"],
                 ""),
-            _mk("Cốt thép dọc",
+            _mk("Lớp bê tông bảo vệ cốt dọc c",
+                "",
+                [f"c = {_f(cover, 0)} mm",
+                 "Chiều dày lớp bê tông bảo vệ",
+                 f"= {_f(cover, 0)} mm"],
+                ""),
+            _mk("Diện tích cốt thép dọc As",
                 "",
                 [f"Số thanh: {_bar_str}",
-                 f"Tổng As = {_f(Ast, 0)} mm²"],
+                 f"Tổng As = {_f(Ast, 0)} mm²",
+                 f"Hàm lượng ρ = {_f(_rho, 2)}%"],
+                ""),
+            _mk("Mô men quán tính trục 2 (I2)",
+                "",
+                [f"I₂ = (t3 · t2³) / 12",
+                 f"= ({_f(cx, 0)} × {_f(cy, 0)}³) / 12",
+                 f"= {_f(_Ix/1e9, 3)} × 10⁹ mm⁴"],
+                ""),
+            _mk("Mô men quán tính trục 3 (I3)",
+                "",
+                [f"I₃ = (t2 · t3³) / 12",
+                 f"= ({_f(cy, 0)} × {_f(cx, 0)}³) / 12",
+                 f"= {_f(_Iy/1e9, 3)} × 10⁹ mm⁴"],
+                ""),
+            _mk("Bán kính quán tính phương 2 (i2)",
+                "",
+                [f"i₂ = √(I₂ / Ac)",
+                 f"= {_f(_ix, 2)} mm (= {_f(_ix/1000, 4)} m)"],
+                ""),
+            _mk("Bán kính quán tính phương 3 (i3)",
+                "",
+                [f"i₃ = √(I₃ / Ac)",
+                 f"= {_f(_iy, 2)} mm (= {_f(_iy/1000, 4)} m)"],
                 ""),
         ],
     })

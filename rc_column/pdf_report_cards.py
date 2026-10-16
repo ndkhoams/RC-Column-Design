@@ -193,9 +193,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                             leftMargin=10*mm, rightMargin=10*mm,
                             topMargin=10*mm, bottomMargin=10*mm)
     S = []
-    S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st["title"]))
-    S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
-               "(Điều 8.1.2.7)", st["sub"]))
+    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
+    S.append(P("(Tiêu chuẩn TCVN 5574:2018)", st["sub"]))
 
     # ================= MỤC 1 =================
     S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
@@ -218,12 +217,17 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
               [f"Rsc = {steel.Rsc:.0f} MPa (ngắn hạn & dài hạn)",
                f"= {_f(steel.Rsc, 1)} MPa"])))
     S.extend(_two(P, st,
-        _mk( "Cốt thép: Mô đun đàn hồi Es", "Mục 6.2.2.4",
+        _mk( "Cốt thép dọc: Mô đun đàn hồi Es", "Mục 6.2.2.4",
               [f"Es ({inp.steel_grade}) = {steel.Es:,.0f} N/mm²",
                f"= {_f(steel.Es / 1000)} × 10³ MPa"]),
+        _mk( "Cốt thép đai: Cường độ tính toán Rsw", "Bảng 13",
+              [f"Rsw = {_f(steel.grade.Rsw * inp.gamma_s, 1)} MPa",
+               f"(Thép {getattr(inp, 'sw_steel_grade', 'CB400-V')})"])))
+    S.extend(_two(P, st,
         _mk( "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
               [f"αe = Es / Eb = {steel.Es:,.0f} / {conc.Eb:,.0f}",
-               f"= {_f(res.alpha_e)} -"])))
+               f"= {_f(res.alpha_e)} -"]),
+        _mk( "", "", [""])))
     # Bảng biến dạng giới hạn
 
 
