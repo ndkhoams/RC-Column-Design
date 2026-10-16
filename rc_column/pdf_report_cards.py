@@ -499,7 +499,17 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     _pngs = None
     try:
         from .pdf_export import interaction_image, m2m3_image
-        _pngs = (interaction_image(sec, inp, res, width_in=5.0),
+        import math as _m
+        # Chỉ hiện nửa có tải (giống app): Mα >= 0 -> nửa phải, ngược lại nửa trái
+        _Ma = _m.hypot(getattr(res, "Mx_star", 0) or 0,
+                       getattr(res, "My_star", 0) or 0)
+        _alpha = _m.degrees(_m.atan2(getattr(res, "Mx_star", 0) or 0,
+                                     getattr(res, "My_star", 0) or 0))
+        # Mα có dấu theo cos(alpha)
+        _Malpha = _Ma * _m.cos(_m.radians(_alpha))
+        _rh = _Malpha >= 0
+        _pngs = (interaction_image(sec, inp, res, width_in=5.0,
+                                   right_half=_rh, left_half=not _rh),
                  m2m3_image(sec, inp, res, width_in=5.0))
     except Exception:
         _pngs = chart_pngs  # fallback dùng PNG từ app nếu lỗi
