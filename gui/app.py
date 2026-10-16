@@ -7,6 +7,8 @@ Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu
          thuyết minh tính toán chi tiết.
 """
 
+APP_BUILD = "2026-10-16 EC2+tieuchuan"
+
 import math
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -82,7 +84,7 @@ class _ToolTip:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Kiểm tra cột bê tông cốt thép")
+        self.title(f"Kiểm tra cột bê tông cốt thép [{APP_BUILD}]")
         self.geometry("1360x860")
         # Icon title bar: ưu tiên PNG (ổn định hơn ICO trên tkinter)
         try:
@@ -255,9 +257,25 @@ class App(tk.Tk):
         ttk.Button(data_bar, text="📄 XUẤT PDF", style="Ghost.TButton",
                    command=self._export_pdf).pack(side=tk.LEFT, expand=True,
                                                    fill=tk.X, padx=(4, 0))
-        ttk.Button(top_bar, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
+        # Hàng kiểm tra: chia đôi — trái chọn tiêu chuẩn, phải nút kiểm tra
+        check_bar = ttk.Frame(top_bar)
+        check_bar.pack(fill=tk.X, padx=10, pady=10)
+        # Nửa trái: tiêu chuẩn thiết kế
+        code_frame = ttk.Frame(check_bar)
+        code_frame.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+        ttk.Label(code_frame, text="Tiêu chuẩn:",
+                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 6))
+        self.cb_code = ttk.Combobox(code_frame, values=["TCVN 5574:2018", "ACI 318-19",
+                                                        "EC2 (EN 1992-1-1)"],
+                                    state="readonly", width=16)
+        self.cb_code.set("TCVN 5574:2018")
+        self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
+        self.cb_code.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=4)
+        # Nửa phải: nút kiểm tra
+        ttk.Button(check_bar, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    style="Accent.TButton",
-                   command=self.on_check).pack(fill=tk.X, padx=10, pady=10)
+                   command=self.on_check).pack(side=tk.LEFT, expand=True,
+                                               fill=tk.X, padx=(5, 0))
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
         scroll_area.pack(fill=tk.BOTH, expand=True)
@@ -410,20 +428,10 @@ class App(tk.Tk):
     # ---- 1. Vật liệu ----
     def _sec_materials(self):
         f = self._frame("1. Vật liệu")
-        # Bộ chọn tiêu chuẩn thiết kế
-        fcode = ttk.Frame(f); fcode.grid(row=0, column=0, columnspan=2,
-                                         sticky=tk.EW, padx=2, pady=(0, 6))
-        self.cb_code = ttk.Combobox(fcode, values=["TCVN 5574:2018", "ACI 318-19",
-                                                      "EC2 (EN 1992-1-1)"],
-                                    state="readonly", width=16)
-        self.cb_code.set("TCVN 5574:2018")
-        self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
-        ttk.Label(fcode, text="Tiêu chuẩn thiết kế",
-                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 8))
-        self.cb_code.pack(side=tk.LEFT, padx=4)
+        # Bộ chọn tiêu chuẩn đã chuyển lên hàng nút kiểm tra (top_bar)
         # Khung TCVN (hiện mặc định)
         self.frm_tcvn = ttk.Frame(f)
-        self.frm_tcvn.grid(row=1, column=0, columnspan=2, sticky=tk.NSEW)
+        self.frm_tcvn.grid(row=0, column=0, columnspan=2, sticky=tk.NSEW)
         fl = ttk.Frame(self.frm_tcvn); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
         fr = ttk.Frame(self.frm_tcvn); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
         self.frm_tcvn.columnconfigure(0, weight=1); self.frm_tcvn.columnconfigure(1, weight=1)
@@ -3593,9 +3601,9 @@ class App(tk.Tk):
             ck.set("")
 
     def _update_title(self):
-        """Title bar hiện tên file đang lưu."""
+        """Title bar hiện tên file đang lưu + mã bản build."""
         import os
-        base = "Kiểm tra cột bê tông cốt thép"
+        base = f"Kiểm tra cột bê tông cốt thép [{APP_BUILD}]"
         p = getattr(self, "current_save_path", None)
         if p:
             self.title(f"{base} — [{os.path.basename(p)}]")
