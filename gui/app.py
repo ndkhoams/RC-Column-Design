@@ -347,17 +347,7 @@ class App(tk.Tk):
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(2, 0))
         # Nút VN|EN đặt cùng hàng với tab (góc phải, đè lên vùng trống của tab)
         self._lang_var = tk.StringVar(value="VN")
-        # Nút VN|EN: style giống 4 nút bên trái (Ghost.TButton)
-        self._lang_frame = ttk.Frame(self)
-        ttk.Button(self._lang_frame, text="VN", width=4, style="Ghost.TButton",
-                   command=lambda: self._switch_lang("VN")).pack(side=tk.LEFT)
-        ttk.Label(self._lang_frame, text="|").pack(side=tk.LEFT, padx=2)
-        ttk.Button(self._lang_frame, text="EN", width=4, style="Ghost.TButton",
-                   command=lambda: self._switch_lang("EN")).pack(side=tk.LEFT)
-        def _place_lang():
-            self._lang_frame.place(relx=1.0, x=-10, y=8, anchor=tk.NE)
-            self._lang_frame.lift()
-        self.after(100, _place_lang)
+        # (Nút VN/EN tạm bỏ theo yêu cầu - chỉ dùng tiếng Việt)
         # Hàng nút chuyển tab (style giống 4 nút bên trái)
         _tab_bar = ttk.Frame(right)
         _tab_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
@@ -706,15 +696,12 @@ class App(tk.Tk):
         self.cb_e3d.pack(side=tk.LEFT)
         self._row(rr, "Thép cạnh t3 (2 mặt trên/dưới)", fr3, r)
         r += 1
-        # Toggle 2 lớp thép + badge "Nâng cao"
+        # Toggle 2 lớp thép
         tog = ttk.Frame(rr)
         self.var_two_layer = tk.BooleanVar(value=False)
         ttk.Checkbutton(tog, text="Bố trí 2 lớp thép",
                         variable=self.var_two_layer,
                         command=self._toggle_two_layer).pack(side=tk.LEFT)
-        tk.Label(tog, text="Nâng cao", bg="#dcfce7", fg="#15803d",
-                 font=("", 8, "bold"), padx=6, pady=2).pack(side=tk.LEFT,
-                                                           padx=6)
         tog.grid(row=r, column=0, columnspan=2, sticky=tk.W, padx=4,
                  pady=(6, 2))
         r += 1
@@ -1774,7 +1761,7 @@ class App(tk.Tk):
                          fg="#111827", borderwidth=0,
                          highlightthickness=0,
                          anchor="w" if j == 0 else "center",
-                         padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
+                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             rows = [
                 ("Thép đai bố trí",
@@ -1807,7 +1794,7 @@ class App(tk.Tk):
                         fw = ("", 9, "bold")  # kết quả in đậm
                     tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
                              borderwidth=0, highlightthickness=0,
-                             padx=6, pady=2, anchor="w" if j == 0
+                             padx=6, pady=6, anchor="w" if j == 0
                              else "center").grid(row=i + 1, column=j,
                                                  sticky="nsew")
         except Exception as e:
@@ -1874,6 +1861,8 @@ class App(tk.Tk):
              f"{aci_res.get('M2_mag', inp.Mx):.1f} kN·m"),
             ("M3*", "Mô men tính toán phương 3 (đã phóng đại)",
              f"{aci_res.get('M3_mag', inp.My):.1f} kN·m"),
+            ("NB", "Lực dọc tại điểm giới hạn B (trên tia tải)",
+             f"{aci_res.get('BN', 0):+.1f} kN"),
             ("φPn,max", "Nén đúng tâm lớn nhất (ACI 22.4.2)",
              f"{aci_res.get('N_cap', 0):.1f} kN"),
         ]
@@ -2246,7 +2235,7 @@ class App(tk.Tk):
                          fg="#111827", borderwidth=0,
                          highlightthickness=0,
                          anchor="w" if j == 0 else "center",
-                         padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
+                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             def _asws(v):
                 if v is None or (isinstance(v, float) and
@@ -2285,7 +2274,7 @@ class App(tk.Tk):
                         fw = ("", 9, "bold")  # kết quả in đậm
                     tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
                              borderwidth=0, highlightthickness=0,
-                             padx=6, pady=2, anchor="w" if j == 0
+                             padx=6, pady=6, anchor="w" if j == 0
                              else "center").grid(row=i + 1, column=j,
                                                  sticky="nsew")
         except Exception as e:
@@ -4271,7 +4260,7 @@ class App(tk.Tk):
                          fg="#111827", borderwidth=0,
                          highlightthickness=0,
                          anchor="w" if j == 0 else "center",
-                         padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
+                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
                 # Tỉ lệ cột 90-45-45 (2:1:1), uniform để giữ đúng tỉ lệ
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             rows = [
@@ -4317,7 +4306,7 @@ class App(tk.Tk):
                     tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
                              borderwidth=0,
                              highlightthickness=0,
-                             padx=6, pady=2, anchor="w" if j == 0
+                             padx=6, pady=6, anchor="w" if j == 0
                              else "center").grid(row=i + 1, column=j,
                                                  sticky="nsew")
         except Exception as e:
