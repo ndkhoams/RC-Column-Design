@@ -197,7 +197,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.append(P("(Tiêu chuẩn TCVN 5574:2018)", st["sub"]))
 
     # ================= MỤC 1 =================
-    S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
+    S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU",
                        "TCVN 5574:2018 Mục 6.1 & 6.2"))
     S.extend(_two(P, st,
         _mk( "Bê tông: Cường độ chịu nén tính toán Rb*",
@@ -239,7 +239,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                            "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT TRÒN"))
     else:
         S.append(_sec_head(P, st, 2,
-                           "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT"))
+                           "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN"))
     from collections import Counter as _Ctr2
     _cnt2 = _Ctr2(getattr(r, "dia", 0) for r in sec.rebars)
     _bar_str2 = " + ".join(f"{_cnt2[d]:.0f}d{d:.0f}"
@@ -497,7 +497,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                f"Mα = {_f(Ma, 1)} kN·m"]),
         _mk( "Tỷ số D/C", "",
               [f"D/C = |OA| / |OB| = {_f(OA, 1)} / {_f(OB, 1)}",
-               f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"]))))
+               f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"],
+              "✓ ĐẠT — D/C ≤ 1.000" if res.ok else "✗ KHÔNG ĐẠT"))))
     # Biểu đồ: luôn tạo vuông (5x5 inch) cho PDF để không bị dẹt
     # (không dùng lại figure app vì tỉ lệ khác)
     _pngs = None
@@ -530,10 +531,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
         ]))
         S.append(_ct)
-    S.append(P(f"TỶ SỐ SỬ DỤNG (D/C) = {_f(res.dc, 3)} "
-               f"(FS = {_f(res.fs, 2)}) — "
-               f"{'✓ ĐẠT — D/C ≤ 1.000' if res.ok else '✗ KHÔNG ĐẠT'}",
-               st["dc_ok"] if res.ok else st["dc_ng"]))
+
 
     # ================= MỤC 7 =================
     from reportlab.platypus import PageBreak as _PB
@@ -593,17 +591,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
              f"= {_f(sh.Qsw_opt, 1)} kN",
              f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm",
              f"{'✓' if sh.ok else '✗'} So sánh: |Q| = {_f(abs(Q), 1)} kN "
-             f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN "
-             f"→ {'ĐẠT' if sh.ok else 'KHÔNG ĐẠT'}"]))
+             f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN"],
+              "✓ ĐẠT" if sh.ok else "✗ KHÔNG ĐẠT"))
         shear_ok &= sh.ok
     if len(cards7) == 2:
         S.extend(_two(P, st, cards7[0], cards7[1]))
     else:
         for c in cards7:
             S.append(c)
-    ok7 = stir_res.ok and shear_ok
-    S.append(P(f"{'✓ ĐẠT' if ok7 else '✗ KHÔNG ĐẠT'} — Cốt đai thỏa "
-               "TCVN 5574:2018" if ok7 else "Xem lại cốt đai",
-               st["dc_ok"] if ok7 else st["dc_ng"]))
+
 
     doc.build(S)

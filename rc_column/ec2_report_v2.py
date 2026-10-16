@@ -148,6 +148,15 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     _Nabs = abs(NEd) if abs(NEd) > 1e-9 else 1.0
     e2 = abs(MEd2/_Nabs*1000)
     e3 = abs(MEd3/_Nabs*1000)
+    # Tính ei chi tiết (EC2 5.2)
+    import math as _m
+    _l0max = max(_l02, _l03)
+    _theta0 = 1/200
+    _alpha_h = 2/_m.sqrt(_l0max) if _l0max > 0 else 1.0
+    _alpha_h = max(2/3, min(1.0, _alpha_h))
+    _theta_i = _theta0 * _alpha_h  # αm = 1 (cột đơn)
+    _ei = _theta_i * _l0max / 2 * 1000  # mm
+    _emin = max(max(cx, cy)/30, 20)
     sections.append({
         "num": 4,
         "title": "SAI LỆCH THI CÔNG & ĐỘ LỆCH TÂM",
@@ -155,8 +164,11 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         "cards": [
             _mk("Sai lệch thi công ei",
                 "EC2 5.2",
-                ["ei = θi·l0/2",
-                 "emin = max(h/30, 20mm)"],
+                [f"θi = θ0·αh = 1/200 × {_f(_alpha_h, 3)}",
+                 f"= {_f(_theta_i, 5)} rad",
+                 f"ei = θi·l0/2 = {_f(_theta_i, 5)} × {_f(_l0max, 2)} / 2",
+                 f"= {_f(_ei, 1)} mm",
+                 f"emin = max(h/30, 20) = {_f(_emin, 1)} mm"],
                 ""),
             _mk("Độ lệch tâm phương 2 (e2)",
                 "EC2 6.1(4)",

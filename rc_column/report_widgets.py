@@ -105,7 +105,7 @@ def _grid2(parent):
 def _build_sec1(g, inp: ColumnInput, res: CheckResult, sec):
     conc = sec.concrete
     steel = sec.steel
-    _section_header(g, 1, "ĐẶC TRƯNG VẬT LIỆU & CƯỜNG ĐỘ TÍNH TOÁN",
+    _section_header(g, 1, "ĐẶC TRƯNG VẬT LIỆU",
                     "TCVN 5574:2018 Mục 6.1 & 6.2")
     grid = _grid2(g)
 
@@ -202,7 +202,7 @@ def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
         _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT TRÒN",
                         f"Đường kính D = {D:.0f} mm")
     else:
-        _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT CHỮ NHẬT",
+        _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
                         f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm")
     grid = _grid2(g)
     if is_circle:
