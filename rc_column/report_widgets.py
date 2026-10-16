@@ -597,7 +597,7 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
     from .stirrup import StirrupInput, check_stirrup, check_shear
     from .materials import STEEL_GRADES
     import math as _m
-    _section_header(g, 7, "KIỂM TRA CỐT THÉP ĐAI",
+    _section_header(g, 7, "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
                     "TCVN 5574:2018 Mục 10.3.4 & 8.1.3")
     stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
                            legs=inp.sw_legs)

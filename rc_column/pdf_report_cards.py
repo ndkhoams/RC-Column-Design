@@ -518,8 +518,32 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     # ================= MỤC 7 =================
     from reportlab.platypus import PageBreak as _PB
     S.append(_PB())
-    S.append(_sec_head(P, st, 7, "KIỂM TRA CỐT THÉP ĐAI",
+    S.append(_sec_head(P, st, 7, "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
                        "TCVN 5574:2018 Mục 10.3.4 & 8.1.3"))
+    def _full_card(title, ref, lines, result=""):
+        """Render 1 card full-width."""
+        from reportlab.platypus import Table as _T, TableStyle as _TS
+        from reportlab.lib.colors import HexColor as _HC
+        _rows = []
+        if title:
+            _rows.append([P(f'<b>{title}</b>', st["card_title"])])
+        if ref:
+            _rows.append([P(ref, st["card_ref"])])
+        for _ln in lines:
+            _rows.append([P(_ln, st["formula"])])
+        if result:
+            _rows.append([P(result, st["result"])])
+        _t = _T(_rows)
+        _t.setStyle(_TS([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("BACKGROUND", (0, 1), (-1, -1), _HC("#F9FAFB")),
+            ("LINEBEFORE", (0, 1), (0, -1), 2, _HC("#D1D5DB")),
+            ("LEFTPADDING", (0, 1), (-1, -1), 10),
+        ]))
+        return [_t, Spacer(1, 4*mm)]
+
     from .stirrup import StirrupInput, check_stirrup, check_shear
     stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
                            legs=inp.sw_legs)
@@ -529,15 +553,13 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         mark = "✓" if chk.ok else "✗"
         chk_lines.append(f"{mark} {chk.item}: yêu cầu {chk.required}, "
                          f"chọn {chk.provided}")
-    S.extend(_two(P, st, _mk("Cấu tạo cốt đai (10.3.4)", "", chk_lines),
-                      _EMPTY))
+    S.extend(_full_card("Cấu tạo cốt đai (10.3.4)", "", chk_lines))
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
     if shear_info:
         q2i, q3i = shear_info["q2"], shear_info["q3"]
-        S.extend(_two(P, st, _mk("Lực cắt tính toán", "",
+        S.extend(_full_card("Lực cắt tính toán", "",
                        [f"Q2 = {_f(q2i['Q'], 1)} kN {_full_case(q2i)}",
-                        f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case(q3i)}"]),
-                      _EMPTY))
+                        f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case(q3i)}"]))
     Rb = conc.Rb
     Rbt = conc.Rbt
     Rsw = sw_grade.Rsw * inp.gamma_s
