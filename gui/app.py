@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 from rc_column.checker import ColumnInput, build_section, check_column
+from rc_column.lang import T, set_lang
 from rc_column.aci_materials import ACIConcrete, ACISteel
 from rc_column.aci_checker import check_column_aci, moment_magnification, aci_shear_check
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
@@ -229,7 +230,29 @@ class App(tk.Tk):
                foreground=[("selected", TEXT)])
 
     # ============================ UI ============================
+    def _switch_lang(self, lang):
+        """Chuyển ngôn ngữ VN/EN. Áp dụng cho kết quả mới tính."""
+        from rc_column import lang as _lang
+        _lang.set_lang(lang)
+        self._lang_var.set(lang)
+        # Nếu đã có kết quả, tính lại để hiển thị ngôn ngữ mới
+        if hasattr(self, '_last_result') and self._last_result:
+            self.on_check()
+
     def _build(self):
+        # Thanh công cụ trên cùng: nút chuyển ngôn ngữ VN|EN (góc phải)
+        from rc_column import lang as _lang
+        _toolbar = ttk.Frame(self)
+        _toolbar.pack(fill=tk.X, padx=6, pady=(4, 0))
+        self._lang_var = tk.StringVar(value="VN")
+        _lang_frame = ttk.Frame(_toolbar)
+        _lang_frame.pack(side=tk.RIGHT)
+        ttk.Button(_lang_frame, text="VN", width=4,
+                   command=lambda: self._switch_lang("VN")).pack(side=tk.LEFT)
+        ttk.Label(_lang_frame, text="|").pack(side=tk.LEFT, padx=2)
+        ttk.Button(_lang_frame, text="EN", width=4,
+                   command=lambda: self._switch_lang("EN")).pack(side=tk.LEFT)
+
         self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
@@ -329,8 +352,8 @@ class App(tk.Tk):
         nb = ttk.Notebook(right)
         nb.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self.nb = nb
-        self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text="Kết quả tính toán")
-        self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text="Chi tiết tính toán")
+        self.tab_sum = ttk.Frame(nb); nb.add(self.tab_sum, text=T("Kết quả tính toán"))
+        self.tab_calc = ttk.Frame(nb); nb.add(self.tab_calc, text=T("Chi tiết tính toán"))
 
         # Tab Tóm tắt bọc trong canvas cuộn được
         sum_canvas = tk.Canvas(self.tab_sum, highlightthickness=0)
@@ -451,7 +474,7 @@ class App(tk.Tk):
 
     # ---- 1. Vật liệu ----
     def _sec_materials(self):
-        f = self._frame("1. Vật liệu")
+        f = self._frame(T("1. Vật liệu"))
         # Bộ chọn tiêu chuẩn đã chuyển lên hàng nút kiểm tra (top_bar)
         # Grid 4 cột đều nhau (khớp với 4 nút bên trên):
         # col 0: nhãn trái, col 1: nhãn phải, col 2: ô nhập trái (= SAVE AS),
@@ -552,7 +575,7 @@ class App(tk.Tk):
 
     # ---- 2. Tiết diện ----
     def _sec_section(self):
-        f = self._frame("2. Tiết diện")
+        f = self._frame(T("2. Tiết diện"))
         # Dùng grid 4 cột đều (khớp 4 nút bên trên) cho toàn section
         for _c in range(4):
             f.columnconfigure(_c, weight=1, uniform="sec2")
@@ -614,7 +637,7 @@ class App(tk.Tk):
     DIAS = ["10", "12", "14", "16", "18", "20", "22", "25", "28", "32"]
 
     def _sec_rebar(self):
-        f = self._frame("3. Bố trí cốt thép dọc")
+        f = self._frame(T("3. Bố trí cốt thép dọc"))
         DIAS = self.DIAS
 
         # ===== Panel cho tiết diện chữ nhật =====
@@ -894,7 +917,7 @@ class App(tk.Tk):
 
     # ---- 4. Chiều dài tính toán ----
     def _sec_stability(self):
-        f = self._frame("4. Chiều dài tính toán")
+        f = self._frame(T("4. Chiều dài tính toán"))
         hdr = ["Tham số", "Phương 2", "Phương 3"]
         for c, h in enumerate(hdr):
             ttk.Label(f, text=h, font=("", 9, "bold")).grid(
@@ -946,7 +969,7 @@ class App(tk.Tk):
 
     # ---- 5. Nội lực ----
     def _sec_loads(self):
-        f = self._frame("5. Nội lực kiểm tra")
+        f = self._frame(T("5. Nội lực kiểm tra"))
         # Cho phép giãn dọc để bảng fill hết cửa sổ
         f.pack_configure(fill=tk.BOTH, expand=True)
         # Chọn chế độ: nhập tay / import Excel
