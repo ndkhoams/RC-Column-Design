@@ -24,6 +24,7 @@ class ConcreteGrade:
 CONCRETE_GRADES: Dict[str, ConcreteGrade] = {
     "B15": ConcreteGrade("B15", Rb=8.5,  Rbt=0.75, Eb=24000),
     "B20": ConcreteGrade("B20", Rb=11.5, Rbt=0.90, Eb=27500),
+    "B22.5": ConcreteGrade("B22.5", Rb=13.0, Rbt=1.00, Eb=29000),
     "B25": ConcreteGrade("B25", Rb=14.5, Rbt=1.05, Eb=30000),
     "B30": ConcreteGrade("B30", Rb=17.0, Rbt=1.20, Eb=32500),
     "B35": ConcreteGrade("B35", Rb=19.5, Rbt=1.30, Eb=34500),
