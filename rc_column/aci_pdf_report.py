@@ -9,6 +9,8 @@ Không phụ thuộc GUI/matplotlib trực tiếp.
 import io
 
 from .aci_report_v2 import generate_aci_report_sections_v2
+# Dùng chung hàm render của TCVN để đảm bảo layout giống hệt
+from .pdf_report_cards import (_get_styles, _two, _sec_head, _full_case)
 
 
 def _f(x: float, nd: int = 2) -> str:
@@ -63,208 +65,6 @@ def _find_aci_font_bold():
         return None
 
 
-def _get_styles():
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_LEFT, TA_CENTER
-    from reportlab.lib.colors import HexColor
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-
-    font_path = _find_aci_font()
-    bold_path = _find_aci_font_bold()
-    if not font_path:
-        raise RuntimeError("Không tìm thấy font hỗ trợ tiếng Việt.")
-    try:
-        pdfmetrics.registerFont(TTFont("VN", font_path))
-    except Exception:
-        pass
-    try:
-        pdfmetrics.registerFont(TTFont("VN-Bold", bold_path or font_path))
-    except Exception:
-        pass
-
-    return {
-        "title": ParagraphStyle("title", fontName="VN-Bold", fontSize=14,
-                                textColor=HexColor(TEXT), alignment=TA_CENTER,
-                                spaceAfter=4),
-        "sub": ParagraphStyle("sub", fontName="VN", fontSize=9,
-                              textColor=HexColor(GRAY), alignment=TA_CENTER,
-                              spaceAfter=10),
-        "sec_title": ParagraphStyle("sec_title", fontName="VN-Bold",
-                                    fontSize=10, textColor=HexColor(TEXT),
-                                    spaceBefore=12, spaceAfter=6),
-        "sec_ref": ParagraphStyle("sec_ref", fontName="VN", fontSize=8,
-                                  textColor=HexColor(GRAY), leading=10,
-                                  spaceAfter=4),
-        "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
-                                     fontSize=8, textColor=HexColor(TEXT),
-                                     leading=12, spaceAfter=2),
-        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=7,
-                                   textColor=HexColor(GRAY), leading=10,
-                                   spaceAfter=2),
-        "formula": ParagraphStyle("formula", fontName="VN", fontSize=7,
-                                  textColor=HexColor("#374151"), leading=12,
-                                  leftIndent=6, spaceAfter=1),
-        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=7.5,
-                                 textColor=HexColor(TEXT), leading=12,
-                                 spaceBefore=4),
-        "result_ok": ParagraphStyle("result_ok", fontName="VN-Bold",
-                                    fontSize=10,
-                                    textColor=HexColor(GREEN), leading=12,
-                                    spaceBefore=4),
-        "result_ng": ParagraphStyle("result_ng", fontName="VN-Bold",
-                                    fontSize=10,
-                                    textColor=HexColor(RED), leading=12,
-                                    spaceBefore=4),
-        "note": ParagraphStyle("note", fontName="VN", fontSize=9,
-                               textColor=HexColor(GRAY), leading=12,
-                               spaceBefore=4, spaceAfter=4),
-        "dc_ok": ParagraphStyle("dc_ok", fontName="VN-Bold", fontSize=10,
-                                textColor=HexColor(GREEN),
-                                backColor=HexColor(GREEN_BG),
-                                borderPadding=10, alignment=TA_CENTER,
-                                spaceBefore=10, spaceAfter=10),
-        "dc_ng": ParagraphStyle("dc_ng", fontName="VN-Bold", fontSize=10,
-                                textColor=HexColor(RED),
-                                backColor=HexColor(RED_BG),
-                                borderPadding=10, alignment=TA_CENTER,
-                                spaceBefore=10, spaceAfter=10),
-        "cap": ParagraphStyle("cap", fontName="VN", fontSize=8,
-                              textColor=HexColor(GRAY), alignment=TA_CENTER,
-                              spaceBefore=4, spaceAfter=8),
-    }
-
-
-def _card_story(P, st, c):
-    """Trả về list flowables cho 1 card."""
-    from reportlab.platypus import Paragraph, Spacer
-    from reportlab.lib.colors import HexColor
-    from reportlab.lib.units import mm
-
-    items = []
-    if c.get("title"):
-        items.append(P(c["title"], st["card_title"]))
-    if c.get("ref"):
-        items.append(P(c["ref"], st["card_ref"]))
-    for ln in c.get("lines", []):
-        items.append(P(ln, st["formula"]))
-    if c.get("result"):
-        r = c["result"]
-        # Tô màu kết luận ĐẠT/KHÔNG ĐẠT
-        if "KHÔNG ĐẠT" in r:
-            rs = st["result_ng"]
-        elif "ĐẠT" in r and "→ OK" in r:
-            rs = st["result_ok"]
-        else:
-            rs = st["result"]
-        items.append(P(r, rs))
-    return items
-
-
-def _two_cards(P, st, c1, c2):
-    """2 card đặt ngang nhau, tự chia đều cột."""
-    from reportlab.platypus import Table, TableStyle, Spacer
-    from reportlab.lib.colors import HexColor
-    from reportlab.lib.units import mm
-
-    def _one(c):
-        from reportlab.platypus import Table
-        rows = []
-        if c.get("title"):
-            rows.append([P(c["title"], st["card_title"])])
-        if c.get("ref"):
-            rows.append([P(c["ref"], st["card_ref"])])
-        for ln in c.get("lines", []):
-            rows.append([P(ln, st["formula"])])
-        if c.get("result"):
-            r = c["result"]
-            if "KHÔNG ĐẠT" in r:
-                rs = st["result_ng"]
-            elif "ĐẠT" in r:
-                rs = st["result_ok"]
-            else:
-                rs = st["result"]
-            rows.append([P(r, rs)])
-        if not rows:
-            rows.append([P("", st["formula"])])
-        t = Table(rows)
-        sty = [
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("BOX", (0, 0), (-1, -1), 0.8, HexColor(BORDER)),
-            ("INNERGRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
-            ("BACKGROUND", (0, 0), (-1, 0), HexColor(WHITE)),
-        ]
-        # Dòng công thức: nền nhạt + viền trái
-        for i, row in enumerate(rows):
-            is_formula = (c.get("title") and c.get("ref") and i >= 2) or \
-                        (c.get("title") and not c.get("ref") and i >= 1) or \
-                        (not c.get("title") and c.get("ref") and i >= 1)
-            if is_formula and not (c.get("result") and i == len(rows) - 1):
-                sty.append(("BACKGROUND", (0, i), (-1, i),
-                            HexColor(FORMULA_BG)))
-        t.setStyle(TableStyle(sty))
-        return t
-
-    t = Table([[_one(c1), _one(c2)]])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    return [t, Spacer(1, 4 * mm)]
-
-
-def _sec_head(P, st, num, title, ref=""):
-    """Header mục: 'N. TITLE' bold 12 + ref xám 8 bên phải."""
-    from reportlab.platypus import Table, TableStyle
-    dot = _DOT_COLORS[(num - 1) % len(_DOT_COLORS)]
-    rows = [[P(f'<font color="{dot}">●</font>&nbsp;&nbsp;'
-               f'{num}. {title}', st["sec_title"])]]
-    if ref:
-        rows.append([P(f'<font color="{GRAY}">{ref}</font>',
-                       st["sec_ref"])])
-    t = Table(rows)
-    t.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
-    return t
-
-
-def _img_keep_aspect(png_bytes, w_mm=88):
-    """Tạo Image giữ đúng tỉ lệ gốc của PNG (không méo hình)."""
-    from reportlab.platypus import Image
-    from reportlab.lib.units import mm
-    try:
-        from PIL import Image as _PILImage
-        _pil = _PILImage.open(io.BytesIO(png_bytes))
-        _pw, _ph = _pil.size
-        _hh = w_mm * _ph / _pw if _pw > 0 else w_mm * 0.75
-    except Exception:
-        _hh = w_mm * 0.75
-    return Image(io.BytesIO(png_bytes), width=w_mm * mm, height=_hh * mm)
-
-
-def _full_case(d):
-    """Format đầy đủ: [story, column, case@station]."""
-    parts = []
-    if d.get("story"):
-        parts.append(str(d["story"]))
-    if d.get("column"):
-        parts.append(str(d["column"]))
-    cs = f"{d.get('case', '')}@{d.get('station', 0):.2f}"
-    parts.append(cs)
-    return "[" + ", ".join(parts) + "]"
-
-
 def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                          tied, filepath, chart_pngs=None, case_info=None,
                          sec=None):
@@ -312,7 +112,7 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
             c1 = cards[i]
             c2 = cards[i + 1] if i + 1 < len(cards) else \
                 {"title": "", "ref": "", "lines": [], "result": ""}
-            S.extend(_two_cards(P, st, c1, c2))
+            S.extend(_two(P, st, c1, c2))
             i += 2
 
         # Mục 2: nhúng sơ đồ mặt cắt
