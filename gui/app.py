@@ -1038,7 +1038,7 @@ class App(tk.Tk):
         self.etabs_tree = ttk.Treeview(self.etabs_frame, columns=cols,
                                        show="headings", height=12)
         self.etabs_tree.bind("<Double-1>", self._edit_etabs_cell)
-        hd = {"story": "Story", "label": "Label", "case": "Comb",
+        hd = {"story": "Story", "label": "Label", "case": "Combo",
               "station": "Station", "N": "N", "V2": "V2", "V3": "V3",
               "M2": "M2", "M3": "M3", "dc": "D/C"}
         wd = {"story": 60, "label": 60, "case": 70, "station": 55,
