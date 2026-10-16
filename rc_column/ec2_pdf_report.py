@@ -64,6 +64,18 @@ def _find_ec2_font_bold():
         return None
 
 
+def _img_keep_aspect(png_bytes, w_mm=95):
+    """Tạo Image giữ tỉ lệ gốc bằng PIL."""
+    from reportlab.platypus import Image
+    from reportlab.lib.units import mm
+    from PIL import Image as _PIL
+    import io
+    _pil = _PIL.open(io.BytesIO(png_bytes))
+    _pw, _ph = _pil.size
+    _h = w_mm * _ph / _pw if _pw > 0 else w_mm
+    return Image(io.BytesIO(png_bytes), width=w_mm*mm, height=_h*mm)
+
+
 def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                          filepath, chart_pngs=None, case_info=None, tied=None,
                          sec=None):

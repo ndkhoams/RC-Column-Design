@@ -65,6 +65,18 @@ def _find_aci_font_bold():
         return None
 
 
+def _img_keep_aspect(png_bytes, w_mm=95):
+    """Tạo Image giữ tỉ lệ gốc bằng PIL."""
+    from reportlab.platypus import Image
+    from reportlab.lib.units import mm
+    from PIL import Image as _PIL
+    import io
+    _pil = _PIL.open(io.BytesIO(png_bytes))
+    _pw, _ph = _pil.size
+    _h = w_mm * _ph / _pw if _pw > 0 else w_mm
+    return Image(io.BytesIO(png_bytes), width=w_mm*mm, height=_h*mm)
+
+
 def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                          tied, filepath, chart_pngs=None, case_info=None,
                          sec=None):

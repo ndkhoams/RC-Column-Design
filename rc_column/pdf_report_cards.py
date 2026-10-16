@@ -512,8 +512,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             _pw, _ph = _pil.size
             _h = w_mm * _ph / _pw if _pw > 0 else w_mm
             return Image(io.BytesIO(png_bytes), width=w_mm*mm, height=_h*mm)
-        img1 = _keep(_pngs[0], 88)
-        img2 = _keep(_pngs[1], 88)
+        img1 = _keep(_pngs[0], 95)
+        img2 = _keep(_pngs[1], 95)
         # 2 biểu đồ đặt ngang nhau
         _ct = _T2([[[P("Biểu đồ tương tác N-Mα", st["cap"]), img1],
                     [P("Biểu đồ tương tác M2-M3", st["cap"]), img2]]])
