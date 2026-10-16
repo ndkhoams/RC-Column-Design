@@ -113,6 +113,10 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                    st["note"]))
 
     for _s in sections:
+        # Mục 4 luôn sang trang mới
+        if _s["num"] == 4:
+            from reportlab.platypus import PageBreak as _PB4
+            S.append(_PB4())
         # Mục 7 luôn sang trang mới (không để tiêu đề ở cuối trang)
         if _s["num"] == 7:
             from reportlab.platypus import PageBreak as _PB7
