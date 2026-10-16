@@ -31,14 +31,18 @@ class Rebar:
 
 @dataclass
 class Section:
-    kind: str  # "rect" | "circle"
-    # rect: cx, cy là kích thước; circle: cx = cy = đường kính
+    kind: str  # "rect" | "circle" | "poly"
+    # rect: cx, cy là kích thước; circle: cx = cy = đường kính;
+    # poly: cx, cy là bbox (rộng × cao)
     cx: float
     cy: float
     fibers: List[Fiber] = field(default_factory=list)
     rebars: List[Rebar] = field(default_factory=list)
     concrete: ConcreteMaterial = None
     steel: SteelMaterial = None
+    # Tiết diện polygon (kind="poly"): vertices đã tịnh tiến về centroid
+    poly_verts: List[List[Tuple[float, float]]] = field(default_factory=list)
+    poly_holes: List[List[Tuple[float, float]]] = field(default_factory=list)
 
     @property
     def concrete_area(self) -> float:
@@ -52,6 +56,9 @@ class Section:
     def gross_area(self) -> float:
         if self.kind == "rect":
             return self.cx * self.cy
+        if self.kind == "poly" and self.poly_verts:
+            from .dxf_import import polygon_area
+            return sum(abs(polygon_area(v)) for v in self.poly_verts)
         return math.pi * (self.cx / 2.0) ** 2
 
     @property

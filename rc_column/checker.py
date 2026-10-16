@@ -25,7 +25,8 @@ class ColumnInput:
     gamma_s: float = 1.0
     concrete_model: str = "3line"  # "3line" | "2line"
     # Tiết diện
-    section_type: str = "rect"     # "rect" | "circle"
+    section_type: str = "rect"     # "rect" | "circle" | "poly"
+    poly_section = None  # Section(kind="poly") khi import từ DXF
     cx: float = 400.0              # mm (rect: cạnh x; circle: đường kính)
     cy: float = 400.0              # mm
     # Cốt thép
@@ -123,6 +124,11 @@ class CheckResult:
 def build_section(inp: ColumnInput) -> Section:
     conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade], inp.gamma_b)
     steel = SteelMaterial(STEEL_GRADES[inp.steel_grade], inp.gamma_s)
+    if inp.section_type == "poly" and getattr(inp, "poly_section", None):
+        sec = inp.poly_section
+        sec.concrete = conc
+        sec.steel = steel
+        return sec
     if inp.section_type == "rect":
         sec = make_rect_section(inp.cx, inp.cy, conc, steel)
         if inp.rebar_mode == "custom" and inp.custom_bars:
@@ -146,6 +152,9 @@ def section_inertia(sec: Section):
         b, h = sec.cx, sec.cy
         Ix = b * h ** 3 / 12.0
         Iy = h * b ** 3 / 12.0
+    elif sec.kind == "poly" and sec.poly_verts:
+        from .dxf_import import polygon_gross_props
+        _, Ix, Iy = polygon_gross_props(sec.poly_verts, sec.poly_holes)
     else:
         r = sec.cx / 2.0
         Ix = Iy = math.pi * r ** 4 / 4.0

@@ -47,6 +47,16 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
         ax.add_patch(mpatches.Rectangle(
             (-cx/2, -cy/2), cx, cy, fill=True, facecolor="#F4F7FB",
             edgecolor="black", lw=2.0, zorder=2))
+    elif sec.kind == "poly" and getattr(sec, "poly_verts", None):
+        from matplotlib.patches import Polygon as MplPolygon
+        for verts in sec.poly_verts:
+            ax.add_patch(MplPolygon(verts, closed=True, fill=True,
+                                    facecolor="#F4F7FB", edgecolor="black",
+                                    lw=2.0, zorder=2))
+        for verts in getattr(sec, "poly_holes", []):
+            ax.add_patch(MplPolygon(verts, closed=True, fill=True,
+                                    facecolor="white", edgecolor="black",
+                                    lw=1.0, linestyle="--", zorder=3))
     else:
         ax.add_patch(mpatches.Circle(
             (0, 0), cx/2, fill=True, facecolor="#F4F7FB",
