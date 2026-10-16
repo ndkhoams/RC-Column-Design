@@ -183,11 +183,16 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
             return _mk(f"Phương {lbl}", "", ["—"], "")
         VRd_c = d.get("VRd_c_kN", 0.0) or 0.0
         VRd_max = d.get("VRd_max_kN", 0.0) or 0.0
+        VRd_s = d.get("VRd_s_kN", 0.0) or 0.0
         ok = bool(d.get("ok", False))
-        return _mk(f"Phương {lbl}", "EC2 6.2",
-                    [f"VEd = {_f(VEd, 1)} kN",
-                     f"VRd,c = {_f(VRd_c, 1)} kN",
-                     f"VRd,max = {_f(VRd_max, 1)} kN"],
+        _lines = [f"VEd = {_f(VEd, 1)} kN",
+                  f"VRd,c = {_f(VRd_c, 1)} kN (bê tông)",
+                  f"VRd,max = {_f(VRd_max, 1)} kN (thanh chống)"]
+        if VRd_s > 0:
+            _lines.append(f"VRd,s = {_f(VRd_s, 1)} kN (cốt đai)")
+        _lines.append(f"VEd = {_f(VEd, 1)} ≤ VRd = {_f(max(VRd_c, VRd_s), 1)} kN")
+        return _mk(f"Phương {lbl} (VEd = {_f(VEd, 1)} kN)", "EC2 6.2",
+                    _lines,
                     "ĐẠT" if ok else "KHÔNG ĐẠT")
 
     if isinstance(shear_res, dict) and "dir2" in shear_res:

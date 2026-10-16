@@ -148,8 +148,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 from .ec2_chart_draw import (ec2_interaction_image,
                                              ec2_m2m3_image)
                 _N = float(getattr(inp, "N", 0) or 0)
-                _M2 = float(getattr(inp, "M2", 0) or 0)
-                _M3 = float(getattr(inp, "M3", 0) or 0)
+                _M2 = float(getattr(inp, "Mx", 0) or getattr(inp, "M2", 0) or 0)
+                _M3 = float(getattr(inp, "My", 0) or getattr(inp, "M3", 0) or 0)
                 _pngs = (ec2_interaction_image(sec, conc, steel, ec2_res,
                                                _N, _M2, _M3),
                          ec2_m2m3_image(sec, conc, steel, ec2_res,
