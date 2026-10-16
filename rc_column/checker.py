@@ -124,7 +124,10 @@ class CheckResult:
 def build_section(inp: ColumnInput) -> Section:
     conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade], inp.gamma_b)
     steel = SteelMaterial(STEEL_GRADES[inp.steel_grade], inp.gamma_s)
-    if inp.section_type == "poly" and getattr(inp, "poly_section", None):
+    if inp.section_type == "poly":
+        if getattr(inp, "poly_section", None) is None:
+            raise ValueError(
+                "Chưa import tiết diện DXF. Bấm '📐 Import (.dxf)' ở mục 2.")
         sec = inp.poly_section
         sec.concrete = conc
         sec.steel = steel
