@@ -882,16 +882,7 @@ class App(tk.Tk):
                                        padx=4, pady=2)
             wx.grid(row=i, column=1, padx=4, pady=2, sticky=tk.EW)
             wy.grid(row=i, column=2, padx=4, pady=2, sticky=tk.EW)
-        self.l0_var = tk.StringVar(value="")
-        ttk.Label(f, textvariable=self.l0_var, font=("", 9, "italic"),
-                  foreground="#0a4d8c").grid(row=5, column=0, columnspan=3,
-                                             sticky=tk.W, padx=4, pady=4)
-        # Chỉ số ổn định tầng Q cho khung sway (ACI 6.6.4.6.2a), 0 = bỏ qua
-        ttk.Label(f, text="Chỉ số Q (sway, 0=bỏ qua)").grid(
-            row=6, column=0, sticky=tk.W, padx=4, pady=2)
-        self.en_Qsway = ttk.Entry(f, width=12)
-        self.en_Qsway.insert(0, "0")
-        self.en_Qsway.grid(row=6, column=1, padx=4, pady=2, sticky=tk.EW)
+        # (Đã bỏ note L0 và ô nhập Q sway theo yêu cầu user 2026-10-16)
         # Tự điền hệ số ψ theo điều kiện biên
         for cb in (self.cb_tx, self.cb_bx, self.cb_ty, self.cb_by):
             cb.bind("<<ComboboxSelected>>", lambda e: self._auto_psi())
@@ -1276,12 +1267,9 @@ class App(tk.Tk):
         except Exception:
             Mc2, Mc3 = inp.Mx, inp.My
             mm_res = None
-        # 1b. Sway (ACI 6.6.4.6): δs = 1/(1-Q), áp thêm vào mô men
+        # 1b. Sway (ACI 6.6.4.6): δs = 1/(1-Q) — đã bỏ ô nhập, luôn Q=0 (bỏ qua)
         from rc_column.aci_checker import sway_magnification
-        try:
-            Qsw = float(self.en_Qsway.get().replace(",", ".") or "0")
-        except Exception:
-            Qsw = 0.0
+        Qsw = 0.0
         sway_res = None
         if Qsw > 0:
             sway_res = sway_magnification(Q=Qsw)
@@ -3223,10 +3211,7 @@ class App(tk.Tk):
             messagebox.showerror("Lỗi", f"Không xuất được: {e}")
 
     def _show_summary(self, sec, inp, res, prefix=""):
-        """Cập nhật biểu đồ + L0 (ô text tóm tắt đã bỏ theo yêu cầu)."""
-        self.l0_var.set(
-            f"Chiều dài tính toán: L02 = {res.L0x:.2f} m, "
-            f"L03 = {res.L0y:.2f} m")
+        """Cập nhật biểu đồ (note L0 đã bỏ theo yêu cầu)."""
         if HAS_MPL:
             self._last_sec = sec
             self._last_inp = inp
