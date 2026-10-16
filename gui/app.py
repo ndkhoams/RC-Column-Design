@@ -446,11 +446,12 @@ class App(tk.Tk):
             for _c in range(4):
                 parent.columnconfigure(_c, weight=1, uniform="mat")
         def _mat_row(parent, r, llab, lwid, rlab, rwid):
+            # Mỗi cặp nhãn-ô nhập đặt cạnh nhau: [nhãn][nhập][nhãn][nhập]
             ttk.Label(parent, text=llab, style="Muted.TLabel").grid(
                 row=r, column=0, sticky=tk.W, padx=(4, 8), pady=5)
+            lwid.grid(row=r, column=1, sticky=tk.EW, padx=4, pady=5)
             ttk.Label(parent, text=rlab, style="Muted.TLabel").grid(
-                row=r, column=1, sticky=tk.W, padx=(4, 8), pady=5)
-            lwid.grid(row=r, column=2, sticky=tk.EW, padx=4, pady=5)
+                row=r, column=2, sticky=tk.W, padx=(4, 8), pady=5)
             rwid.grid(row=r, column=3, sticky=tk.EW, padx=4, pady=5)
         # Khung TCVN (hiện mặc định)
         self.frm_tcvn = ttk.Frame(f)
@@ -578,16 +579,13 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self.cb_kind.grid(row=0, column=1, sticky=tk.W, padx=4, pady=5)
-        # Nút import/export DXF: căn thẳng hàng với nút OPEN/SAVE bên trên
-        # (dùng grid 2 cột đều nhau trong fl)
-        fl.columnconfigure(0, weight=1, uniform="dxfbtn")
-        fl.columnconfigure(1, weight=1, uniform="dxfbtn")
+        # Nút import/export DXF: mỗi nút rộng bằng OPEN/SAVE (không giãn full)
         self.btn_dxf = ttk.Button(fl, text="📐 Import (.dxf)",
-                                  command=self.on_import_dxf)
-        self.btn_dxf.grid(row=1, column=0, sticky=tk.EW, padx=(4, 2), pady=2)
+                                  command=self.on_import_dxf, width=14)
+        self.btn_dxf.grid(row=1, column=0, sticky=tk.W, padx=4, pady=2)
         self.btn_dxf_export = ttk.Button(fl, text="📤 Export (.dxf)",
-                                         command=self.on_export_dxf)
-        self.btn_dxf_export.grid(row=1, column=1, sticky=tk.EW, padx=(2, 4), pady=2)
+                                         command=self.on_export_dxf, width=14)
+        self.btn_dxf_export.grid(row=1, column=1, sticky=tk.W, padx=4, pady=2)
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
@@ -608,7 +606,7 @@ class App(tk.Tk):
         r = 0
         self.sp_cover = ttk.Entry(rr, width=8)
         self.sp_cover.insert(0, "30")
-        lbl_cover = self._row(rr, "Lớp bê tông bảo vệ cốt dọc c (mm)",
+        lbl_cover = self._row(rr, "Lớp bảo vệ cốt dọc c (mm)",
                               self.sp_cover, r)
         _ToolTip(lbl_cover, _COVER_TIP)
         r += 1
@@ -770,11 +768,10 @@ class App(tk.Tk):
                     padx=4, pady=(4, 2))
         # Đẩy khung đai xuống 1 hàng để thẳng hàng với các dòng thép dọc:
         # hàng tiêu đề (Số nhánh/Đ.kính/K.cách) chiếm chỗ của dòng
-        # "Lớp bê tông bảo vệ", Đai bao thẳng hàng "4 thanh thép góc"...
-        sw_hdr.grid_rowconfigure(0, minsize=34)
+        # "Lớp bảo vệ", Đai bao thẳng hàng "4 thanh thép góc"...
         for j, t in enumerate(("Số nhánh", "Đ.kính", "K.cách")):
             ttk.Label(sw_hdr, text=t, style="Muted.TLabel").grid(
-                row=0, column=j + 1, padx=2)
+                row=0, column=j + 1, padx=2, pady=5)
             sw_hdr.columnconfigure(j + 1, weight=1)
         self.sw_inputs = {}
         for i, lbl in enumerate(("Đai bao:", "Đai giữa t2:", "Đai giữa t3:")):
