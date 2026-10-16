@@ -1,11 +1,3 @@
-"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
-
-Bố cục:
- 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
- 5. Nội lực kiểm tra
-Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
-         thuyết minh tính toán chi tiết.
-"""
 
 import os as _os, datetime as _dt
 APP_BUILD = _dt.datetime.fromtimestamp(
@@ -3394,13 +3386,19 @@ class App(tk.Tk):
             pngs = _get_pngs()
             if is_summary:
                 from rc_column.ec2_pdf_summary import export_ec2_summary_pdf
+                _fyk_sw = None
+                try:
+                    _fyk_sw = float(self.en_ec2_fyt.get().replace(",", "."))
+                except Exception:
+                    pass
                 export_ec2_summary_pdf(
                     self._ec2_sec, self._ec2_inp, self._ec2_res,
                     self._ec2_conc, self._ec2_steel, path,
                     case_info=getattr(self, "_pdf_case", None),
                     chart_pngs=pngs,
                     shear_info=getattr(self, "_ec2_shear", None),
-                    slend_res=getattr(self, "_ec2_slend", None))
+                    slend_res=getattr(self, "_ec2_slend", None),
+                    fyk_sw=_fyk_sw)
             else:
                 from rc_column.ec2_pdf_report import export_ec2_pdf_cards
                 export_ec2_pdf_cards(
