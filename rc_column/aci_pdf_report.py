@@ -116,6 +116,20 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
     for _s in sections:
         S.append(_sec_head(P, st, _s["num"], _s["title"],
                            _s.get("ref", "")))
+        # Mục 2: sơ đồ mặt cắt TRƯỚC (như TCVN)
+        if _s["num"] == 2 and sec is not None:
+            try:
+                from .pdf_export import section_image as _si
+                import io as _io
+                _sec_png = _si(sec, width_in=2.8, show_stats=False)
+                if _sec_png:
+                    from reportlab.platypus import Image as _Img
+                    _simg = _Img(_io.BytesIO(_sec_png), width=65*mm, height=65*mm)
+                    _simg.hAlign = "CENTER"
+                    S.append(_simg)
+                    S.append(Spacer(1, 4*mm))
+            except Exception:
+                pass
         cards = _s.get("cards", [])
         # Xếp card 2 cột
         i = 0

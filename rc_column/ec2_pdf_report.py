@@ -115,18 +115,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
     for _s in sections:
         S.append(_sec_head(P, st, _s["num"], _s["title"],
                            _s.get("ref", "")))
-        cards = _s.get("cards", [])
-        # Xếp card 2 cột
-        i = 0
-        while i < len(cards):
-            c1 = cards[i]
-            c2 = cards[i + 1] if i + 1 < len(cards) else \
-                {"title": "", "ref": "", "lines": [], "result": ""}
-            S.extend(_two(P, st, c1, c2))
-            i += 2
-
-        # Mục 3 (P-M-M): nhúng 2 biểu đồ ngang nhau, giữ tỉ lệ
-        # Mục 2: nhúng sơ đồ mặt cắt
+        # Mục 2: sơ đồ mặt cắt TRƯỚC (như TCVN)
         if _s["num"] == 2 and sec is not None:
             try:
                 from .pdf_export import section_image as _si
@@ -140,6 +129,15 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                     S.append(Spacer(1, 4*mm))
             except Exception:
                 pass
+        cards = _s.get("cards", [])
+        # Xếp card 2 cột
+        i = 0
+        while i < len(cards):
+            c1 = cards[i]
+            c2 = cards[i + 1] if i + 1 < len(cards) else \
+                {"title": "", "ref": "", "lines": [], "result": ""}
+            S.extend(_two(P, st, c1, c2))
+            i += 2
 
         # Mục 6: tự tạo biểu đồ vuông 5x5 cho PDF (không dùng figure app)
         if _s["num"] == 6:
