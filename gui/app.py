@@ -449,6 +449,9 @@ class App(tk.Tk):
         self.btn_dxf = ttk.Button(dxf_row, text="📐 Import (.dxf)",
                                   command=self.on_import_dxf, width=16)
         self.btn_dxf.pack(side=tk.LEFT)
+        self.btn_dxf_export = ttk.Button(dxf_row, text="📤 Export (.dxf)",
+                                         command=self.on_export_dxf, width=16)
+        self.btn_dxf_export.pack(side=tk.LEFT, padx=(4, 0))
         self.dxf_info = tk.StringVar(value="")
         ttk.Label(dxf_row, textvariable=self.dxf_info, font=("", 8, "italic"),
                   foreground="#0a4d8c", wraplength=220,
@@ -610,6 +613,25 @@ class App(tk.Tk):
         self._row(self.rebar_circ, "Lớp bê tông bảo vệ c (mm)",
                   self.sp_ccover, 2)
 
+        # ===== Panel đổi đường kính nhanh cho tiết diện DXF =====
+        self.rebar_dxf = ttk.Frame(f)
+        self.rebar_dxf.grid(row=0, column=0, sticky=tk.NSEW)
+        self.cb_dxf_dia = ttk.Combobox(self.rebar_dxf, values=DIAS,
+                                       state="readonly", width=10)
+        self.cb_dxf_dia.set("20")
+        self._row(self.rebar_dxf, "Đường kính mới (mm)", self.cb_dxf_dia, 0)
+        btn_dxf_dia = ttk.Button(self.rebar_dxf,
+                                 text="⚡ Đổi toàn bộ thép dọc",
+                                 command=self.on_change_dxf_dia)
+        btn_dxf_dia.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
+                         padx=4, pady=6)
+        ttk.Label(self.rebar_dxf,
+                  text="Đổi đường kính TẤT CẢ thép dọc\n"
+                       "của tiết diện DXF (giữ nguyên vị trí).",
+                  font=("", 8, "italic"),
+                  foreground="#6B7280").grid(row=2, column=0, columnspan=2,
+                                             sticky=tk.W, padx=4)
+
         # ===== Cốt thép đai: bên phải =====
         sw_hdr = ttk.Frame(f)
         sw_hdr.grid(row=0, column=1, sticky=tk.NSEW,
@@ -698,12 +720,15 @@ class App(tk.Tk):
         if is_dxf:
             self.rebar_rect.grid_remove()
             self.rebar_circ.grid_remove()
+            self.rebar_dxf.grid()
         elif is_rect:
             self.rebar_rect.grid()
             self.rebar_circ.grid_remove()
+            self.rebar_dxf.grid_remove()
         else:
             self.rebar_rect.grid_remove()
             self.rebar_circ.grid()
+            self.rebar_dxf.grid_remove()
         self._refresh_rebar()
 
     # ---- 4. Chiều dài tính toán ----
@@ -1721,6 +1746,61 @@ class App(tk.Tk):
                 "Cảnh báo import DXF", "\n".join(dxf.warnings))
         self._refresh_rebar_panel()
         # Tự chạy kiểm tra lại để mặt cắt/biểu đồ cập nhật theo DXF
+        try:
+            self._check()
+        except Exception:
+            pass
+
+    def on_export_dxf(self):
+        """Xuất tiết diện đang có ra file DXF (để sửa trong AutoCAD)."""
+        from tkinter import filedialog, messagebox
+        try:
+            inp = self._draft_input()
+            sec = build_section(inp)
+        except Exception as ex:
+            messagebox.showerror("Lỗi xuất DXF", str(ex))
+            return
+        path = filedialog.asksaveasfilename(
+            title="Xuất tiết diện ra DXF",
+            defaultextension=".dxf",
+            filetypes=[("DXF", "*.dxf"), ("All", "*.*")])
+        if not path:
+            return
+        try:
+            from rc_column.dxf_import import write_dxf_section
+            write_dxf_section(sec, path)
+        except Exception as ex:
+            messagebox.showerror("Lỗi xuất DXF", str(ex))
+            return
+        messagebox.showinfo("Xong",
+                            f"Đã xuất tiết diện ra:\n{path}\n"
+                            f"({len(sec.rebars)} thép, "
+                            f"Ag={sec.gross_area:.0f} mm²)")
+
+    def on_change_dxf_dia(self):
+        """Đổi đường kính toàn bộ thép dọc của tiết diện DXF."""
+        from tkinter import messagebox
+        if getattr(self, "_dxf_section", None) is None:
+            messagebox.showerror("Lỗi", "Chưa import tiết diện DXF.")
+            return
+        try:
+            new_dia = float(self.cb_dxf_dia.get())
+            if new_dia <= 0:
+                raise ValueError
+        except Exception:
+            messagebox.showerror("Lỗi", "Chọn đường kính hợp lệ.")
+            return
+        import math
+        for r in self._dxf_section.rebars:
+            r.dia = new_dia
+            r.area = math.pi * new_dia ** 2 / 4
+        Ag = self._dxf_section.gross_area
+        As = self._dxf_section.steel_area
+        self.dxf_info.set(
+            f"Đã import: {self._dxf_path.split('/')[-1]} — "
+            f"Ag={Ag:.0f} mm², {len(self._dxf_section.rebars)} thép, "
+            f"As={As:.0f} mm² (d={new_dia:.0f})")
+        # Chạy lại kiểm tra để cập nhật kết quả
         try:
             self._check()
         except Exception:
