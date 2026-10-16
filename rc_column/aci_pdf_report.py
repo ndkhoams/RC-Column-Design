@@ -138,9 +138,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
         # Xử lý card [FULL]: render full-width, bỏ marker
         _filtered = []
         for _cd in cards:
-            if "[FULL]" in _cd.get("title", ""):
+            if _cd.get("full"):
                 _cd = dict(_cd)
-                _cd["title"] = _cd["title"].replace(" [FULL]", "")
                 from reportlab.platypus import Table as _Tf, TableStyle as _TSf
                 from reportlab.lib.colors import HexColor as _HCf
                 _rows = []

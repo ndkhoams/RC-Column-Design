@@ -718,7 +718,18 @@ def render_report_sections(parent, sections, chart_figs=None):
         i = 0
         while i < len(cards):
             c1 = cards[i]
+            # Card full-width: span 2 cột
+            if c1.get("full"):
+                w1 = _param_card(grid, c1.get("title", ""), c1.get("ref", ""),
+                                 c1.get("lines", []), c1.get("result", ""))
+                w1.grid(row=row, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
+                row += 1
+                i += 1
+                continue
             c2 = cards[i + 1] if i + 1 < len(cards) else None
+            # Nếu c2 là full, chỉ render c1
+            if c2 and c2.get("full"):
+                c2 = None
             w1 = _param_card(grid, c1.get("title", ""), c1.get("ref", ""),
                              c1.get("lines", []), c1.get("result", ""))
             w1.grid(row=row, column=0, sticky="nsew", padx=4, pady=4)
@@ -726,8 +737,10 @@ def render_report_sections(parent, sections, chart_figs=None):
                 w2 = _param_card(grid, c2.get("title", ""), c2.get("ref", ""),
                                  c2.get("lines", []), c2.get("result", ""))
                 w2.grid(row=row, column=1, sticky="nsew", padx=4, pady=4)
+                i += 2
+            else:
+                i += 1
             row += 1
-            i += 2
         # Mục 6: nhúng 2 biểu đồ tương tác (giống TCVN)
         if sec["num"] == 6 and chart_figs:
             try:

@@ -141,9 +141,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
         # Xử lý card [FULL]: render full-width, bỏ marker
         _filtered = []
         for _cd in cards:
-            if "[FULL]" in _cd.get("title", ""):
+            if _cd.get("full"):
                 _cd = dict(_cd)
-                _cd["title"] = _cd["title"].replace(" [FULL]", "")
                 from reportlab.platypus import Table as _Tf2, TableStyle as _TSf2
                 from reportlab.lib.colors import HexColor as _HCf2
                 _rows2 = []

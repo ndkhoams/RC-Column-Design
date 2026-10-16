@@ -15,8 +15,8 @@ def _f(x: float, nd: int = 2) -> str:
     return f"{x:.{nd}f}"
 
 
-def _mk(title: str, ref: str, lines: List[str], result: str = "") -> Dict[str, Any]:
-    return {"title": title, "ref": ref, "lines": lines, "result": result}
+def _mk(title: str, ref: str, lines: List[str], result: str = "", full: bool = False) -> Dict[str, Any]:
+    return {"title": title, "ref": ref, "lines": lines, "result": result, "full": full}
 
 
 def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
@@ -189,13 +189,13 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         "title": "ĐỘ LỆCH TÂM",
         "ref": "ACI 6.6.4.5.4",
         "cards": [
-            _mk("Mô men tối thiểu Mmin [FULL]",
+            _mk("Mô men tối thiểu Mmin",
                 "ACI 6.6.4.5.4",
                 [f"Mmin = Pu·(15 + 0.03h)",
                  f"Mmin,2 = {_f(_Nabs, 1)} × (15 + 0.03×{_f(_h2, 0)})/1000",
                  f"= {_f(_Mmin2, 1)} kN·m",
                  f"Mmin,3 = {_f(_Mmin3, 1)} kN·m"],
-                ""),
+                "", full=True),
             _mk("Độ lệch tâm phương 2 (e2)",
                 "ACI 6.6.4.5.4",
                 [f"e₂ = |M₂| / N",
@@ -343,7 +343,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                     "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
     _ok2 = bool(_d2.get("ok", False)) if _d2 else True
     _ok3 = bool(_d3.get("ok", False)) if _d3 else True
-    _cfg_card["title"] = _cfg_card["title"] + " [FULL]"
+    _cfg_card["full"] = True
     _cards7 = [_cfg_card, _sh_card(_d2, Q2, "V2")]
     if _d3:
         _cards7.append(_sh_card(_d3, Q3, "V3"))
