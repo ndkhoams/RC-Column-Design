@@ -1022,7 +1022,7 @@ class App(tk.Tk):
             corner_dia = _gd(self.cb_cdia, 20.0)
         l2_side_txt = self.cb_l2_side.get()
         bundle_txt = self.cb_bundle_pos.get()
-        return ColumnInput(
+        inp = ColumnInput(
             concrete_grade=self.cb_conc.get(), gamma_b=self._f(self.en_gb, 0.85),
             steel_grade=self.cb_steel.get(),
             sw_steel_grade=self.cb_sw_steel.get(),
