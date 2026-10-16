@@ -206,7 +206,8 @@ def _extract_shear_q(shear_info):
 
 def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
                            case_info=None, sec_img_path=None, chart_pngs=None,
-                           shear_info=None, slend_res=None, tied=None):
+                           shear_info=None, slend_res=None, tied=None,
+                           fyk_sw=None):
     """Xuất PDF Kết quả tính toán theo mẫu Excel (EC2, 1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình mặt cắt + 2 biểu đồ.
@@ -346,11 +347,14 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
         ("Tiêu chuẩn", "EC2 (EN 1992-1-1)"),
         ("Tên cấu kiện", _ck_name or "—"),
     ]))
+    _fyk_sw = fyk_sw if fyk_sw is not None else steel.fyk
+    _fyd_sw = _fyk_sw / 1.15
     left_flow.append(_sec_table("VẬT LIỆU", [
         ("Cường độ bê tông, fck", f"{conc.fck:.0f} MPa"),
         ("Cường độ tính toán, fcd", f"{conc.fcd:.2f} MPa"),
         ("Mô đun đàn hồi, Ecm", f"{conc.Ecm:.0f} MPa"),
-        ("Cường độ thép, fyk", f"{steel.fyk:.0f} MPa"),
+        ("Cường độ thép dọc, fyk", f"{steel.fyk:.0f} MPa"),
+        ("Cường độ thép đai, fyk", f"{_fyk_sw:.0f} MPa"),
         ("Cường độ tính toán, fyd", f"{steel.fyd:.1f} MPa"),
         ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
     ]))
