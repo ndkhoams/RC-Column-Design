@@ -195,6 +195,12 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
     S.append(P("(Tiêu chuẩn TCVN 5574:2018)", st["sub"]))
+    if case_info:
+        S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
+                   f"N = {_f(case_info.get('N', 0), 1)} kN, "
+                   f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
+                   f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
+                   st["note"]))
 
     # ================= MỤC 1 =================
     S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU",
@@ -343,12 +349,6 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                        "ĐỘ LỆCH TÂM TĨNH HỌC, ĐỘ LỆCH TÂM NGẪU NHIÊN & "
                        "ĐỘ LỆCH TÂM BAN ĐẦU",
                        "TCVN 5574:2018 Mục 8.1.2.2.4"))
-    if case_info:
-        S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
-                   f"N = {_f(case_info.get('N', 0), 1)} kN, "
-                   f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
-                   f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
-                   st["note"]))
     N = abs(res.N) if res.N else 1.0
     M2 = abs(res.Mx_star / res.etax) if res.etax else 0.0
     M3 = abs(res.My_star / res.etay) if res.etay else 0.0
