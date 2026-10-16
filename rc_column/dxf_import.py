@@ -314,3 +314,67 @@ def polygon_gross_props(outlines, holes=None):
         return 0.0, 0.0, 0.0
     # centroid đã ở gốc sau _shift → Ix, Iy đã quanh centroid
     return A, abs(Ix), abs(Iy)
+
+
+def write_dxf_section(sec, path: str) -> None:
+    """Xuất tiết diện ra file DXF (layer BT / BT_HOLE / THEP).
+
+    Quy ước ngược với import: biên bê tông = LWPOLYLINE kín (layer BT),
+    lỗ rỗng = LWPOLYLINE kín (layer BT_HOLE), thép = CIRCLE (layer THEP).
+    Đơn vị: mm ($INSUNITS=4).
+    """
+    if not HAS_EZDXF:
+        raise ImportError(
+            "Chưa cài thư viện ezdxf.\n"
+            "Chạy lệnh sau rồi thử lại:\n"
+            "    pip install ezdxf")
+    import math
+    import ezdxf
+
+    doc = ezdxf.new("R2010")
+    try:
+        doc.header["$INSUNITS"] = 4  # mm
+    except Exception:
+        pass
+    msp = doc.modelspace()
+    for lname, color in (("BT", 3), ("BT_HOLE", 1), ("THEP", 1)):
+        if lname not in doc.layers:
+            try:
+                doc.layers.add(lname, color=color)
+            except Exception:
+                pass
+
+    # Biên bê tông
+    if sec.kind == "poly" and getattr(sec, "poly_verts", None):
+        outlines = [list(v) for v in sec.poly_verts]
+        holes = [list(v) for v in getattr(sec, "poly_holes", []) or []]
+    elif sec.kind == "rect":
+        cx, cy = sec.cx, sec.cy
+        outlines = [[(-cx / 2, -cy / 2), (cx / 2, -cy / 2),
+                     (cx / 2, cy / 2), (-cx / 2, cy / 2)]]
+        holes = []
+    else:  # circle: xấp xỉ đa giác 72 cạnh
+        r = sec.cx / 2.0
+        n = 72
+        outlines = [[(r * math.cos(2 * math.pi * i / n),
+                      r * math.sin(2 * math.pi * i / n))
+                     for i in range(n)]]
+        holes = []
+
+    for verts in outlines:
+        if len(verts) >= 3:
+            msp.add_lwpolyline(verts, close=True,
+                               dxfattribs={"layer": "BT"})
+    for verts in holes:
+        if len(verts) >= 3:
+            msp.add_lwpolyline(verts, close=True,
+                               dxfattribs={"layer": "BT_HOLE"})
+
+    # Thép dọc
+    for rb in getattr(sec, "rebars", []) or []:
+        d = getattr(rb, "dia", 0.0) or 0.0
+        if d > 0:
+            msp.add_circle((rb.x, rb.y), d / 2.0,
+                           dxfattribs={"layer": "THEP"})
+
+    doc.saveas(path)
