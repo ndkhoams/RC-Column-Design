@@ -515,6 +515,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         S.append(_ct)
         S.append(Spacer(1, 4*mm))
         # Box kết luận D/C xanh dưới biểu đồ
+        from reportlab.lib.colors import HexColor as _HC
         _ok = res.ok
         _bg = "#D1FAE5" if _ok else "#FEE2E2"
         _fg = "#065F46" if _ok else "#991B1B"

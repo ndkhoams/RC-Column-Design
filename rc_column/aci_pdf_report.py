@@ -243,6 +243,7 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                     _dc = _cd
                     break
             if _dc:
+                from reportlab.lib.colors import HexColor as _HCf
                 _ok = _dc.get("ok", True)
                 _bg = "#D1FAE5" if _ok else "#FEE2E2"
                 _fg = "#065F46" if _ok else "#991B1B"
