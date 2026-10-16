@@ -7,7 +7,9 @@ Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu
          thuyết minh tính toán chi tiết.
 """
 
-APP_BUILD = __import__("datetime").datetime.now().strftime("%Y%m%d%H%M")
+import os as _os, datetime as _dt
+APP_BUILD = _dt.datetime.fromtimestamp(
+    _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
 
 import math
 import tkinter as tk
@@ -240,13 +242,9 @@ class App(tk.Tk):
             self.on_check()
 
     def _build(self):
-        self._paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-        # Ẩn sash divider qua style (ttk không hỗ trợ sashwidth ở constructor)
-        try:
-            _ps = ttk.Style()
-            _ps.configure("TPanedwindow", sashwidth=2, sashrelief=tk.FLAT)
-        except Exception:
-            pass
+        self._paned = tk.PanedWindow(self, orient=tk.HORIZONTAL,
+                                       sashwidth=4, sashrelief=tk.FLAT,
+                                       showhandle=False, bg="#E5E7EB")
         main = self._paned
         main.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         # Panel trái rộng 700px để hiện đủ bảng nội lực
@@ -254,7 +252,7 @@ class App(tk.Tk):
 
         # ---- Trái: nhập liệu (cuộn được) ----
         left_outer = ttk.Frame(main)
-        main.add(left_outer, weight=0)
+        main.add(left_outer, stretch="never")
         # Cụm nút cố định ĐỈNH (không bị cuộn theo) — theo yêu cầu user 2026-10-16
         top_bar = ttk.Frame(left_outer, relief=tk.RAISED, borderwidth=1)
         top_bar.pack(fill=tk.X, side=tk.TOP, padx=2, pady=2)
@@ -341,16 +339,15 @@ class App(tk.Tk):
 
         # ---- Phải: kết quả ----
         right = ttk.Frame(main)
-        main.add(right, weight=1)
+        main.add(right, stretch="always")
         # Nút VN|EN đặt cùng hàng với tab (góc phải, đè lên vùng trống của tab)
         self._lang_var = tk.StringVar(value="VN")
-        # Nút VN|EN: đặt tuyệt đối ở góc phải trên của cửa sổ chính,
-        # ngang hàng với tab (dùng after để đảm bảo layout xong)
+        # Nút VN|EN: style giống 4 nút bên trái (Ghost.TButton)
         self._lang_frame = ttk.Frame(self)
-        ttk.Button(self._lang_frame, text="VN", width=4,
+        ttk.Button(self._lang_frame, text="VN", width=4, style="Ghost.TButton",
                    command=lambda: self._switch_lang("VN")).pack(side=tk.LEFT)
         ttk.Label(self._lang_frame, text="|").pack(side=tk.LEFT, padx=2)
-        ttk.Button(self._lang_frame, text="EN", width=4,
+        ttk.Button(self._lang_frame, text="EN", width=4, style="Ghost.TButton",
                    command=lambda: self._switch_lang("EN")).pack(side=tk.LEFT)
         def _place_lang():
             self._lang_frame.place(relx=1.0, x=-10, y=8, anchor=tk.NE)
