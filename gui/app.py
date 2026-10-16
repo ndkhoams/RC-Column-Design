@@ -351,11 +351,11 @@ class App(tk.Tk):
         # Hàng nút chuyển tab (style giống 4 nút bên trái)
         _tab_bar = ttk.Frame(right)
         _tab_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
-        self._tab_btn_sum = ttk.Button(_tab_bar, text=T("Kết quả tính toán"),
+        self._tab_btn_sum = ttk.Button(_tab_bar, text=T("KẾT QUẢ TÍNH TOÁN"),
                                        style="Ghost.TButton",
                                        command=lambda: self._show_tab("sum"))
         self._tab_btn_sum.pack(side=tk.LEFT, padx=(0, 4))
-        self._tab_btn_calc = ttk.Button(_tab_bar, text=T("Chi tiết tính toán"),
+        self._tab_btn_calc = ttk.Button(_tab_bar, text=T("CHI TIẾT TÍNH TOÁN"),
                                         style="Ghost.TButton",
                                         command=lambda: self._show_tab("calc"))
         self._tab_btn_calc.pack(side=tk.LEFT)
