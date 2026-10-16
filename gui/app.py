@@ -3162,13 +3162,19 @@ class App(tk.Tk):
                 return
             # Tab đang chọn
             is_summary = (self._current_tab == "sum")
-            # Tên file mặc định: TMTT-TÊN CẤU KIỆN.pdf
+            # Tên file mặc định: TMTT-TCVN/ACI/EC2-TÊN CẤU KIỆN.pdf
             import os as _os
             _ck = ""
             _p = getattr(self, "current_save_path", "") or ""
             if _p:
                 _ck = _os.path.splitext(_os.path.basename(_p))[0].upper()
-            _def = f"TMTT-{_ck}.pdf" if _ck else "TMTT.pdf"
+            if self.is_aci():
+                _std = "ACI"
+            elif self.is_ec2():
+                _std = "EC2"
+            else:
+                _std = "TCVN"
+            _def = f"TMTT-{_std}-{_ck}.pdf" if _ck else f"TMTT-{_std}.pdf"
             path = filedialog.asksaveasfilename(
                 title="Xuất PDF",
                 defaultextension=".pdf",
