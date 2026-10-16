@@ -30,6 +30,55 @@ except Exception:
     HAS_MPL = False
 
 
+_COVER_TIP = (
+    "Định nghĩa c khác với ETABS!\n"
+    "• App: c đo từ mép bê tông đến TÂM thép dọc.\n"
+    "• ETABS: cover đo đến mép NGOÀI của đai.\n"
+    "→ Muốn so sánh với ETABS: nhập c = cover_đai_ETABS + đường kính đai\n"
+    "  (vd ETABS cover đai 40, đai Ø10 → nhập app c = 50)."
+)
+
+
+class _ToolTip:
+    """Tooltip hiện khi di chuột lên widget (ghi chú định nghĩa cover)."""
+    def __init__(self, widget, text, delay=400):
+        self.widget = widget
+        self.text = text
+        self.delay = delay
+        self._tip = None
+        self._after = None
+        widget.bind("<Enter>", self._schedule)
+        widget.bind("<Leave>", self._hide)
+
+    def _schedule(self, event=None):
+        self._cancel()
+        self._after = self.widget.after(self.delay, self._show)
+
+    def _cancel(self):
+        if self._after is not None:
+            self.widget.after_cancel(self._after)
+            self._after = None
+
+    def _show(self):
+        if self._tip is not None:
+            return
+        x = self.widget.winfo_rootx() + 12
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
+        self._tip = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry("+%d+%d" % (x, y))
+        tk.Label(tw, text=self.text, justify="left",
+                 background="#fffbe6", relief="solid", borderwidth=1,
+                 font=("TkDefaultFont", 9), wraplength=380,
+                 padx=8, pady=6).pack()
+
+    def _hide(self, event=None):
+        self._cancel()
+        if self._tip is not None:
+            self._tip.destroy()
+            self._tip = None
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -352,10 +401,11 @@ class App(tk.Tk):
 
     def _row(self, parent, label, widget, r, c0=0):
         # Label xám nhỏ, widget thoáng
-        ttk.Label(parent, text=label, style="Muted.TLabel").grid(
-            row=r, column=c0, sticky=tk.W, padx=(4, 8), pady=5)
+        lbl = ttk.Label(parent, text=label, style="Muted.TLabel")
+        lbl.grid(row=r, column=c0, sticky=tk.W, padx=(4, 8), pady=5)
         widget.grid(row=r, column=c0 + 1, sticky=tk.EW, padx=4, pady=5)
         parent.columnconfigure(c0 + 1, weight=1)
+        return lbl
 
     # ---- 1. Vật liệu ----
     def _sec_materials(self):
@@ -479,7 +529,9 @@ class App(tk.Tk):
         r = 0
         self.sp_cover = ttk.Entry(rr, width=8)
         self.sp_cover.insert(0, "30")
-        self._row(rr, "Lớp bê tông bảo vệ cốt dọc c (mm)", self.sp_cover, r)
+        lbl_cover = self._row(rr, "Lớp bê tông bảo vệ cốt dọc c (mm)",
+                              self.sp_cover, r)
+        _ToolTip(lbl_cover, _COVER_TIP)
         r += 1
         self.cb_corner_dia = ttk.Entry(rr, width=8)
         self.cb_corner_dia.insert(0, "20")
@@ -610,8 +662,9 @@ class App(tk.Tk):
         self.sp_ccover = ttk.Spinbox(self.rebar_circ, from_=15, to=100,
                                      width=10)
         self.sp_ccover.set("30")
-        self._row(self.rebar_circ, "Lớp bê tông bảo vệ c (mm)",
-                  self.sp_ccover, 2)
+        lbl_ccover = self._row(self.rebar_circ, "Lớp bê tông bảo vệ c (mm)",
+                               self.sp_ccover, 2)
+        _ToolTip(lbl_ccover, _COVER_TIP)
 
         # ===== Panel đổi đường kính nhanh cho tiết diện DXF =====
         self.rebar_dxf = ttk.Frame(f)
@@ -2031,6 +2084,7 @@ class App(tk.Tk):
         for _f in self.etabs_forces:
             _groups[(_f.story, _f.column)].append(_f)
         rows = []
+        from rc_column.aci_checker import ACICapacity
         for (_st, _cl), _flist in _groups.items():
             if _L_manual > 0:
                 _L_grp = _L_manual
@@ -2039,10 +2093,18 @@ class App(tk.Tk):
             _inp_g = self.collect()
             _inp_g.Lx = _inp_g.Ly = _L_grp
             sec_g = build_section(_inp_g)
+            # Tối ưu: dựng ACICapacity 1 lần cho cả nhóm (đắt),
+            # mỗi tổ hợp chỉ tính D/C tia (rẻ)
+            try:
+                _cap_g = ACICapacity(sec_g, conc, steel, tied=tied,
+                                     n_angles=24)
+            except Exception:
+                _cap_g = None
             for _f in _flist:
                 try:
-                    _r = check_column_aci(sec_g, conc, steel, N_kN=_f.N,
-                                          M2_kNm=_f.Mx, M3_kNm=_f.My, tied=tied)
+                    if _cap_g is None:
+                        raise RuntimeError("capacity")
+                    _r = _cap_g.dc_ratio(_f.N, _f.Mx, _f.My)
                 except Exception:
                     _r = {"dc": float("nan"), "ok": False}
                 rows.append((_f, _r))
