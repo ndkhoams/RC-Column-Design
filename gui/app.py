@@ -1720,6 +1720,11 @@ class App(tk.Tk):
             messagebox.showwarning(
                 "Cảnh báo import DXF", "\n".join(dxf.warnings))
         self._refresh_rebar_panel()
+        # Tự chạy kiểm tra lại để mặt cắt/biểu đồ cập nhật theo DXF
+        try:
+            self._check()
+        except Exception:
+            pass
 
     def _preview_dxf_section(self, sec, dxf, path) -> bool:
         """Dialog preview tiết diện trước khi nhận. Trả về True nếu đồng ý."""
