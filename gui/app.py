@@ -413,7 +413,8 @@ class App(tk.Tk):
         # Bộ chọn tiêu chuẩn thiết kế
         fcode = ttk.Frame(f); fcode.grid(row=0, column=0, columnspan=2,
                                          sticky=tk.EW, padx=2, pady=(0, 6))
-        self.cb_code = ttk.Combobox(fcode, values=["TCVN 5574:2018", "ACI 318-19"],
+        self.cb_code = ttk.Combobox(fcode, values=["TCVN 5574:2018", "ACI 318-19",
+                                                      "EC2 (EN 1992-1-1)"],
                                     state="readonly", width=16)
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
@@ -443,6 +444,29 @@ class App(tk.Tk):
         self.en_fyt = ttk.Entry(afr, width=12); self.en_fyt.insert(0, "420")
         self._row(afr, "Cường độ thép đai fyt (MPa)", self.en_fyt, 1)
         self.frm_aci.grid_remove()
+        # Khung EC2 (ẩn mặc định)
+        self.frm_ec2 = ttk.Frame(f)
+        self.frm_ec2.grid(row=3, column=0, columnspan=2, sticky=tk.NSEW)
+        efl = ttk.Frame(self.frm_ec2); efl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
+        efr = ttk.Frame(self.frm_ec2); efr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
+        self.frm_ec2.columnconfigure(0, weight=1); self.frm_ec2.columnconfigure(1, weight=1)
+        from rc_column.ec2_materials import EC2_CONCRETE_GRADES, EC2_STEEL_GRADES
+        self.cb_ec2_conc = ttk.Combobox(efl, values=list(EC2_CONCRETE_GRADES),
+                                        state="readonly", width=12)
+        self.cb_ec2_conc.set("C30/37")
+        self._row(efl, "Mác bê tông (fck)", self.cb_ec2_conc, 0)
+        self.cb_ec2_steel = ttk.Combobox(efl, values=list(EC2_STEEL_GRADES),
+                                         state="readonly", width=12)
+        self.cb_ec2_steel.set("B500")
+        self._row(efl, "Cấp thép dọc (fyk)", self.cb_ec2_steel, 1)
+        self.cb_ec2_method = ttk.Combobox(efr, values=["Độ cứng danh nghĩa",
+                                                       "Độ cong danh nghĩa"],
+                                          state="readonly", width=16)
+        self.cb_ec2_method.set("Độ cứng danh nghĩa")
+        self._row(efr, "Phương pháp tính bậc 2", self.cb_ec2_method, 0)
+        self.en_ec2_fyt = ttk.Entry(efr, width=12); self.en_ec2_fyt.insert(0, "500")
+        self._row(efr, "Cường độ thép đai fyk (MPa)", self.en_ec2_fyt, 1)
+        self.frm_ec2.grid_remove()
         # Các ô nhập TCVN (giữ nguyên)
         self.cb_conc = ttk.Combobox(fl, values=list(CONCRETE_GRADES),
                                     state="readonly", width=12)
@@ -468,15 +492,24 @@ class App(tk.Tk):
 
     def _toggle_code(self):
         """Ẩn/hiện khung nhập liệu theo tiêu chuẩn được chọn."""
-        if self.cb_code.get().startswith("ACI"):
+        if self.cb_code.get().startswith("EC2"):
+            self.frm_tcvn.grid_remove()
+            self.frm_aci.grid_remove()
+            self.frm_ec2.grid()
+        elif self.cb_code.get().startswith("ACI"):
             self.frm_tcvn.grid_remove()
             self.frm_aci.grid()
+            self.frm_ec2.grid_remove()
         else:
             self.frm_aci.grid_remove()
+            self.frm_ec2.grid_remove()
             self.frm_tcvn.grid()
 
     def is_aci(self):
         return self.cb_code.get().startswith("ACI")
+
+    def is_ec2(self):
+        return self.cb_code.get().startswith("EC2")
 
     # ---- 2. Tiết diện ----
     def _sec_section(self):
@@ -1169,6 +1202,9 @@ class App(tk.Tk):
         # Chế độ nhập tay: kiểm tra 1 bộ nội lực
         try:
             inp = self.collect()
+            if self.is_ec2():
+                self._check_ec2(inp)
+                return
             if self.is_aci():
                 self._check_aci(inp)
                 return
@@ -1292,6 +1328,158 @@ class App(tk.Tk):
                                  f"Không hiển thị được tab Chi tiết:\n{ex}")
             return
         self._pdf_inp, self._pdf_res = inp, None  # đánh dấu ACI mode
+        self._update_ck()  # cập nhật tên cấu kiện
+
+    def _check_ec2(self, inp):
+        """Kiểm tra cột theo EC2 (EN 1992-1-1): P-M-M, độ mảnh (bậc 2), cắt."""
+        from rc_column.ec2_materials import (EC2Concrete, EC2Steel,
+                                             EC2_CONCRETE_GRADES,
+                                             EC2_STEEL_GRADES)
+        from rc_column.ec2_checker import (ec2_design_moment, check_column_ec2,
+                                           ec2_shear_check, ec2_balanced_point)
+        from rc_column.ec2_report import generate_ec2_report_sections
+        from rc_column.sections import bar_area
+        try:
+            fck = EC2_CONCRETE_GRADES.get(self.cb_ec2_conc.get(), 30.0)
+            fyk = EC2_STEEL_GRADES.get(self.cb_ec2_steel.get(), 500.0)
+            fyk_sw = float(self.en_ec2_fyt.get().replace(",", "."))
+        except Exception:
+            messagebox.showerror("Lỗi", "Nhập fyk thép đai hợp lệ (MPa).")
+            return
+        method = ("curvature"
+                  if self.cb_ec2_method.get().startswith("Độ cong")
+                  else "stiffness")
+        conc = EC2Concrete(fck=fck)
+        steel = EC2Steel(fyk=fyk)
+        try:
+            sec = build_section(inp)
+        except Exception as ex:
+            messagebox.showerror("Lỗi tiết diện", str(ex))
+            return
+        # 1. Hình học theo từng phương (bbox cho poly, như ACI)
+        cx, cy = sec.cx, sec.cy  # t3 (ngang), t2 (đứng)
+        Ac = sec.gross_area
+        As = sec.steel_area
+        try:
+            from rc_column.stability import effective_length
+            l0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x,
+                                    inp.psi_x) * 1000.0  # mm
+            l0_3 = effective_length(inp.Ly, inp.top_y, inp.bottom_y,
+                                    inp.psi_y) * 1000.0
+        except Exception:
+            l0_2 = l0_3 = (inp.Lx or 4.0) * 1000.0
+        # Ic mỗi phương (bbox): phương 2 → Ig = t3·t2³/12, phương 3 → t2·t3³/12
+        geom = {}
+        for lbl, h_dim, Ic in (("dir2", cy, cx * cy**3 / 12.0),
+                               ("dir3", cx, cy * cx**3 / 12.0)):
+            geom[lbl] = {"h": h_dim, "Ic": Ic,
+                         "i": math.sqrt(Ic / Ac) if Ac > 0 else h_dim,
+                         "l0": l0_2 if lbl == "dir2" else l0_3}
+        # Momen quan tinh cua thep theo tung phuong (pp do cung danh nghia):
+        # dir2 (M2, uon quanh truc 2) -> Is = SA*y^2;
+        # dir3 (M3, uon quanh truc 3) -> Is = SA*x^2.
+        # (Truoc day truyen Is=0.0 -> EI thieu so hang Es*Is -> NB sai thap,
+        # cot manh bi bao 'qua manh' sai.)
+        Is_2 = sum(r.area * r.y * r.y for r in sec.rebars)
+        Is_3 = sum(r.area * r.x * r.x for r in sec.rebars)
+        # n_bal cho phương pháp độ cong danh nghĩa (Kr)
+        n_bal = 0.0
+        if method == "curvature":
+            try:
+                Nb, _Mb = ec2_balanced_point(sec, conc, steel, 0.0)
+                n_bal = Nb / (conc.fcd * Ac / 1000.0) if Ac > 0 else 0.0
+            except Exception:
+                n_bal = 0.0
+        # 2. Mô men thiết kế mỗi phương (đã gồm sai lệch, emin, bậc 2)
+        dm = {}
+        try:
+            for lbl, Mdir in (("dir2", inp.Mx), ("dir3", inp.My)):
+                g = geom[lbl]
+                dm[lbl] = ec2_design_moment(
+                    NEd_kN=inp.N, M_top_kNm=abs(Mdir),
+                    M_bot_kNm=abs(Mdir), l0_mm=g["l0"], i_mm=g["i"],
+                    h_mm=g["h"], Ac_mm2=Ac, As_mm2=As,
+                    fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
+                    Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"],
+                    Is_mm4=Is_2 if lbl == "dir2" else Is_3,
+                    Es_MPa=steel.Es, fck_MPa=fck,
+                    unbraced=False, method=method,
+                    d_mm=max(g["h"] - inp.cover - 10.0, 0.5 * g["h"]),
+                    eps_yd=steel.eps_yd, n_bal=n_bal,
+                    const_moment=True)
+        except Exception as ex:
+            messagebox.showerror("Lỗi độ mảnh EC2", str(ex))
+            return
+        MEd2 = dm["dir2"]["MEd"]
+        MEd3 = dm["dir3"]["MEd"]
+        # 3. P-M-M với mô men thiết kế
+        try:
+            ec2_res = check_column_ec2(sec, conc, steel, N_kN=inp.N,
+                                       M2_kNm=MEd2, M3_kNm=MEd3)
+            ec2_res["M2_orig"] = inp.Mx
+            ec2_res["M3_orig"] = inp.My
+            ec2_res["M2_mag"] = MEd2
+            ec2_res["M3_mag"] = MEd3
+            ec2_res["method"] = method
+        except Exception as ex:
+            messagebox.showerror("Lỗi EC2 P-M-M", str(ex))
+            return
+        # 4. Cắt mỗi phương (EC2 6.2)
+        try:
+            sw_dia = getattr(inp, "sw_dia", 8.0) or 8.0
+            sw_s = getattr(inp, "sw_spacing", 200.0) or 200.0
+            sw_legs = getattr(inp, "sw_legs", 2) or 2
+            Asw = sw_legs * bar_area(sw_dia)
+            Asw_s = Asw / sw_s if sw_s > 0 else 0.0
+            fyd_sw = fyk_sw / 1.15
+            dia_max = max((r.dia for r in sec.rebars), default=20.0)
+            Asl = As / 2.0  # thép dọc chịu kéo neo qua gối (ước lượng)
+            shear = {}
+            # V2: bw = t2 = cy, d từ t3 = cx; V3 ngược lại
+            for Vu, lbl, bw, h_dim in ((abs(inp.Q2), "dir2", cy, cx),
+                                       (abs(inp.Q3), "dir3", cx, cy)):
+                d = h_dim - inp.cover - sw_dia - dia_max / 2.0
+                shear[lbl] = ec2_shear_check(
+                    bw_mm=bw, d_mm=max(d, 0.5 * h_dim), Ac_mm2=Ac,
+                    fck_MPa=fck, NEd_kN=max(inp.N, 0.0), VEd_kN=Vu,
+                    Asl_mm2=Asl, fyd_MPa=fyd_sw, Asw_s_mm2mm=Asw_s,
+                    theta_deg=45.0)
+                shear[lbl]["bw"] = bw
+                shear[lbl]["d"] = d
+                shear[lbl]["VEd"] = Vu
+            shear_res = shear
+        except Exception:
+            shear_res = None
+        # Lưu để vẽ lại / xuất PDF
+        self._ec2_sec = sec
+        self._ec2_inp = inp
+        try:
+            self._ec2_inp._filename = getattr(self, "current_save_path", "") or getattr(inp, "_filename", "")
+        except Exception:
+            pass
+        self._ec2_res = ec2_res
+        self._ec2_conc = conc
+        self._ec2_steel = steel
+        self._ec2_slend = dm
+        self._ec2_shear = shear_res
+        self._ec2_method = method
+        # Vẽ tab Kết quả
+        self._show_ec2_summary()
+        # Vẽ tab Chi tiết
+        try:
+            sections = generate_ec2_report_sections(inp, ec2_res, dm,
+                                                    shear_res, conc, steel)
+        except Exception as ex:
+            messagebox.showerror("Lỗi thuyết minh EC2",
+                                 f"Không tạo được thuyết minh EC2:\n{ex}")
+            return
+        try:
+            self._render_ec2_report(sections)
+        except Exception as ex:
+            messagebox.showerror("Lỗi hiển thị EC2",
+                                 f"Không hiển thị được tab Chi tiết:\n{ex}")
+            return
+        self._pdf_inp, self._pdf_res = inp, None  # đánh dấu EC2 mode
         self._update_ck()  # cập nhật tên cấu kiện
 
     def _show_aci_summary(self):
@@ -1764,6 +1952,496 @@ class App(tk.Tk):
         except Exception:
             pass
 
+    def _show_ec2_summary(self):
+        """Tab Kết quả tính toán cho EC2: layout 2x2 giống TCVN/ACI.
+        Hàng trên: [mặt cắt + thẻ TK | bảng thông số] /
+        Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
+        if not HAS_MPL:
+            return
+        import math
+        sec = self._ec2_sec
+        inp = self._ec2_inp
+        ec2_res = self._ec2_res
+        conc = self._ec2_conc
+        steel = self._ec2_steel
+        slend = getattr(self, "_ec2_slend", None)
+        from rc_column.ec2_chart_draw import (draw_ec2_nm_alpha_ax,
+                                              draw_ec2_m2m3_ax)
+        from rc_column.pdf_export import draw_section_ax
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+        def _new_fig(parent, figsize):
+            fig = Figure(figsize=figsize, dpi=100)
+            cv = FigureCanvasTkAgg(fig, master=parent)
+            _w = cv.get_tk_widget()
+            try:
+                _w.configure(highlightthickness=0, takefocus=0,
+                             highlightbackground="white",
+                             highlightcolor="white", borderwidth=0)
+                _bt = list(_w.bindtags())
+                _block = "NoFocus%d" % id(_w)
+                _w.bind_class(_block, "<ButtonPress>",
+                              lambda e: "break")
+                _w.bind_class(_block, "<ButtonRelease>",
+                              lambda e: "break")
+                _bt.insert(1, _block)
+                _w.bindtags(tuple(_bt))
+            except Exception:
+                pass
+            _w.pack(fill=tk.BOTH, expand=True)
+            return fig, cv
+
+        # Xóa nội dung cũ
+        for w in self._sum_inner.winfo_children():
+            w.destroy()
+        self._sum_inner.columnconfigure(0, weight=1)
+        self._sum_inner.columnconfigure(1, weight=1)
+        self._sum_inner.rowconfigure(0, weight=1)
+        self._sum_inner.rowconfigure(1, weight=1)
+
+        # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
+        f_tl = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightthickness=1)
+        f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
+                 font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
+        self.ck_var = tk.StringVar(value="")
+        tk.Label(f_tl, textvariable=self.ck_var,
+                 font=("", 10, "bold"), fg="#92400E",
+                 bg="white").pack(pady=(0, 4))
+        fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
+        a1 = fig_sec.add_subplot(111)
+        draw_section_ax(a1, sec, show_stats=False)
+        fig_sec.tight_layout()
+        cv_sec.draw()
+        self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
+        # Thẻ thống kê EC2: hàng vật liệu + hàng số liệu thép
+        self._build_ec2_section_cards(f_tl, sec, conc, steel)
+
+        # ===== Ô trên-trái: bảng thông số tính toán EC2 =====
+        f_tr = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightthickness=1)
+        f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_ec2_param_table(f_tr, inp, ec2_res, slend)
+
+        # ===== Ô dưới-trái: header + biểu đồ N-Mα (EC2) =====
+        f_bl = ttk.Frame(self._sum_inner)
+        f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_ec2_nm_header(f_bl, inp)
+        fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
+        self._ec2_nm_fig = fig_nm
+        a3 = fig_nm.add_subplot(111)
+        draw_ec2_nm_alpha_ax(a3, sec, conc, steel, ec2_res,
+                             inp.N, ec2_res.get("M2_mag", inp.Mx),
+                             ec2_res.get("M3_mag", inp.My))
+        fig_nm.tight_layout()
+        fig_nm.subplots_adjust(bottom=0.30)
+        cv_nm.draw()
+        # Lưu tham chiếu để vẽ lại khi đổi góc xem
+        self._ec2_nm_ax_ref = a3
+        self._ec2_nm_cv_ref = cv_nm
+
+        # ===== Ô dưới-phải: header + biểu đồ M2-M3 (EC2) =====
+        f_br = ttk.Frame(self._sum_inner)
+        f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        self._build_ec2_m2m3_header(f_br, inp)
+        fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
+        self._ec2_m2m3_fig = fig_mm
+        a4 = fig_mm.add_subplot(111)
+        draw_ec2_m2m3_ax(a4, sec, conc, steel, ec2_res,
+                         inp.N, ec2_res.get("M2_mag", inp.Mx),
+                         ec2_res.get("M3_mag", inp.My))
+        fig_mm.tight_layout()
+        fig_mm.subplots_adjust(bottom=0.30)
+        cv_mm.draw()
+
+        # ===== Hàng 3 full-width: chi tiết điểm A/B + D/C =====
+        f_notes = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
+                     padx=4, pady=(4, 12))
+        self._build_ec2_notes(f_notes, inp, ec2_res)
+        self._sum_inner.rowconfigure(2, weight=0)
+
+        # ===== Hàng 4 full-width: bảng kiểm tra cắt EC2 =====
+        f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
+                  padx=4, pady=4)
+        self._build_ec2_shear_summary(f_sw, inp, sec, conc, steel)
+        self._sum_inner.rowconfigure(3, weight=0)
+
+        # Gắn lại cuộn chuột cho các widget mới
+        self._bind_wheel(self._sum_inner, self._sum_canvas)
+        def _to_top():
+            try:
+                self._sum_inner.update_idletasks()
+                self._sum_canvas.configure(
+                    scrollregion=self._sum_canvas.bbox("all"))
+                self._sum_canvas.yview_moveto(0)
+            except Exception:
+                pass
+        self.after(50, _to_top)
+        self._update_ck()
+
+    def _build_ec2_section_cards(self, parent, sec, conc, steel):
+        """6 thẻ thống kê EC2: hàng vật liệu (fck, fyk, đai) + hàng thép."""
+        vals = self._section_card_values(sec)
+
+        def _card(prow, title, value, sub=None):
+            cell = tk.Frame(prow, bg="white",
+                            highlightbackground="#E5E7EB",
+                            highlightthickness=1, height=52)
+            cell.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=3, pady=2)
+            cell.pack_propagate(False)
+            tk.Label(cell, text=title, font=("", 8), fg="#6B7280",
+                     bg="white").pack(pady=(6, 0))
+            tk.Label(cell, text=value, font=("", 11, "bold"),
+                     bg="white").pack(pady=2)
+            if sub:
+                tk.Label(cell, text=sub, font=("", 8),
+                         fg="#6B7280", bg="white").pack()
+
+        # Hàng vật liệu EC2
+        mrow = tk.Frame(parent, bg="#F9FAFB")
+        mrow.pack(fill=tk.X, padx=2, pady=2)
+        try:
+            fyk_sw = float(self.en_ec2_fyt.get().replace(",", "."))
+        except Exception:
+            fyk_sw = 500.0
+        for title, val in (("Bê tông", f"fck = {conc.fck:g} MPa"),
+                           ("Thép dọc", f"fyk = {steel.fyk:g} MPa"),
+                           ("Thép đai", f"fyk = {fyk_sw:g} MPa")):
+            _card(mrow, title, val)
+        # Hàng số liệu thép
+        row1 = tk.Frame(parent, bg="#F9FAFB")
+        row1.pack(fill=tk.X, padx=2, pady=(2, 4))
+        _card(row1, "Số thanh", vals["n"], vals.get("nsub", ""))
+        _card(row1, "Tổng As", vals["as"])
+        _card(row1, "Hàm lượng μ", vals["mu"])
+
+    def _build_ec2_shear_summary(self, parent, inp, sec, conc, steel):
+        """Bảng kiểm tra khả năng chịu cắt EC2: Phương V2 | Phương V3."""
+        try:
+            shear = getattr(self, "_ec2_shear", None) or {}
+            try:
+                sw_dia = float(getattr(inp, "sw_dia", 8) or 8)
+                sw_s = float(getattr(inp, "sw_spacing", 200) or 200)
+                sw_legs = int(getattr(inp, "sw_legs", 2) or 2)
+            except Exception:
+                sw_dia, sw_s, sw_legs = 8.0, 200.0, 2
+            sw_txt = f"{sw_legs:.0f}φ{sw_dia:.0f} a{sw_s:.0f}"
+            cols = {}
+            for lbl, qv in (("2", abs(inp.Q2)), ("3", abs(inp.Q3))):
+                sr = shear.get("dir2" if lbl == "2" else "dir3", {}) or {}
+                cols[lbl] = dict(
+                    Vu=qv, sw_txt=sw_txt,
+                    bw=sr.get("bw", 0.0), d=sr.get("d", 0.0),
+                    VRdc=sr.get("VRd_c_kN", 0.0),
+                    VRdmax=sr.get("VRd_max_kN", 0.0),
+                    VRds=sr.get("VRd_s_kN", 0.0),
+                    VRd=sr.get("VRd_kN", 0.0),
+                    Asws=sr.get("Asw_s_req", 0.0),
+                    ok=bool(sr.get("ok", False)))
+            tf = tk.Frame(parent, bg="white")
+            tf.pack(fill=tk.X, padx=8, pady=6)
+            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT (EC2)",
+                       "Phương V2", "Phương V3"]
+            for j, h in enumerate(headers):
+                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
+                         fg="#111827", borderwidth=0,
+                         highlightthickness=0,
+                         padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
+                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
+            def _asws(v):
+                if v is None or (isinstance(v, float) and
+                                 (v != v or v == float("inf"))):
+                    return "—"
+                return f"{v:.3f} mm²/mm"
+            rows = [
+                ("Thép đai bố trí",
+                 cols['2']['sw_txt'], cols['3']['sw_txt']),
+                ("Lực cắt tính toán, VEd",
+                 f"{cols['2']['Vu']:.1f} kN", f"{cols['3']['Vu']:.1f} kN"),
+                ("Kích thước tiết diện, bw × d",
+                 f"{cols['2']['bw']:.0f} × {cols['2']['d']:.0f} mm",
+                 f"{cols['3']['bw']:.0f} × {cols['3']['d']:.0f} mm"),
+                ("VRd,c (bê tông, EC2 6.2.2)",
+                 f"{cols['2']['VRdc']:.1f} kN", f"{cols['3']['VRdc']:.1f} kN"),
+                ("VRd,max (thanh chống nén)",
+                 f"{cols['2']['VRdmax']:.1f} kN",
+                 f"{cols['3']['VRdmax']:.1f} kN"),
+                ("VRd,s (cốt đai, θ=45°)",
+                 f"{cols['2']['VRds']:.1f} kN", f"{cols['3']['VRds']:.1f} kN"),
+                ("Asw/s yêu cầu",
+                 _asws(cols['2']['Asws']), _asws(cols['3']['Asws'])),
+                ("Kết luận",
+                 "ĐẠT" if cols['2']['ok'] else "KHÔNG ĐẠT",
+                 "ĐẠT" if cols['3']['ok'] else "KHÔNG ĐẠT"),
+            ]
+            for i, (a, b, c) in enumerate(rows):
+                bg = "#F9FAFB" if i % 2 else "white"
+                is_kl = (a == "Kết luận")
+                for j, t in enumerate((a, b, c)):
+                    fw = ("", 9, "bold")
+                    fg = "#1F2937"
+                    if is_kl and j > 0:
+                        fg = "#065F46" if t == "ĐẠT" else "#991B1B"
+                    tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
+                             borderwidth=0, highlightthickness=0,
+                             padx=6, pady=2, anchor="w" if j == 0
+                             else "center").grid(row=i + 1, column=j,
+                                                 sticky="nsew")
+        except Exception as e:
+            tk.Label(parent, text=f"Không tính được chịu cắt: {e}",
+                     fg="#991B1B", bg="white").pack(padx=8, pady=4)
+
+    def _build_ec2_param_table(self, parent, inp, ec2_res, slend):
+        """Bảng thông số tính toán EC2 (Treeview 3 cột)."""
+        import math
+        ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (EC2 EN 1992-1-1)",
+                  font=("", 11, "bold")).pack(pady=(2, 6))
+        cols = ("sym", "desc", "val")
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=14,
+                            style="Param.Treeview")
+        _pst = ttk.Style()
+        _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
+                       background="#F3F4F6", foreground="#111827",
+                       relief="flat", borderwidth=0)
+        tree.heading("sym", text="Ký hiệu")
+        tree.heading("desc", text="Thông số")
+        tree.heading("val", text="Giá trị")
+        tree.column("sym", width=64, anchor="center", stretch=False)
+        tree.column("desc", width=200, anchor="w")
+        tree.column("val", width=220, anchor="e", stretch=False)
+        tree.tag_configure("odd", background="#F9FAFB")
+        dc_bg = "#D1FAE5" if ec2_res["ok"] else "#FEE2E2"
+        dc_fg = "#065F46" if ec2_res["ok"] else "#991B1B"
+        tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
+        M2m = ec2_res.get("M2_mag", inp.Mx)
+        M3m = ec2_res.get("M3_mag", inp.My)
+        alpha_deg = math.degrees(math.atan2(M2m, M3m)) \
+            if abs(M2m) + abs(M3m) > 1e-9 else 0.0
+        Ma = math.hypot(M2m, M3m)
+        def _sl(lbl):
+            try:
+                d = (slend or {}).get(lbl, {}) or {}
+                lam, lim = d.get("lambda_sl", 0.0), d.get("lambda_lim", 0.0)
+                man = "mảnh" if d.get("slender") else "không mảnh"
+                lim_txt = f"{lim:.1f}" if math.isfinite(lim) else "∞"
+                return f"λ = {lam:.1f}, λlim = {lim_txt} ({man})"
+            except Exception:
+                return "—"
+        method_txt = ("Độ cứng danh nghĩa"
+                      if ec2_res.get("method") != "curvature"
+                      else "Độ cong danh nghĩa")
+        conc = self._ec2_conc
+        rows = [
+            ("NEd", "Lực dọc thiết kế",
+             f"{inp.N:+.1f} kN"),
+            ("MEd2", "Mô men thiết kế phương 2 (gồm bậc 2)",
+             f"{M2m:.1f} kN·m"),
+            ("MEd3", "Mô men thiết kế phương 3 (gồm bậc 2)",
+             f"{M3m:.1f} kN·m"),
+            ("α", "Góc tác dụng mô men",
+             f"{alpha_deg:.1f} °"),
+            ("Mα", "Mô men tổng hợp",
+             f"{Ma:.1f} kN·m"),
+            ("fck", "Cường độ nén đặc trưng",
+             f"{conc.fck:g} MPa"),
+            ("fcd", "Cường độ nén tính toán (αcc·fck/γc)",
+             f"{conc.fcd:.2f} MPa"),
+            ("Ecm", "Mô đun đàn hồi cát tuyến",
+             f"{conc.Ecm:.0f} MPa"),
+            ("λ2", "Độ mảnh phương 2 (EC2 5.8.3)",
+             _sl("dir2")),
+            ("λ3", "Độ mảnh phương 3 (EC2 5.8.3)",
+             _sl("dir3")),
+            ("PP", "Phương pháp tính hiệu ứng bậc 2",
+             method_txt),
+            ("N_Rd,max", "Nén đúng tâm lớn nhất",
+             f"{ec2_res.get('N_Rd_max', 0):.1f} kN"),
+        ]
+        for i, (a, b, c) in enumerate(rows):
+            tree.insert("", "end", values=(a, b, c),
+                        tags=("odd",) if i % 2 else ())
+        ok_txt = "ĐẠT" if ec2_res["ok"] else "KHÔNG ĐẠT"
+        fs_txt = (f"{ec2_res['fs']:.2f}"
+                  if math.isfinite(ec2_res.get("fs", 0)) else "∞")
+        tree.insert("", "end",
+                    values=("D/C", "Tỷ số sử dụng khả năng chịu lực",
+                            f"{ec2_res['dc']:.3f} (FS = {fs_txt})  {ok_txt}"),
+                    tags=("dc",))
+        tree.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+
+    def _build_ec2_nm_header(self, parent, inp):
+        """Header trên biểu đồ N-Mα (EC2)."""
+        import math
+        M2m = getattr(self, "_ec2_res", {}).get("M2_mag", inp.Mx)
+        M3m = getattr(self, "_ec2_res", {}).get("M3_mag", inp.My)
+        alpha_deg = math.degrees(math.atan2(M2m, M3m)) \
+            if abs(M2m) + abs(M3m) > 1e-9 else 0.0
+        hdr = ttk.Frame(parent)
+        hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
+        left = ttk.Frame(hdr)
+        left.pack(side=tk.LEFT)
+        tk.Label(left, text="● Biểu đồ tương tác N–Mα (EC2)",
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
+        self._ec2_nm_alpha_lbl = tk.Label(
+            left, text=f"  α = {alpha_deg:.1f}°  ",
+            font=("", 8, "bold"), fg="#065F46", bg="#D1FAE5")
+        self._ec2_nm_alpha_lbl.pack(side=tk.LEFT, padx=6)
+        # Combobox chọn góc xem biểu đồ N-M
+        right = ttk.Frame(hdr)
+        right.pack(side=tk.RIGHT)
+        tk.Label(right, text="Góc xem:", font=("", 8),
+                 bg="white").pack(side=tk.LEFT)
+        _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)]
+        self._ec2_nm_angle_cb = ttk.Combobox(
+            right, values=_vals, width=11, state="readonly", font=("", 8))
+        self._ec2_nm_angle_cb.set("α (góc tải)")
+        self._ec2_nm_angle_cb.pack(side=tk.LEFT, padx=(4, 0))
+        self._ec2_nm_angle_cb.bind("<<ComboboxSelected>>",
+                                   self._on_ec2_nm_angle_changed)
+        self._ec2_nm_view_angle = None  # None = góc tải mặc định
+
+    def _on_ec2_nm_angle_changed(self, event=None):
+        """Vẽ lại biểu đồ N-Mα (EC2) tại góc được chọn."""
+        try:
+            sel = self._ec2_nm_angle_cb.get()
+            if sel.startswith("α"):
+                angle = None
+            else:
+                angle = float(sel.replace("°", ""))
+        except Exception:
+            angle = None
+        self._ec2_nm_view_angle = angle
+        try:
+            if angle is None:
+                import math
+                res = self._ec2_res
+                a0 = math.degrees(math.atan2(res.get("M2_mag", 0),
+                                             res.get("M3_mag", 0)))
+                self._ec2_nm_alpha_lbl.config(text=f"  α = {a0:.1f}°  ")
+            else:
+                self._ec2_nm_alpha_lbl.config(text=f"  xem {angle:.0f}°  ")
+        except Exception:
+            pass
+        try:
+            from rc_column.ec2_chart_draw import draw_ec2_nm_alpha_ax
+            ax = self._ec2_nm_ax_ref
+            ax.clear()
+            draw_ec2_nm_alpha_ax(
+                ax, self._ec2_sec, self._ec2_conc, self._ec2_steel,
+                self._ec2_res, self._ec2_inp.N,
+                self._ec2_res.get("M2_mag", self._ec2_inp.Mx),
+                self._ec2_res.get("M3_mag", self._ec2_inp.My),
+                view_angle_deg=angle)
+            self._ec2_nm_fig.tight_layout()
+            self._ec2_nm_fig.subplots_adjust(bottom=0.30)
+            self._ec2_nm_cv_ref.draw()
+        except Exception:
+            pass
+
+    def _build_ec2_m2m3_header(self, parent, inp):
+        """Header trên biểu đồ M2-M3 (EC2)."""
+        hdr = ttk.Frame(parent)
+        hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
+        left = ttk.Frame(hdr)
+        left.pack(side=tk.LEFT)
+        tk.Label(left, text="● Mặt cắt M2-M3 (EC2)",
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
+        tk.Label(left, text=f"  N = {inp.N:+.1f} kN  ",
+                 font=("", 8, "bold"), fg="#1D4ED8",
+                 bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
+
+    def _build_ec2_notes(self, parent, inp, ec2_res):
+        """3 dòng chú thích dưới biểu đồ EC2."""
+        import math
+        mono = ("TkFixedFont", 10)
+        M2m = ec2_res.get("M2_mag", inp.Mx)
+        M3m = ec2_res.get("M3_mag", inp.My)
+        Ma = math.hypot(M2m, M3m)
+        Mb = math.hypot(ec2_res["Bx"], ec2_res["By"])
+        alpha_deg = math.degrees(math.atan2(M2m, M3m)) \
+            if abs(M2m) + abs(M3m) > 1e-9 else 0.0
+        box = tk.Frame(parent, bg="white",
+                       highlightbackground="#E5E7EB", highlightthickness=1)
+        box.pack(fill=tk.X, padx=4, pady=4)
+        r1 = tk.Frame(box, bg="white")
+        r1.pack(fill=tk.X, pady=1, padx=4)
+        tk.Label(r1, text=f"● Đường bao kiểm tra: "
+                          f"N-Mα (α = {alpha_deg:.1f}°) — EC2 (EN 1992-1-1)",
+                 font=mono, fg="#059669", bg="white").pack(side=tk.LEFT)
+        okt = "ĐẠT" if ec2_res["ok"] else "KHÔNG ĐẠT"
+        bgc = "#D1FAE5" if ec2_res["ok"] else "#FEE2E2"
+        fgc = "#065F46" if ec2_res["ok"] else "#991B1B"
+        fs_txt = (f"{ec2_res['fs']:.2f}"
+                  if math.isfinite(ec2_res.get("fs", 0)) else "∞")
+        tk.Label(r1, text=f"  D/C = {ec2_res['dc']:.3f} (FS = {fs_txt}) → {okt}  ",
+                 font=("", 10, "bold"), fg=fgc,
+                 bg=bgc).pack(side=tk.LEFT, padx=6)
+        _case = getattr(self, "_pdf_case", None) or {}
+        _parts = []
+        if _case.get("story"):
+            _parts.append(str(_case.get("story")))
+        if _case.get("column"):
+            _parts.append(str(_case.get("column")))
+        if _case.get("case"):
+            _st = _case.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{_case.get('case')}{_st_txt}")
+        _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
+        tk.Label(box, bg="white",
+                 text=f"● A (điểm tải){_combo_txt}:  "
+                      f"N = {inp.N:+.1f} kN,  "
+                      f"Mα = {Ma:.1f} kN·m  "
+                      f"(MEd2 = {M2m:.1f}, MEd3 = {M3m:.1f})",
+                 font=mono, fg="#2563EB").pack(anchor="w", pady=1)
+        tk.Label(box, bg="white",
+                 text=f"◆ B (điểm giới hạn):  "
+                      f"N = {ec2_res['BN']:+.1f} kN,  Mα,u = {Mb:.1f} kN·m  "
+                      f"(M2u = {ec2_res['Bx']:.1f}, M3u = {ec2_res['By']:.1f})",
+                 font=mono, fg="#EA580C").pack(anchor="w", pady=1)
+
+    def _render_ec2_report(self, sections):
+        """Hiển thị thuyết minh EC2 trong tab Chi tiết tính toán."""
+        for w in self._calc_inner.winfo_children():
+            w.destroy()
+        for sec in sections:
+            # Header mục
+            hdr = tk.Frame(self._calc_inner, bg="white")
+            hdr.pack(fill=tk.X, padx=4, pady=(14, 6))
+            tk.Label(hdr, text=f"● {sec['num']}. {sec['title']}",
+                     font=("", 11, "bold"), fg="#111827", bg="white").pack(side=tk.LEFT)
+            if sec.get('ref'):
+                tk.Label(hdr, text=sec['ref'], font=("", 8), fg="#6B7280",
+                         bg="white").pack(side=tk.RIGHT, padx=4)
+            # Các card
+            for card in sec.get('cards', []):
+                c = tk.Frame(self._calc_inner, bg="white",
+                             highlightbackground="#E5E7EB", highlightthickness=1,
+                             padx=12, pady=10)
+                c.pack(fill=tk.X, padx=8, pady=4)
+                tk.Label(c, text=card.get('title', ''), font=("", 10, "bold"),
+                         fg="#111827", bg="white", anchor="w").pack(fill=tk.X)
+                if card.get('ref'):
+                    tk.Label(c, text=card['ref'], font=("", 8), fg="#6B7280",
+                             bg="white", anchor="w").pack(fill=tk.X)
+                for ln in card.get('lines', []):
+                    tk.Label(c, text=ln, font=("", 9), fg="#374151",
+                             bg="#F9FAFB", anchor="w", justify=tk.LEFT).pack(fill=tk.X, pady=1)
+                if card.get('result'):
+                    tk.Label(c, text=card['result'], font=("", 10, "bold"),
+                             fg="#111827", bg="white", anchor="w").pack(fill=tk.X, pady=(6, 0))
+        self._calc_inner.update_idletasks()
+        self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
+        self._bind_wheel(self._calc_inner, self._calc_canvas)
+        # Cuộn về đầu tab sau khi render xong
+        try:
+            self._calc_canvas.yview_moveto(0)
+        except Exception:
+            pass
+
     # ---------------- ETABS ----------------
     def on_import_etabs(self):
         from tkinter import filedialog
@@ -2168,9 +2846,142 @@ class App(tk.Tk):
         # Tạm lưu inp gốc để _check_aci dùng đúng nội lực worst
         self._check_aci(inp_w)
 
+    def _check_ec2_etabs(self):
+        """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
+        from rc_column.ec2_materials import (EC2Concrete, EC2Steel,
+                                             EC2_CONCRETE_GRADES,
+                                             EC2_STEEL_GRADES)
+        from rc_column.ec2_checker import (ec2_design_moment,
+                                           ec2_balanced_point, EC2Capacity)
+        from rc_column.stability import effective_length
+        import math
+        fck = EC2_CONCRETE_GRADES.get(self.cb_ec2_conc.get(), 30.0)
+        fyk = EC2_STEEL_GRADES.get(self.cb_ec2_steel.get(), 500.0)
+        conc = EC2Concrete(fck=fck)
+        steel = EC2Steel(fyk=fyk)
+        method = ("curvature"
+                  if self.cb_ec2_method.get().startswith("Độ cong")
+                  else "stiffness")
+        self.etabs_info.set("Đang kiểm tra EC2, vui lòng đợi...")
+        self.update_idletasks()
+        import time
+        t0 = time.time()
+        from collections import defaultdict
+        _L_manual = self._f(self.en_Lx, 0.0)
+        _groups = defaultdict(list)
+        for _f in self.etabs_forces:
+            _groups[(_f.story, _f.column)].append(_f)
+        rows = []
+        for (_st, _cl), _flist in _groups.items():
+            if _L_manual > 0:
+                _L_grp = _L_manual
+            else:
+                _L_grp = max(_f.station for _f in _flist)
+            _inp_g = self.collect()
+            _inp_g.Lx = _inp_g.Ly = _L_grp
+            sec_g = build_section(_inp_g)
+            cx, cy = sec_g.cx, sec_g.cy
+            Ac = sec_g.gross_area
+            As = sec_g.steel_area
+            try:
+                l0_2 = effective_length(_L_grp, _inp_g.top_x, _inp_g.bottom_x,
+                                        _inp_g.psi_x) * 1000.0
+                l0_3 = effective_length(_L_grp, _inp_g.top_y, _inp_g.bottom_y,
+                                        _inp_g.psi_y) * 1000.0
+            except Exception:
+                l0_2 = l0_3 = _L_grp * 1000.0
+            geom = {"dir2": (cy, cx * cy**3 / 12.0, l0_2),
+                    "dir3": (cx, cy * cx**3 / 12.0, l0_3)}
+            # Momen quan tinh cua thep theo tung phuong (pp do cung danh nghia)
+            Is2_g = sum(r.area * r.y * r.y for r in sec_g.rebars)
+            Is3_g = sum(r.area * r.x * r.x for r in sec_g.rebars)
+            # Tối ưu: dựng EC2Capacity 1 lần cho cả nhóm,
+            # mỗi tổ hợp chỉ tính mô men bậc 2 + D/C tia
+            try:
+                _cap_g = EC2Capacity(sec_g, conc, steel, n_angles=24)
+            except Exception:
+                _cap_g = None
+            n_bal = 0.0
+            if method == "curvature":
+                try:
+                    Nb, _Mb = ec2_balanced_point(sec_g, conc, steel, 0.0)
+                    n_bal = Nb / (conc.fcd * Ac / 1000.0) if Ac > 0 else 0.0
+                except Exception:
+                    n_bal = 0.0
+            for _f in _flist:
+                try:
+                    if _cap_g is None:
+                        raise RuntimeError("capacity")
+                    meds = []
+                    for lbl, Mdir in (("dir2", _f.Mx), ("dir3", _f.My)):
+                        h_dim, Ic, l0 = geom[lbl]
+                        dm = ec2_design_moment(
+                            NEd_kN=_f.N, M_top_kNm=abs(Mdir),
+                            M_bot_kNm=abs(Mdir), l0_mm=l0,
+                            i_mm=math.sqrt(Ic / Ac) if Ac > 0 else h_dim,
+                            h_mm=h_dim, Ac_mm2=Ac, As_mm2=As,
+                            fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
+                            Ecm_MPa=conc.Ecm, Ic_mm4=Ic,
+                            Is_mm4=Is2_g if lbl == "dir2" else Is3_g,
+                            Es_MPa=steel.Es, fck_MPa=fck,
+                            unbraced=False, method=method,
+                            d_mm=max(h_dim - (_inp_g.cover or 30) - 10.0,
+                                     0.5 * h_dim),
+                            eps_yd=steel.eps_yd, n_bal=n_bal,
+                            const_moment=True)
+                        meds.append(dm["MEd"])
+                    _r = _cap_g.dc_ratio(_f.N, meds[0], meds[1])
+                except Exception:
+                    _r = {"dc": float("nan"), "ok": False}
+                rows.append((_f, _r))
+        rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
+                  else float("inf"))
+        self._fill_etabs_table(rows)
+        worst_f, worst_r = rows[0]
+        children = self.etabs_tree.get_children()
+        if children:
+            self.etabs_tree.item(children[0], tags=("worst",))
+            self.etabs_tree.see(children[0])
+        n_ng = sum(1 for _, r in rows if r["dc"] == r["dc"] and r["dc"] > 1)
+        dt = time.time() - t0
+        self.etabs_info.set(
+            f"Xong {len(rows)} tổ hợp trong {dt:.1f}s (EC2 EN 1992-1-1) — "
+            f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
+            f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
+        self._batch_rows = rows
+        # Tính lại tổ hợp nguy hiểm nhất để hiển thị
+        inp_w = self.collect()
+        inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
+        _Lw = self._f(self.en_Lx, 0.0)
+        if _Lw <= 0:
+            _sts_w = [f.station for f in self.etabs_forces
+                      if f.story == worst_f.story and f.column == worst_f.column]
+            if _sts_w:
+                _Lw = max(_sts_w)
+        if _Lw > 0:
+            inp_w.Lx = inp_w.Ly = _Lw
+        # Lực cắt: lấy từ combo có |Q| lớn nhất (giống TCVN)
+        try:
+            f_q2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
+            f_q3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
+            inp_w.Q2, inp_w.Q3 = f_q2.Q2, f_q3.Q3
+        except Exception:
+            pass
+        # Gọi _check_ec2 với inp_w (nó tự vẽ charts + report + lưu PDF data)
+        # nhưng cần giữ case_info cho thuyết minh
+        self._pdf_case = {"case": worst_f.case, "station": worst_f.station,
+                          "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My,
+                          "story": getattr(worst_f, "story", ""),
+                          "column": getattr(worst_f, "column", "")}
+        # Tạm lưu inp gốc để _check_ec2 dùng đúng nội lực worst
+        self._check_ec2(inp_w)
+
     def on_check_etabs(self):
         if not self.etabs_forces:
             messagebox.showinfo("ETABS", "Hãy import file Excel trước.")
+            return
+        if self.is_ec2():
+            self._check_ec2_etabs()
             return
         if self.is_aci():
             self._check_aci_etabs()
@@ -2366,6 +3177,10 @@ class App(tk.Tk):
             if self.is_aci() and getattr(self, "_aci_res", None) is not None:
                 self._export_pdf_aci(is_summary, path, _show_success)
                 return
+            # --- EC2 mode: dùng PDF EC2 ---
+            if self.is_ec2() and getattr(self, "_ec2_res", None) is not None:
+                self._export_pdf_ec2(is_summary, path, _show_success)
+                return
             if is_summary:
                 from rc_column.pdf_export import export_summary_pdf
                 # Gán tên file vào inp để hiển thị "Cấu kiện"
@@ -2472,6 +3287,44 @@ class App(tk.Tk):
             from tkinter import messagebox
             messagebox.showerror("Xuất PDF ACI", str(ex))
 
+    def _export_pdf_ec2(self, is_summary, path, _show_success):
+        """Xuất PDF cho chế độ EC2 (EN 1992-1-1)."""
+        try:
+            import io
+            def _get_pngs():
+                try:
+                    f1 = getattr(self, "_ec2_nm_fig", None)
+                    f2 = getattr(self, "_ec2_m2m3_fig", None)
+                    if f1 is not None and f2 is not None:
+                        b1, b2 = io.BytesIO(), io.BytesIO()
+                        f1.savefig(b1, format="png", dpi=150, bbox_inches="tight")
+                        f2.savefig(b2, format="png", dpi=150, bbox_inches="tight")
+                        return (b1.getvalue(), b2.getvalue())
+                except Exception:
+                    pass
+                return None
+            pngs = _get_pngs()
+            if is_summary:
+                from rc_column.ec2_pdf_summary import export_ec2_summary_pdf
+                export_ec2_summary_pdf(
+                    self._ec2_sec, self._ec2_inp, self._ec2_res,
+                    self._ec2_conc, self._ec2_steel, path,
+                    case_info=getattr(self, "_pdf_case", None),
+                    chart_pngs=pngs,
+                    shear_info=getattr(self, "_ec2_shear", None),
+                    slend_res=getattr(self, "_ec2_slend", None))
+            else:
+                from rc_column.ec2_pdf_report import export_ec2_pdf_cards
+                export_ec2_pdf_cards(
+                    self._ec2_inp, self._ec2_res, self._ec2_slend,
+                    self._ec2_shear, self._ec2_conc, self._ec2_steel,
+                    path, chart_pngs=pngs,
+                    case_info=getattr(self, "_pdf_case", None))
+            _show_success(path)
+        except Exception as ex:
+            from tkinter import messagebox
+            messagebox.showerror("Xuất PDF EC2", str(ex))
+
     def on_export_pdf(self):
         """Xuất thuyết minh ra PDF."""
         if not getattr(self, "_pdf_inp", None):
@@ -2572,6 +3425,11 @@ class App(tk.Tk):
             "code": self.cb_code.get(),
             "aci_fc": ev(self.en_fc), "aci_fy": ev(self.en_fy),
             "aci_fyt": ev(self.en_fyt), "aci_tie": self.cb_tie.get(),
+            # 1c. Vật liệu EC2
+            "ec2_conc": self.cb_ec2_conc.get(),
+            "ec2_steel": self.cb_ec2_steel.get(),
+            "ec2_method": self.cb_ec2_method.get(),
+            "ec2_fyt": ev(self.en_ec2_fyt),
             # 2. Tiết diện
             "kind": self.cb_kind.get(),
             "cx": ev(self.en_cx), "cy": ev(self.en_cy),
@@ -2645,6 +3503,11 @@ class App(tk.Tk):
             se(self.en_fc, d.get("aci_fc", "30")); se(self.en_fy, d.get("aci_fy", "420"))
             se(self.en_fyt, d.get("aci_fyt", "420"))
             self.cb_tie.set(d.get("aci_tie", "Tied (đai thường)"))
+            # Vật liệu EC2 (tương thích file cũ: giữ mặc định nếu thiếu)
+            self.cb_ec2_conc.set(d.get("ec2_conc", "C30/37"))
+            self.cb_ec2_steel.set(d.get("ec2_steel", "B500"))
+            self.cb_ec2_method.set(d.get("ec2_method", "Độ cứng danh nghĩa"))
+            se(self.en_ec2_fyt, d.get("ec2_fyt", "500"))
             self._toggle_code()
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
