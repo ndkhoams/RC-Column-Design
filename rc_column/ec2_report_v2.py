@@ -272,10 +272,23 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                     _lines,
                     "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
 
+    _cfg_card["full"] = True
     if isinstance(shear_res, dict) and "dir2" in shear_res:
+        _d2e = shear_res.get("dir2", {})
+        _d3e = shear_res.get("dir3", {})
+        _ok2e = bool(_d2e.get("ok", False)) if _d2e else True
+        _ok3e = bool(_d3e.get("ok", False)) if _d3e else True
         sh_cards = [_cfg_card,
-                    _sh_card(shear_res.get("dir2"), VEd2, "V2"),
-                    _sh_card(shear_res.get("dir3"), VEd3, "V3")]
+                    _sh_card(_d2e, VEd2, "V2"),
+                    _sh_card(_d3e, VEd3, "V3")]
+        # Kết luận tổng
+        _all_oke = _ok2e and _ok3e
+        _totale = {"title": "Kết luận kiểm tra cắt", "ref": "",
+                   "lines": [f"Phương 2: {'ĐẠT' if _ok2e else 'KHÔNG ĐẠT'}",
+                             f"Phương 3: {'ĐẠT' if _ok3e else 'KHÔNG ĐẠT'}"],
+                   "result": "Kết luận: ĐẠT" if _all_oke else "Kết luận: KHÔNG ĐẠT",
+                   "full": True}
+        sh_cards.append(_totale)
     else:
         sh_cards = [_sh_card(shear_res or {}, VEd2, "V2/V3")]
     sections.append({
