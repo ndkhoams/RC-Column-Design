@@ -548,10 +548,10 @@ class App(tk.Tk):
                                    state="readonly", width=12)
         self.cb_tie.set("Tied (đai thường)")
         self.en_fyt = ttk.Entry(self.frm_aci, width=12); self.en_fyt.insert(0, "420")
-        _mat_row(self.frm_aci, 0, "Cường độ bê tông f'c (MPa)", self.en_fc,
+        _mat_row(self.frm_aci, 0, "Bê tông f'c (MPa)", self.en_fc,
                  "Loại cốt đai", self.cb_tie)
-        _mat_row(self.frm_aci, 1, "Cường độ thép fy (MPa)", self.en_fy,
-                 "Cường độ thép đai fyt (MPa)", self.en_fyt)
+        _mat_row(self.frm_aci, 1, "Thép dọc fy (MPa)", self.en_fy,
+                 "Thép đai fyt (MPa)", self.en_fyt)
         self.frm_aci.grid_remove()
         # Khung EC2 (ẩn mặc định)
         self.frm_ec2 = ttk.Frame(f)
@@ -1820,7 +1820,7 @@ class App(tk.Tk):
         ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (ACI 318-19)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
-        tree = ttk.Treeview(parent, columns=cols, show="headings", height=14,
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
                             style="Param.Treeview")
         _pst = ttk.Style()
         _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
@@ -2295,7 +2295,7 @@ class App(tk.Tk):
         ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (EC2 EN 1992-1-1)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
-        tree = ttk.Treeview(parent, columns=cols, show="headings", height=14,
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
                             style="Param.Treeview")
         _pst = ttk.Style()
         _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
