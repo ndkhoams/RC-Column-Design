@@ -242,28 +242,31 @@ class App(tk.Tk):
         # Cụm nút cố định ĐỈNH (không bị cuộn theo) — theo yêu cầu user 2026-10-16
         top_bar = ttk.Frame(left_outer, relief=tk.RAISED, borderwidth=1)
         top_bar.pack(fill=tk.X, side=tk.TOP, padx=2, pady=2)
-        data_bar = ttk.Frame(top_bar)
-        data_bar.pack(fill=tk.X, padx=8, pady=(8, 0))
-        ttk.Button(data_bar, text="📂 OPEN", style="Ghost.TButton",
-                   command=self.on_load_data).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(0, 4))
-        ttk.Button(data_bar, text="💾 SAVE", style="Ghost.TButton",
-                   command=self.on_save_data).pack(side=tk.LEFT,
-                                                   expand=True, fill=tk.X,
-                                                   padx=(2, 2))
-        ttk.Button(data_bar, text="💾 SAVE AS", style="Ghost.TButton",
-                   command=self.on_save_as_data).pack(side=tk.LEFT, expand=True,
-                                                      fill=tk.X, padx=(2, 2))
-        ttk.Button(data_bar, text="📄 XUẤT PDF", style="Ghost.TButton",
-                   command=self._export_pdf).pack(side=tk.LEFT, expand=True,
-                                                   fill=tk.X, padx=(4, 0))
-        # Hàng kiểm tra: chia đôi — trái chọn tiêu chuẩn, phải nút kiểm tra
-        # (căn lề khớp với hàng 4 nút bên trên: cùng padx=8)
-        check_bar = ttk.Frame(top_bar)
-        check_bar.pack(fill=tk.X, padx=8, pady=(8, 8))
-        # Nửa trái: tiêu chuẩn thiết kế
-        code_frame = ttk.Frame(check_bar)
-        code_frame.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+        # Cụm nút cố định ĐỈNH: 1 grid chung 4 cột đều nhau (uniform) để
+        # hàng kiểm tra căn khít với 4 nút bên trên.
+        top_grid = ttk.Frame(top_bar)
+        top_grid.pack(fill=tk.X, padx=8, pady=8)
+        for _c in range(4):
+            top_grid.columnconfigure(_c, weight=1, uniform="topbtns")
+        # Hàng 1: 4 nút dữ liệu
+        ttk.Button(top_grid, text="📂 OPEN", style="Ghost.TButton",
+                   command=self.on_load_data).grid(row=0, column=0,
+                                                   sticky=tk.EW, padx=(0, 4))
+        ttk.Button(top_grid, text="💾 SAVE", style="Ghost.TButton",
+                   command=self.on_save_data).grid(row=0, column=1,
+                                                   sticky=tk.EW, padx=(2, 2))
+        ttk.Button(top_grid, text="💾 SAVE AS", style="Ghost.TButton",
+                   command=self.on_save_as_data).grid(row=0, column=2,
+                                                      sticky=tk.EW,
+                                                      padx=(2, 2))
+        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Ghost.TButton",
+                   command=self._export_pdf).grid(row=0, column=3,
+                                                  sticky=tk.EW, padx=(4, 0))
+        # Hàng 2: trái chọn tiêu chuẩn (2 cột đầu), phải nút kiểm tra
+        # (2 cột cuối = rộng đúng bằng SAVE AS + XUẤT PDF)
+        code_frame = ttk.Frame(top_grid)
+        code_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
+                        padx=(0, 2), pady=(8, 0))
         ttk.Label(code_frame, text="Tiêu chuẩn:",
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 6))
         self.cb_code = ttk.Combobox(code_frame, values=["TCVN 5574:2018", "ACI 318-19",
@@ -272,11 +275,11 @@ class App(tk.Tk):
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
         self.cb_code.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=4)
-        # Nửa phải: nút kiểm tra
-        ttk.Button(check_bar, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
+        ttk.Button(top_grid, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                    style="Accent.TButton",
-                   command=self.on_check).pack(side=tk.LEFT, expand=True,
-                                               fill=tk.X, padx=(5, 0))
+                   command=self.on_check).grid(row=1, column=2, columnspan=2,
+                                               sticky=tk.EW, padx=(2, 0),
+                                               pady=(8, 0))
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
         scroll_area.pack(fill=tk.BOTH, expand=True)
