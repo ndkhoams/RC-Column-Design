@@ -1,3 +1,11 @@
+"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
+
+Bố cục:
+ 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
+ 5. Nội lực kiểm tra
+Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
+         thuyết minh tính toán chi tiết.
+"""
 
 import math
 import tkinter as tk
@@ -426,6 +434,7 @@ class App(tk.Tk):
         fl = ttk.Frame(f); fl.grid(row=0, column=0, sticky=tk.NSEW, padx=2)
         fr = ttk.Frame(f); fr.grid(row=0, column=1, sticky=tk.NSEW, padx=2)
         f.columnconfigure(0, weight=1); f.columnconfigure(1, weight=1)
+        self.sec_dim_frame = fr  # để ẩn khi chọn DXF
         self.cb_kind = ttk.Combobox(fl, values=["Chữ nhật", "Tròn",
                                                  "Tiết diện bất kỳ (DXF)"],
                                     state="readonly", width=18)
@@ -433,15 +442,17 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self._row(fl, "Loại tiết diện", self.cb_kind, 0)
-        # Nút import DXF
-        self.btn_dxf = ttk.Button(fl, text="📐 Import tiết diện (.dxf)",
-                                  command=self.on_import_dxf)
-        self.btn_dxf.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
-                          padx=4, pady=4)
+        # Nút import DXF gọn: cùng hàng với label info
+        dxf_row = ttk.Frame(fl)
+        dxf_row.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
+                     padx=4, pady=2)
+        self.btn_dxf = ttk.Button(dxf_row, text="📐 Import (.dxf)",
+                                  command=self.on_import_dxf, width=16)
+        self.btn_dxf.pack(side=tk.LEFT)
         self.dxf_info = tk.StringVar(value="")
-        ttk.Label(fl, textvariable=self.dxf_info, font=("", 9, "italic"),
-                  foreground="#0a4d8c").grid(row=2, column=0, columnspan=2,
-                                             sticky=tk.W, padx=4)
+        ttk.Label(dxf_row, textvariable=self.dxf_info, font=("", 8, "italic"),
+                  foreground="#0a4d8c", wraplength=220,
+                  justify=tk.LEFT).pack(side=tk.LEFT, padx=(6, 0))
         self.en_cy = ttk.Entry(fr, width=12); self.en_cy.insert(0, "400")
         self._row(fr, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
         self.en_cx = ttk.Entry(fr, width=12); self.en_cx.insert(0, "400")
@@ -675,7 +686,19 @@ class App(tk.Tk):
         """Hiện panel chữ nhật/tròn theo loại tiết diện."""
         is_dxf = self.cb_kind.get().startswith("Tiết diện bất kỳ")
         is_rect = self.cb_kind.get() == "Chữ nhật"
-        if is_rect:
+        # Ẩn ô nhập kích thước t2/t3 khi dùng DXF
+        try:
+            if is_dxf:
+                self.sec_dim_frame.grid_remove()
+            else:
+                self.sec_dim_frame.grid()
+        except Exception:
+            pass
+        # Ẩn panel bố trí thép khi dùng DXF (thép lấy từ file)
+        if is_dxf:
+            self.rebar_rect.grid_remove()
+            self.rebar_circ.grid_remove()
+        elif is_rect:
             self.rebar_rect.grid()
             self.rebar_circ.grid_remove()
         else:
@@ -1724,7 +1747,10 @@ class App(tk.Tk):
                 ax.add_patch(mpatches.Circle((r.x, r.y), r.dia / 2.0,
                                              facecolor="#DC2626",
                                              edgecolor="#7F1D1D"))
-            ax.set_aspect("equal")
+            # Cập nhật giới hạn trục theo patch (add_patch không tự autoscale)
+            ax.relim()
+            ax.autoscale_view()
+            ax.set_aspect("equal", adjustable="datalim")
             ax.set_title(f"{path.split('/')[-1]}\n"
                          f"Ag={sec.gross_area:.0f} mm², "
                          f"{len(sec.rebars)} thép")
