@@ -8,14 +8,15 @@ Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu
 """
 
 # Thời điểm build: lấy từ build_info.py (do build_exe.py sinh khi đóng gói).
-# Khi chạy source, fallback dùng mtime của file này (bọc try để không crash trên exe).
 try:
     from build_info import BUILD_TIME as APP_BUILD
 except Exception:
+    # Fallback: exe frozen -> mtime của file exe; source -> mtime của file này
     try:
-        import os as _os, datetime as _dt
+        import os as _os, sys as _sys, datetime as _dt
+        _p = _sys.executable if getattr(_sys, "frozen", False) else __file__
         APP_BUILD = _dt.datetime.fromtimestamp(
-            _os.path.getmtime(__file__)).strftime("%Y%m%d%H%M")
+            _os.path.getmtime(_p)).strftime("%Y%m%d%H%M")
     except Exception:
         APP_BUILD = "000000000000"
 
