@@ -622,8 +622,7 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
             f"= {_f(sh.Qsw_opt, 1)} kN",
             f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm",
             f"{'✓' if sh.ok else '✗'} So sánh: |Q| = {_f(abs(Q), 1)} kN "
-            f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN "
-            f"→ {'ĐẠT' if sh.ok else 'KHÔNG ĐẠT'}",
+            f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN",
         ]
         c = _param_card(grid, f"Kiểm tra chịu cắt phương {dnum}", "", lines,
                         "Kết luận: ĐẠT" if sh.ok else "Kết luận: KHÔNG ĐẠT")
