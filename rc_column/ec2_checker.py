@@ -227,6 +227,28 @@ class EC2Capacity:
         """Khả năng chịu mô men thiết kế (kN.m) tại N (kN)."""
         return _interp_on_curve(self._curve_at(phi_deg), N, 1)
 
+    def surface_grid(self, n_n: int = 25, n_angles: int = 36):
+        """Lưới mặt tương tác 3D (N, M2, M3) để vẽ.
+
+        Trả về (N_vals, Theta_vals, M2_grid, M3_grid).
+        """
+        import numpy as np
+        import math
+        n_min = min(min(p[0] for p in c) for c in self.design_curves.values())
+        n_max = max(max(p[0] for p in c) for c in self.design_curves.values())
+        n_vals = np.linspace(n_min, n_max, n_n)
+        th_vals = np.linspace(0, 360, n_angles, endpoint=False)
+        m2_grid = np.zeros((n_n, n_angles))
+        m3_grid = np.zeros((n_n, n_angles))
+        for i, nn in enumerate(n_vals):
+            for j, th in enumerate(th_vals):
+                curve = self._curve_at(th)
+                m = _interp_on_curve(curve, nn, 1)
+                rad = math.radians(th)
+                m2_grid[i, j] = m * math.sin(rad)
+                m3_grid[i, j] = m * math.cos(rad)
+        return n_vals, th_vals, m2_grid, m3_grid
+
     def dc_ratio(self, N: float, Mx: float, My: float,
                  n_iter: int = 60) -> dict:
         """Tỷ số D/C theo phương pháp tia 3D trên mặt thiết kế.

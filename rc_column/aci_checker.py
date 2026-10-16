@@ -239,6 +239,28 @@ class ACICapacity:
             return 0.0
         return _interp_on_curve(self._curve_at(phi_deg), N, 1)
 
+    def surface_grid(self, n_n: int = 25, n_angles: int = 36):
+        """Lưới mặt tương tác 3D (N, M2, M3) để vẽ.
+
+        Trả về (N_vals, Theta_vals, M2_grid, M3_grid).
+        """
+        import numpy as np
+        # Biên N: từ min đến N_cap
+        n_min = min(min(p[0] for p in c) for c in self.design_curves.values())
+        n_vals = np.linspace(n_min, self.N_cap, n_n)
+        th_vals = np.linspace(0, 360, n_angles, endpoint=False)
+        m2_grid = np.zeros((n_n, n_angles))
+        m3_grid = np.zeros((n_n, n_angles))
+        for i, nn in enumerate(n_vals):
+            for j, th in enumerate(th_vals):
+                curve = self._curve_at(th)
+                m = _interp_on_curve(curve, nn, 1)
+                rad = math.radians(th)
+                # Quy ước ETABS: α đo từ M3, M2 = M*sin, M3 = M*cos
+                m2_grid[i, j] = m * math.sin(rad)
+                m3_grid[i, j] = m * math.cos(rad)
+        return n_vals, th_vals, m2_grid, m3_grid
+
     def eps_t_at(self, N: float, phi_deg: float) -> float:
         """Biến dạng kéo thép tại điểm có N trên đường cong thiết kế."""
         if N > self.N_cap:
