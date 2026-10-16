@@ -184,8 +184,7 @@ def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
         _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT TRÒN",
                         f"Đường kính D = {D:.0f} mm")
     else:
-        _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
-                        f"Kích thước {inp.cx:.0f} × {inp.cy:.0f} mm")
+        _section_header(g, 2, "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN", "")
     grid = _grid2(g)
     if is_circle:
         D = getattr(inp, "cx", 0) or 0
@@ -196,11 +195,14 @@ def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
                          f"= {sec.gross_area:,.0f} mm² "
                          f"(= {_f(sec.gross_area / 1e6, 4)} m²)"])
         c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        # c
-        c = _param_card(grid, "Lớp bê tông bảo vệ cốt dọc c", "",
-                        [f"c = {inp.cover:.0f} mm",
-                         "Chiều dày lớp bê tông bảo vệ",
-                         f"= {inp.cover:.0f} mm"])
+        # As
+        from collections import Counter as _CtrA
+        _cntA = _CtrA(getattr(r, "dia", 0) for r in sec.rebars)
+        _barA = " + ".join(f"{_cntA[d]:.0f}d{d:.0f}" for d in sorted(_cntA, reverse=True))
+        c = _param_card(grid, "Diện tích cốt thép dọc As", "",
+                        [f"Số thanh: {_barA}",
+                         f"Tổng As: {sec.steel_area:.0f} mm²",
+                         f"Hàm lượng μ: {100*sec.reinforcement_ratio:.2f}%"])
         c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         # I = πD⁴/64 (đối xứng trục)
         c = _param_card(grid, "Mô men quán tính (I2 = I3)", "",
