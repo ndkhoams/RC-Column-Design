@@ -717,6 +717,12 @@ class App(tk.Tk):
         ttk.Label(f, textvariable=self.l0_var, font=("", 9, "italic"),
                   foreground="#0a4d8c").grid(row=5, column=0, columnspan=3,
                                              sticky=tk.W, padx=4, pady=4)
+        # Chỉ số ổn định tầng Q cho khung sway (ACI 6.6.4.6.2a), 0 = bỏ qua
+        ttk.Label(f, text="Chỉ số Q (sway, 0=bỏ qua)").grid(
+            row=6, column=0, sticky=tk.W, padx=4, pady=2)
+        self.en_Qsway = ttk.Entry(f, width=12)
+        self.en_Qsway.insert(0, "0")
+        self.en_Qsway.grid(row=6, column=1, padx=4, pady=2, sticky=tk.EW)
         # Tự điền hệ số ψ theo điều kiện biên
         for cb in (self.cb_tx, self.cb_bx, self.cb_ty, self.cb_by):
             cb.bind("<<ComboboxSelected>>", lambda e: self._auto_psi())
@@ -1094,6 +1100,19 @@ class App(tk.Tk):
         except Exception:
             Mc2, Mc3 = inp.Mx, inp.My
             mm_res = None
+        # 1b. Sway (ACI 6.6.4.6): δs = 1/(1-Q), áp thêm vào mô men
+        from rc_column.aci_checker import sway_magnification
+        try:
+            Qsw = float(self.en_Qsway.get().replace(",", ".") or "0")
+        except Exception:
+            Qsw = 0.0
+        sway_res = None
+        if Qsw > 0:
+            sway_res = sway_magnification(Q=Qsw)
+            ds = sway_res.get("delta_s", 1.0)
+            Mc2 *= ds
+            Mc3 *= ds
+        self._aci_sway = sway_res
         # 2. P-M-M với mô men đã phóng đại
         try:
             aci_res = check_column_aci(sec, conc, steel, N_kN=inp.N,
