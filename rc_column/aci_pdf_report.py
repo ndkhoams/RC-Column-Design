@@ -151,8 +151,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 pass
 
         # Banner kết luận cho mục 4 (P-M-M) và mục 5 (cắt)
-        if sec["num"] in (4, 5):
-            if sec["num"] == 4:
+        if _s["num"] in (6, 7):
+            if _s["num"] == 6:
                 ok = bool(aci_res.get("ok", False))
                 dc = aci_res.get("dc", 0.0) or 0.0
                 fs = aci_res.get("fs", 0.0) or 0.0

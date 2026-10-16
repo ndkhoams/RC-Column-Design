@@ -711,10 +711,11 @@ def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
     return outer
 
 
-def render_report_sections(parent, sections):
+def render_report_sections(parent, sections, chart_figs=None):
     """Render danh sách section (dict) kiểu TCVN cho mọi tiêu chuẩn.
 
     sections: list dict {num, title, ref, cards: [{title, ref, lines, result}]}.
+    chart_figs: tuple (fig_nm, fig_m2m3) matplotlib — nhúng vào mục 6.
     Dùng chung cho TCVN/ACI/EC2 để layout đồng nhất.
     """
     for sec in sections:
@@ -735,3 +736,17 @@ def render_report_sections(parent, sections):
                 w2.grid(row=row, column=1, sticky="nsew", padx=4, pady=4)
             row += 1
             i += 2
+        # Mục 6: nhúng 2 biểu đồ tương tác (giống TCVN)
+        if sec["num"] == 6 and chart_figs:
+            try:
+                from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+                chart_frame = tk.Frame(parent, bg=WHITE)
+                chart_frame.pack(fill=tk.X, padx=8, pady=8)
+                for fig in chart_figs:
+                    if fig is not None:
+                        cv = FigureCanvasTkAgg(fig, master=chart_frame)
+                        cv.draw()
+                        cv.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH,
+                                                expand=True, padx=4)
+            except Exception:
+                pass
