@@ -301,10 +301,8 @@ class App(tk.Tk):
         # Khi canvas rộng/cao hơn nội dung, giãn window fill hết
         def _fit_left_window(e):
             canvas.itemconfigure(self._left_win, width=e.width)
-            # Chiều cao: ít nhất bằng canvas để bảng nội lực fill hết
-            req_h = self.left.winfo_reqheight()
-            canvas.itemconfigure(self._left_win,
-                                 height=max(req_h, e.height))
+            # Ép chiều cao bằng canvas để bảng nội lực fill hết cửa sổ
+            canvas.itemconfigure(self._left_win, height=e.height)
         canvas.bind("<Configure>", _fit_left_window)
         canvas.configure(yscrollcommand=scr.set)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -557,7 +555,7 @@ class App(tk.Tk):
         for _c in range(4):
             f.columnconfigure(_c, weight=1, uniform="sec2")
         fl = ttk.Frame(f); fl.grid(row=0, column=0, columnspan=2,
-                                   sticky=tk.NSEW, padx=2)
+                                   sticky=tk.NW, padx=2)
         fr = ttk.Frame(f); fr.grid(row=0, column=2, columnspan=2,
                                    sticky=tk.NSEW, padx=2)
         # Khung phải: chứa ô kích thước (chữ nhật/tròn) hoặc note DXF
@@ -1759,6 +1757,7 @@ class App(tk.Tk):
                     fg = "#1F2937"
                     if is_kl and j > 0:
                         fg = "#065F46" if t == "ĐẠT" else "#991B1B"
+                        fw = ("", 9, "bold")  # kết quả in đậm
                     tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
                              borderwidth=0, highlightthickness=0,
                              padx=6, pady=2, anchor="w" if j == 0
@@ -1851,11 +1850,11 @@ class App(tk.Tk):
         # Combobox chọn góc xem biểu đồ N-M
         right = ttk.Frame(hdr)
         right.pack(side=tk.RIGHT)
-        tk.Label(right, text="Góc xem:", font=("", 8),
+        tk.Label(right, text="Góc xem:", font=("", 9),
                  bg="white").pack(side=tk.LEFT)
         _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)]
         self._aci_nm_angle_cb = ttk.Combobox(
-            right, values=_vals, width=11, state="readonly", font=("", 8))
+            right, values=_vals, width=11, state="readonly", font=("", 9))
         self._aci_nm_angle_cb.set("α (góc tải)")
         self._aci_nm_angle_cb.pack(side=tk.LEFT, padx=(4, 0))
         self._aci_nm_angle_cb.bind("<<ComboboxSelected>>",
@@ -2231,6 +2230,7 @@ class App(tk.Tk):
                     fg = "#1F2937"
                     if is_kl and j > 0:
                         fg = "#065F46" if t == "ĐẠT" else "#991B1B"
+                        fw = ("", 9, "bold")  # kết quả in đậm
                     tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
                              borderwidth=0, highlightthickness=0,
                              padx=6, pady=2, anchor="w" if j == 0
@@ -2338,11 +2338,11 @@ class App(tk.Tk):
         # Combobox chọn góc xem biểu đồ N-M
         right = ttk.Frame(hdr)
         right.pack(side=tk.RIGHT)
-        tk.Label(right, text="Góc xem:", font=("", 8),
+        tk.Label(right, text="Góc xem:", font=("", 9),
                  bg="white").pack(side=tk.LEFT)
         _vals = ["α (góc tải)"] + [f"{d}°" for d in range(0, 361, 15)]
         self._ec2_nm_angle_cb = ttk.Combobox(
-            right, values=_vals, width=11, state="readonly", font=("", 8))
+            right, values=_vals, width=11, state="readonly", font=("", 9))
         self._ec2_nm_angle_cb.set("α (góc tải)")
         self._ec2_nm_angle_cb.pack(side=tk.LEFT, padx=(4, 0))
         self._ec2_nm_angle_cb.bind("<<ComboboxSelected>>",
@@ -4130,6 +4130,7 @@ class App(tk.Tk):
                     fg = "#1F2937"
                     if is_kl and j > 0:
                         fg = "#065F46" if t == "ĐẠT" else "#991B1B"
+                        fw = ("", 9, "bold")  # kết quả in đậm
                     tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
                              borderwidth=0,
                              highlightthickness=0,
