@@ -189,28 +189,35 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         ],
     })
 
-    # ---- 7. Kiểm tra cắt ----
+    # ---- 7. Kiểm tra cắt (2 phương) ----
     _sh = shear_res or {}
-    Vc = _sh.get("Vc_kN", 0.0) or 0.0
-    Vs = _sh.get("Vs_kN", 0.0) or 0.0
-    phi_Vn = _sh.get("phi_Vn_kN", 0.0) or 0.0
-    sh_ok = bool(_sh.get("ok", False))
+    _d2 = _sh.get("dir2", {}) if isinstance(_sh.get("dir2"), dict) else {}
+    _d3 = _sh.get("dir3", {}) if isinstance(_sh.get("dir3"), dict) else {}
+    # Fallback: dùng key cũ nếu không có dir2/dir3
+    if not _d2 and not _d3:
+        _d2 = _sh
+    def _sh_card(d, Q, label):
+        Vc = d.get("Vc_kN", 0.0) or 0.0
+        Vs = d.get("Vs_kN", 0.0) or 0.0
+        phi_Vn = d.get("phi_Vn_kN", 0.0) or 0.0
+        ok = bool(d.get("ok", False))
+        return _mk(f"Phương {label} (Vu = {_f(abs(Q), 1)} kN)",
+                    "ACI 22.5.5.1",
+                    [f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d = {_f(Vc, 1)} kN",
+                     f"Vs = Av·fyt·d/s = {_f(Vs, 1)} kN",
+                     f"φVn = 0.75·(Vc+Vs) = {_f(phi_Vn, 1)} kN",
+                     f"Vu = {_f(abs(Q), 1)} kN ≤ φVn = {_f(phi_Vn, 1)} kN"],
+                    "ĐẠT" if ok else "KHÔNG ĐẠT")
+    _ok2 = bool(_d2.get("ok", False)) if _d2 else True
+    _ok3 = bool(_d3.get("ok", False)) if _d3 else True
+    _cards7 = [_sh_card(_d2, Q2, "V2")]
+    if _d3:
+        _cards7.append(_sh_card(_d3, Q3, "V3"))
     sections.append({
         "num": 7,
         "title": "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
         "ref": "ACI 22.5",
-        "cards": [
-            _mk("Khả năng chịu cắt",
-                "ACI 22.5.5.1",
-                [f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d = {_f(Vc, 1)} kN",
-                 f"Vs = Av·fyt·d/s = {_f(Vs, 1)} kN",
-                 f"φVn = 0.75·(Vc+Vs) = {_f(phi_Vn, 1)} kN"],
-                f"φVn = {_f(phi_Vn, 1)} kN"),
-            _mk("Kết luận",
-                "",
-                [f"Vu = {_f(max(Q2, Q3), 1)} kN ≤ φVn = {_f(phi_Vn, 1)} kN"],
-                "ĐẠT" if sh_ok else "KHÔNG ĐẠT"),
-        ],
+        "cards": _cards7,
     })
 
     return sections
