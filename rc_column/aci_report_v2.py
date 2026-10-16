@@ -307,7 +307,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                 "",
                 [f"D/C = |OA| / |OB| = {_f(math.sqrt(M2_star**2 + M3_star**2 + N**2), 1)} / {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)}",
                  f"= {_f(dc, 3)} (FS = {_f(fs, 2)})"],
-                "Kết luận: ĐẠT — D/C ≤ 1.000" if pm_ok else "✗ KHÔNG ĐẠT",
+                "",
                  dc_conclusion=True, dc=dc, fs=fs, ok=pm_ok),
         ],
     })
