@@ -314,7 +314,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     _dc = aci_res.get("dc", 0)
     _fs = aci_res.get("fs", 0)
     _ok_txt = "<b>ĐẠT</b>" if aci_res.get("ok") else "<b>KHÔNG ĐẠT</b>"
-    tie_txt = "Tied (đai thường)" if tied else "Spiral (đai xoắn)"
+    tie_txt = "Đai rời (tied)" if tied else "Đai xoắn (spiral)"
     _fyt = getattr(inp, "fyt", None) or getattr(steel, "fyt", steel.fy)
 
     # ===== Cột trái =====
