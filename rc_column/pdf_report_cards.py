@@ -203,24 +203,19 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _mk( "Bê tông", "Bảng 6, Bảng 10 & Mục 6.1.2.3",
               [f"Rb* = γb·Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
                f"= {_f(conc.Rb)} MPa",
-               f"Eb ({inp.concrete_grade}) = {conc.Eb:,.0f} N/mm²"]),
+               f"Eb ({inp.concrete_grade}) = {conc.Eb:,.0f} MPa"]),
         _mk( "Cốt thép dọc", "Bảng 13 & Mục 6.2.2",
               [f"Rs = {_f(steel.Rs, 1)} MPa",
                f"Rsc = {_f(steel.Rsc, 1)} MPa",
-               f"Es = {steel.Es:,.0f} N/mm²"])))
+               f"Es = {steel.Es:,.0f} MPa"])))
     S.extend(_two(P, st,
         _mk( "Cốt thép đai", "Bảng 13",
               [f"Rsw = {_f(steel.grade.Rsw * inp.gamma_s, 1)} MPa",
                f"(Thép {getattr(inp, 'sw_steel_grade', 'CB400-V')})",
-               f"Es = {steel.Es:,.0f} N/mm²"]),
+               f"Es = {steel.Es:,.0f} MPa"]),
         _mk( "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
               [f"αe = Es / Eb = {steel.Es:,.0f} / {conc.Eb:,.0f}",
                f"= {_f(res.alpha_e)} -"])))
-    S.extend(_two(P, st,
-        _mk( "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
-              [f"αe = Es / Eb = {steel.Es:,.0f} / {conc.Eb:,.0f}",
-               f"= {_f(res.alpha_e)} -"]),
-        _mk( "", "", [""])))
     # Bảng biến dạng giới hạn
 
 
