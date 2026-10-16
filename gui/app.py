@@ -523,10 +523,10 @@ class App(tk.Tk):
                                           state="readonly", width=12)
         self.cb_ec2_method.set("Độ cứng danh nghĩa")
         self.en_ec2_fyt = ttk.Entry(self.frm_ec2, width=12); self.en_ec2_fyt.insert(0, "500")
-        _mat_row(self.frm_ec2, 0, "Mác bê tông (fck)", self.cb_ec2_conc,
+        _mat_row(self.frm_ec2, 0, "Bê tông", self.cb_ec2_conc,
                  "Phương pháp tính bậc 2", self.cb_ec2_method)
-        _mat_row(self.frm_ec2, 1, "Cường độ thép dọc fyk (MPa)", self.en_ec2_fyk,
-                 "Cường độ thép đai fyk (MPa)", self.en_ec2_fyt)
+        _mat_row(self.frm_ec2, 1, "C. độ thép dọc fyk (MPa)", self.en_ec2_fyk,
+                 "C. độ thép đai fyk (MPa)", self.en_ec2_fyt)
         self.frm_ec2.grid_remove()
 
     def _toggle_code(self):
@@ -597,12 +597,14 @@ class App(tk.Tk):
         self.cb_kind.bind("<<ComboboxSelected>>",
                           lambda e: self._refresh_rebar_panel())
         self.cb_kind.grid(row=0, column=1, sticky=tk.W, padx=4, pady=5)
-        # Nút import/export: đặt trực tiếp ở grid 4 cột của section f
-        # (cột 0-1 = vị trí OPEN/SAVE), không qua fl để tránh lệch
-        self.btn_dxf = ttk.Button(f, text="📐 Import (.dxf)",
+        # Nút import/export: đặt trong fl ngay dưới combobox (đẩy lên, không khoảng trống)
+        # Dùng 2 cột đều trong fl để mỗi nút rộng 25% section = bằng OPEN/SAVE
+        fl.columnconfigure(0, weight=1, uniform="dxf3")
+        fl.columnconfigure(1, weight=1, uniform="dxf3")
+        self.btn_dxf = ttk.Button(fl, text="📐 Import (.dxf)",
                                   command=self.on_import_dxf)
         self.btn_dxf.grid(row=1, column=0, sticky=tk.EW, padx=4, pady=2)
-        self.btn_dxf_export = ttk.Button(f, text="📤 Export (.dxf)",
+        self.btn_dxf_export = ttk.Button(fl, text="📤 Export (.dxf)",
                                          command=self.on_export_dxf)
         self.btn_dxf_export.grid(row=1, column=1, sticky=tk.EW, padx=4, pady=2)
         for w in (self.en_cx, self.en_cy):
@@ -1584,7 +1586,7 @@ class App(tk.Tk):
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
         tk.Label(f_tl, textvariable=self.ck_var,
-                 font=("", 10, "bold"), fg="#92400E",
+                 font=("", 10, "bold"), fg="black",
                  bg="white").pack(pady=(0, 4))
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
@@ -1720,7 +1722,7 @@ class App(tk.Tk):
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
-                         highlightthickness=0,
+                         highlightthickness=0, anchor="w",
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             rows = [
@@ -2046,7 +2048,7 @@ class App(tk.Tk):
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
         tk.Label(f_tl, textvariable=self.ck_var,
-                 font=("", 10, "bold"), fg="#92400E",
+                 font=("", 10, "bold"), fg="black",
                  bg="white").pack(pady=(0, 4))
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
@@ -2177,7 +2179,7 @@ class App(tk.Tk):
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
-                         highlightthickness=0,
+                         highlightthickness=0, anchor="w",
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             def _asws(v):
@@ -4055,7 +4057,7 @@ class App(tk.Tk):
             for j, h in enumerate(headers):
                 tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
                          fg="#111827", borderwidth=0,
-                         highlightthickness=0,
+                         highlightthickness=0, anchor="w",
                          padx=6, pady=3).grid(row=0, column=j, sticky="nsew")
                 # Tỉ lệ cột 90-45-45 (2:1:1), uniform để giữ đúng tỉ lệ
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
@@ -4286,7 +4288,7 @@ class App(tk.Tk):
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
         tk.Label(f_tl, textvariable=self.ck_var,
-                 font=("", 10, "bold"), fg="#92400E",
+                 font=("", 10, "bold"), fg="black",
                  bg="white").pack(pady=(0, 4))
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
