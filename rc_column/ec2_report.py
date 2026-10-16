@@ -1,1 +1,195 @@
-IiIiVGh1eeG6v3QgbWluaCBraeG7g20gdHJhIGPhu5l0IHRoZW8gRXVyb2NvZGUgMiAoRU4gMTk5Mi0xLTEpLgoKVHLhuqMgduG7gSBsaXN0IGPDoWMgc2VjdGlvbiBkaWN0IMSR4buDIEdVSSByZW5kZXIgKGPDuW5nIGPhuqV1IHRyw7pjIHbhu5tpCnJlcG9ydF93aWRnZXRzL3BkZl9yZXBvcnRfY2FyZHMpOgotIG3hu5dpIHNlY3Rpb246IHsnbnVtJywgJ3RpdGxlJywgJ3JlZicsICdjYXJkcyd9Ci0gbeG7l2kgY2FyZDogeyd0aXRsZScsICdyZWYnLCAnbGluZXMnLCAncmVzdWx0J30KCktow7RuZyBwaOG7pSB0aHXhu5ljIEdVSS9tYXRwbG90bGliLgoiIiIKCmltcG9ydCBtYXRoCmZyb20gdHlwaW5nIGltcG9ydCBBbnksIERpY3QsIExpc3QKCgpkZWYgX2YoeDogZmxvYXQsIG5kOiBpbnQgPSAyKSAtPiBzdHI6CiAgICBpZiB4IGlzIE5vbmUgb3Igbm90IG1hdGguaXNmaW5pdGUoeCk6CiAgICAgICAgcmV0dXJuICLigJQiCiAgICByZXR1cm4gZiJ7eDoue25kfWZ9IgoKCmRlZiBfbWsodGl0bGU6IHN0ciwgcmVmOiBzdHIsIGxpbmVzOiBMaXN0W3N0cl0sIHJlc3VsdDogc3RyID0gIiIpIC0+IERpY3Rbc3RyLCBBbnldOgogICAgcmV0dXJuIHsidGl0bGUiOiB0aXRsZSwgInJlZiI6IHJlZiwgImxpbmVzIjogbGluZXMsICJyZXN1bHQiOiByZXN1bHR9CgoKZGVmIGdlbmVyYXRlX2VjMl9yZXBvcnRfc2VjdGlvbnMoaW5wLCBlYzJfcmVzOiBEaWN0W3N0ciwgQW55XSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2xlbmRfcmVzOiBEaWN0W3N0ciwgQW55XSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2hlYXJfcmVzOiBEaWN0W3N0ciwgQW55XSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29uYywgc3RlZWwpIC0+IExpc3RbRGljdFtzdHIsIEFueV1dOgogICAgIiIiVOG6oW8gY8OhYyBt4bulYyB0aHV54bq/dCBtaW5oIGtp4buDbSB0cmEgY+G7mXQgdGhlbyBFQzIuCgogICAgaW5wOiBDb2x1bW5JbnB1dCAobOG6pXkgTkVkLCBNRWQyL01FZDMgxJHDoyB0w61uaCBi4bqtYyAyLCBRMi9RMy4uLikuCiAgICBlYzJfcmVzOiBkaWN0IHThu6sgY2hlY2tfY29sdW1uX2VjMiB7ZGMsIGZzLCBvaywgQngsIEJ5LCBCTiwgLi4ufS4KICAgIHNsZW5kX3JlczogZGljdCB7J2RpcjInOiB7Li4ufSwgJ2RpcjMnOiB7Li4ufX0gdOG7qyBlYzJfZGVzaWduX21vbWVudAogICAgICAgIGNobyBt4buXaSBwaMawxqFuZyAoaG/hurdjIGRpY3QgxJHGoW4gY2hvIHTGsMahbmcgdGjDrWNoKS4KICAgIHNoZWFyX3JlczogZGljdCB7J2RpcjInOiB7Li4ufSwgJ2RpcjMnOiB7Li4ufX0gdOG7qyBlYzJfc2hlYXJfY2hlY2suCiAgICBjb25jOiBFQzJDb25jcmV0ZSwgc3RlZWw6IEVDMlN0ZWVsLgogICAgIiIiCiAgICBmY2sgPSBjb25jLmZjawogICAgZnlrID0gc3RlZWwuZnlrCgogICAgTkVkID0gZ2V0YXR0cihpbnAsICJOIiwgMC4wKSBvciAwLjAKICAgIE1FZDIgPSBnZXRhdHRyKGlucCwgIk14IiwgMC4wKSBvciAwLjAKICAgIE1FZDMgPSBnZXRhdHRyKGlucCwgIk15IiwgMC4wKSBvciAwLjAKICAgIFZFZDIgPSBhYnMoZ2V0YXR0cihpbnAsICJRMiIsIDAuMCkgb3IgMC4wKQogICAgVkVkMyA9IGFicyhnZXRhdHRyKGlucCwgIlEzIiwgMC4wKSBvciAwLjApCgogICAgc2VjdGlvbnM6IExpc3RbRGljdFtzdHIsIEFueV1dID0gW10KCiAgICAjIC0tLS0gMS4gVuG6rXQgbGnhu4d1IC0tLS0KICAgIHNlY3Rpb25zLmFwcGVuZCh7CiAgICAgICAgIm51bSI6IDEsCiAgICAgICAgInRpdGxlIjogIlbhuqxUIExJ4buGVSBUSEVPIEVDMiAoRU4gMTk5Mi0xLTEpIiwKICAgICAgICAicmVmIjogIkVDMiAyLjQuMi40LCAzLjEsIDMuMiIsCiAgICAgICAgImNhcmRzIjogWwogICAgICAgICAgICBfbWsoIkLDqiB0w7RuZyIsCiAgICAgICAgICAgICAgICAiRUMyIDMuMSIsCiAgICAgICAgICAgICAgICBbZiJmY2sgPSB7X2YoZmNrLCAwKX0gTVBhIiwKICAgICAgICAgICAgICAgICBmImZjZCA9IM6xY2PCt2Zjay/Os2MgPSAxLjDDl3tfZihmY2ssIDApfS8xLjUgPSB7X2YoY29uYy5mY2QsIDIpfSBNUGEiLAogICAgICAgICAgICAgICAgIGYiRWNtID0gMjIwMDDCtyhmY20vMTApXjAuMyA9IHtfZihjb25jLkVjbSwgMCl9IE1QYSIsCiAgICAgICAgICAgICAgICAgIs61Y3UyID0gMC4wMDM1IChiaeG6v24gZOG6oW5nIGPhu7FjIGjhuqFuKSIsCiAgICAgICAgICAgICAgICAgZiJLaOG7kWkg4bupbmcgc3XhuqV0IGNo4buvIG5o4bqtdDogzrfCt2ZjZCA9IHtfZihjb25jLmZfYmxvY2ssIDIpfSBNUGEsIGEgPSDOu8K3eCAozrsgPSAwLjgpIl0sCiAgICAgICAgICAgICAgICBmImZjZCA9IHtfZihjb25jLmZjZCwgMil9IE1QYSIpLAogICAgICAgICAgICBfbWsoIkPhu5F0IHRow6lwIiwKICAgICAgICAgICAgICAgICJFQzIgMy4yIiwKICAgICAgICAgICAgICAgIFtmImZ5ayA9IHtfZihmeWssIDApfSBNUGEiLAogICAgICAgICAgICAgICAgIGYiZnlkID0gZnlrL86zcyA9IHtfZihmeWssIDApfS8xLjE1ID0ge19mKHN0ZWVsLmZ5ZCwgMSl9IE1QYSIsCiAgICAgICAgICAgICAgICAgIkVzID0gMjAwMDAwIE1QYSIsCiAgICAgICAgICAgICAgICAgZiLOtXlkID0gZnlkL0VzID0ge19mKHN0ZWVsLmVwc195ZCwgNSl9IiwKICAgICAgICAgICAgICAgICAiTcO0IGjDrG5oIMSRw6Bu4oCTZOG6u28gbMO9IHTGsOG7n25nLCDhu6luZyBzdeG6pXQgZ2nhu5tpIGjhuqFuIOG7nyDCsWZ5ZCJdLAogICAgICAgICAgICAgICAgZiJmeWQgPSB7X2Yoc3RlZWwuZnlkLCAxKX0gTVBhIiksCiAgICAgICAgXSwKICAgIH0pCgogICAgIyAtLS0tIDIuIFNhaSBs4buHY2gsIMSR4buZIG3huqNuaCAmIGLhuq1jIDIgLS0tLQogICAgZGVmIF9zbF9jYXJkcyhkOiBEaWN0W3N0ciwgQW55XSwgbGJsOiBzdHIpOgogICAgICAgIGlmIG5vdCBkOgogICAgICAgICAgICByZXR1cm4gW19tayhmIlBoxrDGoW5nIHtsYmx9IiwgIiIsIFsi4oCUIl0sICIiKV0KICAgICAgICBsaW5lcyA9IFsKICAgICAgICAgICAgZiLOuGkgPSDOuDDCt86xaMK3zrFtID0gKDEvMjAwKcOXe19mKGQuZ2V0KCdhbHBoYV9oJywgMCksIDMpfcOXMS4wID0ge19mKGQuZ2V0KCd0aGV0YV9pJywgMCksIDUpfSIsCiAgICAgICAgICAgIGYiZWkgPSDOuGnCt2wwLzIgPSB7X2YoZC5nZXQoJ2VpX21tJywgMCksIDEpfSBtbSIsCiAgICAgICAgICAgIGYiTV9pbXAgPSBORWTCt2VpID0ge19mKGQuZ2V0KCdNX2ltcCcsIDApLCAyKX0ga07Ct20iLAogICAgICAgICAgICBmImVtaW4gPSBtYXgoaC8zMCwgMjApID0ge19mKGQuZ2V0KCdlbWluX21tJywgMCksIDEpfSBtbSIsCiAgICAgICAgICAgIGYiTW1pbiA9IE5FZMK3ZW1pbiA9IHtfZihkLmdldCgnTW1pbicsIDApLCAyKX0ga07Ct20iLAogICAgICAgICAgICBmIs67ID0gbDAvaSA9IHtfZihkLmdldCgnbGFtYmRhX3NsJywgMCksIDEpfSwgIgogICAgICAgICAgICBmIs67bGltID0gMjDCt0HCt0LCt0Mv4oiabiA9IHtfZihkLmdldCgnbGFtYmRhX2xpbScsIDApLCAxKX0iLAogICAgICAgIF0KICAgICAgICBpZiBkLmdldCgic2Vjb25kX29yZGVyIik6CiAgICAgICAgICAgIG1ldGggPSAixJHhu5kgY+G7qW5nIGRhbmggbmdoxKlhIiBpZiBkLmdldCgibWV0aG9kIikgPT0gInN0aWZmbmVzcyIgZWxzZSAixJHhu5kgY29uZyBkYW5oIG5naMSpYSIKICAgICAgICAgICAgbGluZXMgKz0gWwogICAgICAgICAgICAgICAgZiJD4buZdCBt4bqjbmggKM67IOKJpSDOu2xpbSk6IHTDrW5oIGLhuq1jIDIgYuG6sW5nIHttZXRofSIsCiAgICAgICAgICAgICAgICBmIk0wRWQgPSB7X2YoZC5nZXQoJ3NvX00wRWQnLCAwKSwgMil9IGtOwrdtIiwKICAgICAgICAgICAgXQogICAgICAgICAgICBpZiBkLmdldCgibWV0aG9kIikgPT0gInN0aWZmbmVzcyI6CiAgICAgICAgICAgICAgICBsaW5lcyArPSBbCiAgICAgICAgICAgICAgICAgICAgZiJOQiA9IHtfZihkLmdldCgnc29fTkJfa04nLCAwKSwgMCl9IGtOLCAiCiAgICAgICAgICAgICAgICAgICAgZiJmYWN0b3IgPSB7X2YoZC5nZXQoJ3NvX2ZhY3RvcicsIDApLCAzKX0iLAogICAgICAgICAgICAgICAgXQogICAgICAgICAgICBlbHNlOgogICAgICAgICAgICAgICAgbGluZXMgKz0gWwogICAgICAgICAgICAgICAgICAgIGYiZTIgPSB7X2YoZC5nZXQoJ3NvX2UyX21tJywgMCksIDEpfSBtbSwgIgogICAgICAgICAgICAgICAgICAgIGYiTTIgPSB7X2YoZC5nZXQoJ3NvX00yJywgMCksIDIpfSBrTsK3bSIsCiAgICAgICAgICAgICAgICBdCiAgICAgICAgICAgIGxpbmVzLmFwcGVuZChmIk1FZCBi4bqtYyAyID0ge19mKGQuZ2V0KCdNRWRfY2FsYycsIDApLCAyKX0ga07Ct20iKQogICAgICAgIGVsc2U6CiAgICAgICAgICAgIGxpbmVzLmFwcGVuZChkLmdldCgicmVhc29uIiwgIktow7RuZyBj4bqnbiB0w61uaCBi4bqtYyAyIikpCiAgICAgICAgbGluZXMuYXBwZW5kKGYiTUVkIHRoaeG6v3Qga+G6vyA9IG1heChNRWQsIE1taW4pID0ge19mKGQuZ2V0KCdNRWQnLCAwKSwgMil9IGtOwrdtIikKICAgICAgICBvayA9IGJvb2woZC5nZXQoIm9rIiwgVHJ1ZSkpCiAgICAgICAgcmV0dXJuIFtfbWsoZiJQaMawxqFuZyB7bGJsfSIsICJFQzIgNS4yLCA1LjgsIDYuMSg0KSIsIGxpbmVzLAogICAgICAgICAgICAgICAgICAgICJPSyIgaWYgb2sgZWxzZSAiS0jDlE5HIMSQ4bqgVCIpXQoKICAgIGlmIGlzaW5zdGFuY2Uoc2xlbmRfcmVzLCBkaWN0KSBhbmQgImRpcjIiIGluIHNsZW5kX3JlczoKICAgICAgICBzbF9jYXJkcyA9IChfc2xfY2FyZHMoc2xlbmRfcmVzLmdldCgiZGlyMiIpLCAiMiIpCiAgICAgICAgICAgICAgICAgICAgKyBfc2xfY2FyZHMoc2xlbmRfcmVzLmdldCgiZGlyMyIpLCAiMyIpKQogICAgZWxzZToKICAgICAgICBzbF9jYXJkcyA9IF9zbF9jYXJkcyhzbGVuZF9yZXMgb3Ige30sICIyLzMiKQogICAgc2VjdGlvbnMuYXBwZW5kKHsKICAgICAgICAibnVtIjogMiwKICAgICAgICAidGl0bGUiOiAiU0FJIEzhu4ZDSCBUSEkgQ8OUTkcsIMSQ4buYIE3huqJOSCAmIEhJ4buGVSDhu6hORyBC4bqsQyAyIiwKICAgICAgICAicmVmIjogIkVDMiA1LjIsIDUuOCwgNi4xKDQpIiwKICAgICAgICAiY2FyZHMiOiBzbF9jYXJkcywKICAgIH0pCgogICAgIyAtLS0tIDMuIEtp4buDbSB0cmEgUC1NLU0gLS0tLQogICAgZGMgPSBlYzJfcmVzLmdldCgiZGMiLCAwLjApIG9yIDAuMAogICAgZnMgPSBlYzJfcmVzLmdldCgiZnMiLCAwLjApIG9yIDAuMAogICAgQnggPSBlYzJfcmVzLmdldCgiQngiLCAwLjApIG9yIDAuMAogICAgQnkgPSBlYzJfcmVzLmdldCgiQnkiLCAwLjApIG9yIDAuMAogICAgQk4gPSBlYzJfcmVzLmdldCgiQk4iLCAwLjApIG9yIDAuMAogICAgTl9SZF9tYXggPSBlYzJfcmVzLmdldCgiTl9SZF9tYXgiLCAwLjApIG9yIDAuMAogICAgcG1fb2sgPSBib29sKGVjMl9yZXMuZ2V0KCJvayIsIEZhbHNlKSkKICAgIGRjX3R4dCA9IF9mKGRjLCAzKSBpZiBtYXRoLmlzZmluaXRlKGRjKSBlbHNlICLiiJ4iCiAgICBmc190eHQgPSBfZihmcywgMikgaWYgbWF0aC5pc2Zpbml0ZShmcykgZWxzZSAi4oieIgogICAgc2VjdGlvbnMuYXBwZW5kKHsKICAgICAgICAibnVtIjogMywKICAgICAgICAidGl0bGUiOiAiS0nhu4JNIFRSQSBOw4lOIFXhu5BOIFhJw4pOIChORWQtTUVkKSIsCiAgICAgICAgInJlZiI6ICJFQzIgNi4xIiwKICAgICAgICAiY2FyZHMiOiBbCiAgICAgICAgICAgIF9taygixJBp4buDbSB04bqjaSB0cuG7jW5nIEEgKG7hu5lpIGzhu7FjIHRoaeG6v3Qga+G6vykiLAogICAgICAgICAgICAgICAgIiIsCiAgICAgICAgICAgICAgICBbZiJORWQgPSB7X2YoTkVkLCAxKX0ga04iLAogICAgICAgICAgICAgICAgIGYiTUVkMiA9IHtfZihNRWQyLCAxKX0ga07Ct20sIE1FZDMgPSB7X2YoTUVkMywgMSl9IGtOwrdtIiwKICAgICAgICAgICAgICAgICBmIk5fUmQsbWF4ID0ge19mKE5fUmRfbWF4LCAxKX0ga04iXSwKICAgICAgICAgICAgICAgICIiKSwKICAgICAgICAgICAgX21rKCLEkGnhu4NtIGdp4bubaSBo4bqhbiBCICh0csOqbiBt4bq3dCB0xrDGoW5nIHTDoWMpIiwKICAgICAgICAgICAgICAgICIiLAogICAgICAgICAgICAgICAgW2YiQk4gPSB7X2YoQk4sIDEpfSBrTiIsCiAgICAgICAgICAgICAgICAgZiJCTUVkMiA9IHtfZihCeCwgMSl9IGtOwrdtLCBCTUVkMyA9IHtfZihCeSwgMSl9IGtOwrdtIl0sCiAgICAgICAgICAgICAgICAiIiksCiAgICAgICAgICAgIF9taygiVOG7tyBz4buRIEQvQyIsCiAgICAgICAgICAgICAgICAiRUMyIDYuMSIsCiAgICAgICAgICAgICAgICBbZiJEL0MgPSB8T0F8L3xPQnwgPSB7ZGNfdHh0fSIsCiAgICAgICAgICAgICAgICAgZiJGUyA9IHtmc190eHR9Il0sCiAgICAgICAgICAgICAgICAixJDhuqBUIiBpZiBwbV9vayBlbHNlICJLSMOUTkcgxJDhuqBUIiksCiAgICAgICAgXSwKICAgIH0pCgogICAgIyAtLS0tIDQuIEtp4buDbSB0cmEgY+G6r3QgLS0tLQogICAgZGVmIF9zaF9jYXJkKGQ6IERpY3Rbc3RyLCBBbnldLCBWRWQ6IGZsb2F0LCBsYmw6IHN0cik6CiAgICAgICAgaWYgbm90IGQ6CiAgICAgICAgICAgIHJldHVybiBfbWsoZiJQaMawxqFuZyB7bGJsfSIsICIiLCBbIuKAlCJdLCAiIikKICAgICAgICBWUmRfYyA9IGQuZ2V0KCJWUmRfY19rTiIsIDAuMCkgb3IgMC4wCiAgICAgICAgVlJkX21heCA9IGQuZ2V0KCJWUmRfbWF4X2tOIiwgMC4wKSBvciAwLjAKICAgICAgICBWUmRfcyA9IGQuZ2V0KCJWUmRfc19rTiIsIDAuMCkgb3IgMC4wCiAgICAgICAgYXN3X3JlcSA9IGQuZ2V0KCJBc3dfc19yZXEiLCAwLjApCiAgICAgICAgb2sgPSBib29sKGQuZ2V0KCJvayIsIEZhbHNlKSkKICAgICAgICBsaW5lcyA9IFsKICAgICAgICAgICAgZiJWRWQgPSB7X2YoVkVkLCAxKX0ga04iLAogICAgICAgICAgICBmIlZSZCxjID0ge19mKFZSZF9jLCAxKX0ga04gIgogICAgICAgICAgICBmIihrID0ge19mKGQuZ2V0KCdrJywgMCksIDIpfSwgz4FsID0ge19mKGQuZ2V0KCdyaG9fbCcsIDApLCA0KX0pIiwKICAgICAgICAgICAgZiJWUmQsbWF4ID0ge19mKFZSZF9tYXgsIDEpfSBrTiAozrggPSA0NcKwKSIsCiAgICAgICAgXQogICAgICAgIGlmIFZFZCA+IFZSZF9jIGFuZCBtYXRoLmlzZmluaXRlKGFzd19yZXEpOgogICAgICAgICAgICBsaW5lcy5hcHBlbmQoZiJWUmQscyA9IHtfZihWUmRfcywgMSl9IGtOLCAiCiAgICAgICAgICAgICAgICAgICAgICAgICBmIkFzdy9zIHnDqnUgY+G6p3UgPSB7X2YoYXN3X3JlcSwgMyl9IG1twrIvbW0iKQogICAgICAgIGNtcCA9ICLiiaQiIGlmIFZFZCA8PSBtYXgoVlJkX2MsIFZSZF9zKSBlbHNlICI+IgogICAgICAgIGxpbmVzLmFwcGVuZChmIlZFZCA9IHtfZihWRWQsIDEpfSBrTiB7Y21wfSBWUmQgPSAiCiAgICAgICAgICAgICAgICAgICAgIGYie19mKGQuZ2V0KCdWUmRfa04nLCAwKSBvciAwLCAxKX0ga04iKQogICAgICAgIGlmIGQuZ2V0KCJyZWFzb24iKToKICAgICAgICAgICAgbGluZXMuYXBwZW5kKGRbInJlYXNvbiJdKQogICAgICAgIHJldHVybiBfbWsoZiJQaMawxqFuZyB7bGJsfSIsICJFQzIgNi4yIiwgbGluZXMsCiAgICAgICAgICAgICAgICAgICAgIsSQ4bqgVCIgaWYgb2sgZWxzZSAiS0jDlE5HIMSQ4bqgVCIpCgogICAgaWYgaXNpbnN0YW5jZShzaGVhcl9yZXMsIGRpY3QpIGFuZCAiZGlyMiIgaW4gc2hlYXJfcmVzOgogICAgICAgIHNoX2NhcmRzID0gW19zaF9jYXJkKHNoZWFyX3Jlcy5nZXQoImRpcjIiKSwgVkVkMiwgIlYyIiksCiAgICAgICAgICAgICAgICAgICAgX3NoX2NhcmQoc2hlYXJfcmVzLmdldCgiZGlyMyIpLCBWRWQzLCAiVjMiKV0KICAgIGVsc2U6CiAgICAgICAgc2hfY2FyZHMgPSBbX3NoX2NhcmQoc2hlYXJfcmVzIG9yIHt9LCBWRWQyLCAiVjIvVjMiKV0KICAgIHNlY3Rpb25zLmFwcGVuZCh7CiAgICAgICAgIm51bSI6IDQsCiAgICAgICAgInRpdGxlIjogIktJ4buCTSBUUkEgQ+G6rlQiLAogICAgICAgICJyZWYiOiAiRUMyIDYuMiIsCiAgICAgICAgImNhcmRzIjogc2hfY2FyZHMsCiAgICB9KQoKICAgIHJldHVybiBzZWN0aW9ucwo=
+"""Thuyết minh kiểm tra cột theo Eurocode 2 (EN 1992-1-1).
+
+Trả về list các section dict để GUI render (cùng cấu trúc với
+report_widgets/pdf_report_cards):
+- mỗi section: {'num', 'title', 'ref', 'cards'}
+- mỗi card: {'title', 'ref', 'lines', 'result'}
+
+Không phụ thuộc GUI/matplotlib.
+"""
+
+import math
+from typing import Any, Dict, List
+
+
+def _f(x: float, nd: int = 2) -> str:
+    if x is None or not math.isfinite(x):
+        return "—"
+    return f"{x:.{nd}f}"
+
+
+def _mk(title: str, ref: str, lines: List[str], result: str = "") -> Dict[str, Any]:
+    return {"title": title, "ref": ref, "lines": lines, "result": result}
+
+
+def generate_ec2_report_sections(inp, ec2_res: Dict[str, Any],
+                                 slend_res: Dict[str, Any],
+                                 shear_res: Dict[str, Any],
+                                 conc, steel) -> List[Dict[str, Any]]:
+    """Tạo các mục thuyết minh kiểm tra cột theo EC2.
+
+    inp: ColumnInput (lấy NEd, MEd2/MEd3 đã tính bậc 2, Q2/Q3...).
+    ec2_res: dict từ check_column_ec2 {dc, fs, ok, Bx, By, BN, ...}.
+    slend_res: dict {'dir2': {...}, 'dir3': {...}} từ ec2_design_moment
+        cho mỗi phương (hoặc dict đơn cho tương thích).
+    shear_res: dict {'dir2': {...}, 'dir3': {...}} từ ec2_shear_check.
+    conc: EC2Concrete, steel: EC2Steel.
+    """
+    fck = conc.fck
+    fyk = steel.fyk
+
+    NEd = getattr(inp, "N", 0.0) or 0.0
+    MEd2 = getattr(inp, "Mx", 0.0) or 0.0
+    MEd3 = getattr(inp, "My", 0.0) or 0.0
+    VEd2 = abs(getattr(inp, "Q2", 0.0) or 0.0)
+    VEd3 = abs(getattr(inp, "Q3", 0.0) or 0.0)
+
+    sections: List[Dict[str, Any]] = []
+
+    # ---- 1. Vật liệu ----
+    sections.append({
+        "num": 1,
+        "title": "VẬT LIỆU THEO EC2 (EN 1992-1-1)",
+        "ref": "EC2 2.4.2.4, 3.1, 3.2",
+        "cards": [
+            _mk("Bê tông",
+                "EC2 3.1",
+                [f"fck = {_f(fck, 0)} MPa",
+                 f"fcd = αcc·fck/γc = 1.0×{_f(fck, 0)}/1.5 = {_f(conc.fcd, 2)} MPa",
+                 f"Ecm = 22000·(fcm/10)^0.3 = {_f(conc.Ecm, 0)} MPa",
+                 "εcu2 = 0.0035 (biến dạng cực hạn)",
+                 f"Khối ứng suất chữ nhật: η·fcd = {_f(conc.f_block, 2)} MPa, a = λ·x (λ = 0.8)"],
+                f"fcd = {_f(conc.fcd, 2)} MPa"),
+            _mk("Cốt thép",
+                "EC2 3.2",
+                [f"fyk = {_f(fyk, 0)} MPa",
+                 f"fyd = fyk/γs = {_f(fyk, 0)}/1.15 = {_f(steel.fyd, 1)} MPa",
+                 "Es = 200000 MPa",
+                 f"εyd = fyd/Es = {_f(steel.eps_yd, 5)}",
+                 "Mô hình đàn–dẻo lý tưởng, ứng suất giới hạn ở ±fyd"],
+                f"fyd = {_f(steel.fyd, 1)} MPa"),
+        ],
+    })
+
+    # ---- 2. Sai lệch, độ mảnh & bậc 2 ----
+    def _sl_cards(d: Dict[str, Any], lbl: str):
+        if not d:
+            return [_mk(f"Phương {lbl}", "", ["—"], "")]
+        lines = [
+            f"θi = θ0·αh·αm = (1/200)×{_f(d.get('alpha_h', 0), 3)}×1.0 = {_f(d.get('theta_i', 0), 5)}",
+            f"ei = θi·l0/2 = {_f(d.get('ei_mm', 0), 1)} mm",
+            f"M_imp = NEd·ei = {_f(d.get('M_imp', 0), 2)} kN·m",
+            f"emin = max(h/30, 20) = {_f(d.get('emin_mm', 0), 1)} mm",
+            f"Mmin = NEd·emin = {_f(d.get('Mmin', 0), 2)} kN·m",
+            f"λ = l0/i = {_f(d.get('lambda_sl', 0), 1)}, "
+            f"λlim = 20·A·B·C/√n = {_f(d.get('lambda_lim', 0), 1)}",
+        ]
+        if d.get("second_order"):
+            meth = "độ cứng danh nghĩa" if d.get("method") == "stiffness" else "độ cong danh nghĩa"
+            lines += [
+                f"Cột mảnh (λ ≥ λlim): tính bậc 2 bằng {meth}",
+                f"M0Ed = {_f(d.get('so_M0Ed', 0), 2)} kN·m",
+            ]
+            if d.get("method") == "stiffness":
+                lines += [
+                    f"NB = {_f(d.get('so_NB_kN', 0), 0)} kN, "
+                    f"factor = {_f(d.get('so_factor', 0), 3)}",
+                ]
+            else:
+                lines += [
+                    f"e2 = {_f(d.get('so_e2_mm', 0), 1)} mm, "
+                    f"M2 = {_f(d.get('so_M2', 0), 2)} kN·m",
+                ]
+            lines.append(f"MEd bậc 2 = {_f(d.get('MEd_calc', 0), 2)} kN·m")
+        else:
+            lines.append(d.get("reason", "Không cần tính bậc 2"))
+        lines.append(f"MEd thiết kế = max(MEd, Mmin) = {_f(d.get('MEd', 0), 2)} kN·m")
+        ok = bool(d.get("ok", True))
+        return [_mk(f"Phương {lbl}", "EC2 5.2, 5.8, 6.1(4)", lines,
+                    "OK" if ok else "KHÔNG ĐẠT")]
+
+    if isinstance(slend_res, dict) and "dir2" in slend_res:
+        sl_cards = (_sl_cards(slend_res.get("dir2"), "2")
+                    + _sl_cards(slend_res.get("dir3"), "3"))
+    else:
+        sl_cards = _sl_cards(slend_res or {}, "2/3")
+    sections.append({
+        "num": 2,
+        "title": "SAI LỆCH THI CÔNG, ĐỘ MẢNH & HIỆU ỨNG BẬC 2",
+        "ref": "EC2 5.2, 5.8, 6.1(4)",
+        "cards": sl_cards,
+    })
+
+    # ---- 3. Kiểm tra P-M-M ----
+    dc = ec2_res.get("dc", 0.0) or 0.0
+    fs = ec2_res.get("fs", 0.0) or 0.0
+    Bx = ec2_res.get("Bx", 0.0) or 0.0
+    By = ec2_res.get("By", 0.0) or 0.0
+    BN = ec2_res.get("BN", 0.0) or 0.0
+    N_Rd_max = ec2_res.get("N_Rd_max", 0.0) or 0.0
+    pm_ok = bool(ec2_res.get("ok", False))
+    dc_txt = _f(dc, 3) if math.isfinite(dc) else "∞"
+    fs_txt = _f(fs, 2) if math.isfinite(fs) else "∞"
+    sections.append({
+        "num": 3,
+        "title": "KIỂM TRA NÉN UỐN XIÊN (NEd-MEd)",
+        "ref": "EC2 6.1",
+        "cards": [
+            _mk("Điểm tải trọng A (nội lực thiết kế)",
+                "",
+                [f"NEd = {_f(NEd, 1)} kN",
+                 f"MEd2 = {_f(MEd2, 1)} kN·m, MEd3 = {_f(MEd3, 1)} kN·m",
+                 f"N_Rd,max = {_f(N_Rd_max, 1)} kN"],
+                ""),
+            _mk("Điểm giới hạn B (trên mặt tương tác)",
+                "",
+                [f"BN = {_f(BN, 1)} kN",
+                 f"BMEd2 = {_f(Bx, 1)} kN·m, BMEd3 = {_f(By, 1)} kN·m"],
+                ""),
+            _mk("Tỷ số D/C",
+                "EC2 6.1",
+                [f"D/C = |OA|/|OB| = {dc_txt}",
+                 f"FS = {fs_txt}"],
+                "ĐẠT" if pm_ok else "KHÔNG ĐẠT"),
+        ],
+    })
+
+    # ---- 4. Kiểm tra cắt ----
+    def _sh_card(d: Dict[str, Any], VEd: float, lbl: str):
+        if not d:
+            return _mk(f"Phương {lbl}", "", ["—"], "")
+        VRd_c = d.get("VRd_c_kN", 0.0) or 0.0
+        VRd_max = d.get("VRd_max_kN", 0.0) or 0.0
+        VRd_s = d.get("VRd_s_kN", 0.0) or 0.0
+        asw_req = d.get("Asw_s_req", 0.0)
+        ok = bool(d.get("ok", False))
+        lines = [
+            f"VEd = {_f(VEd, 1)} kN",
+            f"VRd,c = {_f(VRd_c, 1)} kN "
+            f"(k = {_f(d.get('k', 0), 2)}, ρl = {_f(d.get('rho_l', 0), 4)})",
+            f"VRd,max = {_f(VRd_max, 1)} kN (θ = 45°)",
+        ]
+        if VEd > VRd_c and math.isfinite(asw_req):
+            lines.append(f"VRd,s = {_f(VRd_s, 1)} kN, "
+                         f"Asw/s yêu cầu = {_f(asw_req, 3)} mm²/mm")
+        cmp = "≤" if VEd <= max(VRd_c, VRd_s) else ">"
+        lines.append(f"VEd = {_f(VEd, 1)} kN {cmp} VRd = "
+                     f"{_f(d.get('VRd_kN', 0) or 0, 1)} kN")
+        if d.get("reason"):
+            lines.append(d["reason"])
+        return _mk(f"Phương {lbl}", "EC2 6.2", lines,
+                    "ĐẠT" if ok else "KHÔNG ĐẠT")
+
+    if isinstance(shear_res, dict) and "dir2" in shear_res:
+        sh_cards = [_sh_card(shear_res.get("dir2"), VEd2, "V2"),
+                    _sh_card(shear_res.get("dir3"), VEd3, "V3")]
+    else:
+        sh_cards = [_sh_card(shear_res or {}, VEd2, "V2/V3")]
+    sections.append({
+        "num": 4,
+        "title": "KIỂM TRA CẮT",
+        "ref": "EC2 6.2",
+        "cards": sh_cards,
+    })
+
+    return sections

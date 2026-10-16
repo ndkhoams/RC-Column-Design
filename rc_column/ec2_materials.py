@@ -1,1 +1,128 @@
-IiIiVuG6rXQgbGnhu4d1IHRoZW8gRXVyb2NvZGUgMiAoRU4gMTk5Mi0xLTEpLgoKQmFvIGfhu5NtOgotIELDqiB0w7RuZzogY8OhYyBtw6FjIEMxNi8yMCAuLiBDNTAvNjAgKGZjayA9IHPhu5EgxJHhuqd1LCBNUGEpLAogIGZjZCA9IM6xY2PCt2Zjay/Os2MgKM6xY2MgPSAxLjAsIM6zYyA9IDEuNSksCiAgRWNtID0gMjIwMDDCtyhmY20vMTApXjAuMyAoTVBhKSwgZmNtID0gZmNrICsgOCwKICBiaeG6v24gZOG6oW5nIGPhu7FjIGjhuqFuIM61Y3UyID0gMC4wMDM1IChmY2sg4omkIDUwIE1QYSkuCi0gS2jhu5FpIOG7qW5nIHN14bqldCBjaOG7ryBuaOG6rXQgdMawxqFuZyDEkcawxqFuZzogzrcgPSAxLjAsIM67ID0gMC44CiAgKGZjayDiiaQgNTAgTVBhKTsgY8aw4budbmcgxJHhu5kgzrfCt2ZjZCwgY2hp4buBdSBjYW8ga2jhu5FpIGEgPSDOu8K3eC4KLSBD4buRdCB0aMOpcDogQjQwMCAvIEI1MDAsIGZ5ZCA9IGZ5ay/Os3MgKM6zcyA9IDEuMTUpLCBFcyA9IDIwMDAwMCBNUGEuCgpFQzIga2jDtG5nIGTDuW5nIGjhu4cgc+G7kSDPhiBuaMawIEFDSTogaOG7hyBz4buRIHJpw6puZyBwaOG6p24gxJHDoyBu4bqxbSB0cm9uZwp24bqtdCBsaeG7h3UgKM6zYywgzrNzKSBuw6puIMSRxrDhu51uZyBjb25nIHTGsMahbmcgdMOhYyBsw6AgxJHGsOG7nW5nIGNvbmcgdGhp4bq/dCBr4bq/LgoiIiIKCmltcG9ydCBtYXRoCmZyb20gZGF0YWNsYXNzZXMgaW1wb3J0IGRhdGFjbGFzcwpmcm9tIHR5cGluZyBpbXBvcnQgRGljdAoKCiMgSOG7hyBz4buRIHJpw6puZyBwaOG6p24gduG6rXQgbGnhu4d1IChFQzIgMi40LjIuNCwgdMOsbmggaHXhu5FuZyBi4buBbiB24buvbmcvbMOidSBkw6BpKQpHQU1NQV9DID0gMS41ICAgICMgYsOqIHTDtG5nCkdBTU1BX1MgPSAxLjE1ICAgIyBj4buRdCB0aMOpcApHQU1NQV9DRSA9IDEuMiAgICMgY2hvIEVjZCA9IEVjbS/Os2NFICjEkeG7mSBj4bupbmcgZGFuaCBuZ2jEqWEpCkFMUEhBX0NDID0gMS4wICAgIyBo4buHIHPhu5EgZMOgaSBo4bqhbiBjaG8gbsOpbgoKCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiMgQsOqIHTDtG5nIC0gRUMyIChFTiAxOTkyLTEtMSwgMy4xKQojIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpAZGF0YWNsYXNzKGZyb3plbj1UcnVlKQpjbGFzcyBFQzJDb25jcmV0ZToKICAgICIiIkLDqiB0w7RuZyB0aGVvIEVDMi4KCiAgICBmY2s6IGPGsOG7nW5nIMSR4buZIG7DqW4gxJHhurdjIHRyxrBuZyBt4bqrdSB0cuG7pSAoTVBhKSwgPSBz4buRIMSR4bqndSBj4bunYSBtw6FjCiAgICAodmQgQzMwLzM3IC0+IGZjayA9IDMwKS4KICAgICIiIgogICAgZmNrOiBmbG9hdAoKICAgIEBwcm9wZXJ0eQogICAgZGVmIGZjZChzZWxmKSAtPiBmbG9hdDoKICAgICAgICAiIiJDxrDhu51uZyDEkeG7mSBuw6luIHTDrW5oIHRvw6FuOiBmY2QgPSDOsWNjwrdmY2svzrNjIChNUGEpLiIiIgogICAgICAgIHJldHVybiBBTFBIQV9DQyAqIHNlbGYuZmNrIC8gR0FNTUFfQwoKICAgIEBwcm9wZXJ0eQogICAgZGVmIGZjbShzZWxmKSAtPiBmbG9hdDoKICAgICAgICAiIiJDxrDhu51uZyDEkeG7mSBuw6luIHRydW5nIGLDrG5oOiBmY20gPSBmY2sgKyA4IChNUGEpLiIiIgogICAgICAgIHJldHVybiBzZWxmLmZjayArIDguMAoKICAgIEBwcm9wZXJ0eQogICAgZGVmIEVjbShzZWxmKSAtPiBmbG9hdDoKICAgICAgICAiIiJNw7QgxJF1biDEkcOgbiBo4buTaSBjw6F0IHR1eeG6v246IEVjbSA9IDIyMDAwwrcoZmNtLzEwKV4wLjMgKE1QYSkuIiIiCiAgICAgICAgcmV0dXJuIDIyMDAwLjAgKiAoc2VsZi5mY20gLyAxMC4wKSAqKiAwLjMKCiAgICBAcHJvcGVydHkKICAgIGRlZiBFY2Qoc2VsZikgLT4gZmxvYXQ6CiAgICAgICAgIiIiTcO0IMSRdW4gZMO5bmcgY2hvIMSR4buZIGPhu6luZyBkYW5oIG5naMSpYTogRWNkID0gRWNtL86zY0UuIiIiCiAgICAgICAgcmV0dXJuIHNlbGYuRWNtIC8gR0FNTUFfQ0UKCiAgICBAcHJvcGVydHkKICAgIGRlZiBlcHNfY3Uoc2VsZikgLT4gZmxvYXQ6CiAgICAgICAgIiIiQmnhur9uIGThuqFuZyBj4buxYyBo4bqhbiBraGkgdeG7kW46IM61Y3UyID0gMC4wMDM1IChmY2sg4omkIDUwIE1QYSkuIiIiCiAgICAgICAgcmV0dXJuIDAuMDAzNQoKICAgIEBwcm9wZXJ0eQogICAgZGVmIGxhbShzZWxmKSAtPiBmbG9hdDoKICAgICAgICAiIiJI4buHIHPhu5EgY2hp4buBdSBjYW8ga2jhu5FpIOG7qW5nIHN14bqldDogzrsgPSAwLjggKGZjayDiiaQgNTAgTVBhKS4iIiIKICAgICAgICByZXR1cm4gMC44CgogICAgQHByb3BlcnR5CiAgICBkZWYgZXRhKHNlbGYpIC0+IGZsb2F0OgogICAgICAgICIiIkjhu4cgc+G7kSBjxrDhu51uZyDEkeG7mSBraOG7kWkg4bupbmcgc3XhuqV0OiDOtyA9IDEuMCAoZmNrIOKJpCA1MCBNUGEpLiIiIgogICAgICAgIHJldHVybiAxLjAKCiAgICBAcHJvcGVydHkKICAgIGRlZiBmX2Jsb2NrKHNlbGYpIC0+IGZsb2F0OgogICAgICAgICIiIkPGsOG7nW5nIMSR4buZIGto4buRaSDhu6luZyBzdeG6pXQgY2jhu68gbmjhuq10OiDOt8K3ZmNkIChNUGEpLiIiIgogICAgICAgIHJldHVybiBzZWxmLmV0YSAqIHNlbGYuZmNkCgoKIyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIyBD4buRdCB0aMOpcCAtIEVDMiAoRU4gMTk5Mi0xLTEsIDMuMikKIyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KQGRhdGFjbGFzcyhmcm96ZW49VHJ1ZSkKY2xhc3MgRUMyU3RlZWw6CiAgICAiIiJD4buRdCB0aMOpcCB0aGVvIEVDMi4KCiAgICBmeWs6IGdp4bubaSBo4bqhbiBjaOG6o3kgxJHhurdjIHRyxrBuZyAoTVBhKS4g4buobmcgc3XhuqV0ID0gzrXCt0VzLCBnaeG7m2kgaOG6oW4KICAgIOG7nyDCsWZ5ZCAobcO0IGjDrG5oIMSRw6BuLWThurtvIGzDvSB0xrDhu59uZywgRUMyIDMuMi43KS4KICAgICIiIgogICAgZnlrOiBmbG9hdAoKICAgIEBwcm9wZXJ0eQogICAgZGVmIGZ5ZChzZWxmKSAtPiBmbG9hdDoKICAgICAgICAiIiJDxrDhu51uZyDEkeG7mSB0w61uaCB0b8OhbjogZnlkID0gZnlrL86zcyAoTVBhKS4iIiIKICAgICAgICByZXR1cm4gc2VsZi5meWsgLyBHQU1NQV9TCgogICAgQHByb3BlcnR5CiAgICBkZWYgRXMoc2VsZikgLT4gZmxvYXQ6CiAgICAgICAgIiIiTcO0IMSRdW4gxJHDoG4gaOG7k2kgY+G7p2EgdGjDqXAgKE1QYSkuIiIiCiAgICAgICAgcmV0dXJuIDIwMDAwMC4wCgogICAgQHByb3BlcnR5CiAgICBkZWYgZXBzX3lkKHNlbGYpIC0+IGZsb2F0OgogICAgICAgICIiIkJp4bq/biBk4bqhbmcgY2jhuqN5IHTDrW5oIHRvw6FuOiDOtXlkID0gZnlkL0VzLiIiIgogICAgICAgIHJldHVybiBzZWxmLmZ5ZCAvIHNlbGYuRXMKCgojIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQojIEPhuqVwIHbhuq10IGxp4buHdSB0aMO0bmcgZOG7pW5nCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCkVDMl9DT05DUkVURV9HUkFERVM6IERpY3Rbc3RyLCBmbG9hdF0gPSB7CiAgICAiQzE2LzIwIjogMTYuMCwKICAgICJDMjAvMjUiOiAyMC4wLAogICAgIkMyNS8zMCI6IDI1LjAsCiAgICAiQzMwLzM3IjogMzAuMCwKICAgICJDMzUvNDUiOiAzNS4wLAogICAgIkM0MC81MCI6IDQwLjAsCiAgICAiQzQ1LzU1IjogNDUuMCwKICAgICJDNTAvNjAiOiA1MC4wLAp9CiIiIkPDoWMgbcOhYyBiw6ogdMO0bmcgRUMyIHRow7RuZyBk4bulbmc6IHTDqm4gLT4gZmNrIChNUGEpLiIiIgoKRUMyX1NURUVMX0dSQURFUzogRGljdFtzdHIsIGZsb2F0XSA9IHsKICAgICJCNDAwIjogNDAwLjAsCiAgICAiQjUwMCI6IDUwMC4wLAp9CiIiIkPDoWMgY+G6pXAgdGjDqXAgRUMyIHRow7RuZyBk4bulbmc6IHTDqm4gLT4gZnlrIChNUGEpLiIiIgo=
+"""Vật liệu theo Eurocode 2 (EN 1992-1-1).
+
+Bao gồm:
+- Bê tông: các mác C16/20 .. C50/60 (fck = số đầu, MPa),
+  fcd = αcc·fck/γc (αcc = 1.0, γc = 1.5),
+  Ecm = 22000·(fcm/10)^0.3 (MPa), fcm = fck + 8,
+  biến dạng cực hạn εcu2 = 0.0035 (fck ≤ 50 MPa).
+- Khối ứng suất chữ nhật tương đương: η = 1.0, λ = 0.8
+  (fck ≤ 50 MPa); cường độ η·fcd, chiều cao khối a = λ·x.
+- Cốt thép: B400 / B500, fyd = fyk/γs (γs = 1.15), Es = 200000 MPa.
+
+EC2 không dùng hệ số φ như ACI: hệ số riêng phần đã nằm trong
+vật liệu (γc, γs) nên đường cong tương tác là đường cong thiết kế.
+"""
+
+import math
+from dataclasses import dataclass
+from typing import Dict
+
+
+# Hệ số riêng phần vật liệu (EC2 2.4.2.4, tình huống bền vững/lâu dài)
+GAMMA_C = 1.5    # bê tông
+GAMMA_S = 1.15   # cốt thép
+GAMMA_CE = 1.2   # cho Ecd = Ecm/γcE (độ cứng danh nghĩa)
+ALPHA_CC = 1.0   # hệ số dài hạn cho nén
+
+
+# ---------------------------------------------------------------------------
+# Bê tông - EC2 (EN 1992-1-1, 3.1)
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class EC2Concrete:
+    """Bê tông theo EC2.
+
+    fck: cường độ nén đặc trưng mẫu trụ (MPa), = số đầu của mác
+    (vd C30/37 -> fck = 30).
+    """
+    fck: float
+
+    @property
+    def fcd(self) -> float:
+        """Cường độ nén tính toán: fcd = αcc·fck/γc (MPa)."""
+        return ALPHA_CC * self.fck / GAMMA_C
+
+    @property
+    def fcm(self) -> float:
+        """Cường độ nén trung bình: fcm = fck + 8 (MPa)."""
+        return self.fck + 8.0
+
+    @property
+    def Ecm(self) -> float:
+        """Mô đun đàn hồi cát tuyến: Ecm = 22000·(fcm/10)^0.3 (MPa)."""
+        return 22000.0 * (self.fcm / 10.0) ** 0.3
+
+    @property
+    def Ecd(self) -> float:
+        """Mô đun dùng cho độ cứng danh nghĩa: Ecd = Ecm/γcE."""
+        return self.Ecm / GAMMA_CE
+
+    @property
+    def eps_cu(self) -> float:
+        """Biến dạng cực hạn khi uốn: εcu2 = 0.0035 (fck ≤ 50 MPa)."""
+        return 0.0035
+
+    @property
+    def lam(self) -> float:
+        """Hệ số chiều cao khối ứng suất: λ = 0.8 (fck ≤ 50 MPa)."""
+        return 0.8
+
+    @property
+    def eta(self) -> float:
+        """Hệ số cường độ khối ứng suất: η = 1.0 (fck ≤ 50 MPa)."""
+        return 1.0
+
+    @property
+    def f_block(self) -> float:
+        """Cường độ khối ứng suất chữ nhật: η·fcd (MPa)."""
+        return self.eta * self.fcd
+
+
+# ---------------------------------------------------------------------------
+# Cốt thép - EC2 (EN 1992-1-1, 3.2)
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class EC2Steel:
+    """Cốt thép theo EC2.
+
+    fyk: giới hạn chảy đặc trưng (MPa). Ứng suất = ε·Es, giới hạn
+    ở ±fyd (mô hình đàn-dẻo lý tưởng, EC2 3.2.7).
+    """
+    fyk: float
+
+    @property
+    def fyd(self) -> float:
+        """Cường độ tính toán: fyd = fyk/γs (MPa)."""
+        return self.fyk / GAMMA_S
+
+    @property
+    def Es(self) -> float:
+        """Mô đun đàn hồi của thép (MPa)."""
+        return 200000.0
+
+    @property
+    def eps_yd(self) -> float:
+        """Biến dạng chảy tính toán: εyd = fyd/Es."""
+        return self.fyd / self.Es
+
+
+# ---------------------------------------------------------------------------
+# Cấp vật liệu thông dụng
+# ---------------------------------------------------------------------------
+EC2_CONCRETE_GRADES: Dict[str, float] = {
+    "C16/20": 16.0,
+    "C20/25": 20.0,
+    "C25/30": 25.0,
+    "C30/37": 30.0,
+    "C35/45": 35.0,
+    "C40/50": 40.0,
+    "C45/55": 45.0,
+    "C50/60": 50.0,
+}
+"""Các mác bê tông EC2 thông dụng: tên -> fck (MPa)."""
+
+EC2_STEEL_GRADES: Dict[str, float] = {
+    "B400": 400.0,
+    "B500": 500.0,
+}
+"""Các cấp thép EC2 thông dụng: tên -> fyk (MPa)."""

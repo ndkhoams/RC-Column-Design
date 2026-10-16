@@ -1,1 +1,176 @@
-IiIiSMOgbSB24bq9IGJp4buDdSDEkeG7kyBFQzIgZMO5bmcgY2h1bmcgY2hvIHRhYiBL4bq/dCBxdeG6oyB2w6AgdGFiIENoaSB0aeG6v3QuCgpTdHlsZSBDT1BZIFkgSOG7hlQgcmNfY29sdW1uL2NoYXJ0X2RyYXcucHkgdsOgIGFjaV9jaGFydF9kcmF3LnB5IChtw6B1IHPhuq9jLApsZWdlbmQgNCBt4bulYywgZm9udCwgduG7iyB0csOtKSDEkeG7gyAzIHRpw6p1IGNodeG6qW4gaGnhu4NuIHRo4buLIMSR4buTbmcgbmjhuqV0LgpLaMOhYyBiaeG7h3QgZHV5IG5o4bqldCBsw6AgxJHGsOG7nW5nIGNvbmcgbOG6pXkgdOG7qyBlYzJfY2hlY2tlciAoa2jhu5FpIOG7qW5nIHN14bqldApjaOG7ryBuaOG6rXQgzrfCt2ZjZCwgYSA9IM67wrd4OyBraMO0bmcgY8OzIGjhu4cgc+G7kSDPhiDigJQgaOG7hyBz4buRIHJpw6puZyBwaOG6p24gxJHDoyBu4bqxbQp0cm9uZyB24bqtdCBsaeG7h3UpLgoiIiIKaW1wb3J0IG1hdGgKCmZyb20gLmVjMl9jaGVja2VyIGltcG9ydCBlYzJfaW50ZXJhY3Rpb25fY3VydmUKCgpkZWYgX2Rlc2lnbl9jdXJ2ZShzZWMsIGNvbmMsIHN0ZWVsLCB0aGV0YV9kZWcsIG5fcG9pbnRzPTQ4KToKICAgICIiIsSQxrDhu51uZyBjb25nIHRoaeG6v3Qga+G6vyBFQzIgKGjhu4cgc+G7kSByacOqbmcgcGjhuqduIMSRw6MgdHJvbmcgduG6rXQgbGnhu4d1KS4KCiAgICBUcuG6oyB24buBIDIgbGlzdDogbl9kc2duIChrTiksIG1fZHNnbiAoa07Ct20pLCBz4bqvcCBOIGdp4bqjbSBk4bqnbi4KICAgICIiIgogICAgcHRzID0gZWMyX2ludGVyYWN0aW9uX2N1cnZlKHNlYywgY29uYywgc3RlZWwsIHRoZXRhX2RlZywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBuX3BvaW50cz1uX3BvaW50cykKICAgIG5fZHNnbiA9IFtwWzBdIGZvciBwIGluIHB0c10KICAgIG1fZHNnbiA9IFtwWzFdIGZvciBwIGluIHB0c10KICAgIHJldHVybiBuX2RzZ24sIG1fZHNnbgoKCmRlZiBfaW50ZXJwX01fYXRfTihuX2xpc3QsIG1fbGlzdCwgTik6CiAgICAiIiJO4buZaSBzdXkgdHV54bq/biB0w61uaCBNIHThuqFpIE4gdHLDqm4gxJHGsOG7nW5nIGNvbmcgKG5fbGlzdCBnaeG6o20gZOG6p24pLiIiIgogICAgaWYgbm90IG5fbGlzdDoKICAgICAgICByZXR1cm4gMC4wCiAgICBpZiBOID49IG5fbGlzdFswXToKICAgICAgICByZXR1cm4gbV9saXN0WzBdCiAgICBpZiBOIDw9IG5fbGlzdFstMV06CiAgICAgICAgcmV0dXJuIG1fbGlzdFstMV0KICAgIGZvciBpIGluIHJhbmdlKGxlbihuX2xpc3QpIC0gMSk6CiAgICAgICAgbjEsIG4yID0gbl9saXN0W2ldLCBuX2xpc3RbaSArIDFdCiAgICAgICAgaWYgbjIgPD0gTiA8PSBuMToKICAgICAgICAgICAgdCA9IChOIC0gbjEpIC8gKG4yIC0gbjEpIGlmIGFicyhuMiAtIG4xKSA+IDFlLTEyIGVsc2UgMC4wCiAgICAgICAgICAgIHJldHVybiBtX2xpc3RbaV0gKyB0ICogKG1fbGlzdFtpICsgMV0gLSBtX2xpc3RbaV0pCiAgICByZXR1cm4gMC4wCgoKZGVmIGRyYXdfZWMyX25tX2FscGhhX2F4KGF4LCBzZWMsIGNvbmMsIHN0ZWVsLCBlYzJfcmVzLAogICAgICAgICAgICAgICAgICAgICAgICAgTl9rTiwgTTJfa05tLCBNM19rTm0sCiAgICAgICAgICAgICAgICAgICAgICAgICB2aWV3X2FuZ2xlX2RlZz1Ob25lKToKICAgICMgQmnhu4N1IMSR4buTIE4tTc6xIHRoZW8gRUMyIHThuqFpIGfDs2MgdeG7kW4geGnDqm4gzrEKICAgICMgdmlld19hbmdsZV9kZWc6IGfDs2MgeGVtIMSRxrDhu51uZyBjb25nIChOb25lID0gZ8OzYyB04bqjaSB0cuG7jW5nKQogICAgIyBTdHlsZSBZIEjhu4ZUIGNoYXJ0X2RyYXcuZHJhd19ubV9hbHBoYV9heAogICAgR1JFRU4sIEdSRUVOX0xUID0gIiMwNTk2NjkiLCAiI0QxRkFFNSIKICAgIFJFRCwgT1JBTkdFID0gIiNEQzI2MjYiLCAiI0Y5NzMxNiIKICAgIEJMVUVfREFTSCA9ICIjM0I4MkY2IgogICAgbG9hZF9hbHBoYSA9IG1hdGguZGVncmVlcyhtYXRoLmF0YW4yKE0yX2tObSwgTTNfa05tKSkgICMgcXV5IMaw4bubYyBFVEFCUzogxJFvIHThu6sgdHLhu6VjIE0zCiAgICBhbHBoYV9kZWcgPSBsb2FkX2FscGhhIGlmIHZpZXdfYW5nbGVfZGVnIGlzIE5vbmUgZWxzZSB2aWV3X2FuZ2xlX2RlZwogICAgIyBTTkFQIHbhu4EgZ8OzYyBy4budaSBy4bqhYyBn4bqnbiBuaOG6pXQgKGLGsOG7m2MgMTXCsCwgeOG7rSBsw70gd3JhcC1hcm91bmQpCiAgICAjIMSR4buDIGto4bubcCB24bubaSBjaGVja2VyLl9jdXJ2ZV9hdAogICAgZGVmIF9hZGlmZihhLCBiKToKICAgICAgICBkID0gYWJzKGEgLSBiKSAlIDM2MC4wCiAgICAgICAgcmV0dXJuIG1pbihkLCAzNjAuMCAtIGQpCiAgICBfYW5nbGVzID0gW2sgKiAxNS4wIGZvciBrIGluIHJhbmdlKDI0KV0KICAgIGFscGhhX3NuYXAgPSBtaW4oX2FuZ2xlcywga2V5PWxhbWJkYSBhOiBfYWRpZmYoYSwgYWxwaGFfZGVnKSkKICAgIG5fcG9zLCBtX3BvcyA9IF9kZXNpZ25fY3VydmUoc2VjLCBjb25jLCBzdGVlbCwgYWxwaGFfc25hcCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbl9wb2ludHM9OTYpCiAgICBtX25lZyA9IFstbSBmb3IgbSBpbiBtX3Bvc10KICAgIGF4LnBsb3QobV9wb3MsIG5fcG9zLCBjb2xvcj1HUkVFTiwgbGluZXdpZHRoPTIuMiwgem9yZGVyPTMpCiAgICBheC5wbG90KG1fbmVnLCBuX3BvcywgY29sb3I9R1JFRU4sIGxpbmV3aWR0aD0yLjIsIHpvcmRlcj0zKQogICAgIyBGaWxsIG5o4bqhdCB2w7luZyB0cm9uZwogICAgYXguZmlsbF9iZXR3ZWVueChuX3BvcywgMCwgbV9wb3MsIGNvbG9yPUdSRUVOLCBhbHBoYT0wLjA4LAogICAgICAgICAgICAgICAgICAgICB6b3JkZXI9MSkKICAgIGF4LmZpbGxfYmV0d2Vlbngobl9wb3MsIG1fbmVnLCAwLCBjb2xvcj1HUkVFTiwgYWxwaGE9MC4wOCwKICAgICAgICAgICAgICAgICAgICAgem9yZGVyPTEpCiAgICBNYSA9IG1hdGguaHlwb3QoTTJfa05tLCBNM19rTm0pCiAgICBNYiA9IG1hdGguaHlwb3QoZWMyX3Jlc1siQngiXSwgZWMyX3Jlc1siQnkiXSkKICAgIGxpbSA9IChlYzJfcmVzWyJCTiJdLCBNYikKICAgICMgTsOpdCDEkeG7qXQgxJHhu48gdOG7qyB0w6JtIHF1YSBBIHThu5tpIEIgKGvDqW8gZMOgaSAxLjE4KQogICAgYXgucGxvdChbMCwgbGltWzFdICogMS4xOF0sIFswLCBsaW1bMF0gKiAxLjE4XSwgY29sb3I9UkVELAogICAgICAgICAgICBscz0iLS0iLCBsdz0xLjUsIGRhc2hlcz0oNCwgMyksIHpvcmRlcj00KQogICAgIyDEkMaw4budbmcgY2hp4bq/dSB4YW5oIMSR4bupdCB04burIEEgeHXhu5FuZyB0cuG7pWMKICAgIGF4LnBsb3QoW01hLCBNYV0sIFswLCBOX2tOXSwgY29sb3I9QkxVRV9EQVNILCBscz0iLS0iLAogICAgICAgICAgICBsdz0xLjIsIGRhc2hlcz0oNCwgMyksIGFscGhhPTAuOCwgem9yZGVyPTIpCiAgICBheC5wbG90KFswLCBNYV0sIFtOX2tOLCBOX2tOXSwgY29sb3I9QkxVRV9EQVNILCBscz0iLS0iLAogICAgICAgICAgICBsdz0xLjIsIGRhc2hlcz0oNCwgMyksIGFscGhhPTAuOCwgem9yZGVyPTIpCiAgICAjIMSQaeG7g20gQiAoZ2nhu5tpIGjhuqFuKSB24bq9IHRyxrDhu5tjLCDEkWnhu4NtIEEgKHThuqNpIHRy4buNbmcpIHbhur0gc2F1CiAgICBheC5zY2F0dGVyKFtsaW1bMV1dLCBbbGltWzBdXSwgYz1PUkFOR0UsIHM9NzAsIHpvcmRlcj01LAogICAgICAgICAgICAgICBlZGdlY29sb3JzPSJ3aGl0ZSIsIGxpbmV3aWR0aHM9MS4yLCBsYWJlbD0iR2nhu5tpIGjhuqFuIikKICAgIGF4LnNjYXR0ZXIoW01hXSwgW05fa05dLCBjPUdSRUVOLCBzPTcwLCB6b3JkZXI9NiwKICAgICAgICAgICAgICAgZWRnZWNvbG9ycz0id2hpdGUiLCBsaW5ld2lkdGhzPTEuMiwKICAgICAgICAgICAgICAgbGFiZWw9IsSQaeG7g20gdOG6o2kgQSIpCiAgICBheC50ZXh0KE1hLCBOX2tOLCAiICBBIiwgZm9udHNpemU9OSwgY29sb3I9R1JFRU4sCiAgICAgICAgICAgIHdlaWdodD0iYm9sZCIsIHZhPSJjZW50ZXIiLCB6b3JkZXI9NykKICAgIGF4LnRleHQobGltWzFdLCBsaW1bMF0sICIgIEIiLCBmb250c2l6ZT05LCBjb2xvcj1PUkFOR0UsCiAgICAgICAgICAgIHdlaWdodD0iYm9sZCIsIHZhPSJjZW50ZXIiLCB6b3JkZXI9NykKICAgIGF4LnNldF94bGFiZWwoZiJNzrEgKGtOwrdtKXsnJyBpZiB2aWV3X2FuZ2xlX2RlZyBpcyBOb25lIGVsc2UgZicgQCB7dmlld19hbmdsZV9kZWc6LjBmfcKwJ30iLAogICAgICAgICAgICAgICAgZm9udHdlaWdodD0iYm9sZCIsIGZvbnRzaXplPTEwKQogICAgYXguc2V0X3lsYWJlbCgiTiAoa04pIiwgZm9udHdlaWdodD0iYm9sZCIsIGZvbnRzaXplPTEwKQogICAgIyBDaOG7iSBoaeG7h24gTiA+PSAwICjhuqluIHbDuW5nIGNo4buLdSBrw6lvKSDigJQgdGhlbyB5w6p1IGPhuqd1IHVzZXIgMjAyNi0xMC0xNgogICAgYXguc2V0X3lsaW0oYm90dG9tPTApCgogICAgIyBMZWdlbmQgNCBt4bulYyBZIEjhu4ZUIGNoYXJ0X2RyYXcsIMSR4bq3dCBkxrDhu5tpIGJp4buDdSDEkeG7kwogICAgZnJvbSBtYXRwbG90bGliLmxpbmVzIGltcG9ydCBMaW5lMkQKICAgIGxlZ19lbGVtcyA9IFsKICAgICAgICBMaW5lMkQoWzBdLCBbMF0sIGNvbG9yPUdSRUVOLCBsdz0yLjIsIGxhYmVsPSLEkMaw4budbmcgYmFvIE4tTc6xIiksCiAgICAgICAgTGluZTJEKFswXSwgWzBdLCBjb2xvcj1SRUQsIGx3PTEuNSwgbHM9Ii0tIiwgZGFzaGVzPSg0LCAzKSwKICAgICAgICAgICAgICAgbGFiZWw9IlRpYSB04bqjaSBPLUEtQiIpLAogICAgICAgIExpbmUyRChbMF0sIFswXSwgbWFya2VyPSJvIiwgY29sb3I9InciLCBtYXJrZXJmYWNlY29sb3I9R1JFRU4sCiAgICAgICAgICAgICAgIG1hcmtlcnNpemU9OCwgbWFya2VyZWRnZWNvbG9yPSJ3aGl0ZSIsIGxhYmVsPSLEkGnhu4NtIHThuqNpIEEiKSwKICAgICAgICBMaW5lMkQoWzBdLCBbMF0sIG1hcmtlcj0iRCIsIGNvbG9yPSJ3IiwgbWFya2VyZmFjZWNvbG9yPU9SQU5HRSwKICAgICAgICAgICAgICAgbWFya2Vyc2l6ZT03LCBtYXJrZXJlZGdlY29sb3I9IndoaXRlIiwgbGFiZWw9IsSQaeG7g20gZ2nhu5tpIGjhuqFuIEIiKSwKICAgIF0KICAgIGF4LmxlZ2VuZChoYW5kbGVzPWxlZ19lbGVtcywgZm9udHNpemU9OCwgbG9jPSJ1cHBlciBjZW50ZXIiLAogICAgICAgICAgICAgIGJib3hfdG9fYW5jaG9yPSgwLjUsIC0wLjE4KSwgbmNvbD0yLCBmcmFtZW9uPUZhbHNlKQogICAgIyBDaOG7iSBoaeG7h24gbuG7rWEgcGjhuqNpIChNzrEgPj0gMCkgY8OzIHThuqNpIOKAlCB0aGVvIHnDqnUgY+G6p3UgdXNlciAyMDI2LTEwLTE2CiAgICBheC5zZXRfeGxpbShsZWZ0PTApCiAgICBheC5ncmlkKFRydWUsIGNvbG9yPSIjRTVFN0VCIiwgbGluZXN0eWxlPSItLSIsCiAgICAgICAgICAgIGxpbmV3aWR0aD0wLjcsIGFscGhhPTAuOSkKICAgIGF4LnNldF9heGlzYmVsb3coVHJ1ZSkKICAgIGZvciBzcCBpbiAoInRvcCIsICJyaWdodCIpOgogICAgICAgIGF4LnNwaW5lc1tzcF0uc2V0X3Zpc2libGUoRmFsc2UpCiAgICBmb3Igc3AgaW4gKCJsZWZ0IiwgImJvdHRvbSIpOgogICAgICAgIGF4LnNwaW5lc1tzcF0uc2V0X2NvbG9yKCIjOUNBM0FGIikKCgpkZWYgZHJhd19lYzJfbTJtM19heChheCwgc2VjLCBjb25jLCBzdGVlbCwgZWMyX3JlcywKICAgICAgICAgICAgICAgICAgICAgTl9rTiwgTTJfa05tLCBNM19rTm0pOgogICAgIyBCaeG7g3UgxJHhu5MgTTItTTMgdGhlbyBFQzIgdOG6oWkgTiBj4buRIMSR4buLbmgKICAgICMgU3R5bGUgWSBI4buGVCBjaGFydF9kcmF3LmRyYXdfbTJtM19heAogICAgQkxVRSwgQkxVRV9MVCA9ICIjMjU2M0VCIiwgIiNEQkVBRkUiCiAgICBHUkVFTiwgUkVELCBPUkFOR0UgPSAiIzA1OTY2OSIsICIjREMyNjI2IiwgIiNGOTczMTYiCiAgICAjIEThu7FuZyDEkcaw4budbmcgYmFvIGLhurFuZyBjw6FjaCBxdcOpdCBjw6FjIGfDs2MgMC0zNjDCsCAobeG7l2kgMTXCsCksCiAgICAjIG7hu5lpIHN1eSBNIHRoaeG6v3Qga+G6vyB04bqhaSBOX2tOIHLhu5NpIGNoaeG6v3UgbMOqbiAoTTIsIE0zKQogICAgeHMsIHlzID0gW10sIFtdCiAgICBmb3IgZGVnIGluIHJhbmdlKDAsIDM2MCwgMTUpOgogICAgICAgIG5fZCwgbV9kID0gX2Rlc2lnbl9jdXJ2ZShzZWMsIGNvbmMsIHN0ZWVsLCBmbG9hdChkZWcpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG5fcG9pbnRzPTcyKQogICAgICAgIE1kID0gX2ludGVycF9NX2F0X04obl9kLCBtX2QsIE5fa04pCiAgICAgICAgdGggPSBtYXRoLnJhZGlhbnMoZGVnKQogICAgICAgIHhzLmFwcGVuZChNZCAqIG1hdGguc2luKHRoKSkgICMgTTIgPSBNZCBzaW7OuCAocXV5IMaw4bubYyBFVEFCUykKICAgICAgICB5cy5hcHBlbmQoTWQgKiBtYXRoLmNvcyh0aCkpICAjIE0zID0gTWQgY29zzrgKICAgIHhzLmFwcGVuZCh4c1swXSkKICAgIHlzLmFwcGVuZCh5c1swXSkKICAgIGF4LnBsb3QoeHMsIHlzLCBjb2xvcj1CTFVFLCBsaW5ld2lkdGg9Mi4yLCB6b3JkZXI9MykKICAgIGF4LmZpbGwoeHMsIHlzLCBjb2xvcj1CTFVFLCBhbHBoYT0wLjA4LCB6b3JkZXI9MSkKICAgICMgTsOpdCDEkeG7qXQgxJHhu48gdOG7qyB0w6JtIHF1YSBBIHThu5tpIEIKICAgIGF4LnBsb3QoWzAsIGVjMl9yZXNbIkJ4Il0gKiAxLjE4XSwgWzAsIGVjMl9yZXNbIkJ5Il0gKiAxLjE4XSwKICAgICAgICAgICAgY29sb3I9UkVELCBscz0iLS0iLCBsdz0xLjUsIGRhc2hlcz0oNCwgMyksIHpvcmRlcj00KQogICAgYXguc2NhdHRlcihbZWMyX3Jlc1siQngiXV0sIFtlYzJfcmVzWyJCeSJdXSwgYz1PUkFOR0UsIHM9NzAsCiAgICAgICAgICAgICAgIHpvcmRlcj01LCBlZGdlY29sb3JzPSJ3aGl0ZSIsIGxpbmV3aWR0aHM9MS4yLAogICAgICAgICAgICAgICBsYWJlbD0iR2nhu5tpIGjhuqFuIikKICAgIGF4LnNjYXR0ZXIoW00yX2tObV0sIFtNM19rTm1dLCBjPUdSRUVOLCBzPTcwLAogICAgICAgICAgICAgICB6b3JkZXI9NiwgZWRnZWNvbG9ycz0id2hpdGUiLCBsaW5ld2lkdGhzPTEuMiwKICAgICAgICAgICAgICAgbGFiZWw9IsSQaeG7g20gdOG6o2kgQSIpCiAgICBheC50ZXh0KE0yX2tObSwgTTNfa05tLCAiICBBIiwgZm9udHNpemU9OSwKICAgICAgICAgICAgY29sb3I9R1JFRU4sIHdlaWdodD0iYm9sZCIsIHZhPSJjZW50ZXIiLCB6b3JkZXI9NykKICAgICMgVHLhu6VjIHF1YSB0w6JtCiAgICBheC5heGhsaW5lKDAsIGNvbG9yPSIjNkI3MjgwIiwgbGluZXdpZHRoPTEuMCwgem9yZGVyPTIpCiAgICBheC5heHZsaW5lKDAsIGNvbG9yPSIjNkI3MjgwIiwgbGluZXdpZHRoPTEuMCwgem9yZGVyPTIpCiAgICBheC5zZXRfeGxhYmVsKCJNMiAoa07Ct20pIiwgZm9udHdlaWdodD0iYm9sZCIsIGZvbnRzaXplPTEwKQogICAgYXguc2V0X3lsYWJlbCgiTTMgKGtOwrdtKSIsIGZvbnR3ZWlnaHQ9ImJvbGQiLCBmb250c2l6ZT0xMCkKCiAgICBmcm9tIG1hdHBsb3RsaWIubGluZXMgaW1wb3J0IExpbmUyRAogICAgbGVnX2VsZW1zID0gWwogICAgICAgIExpbmUyRChbMF0sIFswXSwgY29sb3I9QkxVRSwgbHc9Mi4yLCBsYWJlbD0ixJDGsOG7nW5nIGJhbyBNMi1NMyIpLAogICAgICAgIExpbmUyRChbMF0sIFswXSwgY29sb3I9UkVELCBsdz0xLjUsIGxzPSItLSIsIGRhc2hlcz0oNCwgMyksCiAgICAgICAgICAgICAgIGxhYmVsPSJUaWEgdOG6o2kgTy1BLUIiKSwKICAgICAgICBMaW5lMkQoWzBdLCBbMF0sIG1hcmtlcj0iRCIsIGNvbG9yPSJ3IiwgbWFya2VyZmFjZWNvbG9yPU9SQU5HRSwKICAgICAgICAgICAgICAgbWFya2Vyc2l6ZT03LCBtYXJrZXJlZGdlY29sb3I9IndoaXRlIiwgbGFiZWw9IsSQaeG7g20gZ2nhu5tpIGjhuqFuIEIiKSwKICAgICAgICBMaW5lMkQoWzBdLCBbMF0sIG1hcmtlcj0ibyIsIGNvbG9yPSJ3IiwgbWFya2VyZmFjZWNvbG9yPUdSRUVOLAogICAgICAgICAgICAgICBtYXJrZXJzaXplPTgsIG1hcmtlcmVkZ2Vjb2xvcj0id2hpdGUiLCBsYWJlbD0ixJBp4buDbSB04bqjaSBBIiksCiAgICBdCiAgICBheC5sZWdlbmQoaGFuZGxlcz1sZWdfZWxlbXMsIGZvbnRzaXplPTgsIGxvYz0idXBwZXIgY2VudGVyIiwKICAgICAgICAgICAgICBiYm94X3RvX2FuY2hvcj0oMC41LCAtMC4xOCksIG5jb2w9MiwgZnJhbWVvbj1GYWxzZSkKICAgIGF4LmdyaWQoVHJ1ZSwgY29sb3I9IiNFNUU3RUIiLCBsaW5lc3R5bGU9Ii0tIiwKICAgICAgICAgICAgbGluZXdpZHRoPTAuNywgYWxwaGE9MC45KQogICAgYXguc2V0X2F4aXNiZWxvdyhUcnVlKQogICAgZm9yIHNwIGluICgidG9wIiwgInJpZ2h0Iik6CiAgICAgICAgYXguc3BpbmVzW3NwXS5zZXRfdmlzaWJsZShGYWxzZSkKICAgIGZvciBzcCBpbiAoImxlZnQiLCAiYm90dG9tIik6CiAgICAgICAgYXguc3BpbmVzW3NwXS5zZXRfY29sb3IoIiM5Q0EzQUYiKQo=
+"""Hàm vẽ biểu đồ EC2 dùng chung cho tab Kết quả và tab Chi tiết.
+
+Style COPY Y HỆT rc_column/chart_draw.py và aci_chart_draw.py (màu sắc,
+legend 4 mục, font, vị trí) để 3 tiêu chuẩn hiển thị đồng nhất.
+Khác biệt duy nhất là đường cong lấy từ ec2_checker (khối ứng suất
+chữ nhật η·fcd, a = λ·x; không có hệ số φ — hệ số riêng phần đã nằm
+trong vật liệu).
+"""
+import math
+
+from .ec2_checker import ec2_interaction_curve
+
+
+def _design_curve(sec, conc, steel, theta_deg, n_points=48):
+    """Đường cong thiết kế EC2 (hệ số riêng phần đã trong vật liệu).
+
+    Trả về 2 list: n_dsgn (kN), m_dsgn (kN·m), sắp N giảm dần.
+    """
+    pts = ec2_interaction_curve(sec, conc, steel, theta_deg,
+                                n_points=n_points)
+    n_dsgn = [p[0] for p in pts]
+    m_dsgn = [p[1] for p in pts]
+    return n_dsgn, m_dsgn
+
+
+def _interp_M_at_N(n_list, m_list, N):
+    """Nội suy tuyến tính M tại N trên đường cong (n_list giảm dần)."""
+    if not n_list:
+        return 0.0
+    if N >= n_list[0]:
+        return m_list[0]
+    if N <= n_list[-1]:
+        return m_list[-1]
+    for i in range(len(n_list) - 1):
+        n1, n2 = n_list[i], n_list[i + 1]
+        if n2 <= N <= n1:
+            t = (N - n1) / (n2 - n1) if abs(n2 - n1) > 1e-12 else 0.0
+            return m_list[i] + t * (m_list[i + 1] - m_list[i])
+    return 0.0
+
+
+def draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res,
+                         N_kN, M2_kNm, M3_kNm,
+                         view_angle_deg=None):
+    # Biểu đồ N-Mα theo EC2 tại góc uốn xiên α
+    # view_angle_deg: góc xem đường cong (None = góc tải trọng)
+    # Style Y HỆT chart_draw.draw_nm_alpha_ax
+    GREEN, GREEN_LT = "#059669", "#D1FAE5"
+    RED, ORANGE = "#DC2626", "#F97316"
+    BLUE_DASH = "#3B82F6"
+    load_alpha = math.degrees(math.atan2(M2_kNm, M3_kNm))  # quy ước ETABS: đo từ trục M3
+    alpha_deg = load_alpha if view_angle_deg is None else view_angle_deg
+    # SNAP về góc rời rạc gần nhất (bước 15°, xử lý wrap-around)
+    # để khớp với checker._curve_at
+    def _adiff(a, b):
+        d = abs(a - b) % 360.0
+        return min(d, 360.0 - d)
+    _angles = [k * 15.0 for k in range(24)]
+    alpha_snap = min(_angles, key=lambda a: _adiff(a, alpha_deg))
+    n_pos, m_pos = _design_curve(sec, conc, steel, alpha_snap,
+                                 n_points=96)
+    m_neg = [-m for m in m_pos]
+    ax.plot(m_pos, n_pos, color=GREEN, linewidth=2.2, zorder=3)
+    ax.plot(m_neg, n_pos, color=GREEN, linewidth=2.2, zorder=3)
+    # Fill nhạt vùng trong
+    ax.fill_betweenx(n_pos, 0, m_pos, color=GREEN, alpha=0.08,
+                     zorder=1)
+    ax.fill_betweenx(n_pos, m_neg, 0, color=GREEN, alpha=0.08,
+                     zorder=1)
+    Ma = math.hypot(M2_kNm, M3_kNm)
+    Mb = math.hypot(ec2_res["Bx"], ec2_res["By"])
+    lim = (ec2_res["BN"], Mb)
+    # Nét đứt đỏ từ tâm qua A tới B (kéo dài 1.18)
+    ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=RED,
+            ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+    # Đường chiếu xanh đứt từ A xuống trục
+    ax.plot([Ma, Ma], [0, N_kN], color=BLUE_DASH, ls="--",
+            lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
+    ax.plot([0, Ma], [N_kN, N_kN], color=BLUE_DASH, ls="--",
+            lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
+    # Điểm B (giới hạn) vẽ trước, điểm A (tải trọng) vẽ sau
+    ax.scatter([lim[1]], [lim[0]], c=ORANGE, s=70, zorder=5,
+               edgecolors="white", linewidths=1.2, label="Giới hạn")
+    ax.scatter([Ma], [N_kN], c=GREEN, s=70, zorder=6,
+               edgecolors="white", linewidths=1.2,
+               label="Điểm tải A")
+    ax.text(Ma, N_kN, "  A", fontsize=9, color=GREEN,
+            weight="bold", va="center", zorder=7)
+    ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
+            weight="bold", va="center", zorder=7)
+    ax.set_xlabel(f"Mα (kN·m){'' if view_angle_deg is None else f' @ {view_angle_deg:.0f}°'}",
+                fontweight="bold", fontsize=10)
+    ax.set_ylabel("N (kN)", fontweight="bold", fontsize=10)
+    # Chỉ hiện N >= 0 (ẩn vùng chịu kéo) — theo yêu cầu user 2026-10-16
+    ax.set_ylim(bottom=0)
+
+    # Legend 4 mục Y HỆT chart_draw, đặt dưới biểu đồ
+    from matplotlib.lines import Line2D
+    leg_elems = [
+        Line2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+        Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+               label="Tia tải O-A-B"),
+        Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+               markersize=8, markeredgecolor="white", label="Điểm tải A"),
+        Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+               markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+    ]
+    ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
+    # Chỉ hiện nửa phải (Mα >= 0) có tải — theo yêu cầu user 2026-10-16
+    ax.set_xlim(left=0)
+    ax.grid(True, color="#E5E7EB", linestyle="--",
+            linewidth=0.7, alpha=0.9)
+    ax.set_axisbelow(True)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    for sp in ("left", "bottom"):
+        ax.spines[sp].set_color("#9CA3AF")
+
+
+def draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res,
+                     N_kN, M2_kNm, M3_kNm):
+    # Biểu đồ M2-M3 theo EC2 tại N cố định
+    # Style Y HỆT chart_draw.draw_m2m3_ax
+    BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
+    GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
+    # Dựng đường bao bằng cách quét các góc 0-360° (mỗi 15°),
+    # nội suy M thiết kế tại N_kN rồi chiếu lên (M2, M3)
+    xs, ys = [], []
+    for deg in range(0, 360, 15):
+        n_d, m_d = _design_curve(sec, conc, steel, float(deg),
+                                n_points=72)
+        Md = _interp_M_at_N(n_d, m_d, N_kN)
+        th = math.radians(deg)
+        xs.append(Md * math.sin(th))  # M2 = Md sinθ (quy ước ETABS)
+        ys.append(Md * math.cos(th))  # M3 = Md cosθ
+    xs.append(xs[0])
+    ys.append(ys[0])
+    ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
+    ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
+    # Nét đứt đỏ từ tâm qua A tới B
+    ax.plot([0, ec2_res["Bx"] * 1.18], [0, ec2_res["By"] * 1.18],
+            color=RED, ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+    ax.scatter([ec2_res["Bx"]], [ec2_res["By"]], c=ORANGE, s=70,
+               zorder=5, edgecolors="white", linewidths=1.2,
+               label="Giới hạn")
+    ax.scatter([M2_kNm], [M3_kNm], c=GREEN, s=70,
+               zorder=6, edgecolors="white", linewidths=1.2,
+               label="Điểm tải A")
+    ax.text(M2_kNm, M3_kNm, "  A", fontsize=9,
+            color=GREEN, weight="bold", va="center", zorder=7)
+    # Trục qua tâm
+    ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
+    ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
+    ax.set_xlabel("M2 (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_ylabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+
+    from matplotlib.lines import Line2D
+    leg_elems = [
+        Line2D([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+        Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+               label="Tia tải O-A-B"),
+        Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+               markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+        Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+               markersize=8, markeredgecolor="white", label="Điểm tải A"),
+    ]
+    ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
+    ax.grid(True, color="#E5E7EB", linestyle="--",
+            linewidth=0.7, alpha=0.9)
+    ax.set_axisbelow(True)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    for sp in ("left", "bottom"):
+        ax.spines[sp].set_color("#9CA3AF")

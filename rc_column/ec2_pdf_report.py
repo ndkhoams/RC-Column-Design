@@ -1,1 +1,362 @@
-IiIiWHXhuqV0IFBERiB0aHV54bq/dCBtaW5oIGtp4buDbSB0cmEgY+G7mXQgdGhlbyBFQzIgKEVOIDE5OTItMS0xKS4KClJlbmRlciBjw6FjIHNlY3Rpb24gdOG7qyBlYzJfcmVwb3J0LmdlbmVyYXRlX2VjMl9yZXBvcnRfc2VjdGlvbnMgdGjDoG5oClBERiBBNCBk4buNYyB24bubaSBjYXJkIHN0eWxlIGdp4buRbmcgaOG7h3QgYuG6o24gVENWTiAocGRmX3JlcG9ydF9jYXJkcy5weSkuCgpLaMO0bmcgcGjhu6UgdGh14buZYyBHVUkvbWF0cGxvdGxpYiB0cuG7sWMgdGnhur9wLgoiIiIKCmltcG9ydCBpbwoKZnJvbSAuZWMyX3JlcG9ydCBpbXBvcnQgZ2VuZXJhdGVfZWMyX3JlcG9ydF9zZWN0aW9ucwoKCmRlZiBfZih4OiBmbG9hdCwgbmQ6IGludCA9IDIpIC0+IHN0cjoKICAgIHRyeToKICAgICAgICByZXR1cm4gZiJ7eDosLntuZH1mfSIKICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgcmV0dXJuICLigJQiCgoKV0hJVEUgPSAiI0ZGRkZGRiIKQk9SREVSID0gIiNFNUU3RUIiClRFWFQgPSAiIzExMTgyNyIKR1JBWSA9ICIjNkI3MjgwIgpGT1JNVUxBX0JHID0gIiNGOUZBRkIiCkdSRUVOID0gIiMwNTk2NjkiCkdSRUVOX0JHID0gIiNEMUZBRTUiClJFRCA9ICIjREMyNjI2IgpSRURfQkcgPSAiI0ZFRTJFMiIKX0RPVF9DT0xPUlMgPSBbIiMyNTYzRUIiLCAiIzA1OTY2OSIsICIjRDk3NzA2IiwgIiM3QzNBRUQiLCAiI0RCMjc3NyIsICIjMDg5MUIyIl0KCgpkZWYgX2ZpbmRfZWMyX2ZvbnQoKToKICAgICIiIlTDrG0gZm9udCBEZWphVnUgU2FuczogxrB1IHRpw6puIGhlbHBlciBj4bunYSBwZGZfZXhwb3J0LCBmYWxsYmFjayBxdWEKICAgIG1hdHBsb3RsaWIuZm9udF9tYW5hZ2VyIChjaG8gbcO0aSB0csaw4budbmcgaOG7hyB0aOG7kW5nIMSR4bq3dCBtcGwtZGF0YSDhu58KICAgIC91c3Ivc2hhcmUpLiIiIgogICAgdHJ5OgogICAgICAgIGZyb20gLnBkZl9leHBvcnQgaW1wb3J0IF9maW5kX2ZvbnQKICAgICAgICBwID0gX2ZpbmRfZm9udCgpCiAgICAgICAgaWYgcDoKICAgICAgICAgICAgcmV0dXJuIHAKICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgcGFzcwogICAgdHJ5OgogICAgICAgIGltcG9ydCBtYXRwbG90bGliLmZvbnRfbWFuYWdlciBhcyBmbQogICAgICAgIHJldHVybiBmbS5maW5kZm9udCgiRGVqYVZ1IFNhbnMiKQogICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICByZXR1cm4gTm9uZQoKCmRlZiBfZmluZF9lYzJfZm9udF9ib2xkKCk6CiAgICB0cnk6CiAgICAgICAgZnJvbSAucGRmX2V4cG9ydCBpbXBvcnQgX2ZpbmRfZm9udF9ib2xkCiAgICAgICAgcCA9IF9maW5kX2ZvbnRfYm9sZCgpCiAgICAgICAgaWYgcDoKICAgICAgICAgICAgcmV0dXJuIHAKICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgcGFzcwogICAgdHJ5OgogICAgICAgIGltcG9ydCBtYXRwbG90bGliLmZvbnRfbWFuYWdlciBhcyBmbQogICAgICAgIHJldHVybiBmbS5maW5kZm9udCgiRGVqYVZ1IFNhbnMiLCB3ZWlnaHQ9ImJvbGQiKQogICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICByZXR1cm4gTm9uZQoKCmRlZiBfZ2V0X3N0eWxlcygpOgogICAgZnJvbSByZXBvcnRsYWIubGliLnN0eWxlcyBpbXBvcnQgUGFyYWdyYXBoU3R5bGUKICAgIGZyb20gcmVwb3J0bGFiLmxpYi5lbnVtcyBpbXBvcnQgVEFfTEVGVCwgVEFfQ0VOVEVSCiAgICBmcm9tIHJlcG9ydGxhYi5saWIuY29sb3JzIGltcG9ydCBIZXhDb2xvcgogICAgZnJvbSByZXBvcnRsYWIucGRmYmFzZSBpbXBvcnQgcGRmbWV0cmljcwogICAgZnJvbSByZXBvcnRsYWIucGRmYmFzZS50dGZvbnRzIGltcG9ydCBUVEZvbnQKCiAgICBmb250X3BhdGggPSBfZmluZF9lYzJfZm9udCgpCiAgICBib2xkX3BhdGggPSBfZmluZF9lYzJfZm9udF9ib2xkKCkKICAgIGlmIG5vdCBmb250X3BhdGg6CiAgICAgICAgcmFpc2UgUnVudGltZUVycm9yKCJLaMO0bmcgdMOsbSB0aOG6pXkgZm9udCBo4buXIHRy4bujIHRp4bq/bmcgVmnhu4d0LiIpCiAgICB0cnk6CiAgICAgICAgcGRmbWV0cmljcy5yZWdpc3RlckZvbnQoVFRGb250KCJWTiIsIGZvbnRfcGF0aCkpCiAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgIHBhc3MKICAgIHRyeToKICAgICAgICBwZGZtZXRyaWNzLnJlZ2lzdGVyRm9udChUVEZvbnQoIlZOLUJvbGQiLCBib2xkX3BhdGggb3IgZm9udF9wYXRoKSkKICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgcGFzcwoKICAgIHJldHVybiB7CiAgICAgICAgInRpdGxlIjogUGFyYWdyYXBoU3R5bGUoInRpdGxlIiwgZm9udE5hbWU9IlZOLUJvbGQiLCBmb250U2l6ZT0xNCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0ZXh0Q29sb3I9SGV4Q29sb3IoVEVYVCksIGFsaWdubWVudD1UQV9DRU5URVIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3BhY2VBZnRlcj00KSwKICAgICAgICAic3ViIjogUGFyYWdyYXBoU3R5bGUoInN1YiIsIGZvbnROYW1lPSJWTiIsIGZvbnRTaXplPTksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRleHRDb2xvcj1IZXhDb2xvcihHUkFZKSwgYWxpZ25tZW50PVRBX0NFTlRFUiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3BhY2VBZnRlcj0xMCksCiAgICAgICAgInNlY190aXRsZSI6IFBhcmFncmFwaFN0eWxlKCJzZWNfdGl0bGUiLCBmb250TmFtZT0iVk4tQm9sZCIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZvbnRTaXplPTEyLCB0ZXh0Q29sb3I9SGV4Q29sb3IoVEVYVCksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNwYWNlQmVmb3JlPTEyLCBzcGFjZUFmdGVyPTYpLAogICAgICAgICJzZWNfcmVmIjogUGFyYWdyYXBoU3R5bGUoInNlY19yZWYiLCBmb250TmFtZT0iVk4iLCBmb250U2l6ZT04LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdGV4dENvbG9yPUhleENvbG9yKEdSQVkpLCBsZWFkaW5nPTEwLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3BhY2VBZnRlcj00KSwKICAgICAgICAiY2FyZF90aXRsZSI6IFBhcmFncmFwaFN0eWxlKCJjYXJkX3RpdGxlIiwgZm9udE5hbWU9IlZOLUJvbGQiLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZm9udFNpemU9MTAsIHRleHRDb2xvcj1IZXhDb2xvcihURVhUKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGxlYWRpbmc9MTIsIHNwYWNlQWZ0ZXI9MiksCiAgICAgICAgImNhcmRfcmVmIjogUGFyYWdyYXBoU3R5bGUoImNhcmRfcmVmIiwgZm9udE5hbWU9IlZOIiwgZm9udFNpemU9OCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0ZXh0Q29sb3I9SGV4Q29sb3IoR1JBWSksIGxlYWRpbmc9MTAsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3BhY2VBZnRlcj0yKSwKICAgICAgICAiZm9ybXVsYSI6IFBhcmFncmFwaFN0eWxlKCJmb3JtdWxhIiwgZm9udE5hbWU9IlZOIiwgZm9udFNpemU9OSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRleHRDb2xvcj1IZXhDb2xvcigiIzM3NDE1MSIpLCBsZWFkaW5nPTEyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbGVmdEluZGVudD02LCBzcGFjZUFmdGVyPTEpLAogICAgICAgICJyZXN1bHQiOiBQYXJhZ3JhcGhTdHlsZSgicmVzdWx0IiwgZm9udE5hbWU9IlZOLUJvbGQiLCBmb250U2l6ZT0xMCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdGV4dENvbG9yPUhleENvbG9yKFRFWFQpLCBsZWFkaW5nPTEyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzcGFjZUJlZm9yZT00KSwKICAgICAgICAicmVzdWx0X29rIjogUGFyYWdyYXBoU3R5bGUoInJlc3VsdF9vayIsIGZvbnROYW1lPSJWTi1Cb2xkIiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZm9udFNpemU9MTAsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRleHRDb2xvcj1IZXhDb2xvcihHUkVFTiksIGxlYWRpbmc9MTIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNwYWNlQmVmb3JlPTQpLAogICAgICAgICJyZXN1bHRfbmciOiBQYXJhZ3JhcGhTdHlsZSgicmVzdWx0X25nIiwgZm9udE5hbWU9IlZOLUJvbGQiLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250U2l6ZT0xMCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdGV4dENvbG9yPUhleENvbG9yKFJFRCksIGxlYWRpbmc9MTIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNwYWNlQmVmb3JlPTQpLAogICAgICAgICJub3RlIjogUGFyYWdyYXBoU3R5bGUoIm5vdGUiLCBmb250TmFtZT0iVk4iLCBmb250U2l6ZT05LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdGV4dENvbG9yPUhleENvbG9yKEdSQVkpLCBsZWFkaW5nPTEyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3BhY2VCZWZvcmU9NCwgc3BhY2VBZnRlcj00KSwKICAgICAgICAiZGNfb2siOiBQYXJhZ3JhcGhTdHlsZSgiZGNfb2siLCBmb250TmFtZT0iVk4tQm9sZCIsIGZvbnRTaXplPTEwLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRleHRDb2xvcj1IZXhDb2xvcihHUkVFTiksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYmFja0NvbG9yPUhleENvbG9yKEdSRUVOX0JHKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBib3JkZXJQYWRkaW5nPTEwLCBhbGlnbm1lbnQ9VEFfQ0VOVEVSLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNwYWNlQmVmb3JlPTEwLCBzcGFjZUFmdGVyPTEwKSwKICAgICAgICAiZGNfbmciOiBQYXJhZ3JhcGhTdHlsZSgiZGNfbmciLCBmb250TmFtZT0iVk4tQm9sZCIsIGZvbnRTaXplPTEwLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRleHRDb2xvcj1IZXhDb2xvcihSRUQpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGJhY2tDb2xvcj1IZXhDb2xvcihSRURfQkcpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGJvcmRlclBhZGRpbmc9MTAsIGFsaWdubWVudD1UQV9DRU5URVIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3BhY2VCZWZvcmU9MTAsIHNwYWNlQWZ0ZXI9MTApLAogICAgICAgICJjYXAiOiBQYXJhZ3JhcGhTdHlsZSgiY2FwIiwgZm9udE5hbWU9IlZOIiwgZm9udFNpemU9OCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdGV4dENvbG9yPUhleENvbG9yKEdSQVkpLCBhbGlnbm1lbnQ9VEFfQ0VOVEVSLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzcGFjZUJlZm9yZT00LCBzcGFjZUFmdGVyPTgpLAogICAgfQoKCmRlZiBfY2FyZF9zdG9yeShQLCBzdCwgYyk6CiAgICAiIiJUcuG6oyB24buBIGxpc3QgZmxvd2FibGVzIGNobyAxIGNhcmQuIiIiCiAgICBmcm9tIHJlcG9ydGxhYi5wbGF0eXB1cyBpbXBvcnQgUGFyYWdyYXBoLCBTcGFjZXIKICAgIGZyb20gcmVwb3J0bGFiLmxpYi5jb2xvcnMgaW1wb3J0IEhleENvbG9yCiAgICBmcm9tIHJlcG9ydGxhYi5saWIudW5pdHMgaW1wb3J0IG1tCgogICAgaXRlbXMgPSBbXQogICAgaWYgYy5nZXQoInRpdGxlIik6CiAgICAgICAgaXRlbXMuYXBwZW5kKFAoY1sidGl0bGUiXSwgc3RbImNhcmRfdGl0bGUiXSkpCiAgICBpZiBjLmdldCgicmVmIik6CiAgICAgICAgaXRlbXMuYXBwZW5kKFAoY1sicmVmIl0sIHN0WyJjYXJkX3JlZiJdKSkKICAgIGZvciBsbiBpbiBjLmdldCgibGluZXMiLCBbXSk6CiAgICAgICAgaXRlbXMuYXBwZW5kKFAobG4sIHN0WyJmb3JtdWxhIl0pKQogICAgaWYgYy5nZXQoInJlc3VsdCIpOgogICAgICAgIHIgPSBjWyJyZXN1bHQiXQogICAgICAgICMgVMO0IG3DoHUga+G6v3QgbHXhuq1uIMSQ4bqgVC9LSMOUTkcgxJDhuqBUCiAgICAgICAgaWYgIktIw5RORyDEkOG6oFQiIGluIHI6CiAgICAgICAgICAgIHJzID0gc3RbInJlc3VsdF9uZyJdCiAgICAgICAgZWxpZiAixJDhuqBUIiBpbiByIGFuZCAi4oaSIE9LIiBpbiByOgogICAgICAgICAgICBycyA9IHN0WyJyZXN1bHRfb2siXQogICAgICAgIGVsc2U6CiAgICAgICAgICAgIHJzID0gc3RbInJlc3VsdCJdCiAgICAgICAgaXRlbXMuYXBwZW5kKFAociwgcnMpKQogICAgcmV0dXJuIGl0ZW1zCgoKZGVmIF90d29fY2FyZHMoUCwgc3QsIGMxLCBjMik6CiAgICAiIiIyIGNhcmQgxJHhurd0IG5nYW5nIG5oYXUsIHThu7EgY2hpYSDEkeG7gXUgY+G7mXQuIiIiCiAgICBmcm9tIHJlcG9ydGxhYi5wbGF0eXB1cyBpbXBvcnQgVGFibGUsIFRhYmxlU3R5bGUsIFNwYWNlcgogICAgZnJvbSByZXBvcnRsYWIubGliLmNvbG9ycyBpbXBvcnQgSGV4Q29sb3IKICAgIGZyb20gcmVwb3J0bGFiLmxpYi51bml0cyBpbXBvcnQgbW0KCiAgICBkZWYgX29uZShjKToKICAgICAgICBmcm9tIHJlcG9ydGxhYi5wbGF0eXB1cyBpbXBvcnQgVGFibGUKICAgICAgICByb3dzID0gW10KICAgICAgICBpZiBjLmdldCgidGl0bGUiKToKICAgICAgICAgICAgcm93cy5hcHBlbmQoW1AoY1sidGl0bGUiXSwgc3RbImNhcmRfdGl0bGUiXSldKQogICAgICAgIGlmIGMuZ2V0KCJyZWYiKToKICAgICAgICAgICAgcm93cy5hcHBlbmQoW1AoY1sicmVmIl0sIHN0WyJjYXJkX3JlZiJdKV0pCiAgICAgICAgZm9yIGxuIGluIGMuZ2V0KCJsaW5lcyIsIFtdKToKICAgICAgICAgICAgcm93cy5hcHBlbmQoW1AobG4sIHN0WyJmb3JtdWxhIl0pXSkKICAgICAgICBpZiBjLmdldCgicmVzdWx0Iik6CiAgICAgICAgICAgIHIgPSBjWyJyZXN1bHQiXQogICAgICAgICAgICBpZiAiS0jDlE5HIMSQ4bqgVCIgaW4gcjoKICAgICAgICAgICAgICAgIHJzID0gc3RbInJlc3VsdF9uZyJdCiAgICAgICAgICAgIGVsaWYgIsSQ4bqgVCIgaW4gcjoKICAgICAgICAgICAgICAgIHJzID0gc3RbInJlc3VsdF9vayJdCiAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICBycyA9IHN0WyJyZXN1bHQiXQogICAgICAgICAgICByb3dzLmFwcGVuZChbUChyLCBycyldKQogICAgICAgIGlmIG5vdCByb3dzOgogICAgICAgICAgICByb3dzLmFwcGVuZChbUCgiIiwgc3RbImZvcm11bGEiXSldKQogICAgICAgIHQgPSBUYWJsZShyb3dzKQogICAgICAgIHN0eSA9IFsKICAgICAgICAgICAgKCJWQUxJR04iLCAoMCwgMCksICgtMSwgLTEpLCAiVE9QIiksCiAgICAgICAgICAgICgiTEVGVFBBRERJTkciLCAoMCwgMCksICgtMSwgLTEpLCAwKSwKICAgICAgICAgICAgKCJSSUdIVFBBRERJTkciLCAoMCwgMCksICgtMSwgLTEpLCAwKSwKICAgICAgICAgICAgKCJUT1BQQURESU5HIiwgKDAsIDApLCAoLTEsIC0xKSwgMiksCiAgICAgICAgICAgICgiQk9UVE9NUEFERElORyIsICgwLCAwKSwgKC0xLCAtMSksIDIpLAogICAgICAgICAgICAoIkJPWCIsICgwLCAwKSwgKC0xLCAtMSksIDAuOCwgSGV4Q29sb3IoQk9SREVSKSksCiAgICAgICAgICAgICgiSU5ORVJHUklEIiwgKDAsIDApLCAoLTEsIC0xKSwgMC4yNSwgSGV4Q29sb3IoQk9SREVSKSksCiAgICAgICAgICAgICgiQkFDS0dST1VORCIsICgwLCAwKSwgKC0xLCAwKSwgSGV4Q29sb3IoV0hJVEUpKSwKICAgICAgICBdCiAgICAgICAgIyBEw7JuZyBjw7RuZyB0aOG7qWM6IG7hu4FuIG5o4bqhdCArIHZp4buBbiB0csOhaQogICAgICAgIGZvciBpLCByb3cgaW4gZW51bWVyYXRlKHJvd3MpOgogICAgICAgICAgICBpc19mb3JtdWxhID0gKGMuZ2V0KCJ0aXRsZSIpIGFuZCBjLmdldCgicmVmIikgYW5kIGkgPj0gMikgb3IgXAogICAgICAgICAgICAgICAgICAgICAgICAoYy5nZXQoInRpdGxlIikgYW5kIG5vdCBjLmdldCgicmVmIikgYW5kIGkgPj0gMSkgb3IgXAogICAgICAgICAgICAgICAgICAgICAgICAobm90IGMuZ2V0KCJ0aXRsZSIpIGFuZCBjLmdldCgicmVmIikgYW5kIGkgPj0gMSkKICAgICAgICAgICAgaWYgaXNfZm9ybXVsYSBhbmQgbm90IChjLmdldCgicmVzdWx0IikgYW5kIGkgPT0gbGVuKHJvd3MpIC0gMSk6CiAgICAgICAgICAgICAgICBzdHkuYXBwZW5kKCgiQkFDS0dST1VORCIsICgwLCBpKSwgKC0xLCBpKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIEhleENvbG9yKEZPUk1VTEFfQkcpKSkKICAgICAgICB0LnNldFN0eWxlKFRhYmxlU3R5bGUoc3R5KSkKICAgICAgICByZXR1cm4gdAoKICAgIHQgPSBUYWJsZShbW19vbmUoYzEpLCBfb25lKGMyKV1dKQogICAgdC5zZXRTdHlsZShUYWJsZVN0eWxlKFsKICAgICAgICAoIlZBTElHTiIsICgwLCAwKSwgKC0xLCAtMSksICJUT1AiKSwKICAgICAgICAoIkxFRlRQQURESU5HIiwgKDAsIDApLCAoLTEsIC0xKSwgNiksCiAgICAgICAgKCJSSUdIVFBBRERJTkciLCAoMCwgMCksICgtMSwgLTEpLCA2KSwKICAgICAgICAoIlRPUFBBRERJTkciLCAoMCwgMCksICgtMSwgLTEpLCAwKSwKICAgICAgICAoIkJPVFRPTVBBRERJTkciLCAoMCwgMCksICgtMSwgLTEpLCAwKSwKICAgIF0pKQogICAgcmV0dXJuIFt0LCBTcGFjZXIoMSwgNCAqIG1tKV0KCgpkZWYgX3NlY19oZWFkKFAsIHN0LCBudW0sIHRpdGxlLCByZWY9IiIpOgogICAgIiIiSGVhZGVyIG3hu6VjOiAnTi4gVElUTEUnIGJvbGQgMTIgKyByZWYgeMOhbSA4IGLDqm4gcGjhuqNpLiIiIgogICAgZnJvbSByZXBvcnRsYWIucGxhdHlwdXMgaW1wb3J0IFRhYmxlLCBUYWJsZVN0eWxlCiAgICBkb3QgPSBfRE9UX0NPTE9SU1sobnVtIC0gMSkgJSBsZW4oX0RPVF9DT0xPUlMpXQogICAgcm93cyA9IFtbUChmJzxmb250IGNvbG9yPSJ7ZG90fSI+4pePPC9mb250PiZuYnNwOyZuYnNwOycKICAgICAgICAgICAgICAgZid7bnVtfS4ge3RpdGxlfScsIHN0WyJzZWNfdGl0bGUiXSldXQogICAgaWYgcmVmOgogICAgICAgIHJvd3MuYXBwZW5kKFtQKGYnPGZvbnQgY29sb3I9IntHUkFZfSI+e3JlZn08L2ZvbnQ+JywKICAgICAgICAgICAgICAgICAgICAgICBzdFsic2VjX3JlZiJdKV0pCiAgICB0ID0gVGFibGUocm93cykKICAgIHQuc2V0U3R5bGUoVGFibGVTdHlsZShbCiAgICAgICAgKCJMRUZUUEFERElORyIsICgwLCAwKSwgKC0xLCAtMSksIDApLAogICAgICAgICgiUklHSFRQQURESU5HIiwgKDAsIDApLCAoLTEsIC0xKSwgMCksCiAgICAgICAgKCJUT1BQQURESU5HIiwgKDAsIDApLCAoLTEsIC0xKSwgMCksCiAgICAgICAgKCJCT1RUT01QQURESU5HIiwgKDAsIDApLCAoLTEsIC0xKSwgMSksCiAgICBdKSkKICAgIHJldHVybiB0CgoKZGVmIF9pbWdfa2VlcF9hc3BlY3QocG5nX2J5dGVzLCB3X21tPTg4KToKICAgICIiIlThuqFvIEltYWdlIGdp4buvIMSRw7puZyB04buJIGzhu4cgZ+G7kWMgY+G7p2EgUE5HIChraMO0bmcgbcOpbyBow6xuaCkuIiIiCiAgICBmcm9tIHJlcG9ydGxhYi5wbGF0eXB1cyBpbXBvcnQgSW1hZ2UKICAgIGZyb20gcmVwb3J0bGFiLmxpYi51bml0cyBpbXBvcnQgbW0KICAgIHRyeToKICAgICAgICBmcm9tIFBJTCBpbXBvcnQgSW1hZ2UgYXMgX1BJTEltYWdlCiAgICAgICAgX3BpbCA9IF9QSUxJbWFnZS5vcGVuKGlvLkJ5dGVzSU8ocG5nX2J5dGVzKSkKICAgICAgICBfcHcsIF9waCA9IF9waWwuc2l6ZQogICAgICAgIF9oaCA9IHdfbW0gKiBfcGggLyBfcHcgaWYgX3B3ID4gMCBlbHNlIHdfbW0gKiAwLjc1CiAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgIF9oaCA9IHdfbW0gKiAwLjc1CiAgICByZXR1cm4gSW1hZ2UoaW8uQnl0ZXNJTyhwbmdfYnl0ZXMpLCB3aWR0aD13X21tICogbW0sIGhlaWdodD1faGggKiBtbSkKCgpkZWYgX2Z1bGxfY2FzZShkKToKICAgICIiIkZvcm1hdCDEkeG6p3kgxJHhu6c6IFtzdG9yeSwgY29sdW1uLCBjYXNlQHN0YXRpb25dLiIiIgogICAgcGFydHMgPSBbXQogICAgaWYgZC5nZXQoInN0b3J5Iik6CiAgICAgICAgcGFydHMuYXBwZW5kKHN0cihkWyJzdG9yeSJdKSkKICAgIGlmIGQuZ2V0KCJjb2x1bW4iKToKICAgICAgICBwYXJ0cy5hcHBlbmQoc3RyKGRbImNvbHVtbiJdKSkKICAgIGNzID0gZiJ7ZC5nZXQoJ2Nhc2UnLCAnJyl9QHtkLmdldCgnc3RhdGlvbicsIDApOi4yZn0iCiAgICBwYXJ0cy5hcHBlbmQoY3MpCiAgICByZXR1cm4gIlsiICsgIiwgIi5qb2luKHBhcnRzKSArICJdIgoKCmRlZiBleHBvcnRfZWMyX3BkZl9jYXJkcyhpbnAsIGVjMl9yZXMsIHNsZW5kX3Jlcywgc2hlYXJfcmVzLCBjb25jLCBzdGVlbCwKICAgICAgICAgICAgICAgICAgICAgICAgIGZpbGVwYXRoLCBjaGFydF9wbmdzPU5vbmUsIGNhc2VfaW5mbz1Ob25lLCB0aWVkPU5vbmUpOgogICAgIiIiWHXhuqV0IFBERiB0aHV54bq/dCBtaW5oIEVDMiAoRU4gMTk5Mi0xLTEpIGtp4buDdSBjYXJkIGdp4buRbmcgaOG7h3QgYXBwLgoKICAgIGlucDogQ29sdW1uSW5wdXQuIGVjMl9yZXMvc2xlbmRfcmVzL3NoZWFyX3JlczogZGljdCBr4bq/dCBxdeG6oyBFQzIuCiAgICBjb25jOiBFQzJDb25jcmV0ZSwgc3RlZWw6IEVDMlN0ZWVsLgogICAgY2hhcnRfcG5nczogdHVwbGUgMiBieXRlcyBQTkcgKE4tTc6xLCBNMi1NMykg4oCUIG5ow7puZyB2w6BvIG3hu6VjIDMuCiAgICBjYXNlX2luZm86IGRpY3Qge3N0b3J5LCBjb2x1bW4sIGNhc2UsIHN0YXRpb24sIE4sIE0yLCBNM30gKG9wdGlvbmFsKS4KICAgICIiIgogICAgZnJvbSByZXBvcnRsYWIubGliLnBhZ2VzaXplcyBpbXBvcnQgQTQKICAgIGZyb20gcmVwb3J0bGFiLmxpYi51bml0cyBpbXBvcnQgbW0KICAgIGZyb20gcmVwb3J0bGFiLnBsYXR5cHVzIGltcG9ydCAoU2ltcGxlRG9jVGVtcGxhdGUsIFBhcmFncmFwaCwgU3BhY2VyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBUYWJsZSwgVGFibGVTdHlsZSwgS2VlcFRvZ2V0aGVyKQogICAgZnJvbSByZXBvcnRsYWIubGliLmNvbG9ycyBpbXBvcnQgSGV4Q29sb3IKCiAgICBzdCA9IF9nZXRfc3R5bGVzKCkKICAgIFAgPSBQYXJhZ3JhcGgKCiAgICBzZWN0aW9ucyA9IGdlbmVyYXRlX2VjMl9yZXBvcnRfc2VjdGlvbnMoaW5wLCBlYzJfcmVzLCBzbGVuZF9yZXMsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2hlYXJfcmVzLCBjb25jLCBzdGVlbCkKCiAgICBkb2MgPSBTaW1wbGVEb2NUZW1wbGF0ZShmaWxlcGF0aCwgcGFnZXNpemU9QTQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBsZWZ0TWFyZ2luPTIwICogbW0sIHJpZ2h0TWFyZ2luPTIwICogbW0sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICB0b3BNYXJnaW49MTUgKiBtbSwgYm90dG9tTWFyZ2luPTE1ICogbW0pCiAgICBTID0gW10KICAgIFMuYXBwZW5kKFAoIlRIVVnhur5UIE1JTkggVMONTkggVE/DgU4gQ+G7mFQgQlRDVCDigJQgRUMyIChFTiAxOTkyLTEtMSkiLCBzdFsidGl0bGUiXSkpCiAgICBTLmFwcGVuZChQKCJUacOqdSBjaHXhuqluOiBFQzIgKEVOIDE5OTItMS0xKSDigJQgS2nhu4NtIHRyYSBQLU0tTSwgxJHhu5kgbeG6o25oIHbDoCBj4bqvdCIsCiAgICAgICAgICAgICAgIHN0WyJzdWIiXSkpCgogICAgaWYgY2FzZV9pbmZvOgogICAgICAgIFMuYXBwZW5kKFAoZiJU4buVIGjhu6NwIHTDrW5oIHRvw6FuOiB7X2Z1bGxfY2FzZShjYXNlX2luZm8pfSDigJQgIgogICAgICAgICAgICAgICAgICAgZiJOID0ge19mKGNhc2VfaW5mby5nZXQoJ04nLCAwKSwgMSl9IGtOLCAiCiAgICAgICAgICAgICAgICAgICBmIk0yID0ge19mKGNhc2VfaW5mby5nZXQoJ00yJywgMCksIDEpfSBrTsK3bSwgIgogICAgICAgICAgICAgICAgICAgZiJNMyA9IHtfZihjYXNlX2luZm8uZ2V0KCdNMycsIDApLCAxKX0ga07Ct20iLAogICAgICAgICAgICAgICAgICAgc3RbIm5vdGUiXSkpCgogICAgZm9yIHNlYyBpbiBzZWN0aW9uczoKICAgICAgICBTLmFwcGVuZChfc2VjX2hlYWQoUCwgc3QsIHNlY1sibnVtIl0sIHNlY1sidGl0bGUiXSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgc2VjLmdldCgicmVmIiwgIiIpKSkKICAgICAgICBjYXJkcyA9IHNlYy5nZXQoImNhcmRzIiwgW10pCiAgICAgICAgIyBY4bq/cCBjYXJkIDIgY+G7mXQKICAgICAgICBpID0gMAogICAgICAgIHdoaWxlIGkgPCBsZW4oY2FyZHMpOgogICAgICAgICAgICBjMSA9IGNhcmRzW2ldCiAgICAgICAgICAgIGMyID0gY2FyZHNbaSArIDFdIGlmIGkgKyAxIDwgbGVuKGNhcmRzKSBlbHNlIFwKICAgICAgICAgICAgICAgIHsidGl0bGUiOiAiIiwgInJlZiI6ICIiLCAibGluZXMiOiBbXSwgInJlc3VsdCI6ICIifQogICAgICAgICAgICBTLmV4dGVuZChfdHdvX2NhcmRzKFAsIHN0LCBjMSwgYzIpKQogICAgICAgICAgICBpICs9IDIKCiAgICAgICAgIyBN4bulYyAzIChQLU0tTSk6IG5ow7puZyAyIGJp4buDdSDEkeG7kyBuZ2FuZyBuaGF1LCBnaeG7ryB04buJIGzhu4cKICAgICAgICBpZiBzZWNbIm51bSJdID09IDMgYW5kIGNoYXJ0X3BuZ3M6CiAgICAgICAgICAgIHRyeToKICAgICAgICAgICAgICAgIGltZzEgPSBfaW1nX2tlZXBfYXNwZWN0KGNoYXJ0X3BuZ3NbMF0pCiAgICAgICAgICAgICAgICBpbWcyID0gX2ltZ19rZWVwX2FzcGVjdChjaGFydF9wbmdzWzFdKQogICAgICAgICAgICAgICAgY3QgPSBUYWJsZShbCiAgICAgICAgICAgICAgICAgICAgW1tQKCJCaeG7g3UgxJHhu5MgdMawxqFuZyB0w6FjIE4tTc6xIChFQzIpIiwgc3RbImNhcCJdKSwgaW1nMV0sCiAgICAgICAgICAgICAgICAgICAgIFtQKCJCaeG7g3UgxJHhu5MgdMawxqFuZyB0w6FjIE0yLU0zIChFQzIpIiwgc3RbImNhcCJdKSwgaW1nMl1dCiAgICAgICAgICAgICAgICBdKQogICAgICAgICAgICAgICAgY3Quc2V0U3R5bGUoVGFibGVTdHlsZShbCiAgICAgICAgICAgICAgICAgICAgKCJWQUxJR04iLCAoMCwgMCksICgtMSwgLTEpLCAiVE9QIiksCiAgICAgICAgICAgICAgICAgICAgKCJBTElHTiIsICgwLCAwKSwgKC0xLCAtMSksICJDRU5URVIiKSwKICAgICAgICAgICAgICAgICAgICAoIkxFRlRQQURESU5HIiwgKDAsIDApLCAoLTEsIC0xKSwgNCksCiAgICAgICAgICAgICAgICAgICAgKCJSSUdIVFBBRERJTkciLCAoMCwgMCksICgtMSwgLTEpLCA0KSwKICAgICAgICAgICAgICAgIF0pKQogICAgICAgICAgICAgICAgUy5hcHBlbmQoY3QpCiAgICAgICAgICAgICAgICBTLmFwcGVuZChTcGFjZXIoMSwgNCAqIG1tKSkKICAgICAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICAgICAgICAgIHBhc3MKCiAgICAgICAgIyBCYW5uZXIga+G6v3QgbHXhuq1uIGNobyBt4bulYyAzIChQLU0tTSkgdsOgIG3hu6VjIDQgKGPhuq90KQogICAgICAgIGlmIHNlY1sibnVtIl0gaW4gKDMsIDQpOgogICAgICAgICAgICBpZiBzZWNbIm51bSJdID09IDM6CiAgICAgICAgICAgICAgICBvayA9IGJvb2woZWMyX3Jlcy5nZXQoIm9rIiwgRmFsc2UpKQogICAgICAgICAgICAgICAgZGMgPSBlYzJfcmVzLmdldCgiZGMiLCAwLjApIG9yIDAuMAogICAgICAgICAgICAgICAgZnMgPSBlYzJfcmVzLmdldCgiZnMiLCAwLjApIG9yIDAuMAogICAgICAgICAgICAgICAgZGNfdHh0ID0gZiJ7ZGM6LjNmfSIgaWYgZGMgIT0gZmxvYXQoImluZiIpIGVsc2UgIuKIniIKICAgICAgICAgICAgICAgIGZzX3R4dCA9IGYie2ZzOi4yZn0iIGlmIGZzICE9IGZsb2F0KCJpbmYiKSBlbHNlICLiiJ4iCiAgICAgICAgICAgICAgICB0eHQgPSAoZiJU4bu2IFPhu5AgU+G7rCBE4bukTkcgKEQvQykgPSB7ZGNfdHh0fSAoRlMgPSB7ZnNfdHh0fSkg4oCUICIKICAgICAgICAgICAgICAgICAgICAgICBmInsn4pyTIMSQ4bqgVCDigJQgRC9DIOKJpCAxLjAwMCcgaWYgb2sgZWxzZSAn4pyXIEtIw5RORyDEkOG6oFQnfSIpCiAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICBfc2hyID0gc2hlYXJfcmVzIG9yIHt9CiAgICAgICAgICAgICAgICBfZDIgPSBfc2hyLmdldCgiZGlyMiIsIHt9KSBpZiBpc2luc3RhbmNlKF9zaHIsIGRpY3QpIGVsc2Uge30KICAgICAgICAgICAgICAgIF9kMyA9IF9zaHIuZ2V0KCJkaXIzIiwge30pIGlmIGlzaW5zdGFuY2UoX3NociwgZGljdCkgZWxzZSB7fQogICAgICAgICAgICAgICAgb2sgPSBib29sKF9kMi5nZXQoIm9rIiwgRmFsc2UpIGFuZCBfZDMuZ2V0KCJvayIsIEZhbHNlKSkKICAgICAgICAgICAgICAgIF92MiA9IGFicyhnZXRhdHRyKGlucCwgIlEyIiwgMC4wKSBvciAwLjApCiAgICAgICAgICAgICAgICBfdjMgPSBhYnMoZ2V0YXR0cihpbnAsICJRMyIsIDAuMCkgb3IgMC4wKQogICAgICAgICAgICAgICAgX3IyID0gX2QyLmdldCgiVlJkX2tOIiwgMC4wKSBvciAwLjAKICAgICAgICAgICAgICAgIF9yMyA9IF9kMy5nZXQoIlZSZF9rTiIsIDAuMCkgb3IgMC4wCiAgICAgICAgICAgICAgICB0eHQgPSAoZiJWRWQyID0ge19mKF92MiwgMSl9IGtOIOKJpCBWUmQgPSB7X2YoX3IyLCAxKX0ga047ICIKICAgICAgICAgICAgICAgICAgICAgICBmIlZFZDMgPSB7X2YoX3YzLCAxKX0ga04g4omkIFZSZCA9IHtfZihfcjMsIDEpfSBrTiDigJQgIgogICAgICAgICAgICAgICAgICAgICAgIGYieyfinJMgxJDhuqBUJyBpZiBvayBlbHNlICfinJcgS0jDlE5HIMSQ4bqgVCd9IikKICAgICAgICAgICAgUy5hcHBlbmQoUCh0eHQsIHN0WyJkY19vayJdIGlmIG9rIGVsc2Ugc3RbImRjX25nIl0pKQoKICAgIGRvYy5idWlsZChTKQogICAgcmV0dXJuIGZpbGVwYXRoCg==
+"""Xuất PDF thuyết minh kiểm tra cột theo EC2 (EN 1992-1-1).
+
+Render các section từ ec2_report.generate_ec2_report_sections thành
+PDF A4 dọc với card style giống hệt bản TCVN (pdf_report_cards.py).
+
+Không phụ thuộc GUI/matplotlib trực tiếp.
+"""
+
+import io
+
+from .ec2_report import generate_ec2_report_sections
+
+
+def _f(x: float, nd: int = 2) -> str:
+    try:
+        return f"{x:,.{nd}f}"
+    except Exception:
+        return "—"
+
+
+WHITE = "#FFFFFF"
+BORDER = "#E5E7EB"
+TEXT = "#111827"
+GRAY = "#6B7280"
+FORMULA_BG = "#F9FAFB"
+GREEN = "#059669"
+GREEN_BG = "#D1FAE5"
+RED = "#DC2626"
+RED_BG = "#FEE2E2"
+_DOT_COLORS = ["#2563EB", "#059669", "#D97706", "#7C3AED", "#DB2777", "#0891B2"]
+
+
+def _find_ec2_font():
+    """Tìm font DejaVu Sans: ưu tiên helper của pdf_export, fallback qua
+    matplotlib.font_manager (cho môi trường hệ thống đặt mpl-data ở
+    /usr/share)."""
+    try:
+        from .pdf_export import _find_font
+        p = _find_font()
+        if p:
+            return p
+    except Exception:
+        pass
+    try:
+        import matplotlib.font_manager as fm
+        return fm.findfont("DejaVu Sans")
+    except Exception:
+        return None
+
+
+def _find_ec2_font_bold():
+    try:
+        from .pdf_export import _find_font_bold
+        p = _find_font_bold()
+        if p:
+            return p
+    except Exception:
+        pass
+    try:
+        import matplotlib.font_manager as fm
+        return fm.findfont("DejaVu Sans", weight="bold")
+    except Exception:
+        return None
+
+
+def _get_styles():
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    font_path = _find_ec2_font()
+    bold_path = _find_ec2_font_bold()
+    if not font_path:
+        raise RuntimeError("Không tìm thấy font hỗ trợ tiếng Việt.")
+    try:
+        pdfmetrics.registerFont(TTFont("VN", font_path))
+    except Exception:
+        pass
+    try:
+        pdfmetrics.registerFont(TTFont("VN-Bold", bold_path or font_path))
+    except Exception:
+        pass
+
+    return {
+        "title": ParagraphStyle("title", fontName="VN-Bold", fontSize=14,
+                                textColor=HexColor(TEXT), alignment=TA_CENTER,
+                                spaceAfter=4),
+        "sub": ParagraphStyle("sub", fontName="VN", fontSize=9,
+                              textColor=HexColor(GRAY), alignment=TA_CENTER,
+                              spaceAfter=10),
+        "sec_title": ParagraphStyle("sec_title", fontName="VN-Bold",
+                                    fontSize=12, textColor=HexColor(TEXT),
+                                    spaceBefore=12, spaceAfter=6),
+        "sec_ref": ParagraphStyle("sec_ref", fontName="VN", fontSize=8,
+                                  textColor=HexColor(GRAY), leading=10,
+                                  spaceAfter=4),
+        "card_title": ParagraphStyle("card_title", fontName="VN-Bold",
+                                     fontSize=10, textColor=HexColor(TEXT),
+                                     leading=12, spaceAfter=2),
+        "card_ref": ParagraphStyle("card_ref", fontName="VN", fontSize=8,
+                                   textColor=HexColor(GRAY), leading=10,
+                                   spaceAfter=2),
+        "formula": ParagraphStyle("formula", fontName="VN", fontSize=9,
+                                  textColor=HexColor("#374151"), leading=12,
+                                  leftIndent=6, spaceAfter=1),
+        "result": ParagraphStyle("result", fontName="VN-Bold", fontSize=10,
+                                 textColor=HexColor(TEXT), leading=12,
+                                 spaceBefore=4),
+        "result_ok": ParagraphStyle("result_ok", fontName="VN-Bold",
+                                    fontSize=10,
+                                    textColor=HexColor(GREEN), leading=12,
+                                    spaceBefore=4),
+        "result_ng": ParagraphStyle("result_ng", fontName="VN-Bold",
+                                    fontSize=10,
+                                    textColor=HexColor(RED), leading=12,
+                                    spaceBefore=4),
+        "note": ParagraphStyle("note", fontName="VN", fontSize=9,
+                               textColor=HexColor(GRAY), leading=12,
+                               spaceBefore=4, spaceAfter=4),
+        "dc_ok": ParagraphStyle("dc_ok", fontName="VN-Bold", fontSize=10,
+                                textColor=HexColor(GREEN),
+                                backColor=HexColor(GREEN_BG),
+                                borderPadding=10, alignment=TA_CENTER,
+                                spaceBefore=10, spaceAfter=10),
+        "dc_ng": ParagraphStyle("dc_ng", fontName="VN-Bold", fontSize=10,
+                                textColor=HexColor(RED),
+                                backColor=HexColor(RED_BG),
+                                borderPadding=10, alignment=TA_CENTER,
+                                spaceBefore=10, spaceAfter=10),
+        "cap": ParagraphStyle("cap", fontName="VN", fontSize=8,
+                              textColor=HexColor(GRAY), alignment=TA_CENTER,
+                              spaceBefore=4, spaceAfter=8),
+    }
+
+
+def _card_story(P, st, c):
+    """Trả về list flowables cho 1 card."""
+    from reportlab.platypus import Paragraph, Spacer
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.units import mm
+
+    items = []
+    if c.get("title"):
+        items.append(P(c["title"], st["card_title"]))
+    if c.get("ref"):
+        items.append(P(c["ref"], st["card_ref"]))
+    for ln in c.get("lines", []):
+        items.append(P(ln, st["formula"]))
+    if c.get("result"):
+        r = c["result"]
+        # Tô màu kết luận ĐẠT/KHÔNG ĐẠT
+        if "KHÔNG ĐẠT" in r:
+            rs = st["result_ng"]
+        elif "ĐẠT" in r and "→ OK" in r:
+            rs = st["result_ok"]
+        else:
+            rs = st["result"]
+        items.append(P(r, rs))
+    return items
+
+
+def _two_cards(P, st, c1, c2):
+    """2 card đặt ngang nhau, tự chia đều cột."""
+    from reportlab.platypus import Table, TableStyle, Spacer
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.units import mm
+
+    def _one(c):
+        from reportlab.platypus import Table
+        rows = []
+        if c.get("title"):
+            rows.append([P(c["title"], st["card_title"])])
+        if c.get("ref"):
+            rows.append([P(c["ref"], st["card_ref"])])
+        for ln in c.get("lines", []):
+            rows.append([P(ln, st["formula"])])
+        if c.get("result"):
+            r = c["result"]
+            if "KHÔNG ĐẠT" in r:
+                rs = st["result_ng"]
+            elif "ĐẠT" in r:
+                rs = st["result_ok"]
+            else:
+                rs = st["result"]
+            rows.append([P(r, rs)])
+        if not rows:
+            rows.append([P("", st["formula"])])
+        t = Table(rows)
+        sty = [
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("BOX", (0, 0), (-1, -1), 0.8, HexColor(BORDER)),
+            ("INNERGRID", (0, 0), (-1, -1), 0.25, HexColor(BORDER)),
+            ("BACKGROUND", (0, 0), (-1, 0), HexColor(WHITE)),
+        ]
+        # Dòng công thức: nền nhạt + viền trái
+        for i, row in enumerate(rows):
+            is_formula = (c.get("title") and c.get("ref") and i >= 2) or \
+                        (c.get("title") and not c.get("ref") and i >= 1) or \
+                        (not c.get("title") and c.get("ref") and i >= 1)
+            if is_formula and not (c.get("result") and i == len(rows) - 1):
+                sty.append(("BACKGROUND", (0, i), (-1, i),
+                            HexColor(FORMULA_BG)))
+        t.setStyle(TableStyle(sty))
+        return t
+
+    t = Table([[_one(c1), _one(c2)]])
+    t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return [t, Spacer(1, 4 * mm)]
+
+
+def _sec_head(P, st, num, title, ref=""):
+    """Header mục: 'N. TITLE' bold 12 + ref xám 8 bên phải."""
+    from reportlab.platypus import Table, TableStyle
+    dot = _DOT_COLORS[(num - 1) % len(_DOT_COLORS)]
+    rows = [[P(f'<font color="{dot}">●</font>&nbsp;&nbsp;'
+               f'{num}. {title}', st["sec_title"])]]
+    if ref:
+        rows.append([P(f'<font color="{GRAY}">{ref}</font>',
+                       st["sec_ref"])])
+    t = Table(rows)
+    t.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+    ]))
+    return t
+
+
+def _img_keep_aspect(png_bytes, w_mm=88):
+    """Tạo Image giữ đúng tỉ lệ gốc của PNG (không méo hình)."""
+    from reportlab.platypus import Image
+    from reportlab.lib.units import mm
+    try:
+        from PIL import Image as _PILImage
+        _pil = _PILImage.open(io.BytesIO(png_bytes))
+        _pw, _ph = _pil.size
+        _hh = w_mm * _ph / _pw if _pw > 0 else w_mm * 0.75
+    except Exception:
+        _hh = w_mm * 0.75
+    return Image(io.BytesIO(png_bytes), width=w_mm * mm, height=_hh * mm)
+
+
+def _full_case(d):
+    """Format đầy đủ: [story, column, case@station]."""
+    parts = []
+    if d.get("story"):
+        parts.append(str(d["story"]))
+    if d.get("column"):
+        parts.append(str(d["column"]))
+    cs = f"{d.get('case', '')}@{d.get('station', 0):.2f}"
+    parts.append(cs)
+    return "[" + ", ".join(parts) + "]"
+
+
+def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
+                         filepath, chart_pngs=None, case_info=None, tied=None):
+    """Xuất PDF thuyết minh EC2 (EN 1992-1-1) kiểu card giống hệt app.
+
+    inp: ColumnInput. ec2_res/slend_res/shear_res: dict kết quả EC2.
+    conc: EC2Concrete, steel: EC2Steel.
+    chart_pngs: tuple 2 bytes PNG (N-Mα, M2-M3) — nhúng vào mục 3.
+    case_info: dict {story, column, case, station, N, M2, M3} (optional).
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                    Table, TableStyle, KeepTogether)
+    from reportlab.lib.colors import HexColor
+
+    st = _get_styles()
+    P = Paragraph
+
+    sections = generate_ec2_report_sections(inp, ec2_res, slend_res,
+                                            shear_res, conc, steel)
+
+    doc = SimpleDocTemplate(filepath, pagesize=A4,
+                            leftMargin=20 * mm, rightMargin=20 * mm,
+                            topMargin=15 * mm, bottomMargin=15 * mm)
+    S = []
+    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT — EC2 (EN 1992-1-1)", st["title"]))
+    S.append(P("Tiêu chuẩn: EC2 (EN 1992-1-1) — Kiểm tra P-M-M, độ mảnh và cắt",
+               st["sub"]))
+
+    if case_info:
+        S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
+                   f"N = {_f(case_info.get('N', 0), 1)} kN, "
+                   f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
+                   f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
+                   st["note"]))
+
+    for sec in sections:
+        S.append(_sec_head(P, st, sec["num"], sec["title"],
+                           sec.get("ref", "")))
+        cards = sec.get("cards", [])
+        # Xếp card 2 cột
+        i = 0
+        while i < len(cards):
+            c1 = cards[i]
+            c2 = cards[i + 1] if i + 1 < len(cards) else \
+                {"title": "", "ref": "", "lines": [], "result": ""}
+            S.extend(_two_cards(P, st, c1, c2))
+            i += 2
+
+        # Mục 3 (P-M-M): nhúng 2 biểu đồ ngang nhau, giữ tỉ lệ
+        if sec["num"] == 3 and chart_pngs:
+            try:
+                img1 = _img_keep_aspect(chart_pngs[0])
+                img2 = _img_keep_aspect(chart_pngs[1])
+                ct = Table([
+                    [[P("Biểu đồ tương tác N-Mα (EC2)", st["cap"]), img1],
+                     [P("Biểu đồ tương tác M2-M3 (EC2)", st["cap"]), img2]]
+                ])
+                ct.setStyle(TableStyle([
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ]))
+                S.append(ct)
+                S.append(Spacer(1, 4 * mm))
+            except Exception:
+                pass
+
+        # Banner kết luận cho mục 3 (P-M-M) và mục 4 (cắt)
+        if sec["num"] in (3, 4):
+            if sec["num"] == 3:
+                ok = bool(ec2_res.get("ok", False))
+                dc = ec2_res.get("dc", 0.0) or 0.0
+                fs = ec2_res.get("fs", 0.0) or 0.0
+                dc_txt = f"{dc:.3f}" if dc != float("inf") else "∞"
+                fs_txt = f"{fs:.2f}" if fs != float("inf") else "∞"
+                txt = (f"TỶ SỐ SỬ DỤNG (D/C) = {dc_txt} (FS = {fs_txt}) — "
+                       f"{'✓ ĐẠT — D/C ≤ 1.000' if ok else '✗ KHÔNG ĐẠT'}")
+            else:
+                _shr = shear_res or {}
+                _d2 = _shr.get("dir2", {}) if isinstance(_shr, dict) else {}
+                _d3 = _shr.get("dir3", {}) if isinstance(_shr, dict) else {}
+                ok = bool(_d2.get("ok", False) and _d3.get("ok", False))
+                _v2 = abs(getattr(inp, "Q2", 0.0) or 0.0)
+                _v3 = abs(getattr(inp, "Q3", 0.0) or 0.0)
+                _r2 = _d2.get("VRd_kN", 0.0) or 0.0
+                _r3 = _d3.get("VRd_kN", 0.0) or 0.0
+                txt = (f"VEd2 = {_f(_v2, 1)} kN ≤ VRd = {_f(_r2, 1)} kN; "
+                       f"VEd3 = {_f(_v3, 1)} kN ≤ VRd = {_f(_r3, 1)} kN — "
+                       f"{'✓ ĐẠT' if ok else '✗ KHÔNG ĐẠT'}")
+            S.append(P(txt, st["dc_ok"] if ok else st["dc_ng"]))
+
+    doc.build(S)
+    return filepath
