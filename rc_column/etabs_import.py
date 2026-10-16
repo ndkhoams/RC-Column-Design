@@ -111,8 +111,9 @@ def parse_etabs_clipboard(text: str,
     """Đọc nội lực từ clipboard copy từ bảng ETABS 'Element Forces - Columns'.
 
     Định dạng: tab-separated, 2 dòng header, các cột:
-    Story | Column | Unique Name | Output Case | Case Type | Step Type |
+    Story | Column | Unique Name | Output Case | Case Type | [Step Type] |
     Station | P | V2 | V3 | T | M2 | M3 | Element | Elem Station | Location
+    (tự động nhận diện có/không có cột Step Type để match đúng vị trí)
     Quy ước: P âm = nén (ETABS) -> N dương.
     """
     lines = [ln for ln in text.strip().splitlines() if ln.strip()]
@@ -126,10 +127,21 @@ def parse_etabs_clipboard(text: str,
             break
     if hi is None:
         raise ValueError("Không tìm thấy header ETABS (Output Case).")
-    # Vị trí cột cố định theo format ETABS Element Forces - Columns
-    C_CASE, C_TYPE, C_STATION = 3, 4, 6
-    C_P, C_M2, C_M3 = 7, 11, 12
-    C_V2, C_V3 = 8, 9
+    # Tự động nhận diện có cột "Step Type" hay không để match đúng vị trí
+    # Có Step Type: Story|Column|Unique Name|Output Case|Case Type|Step Type|
+    #               Station|P|V2|V3|T|M2|M3|...
+    # Không Step Type: Story|Column|Unique Name|Output Case|Case Type|
+    #               Station|P|V2|V3|T|M2|M3|...
+    header_parts = [p.strip().lower() for p in lines[hi].split("\t")]
+    has_step = "step type" in header_parts
+    if has_step:
+        C_CASE, C_TYPE, C_STATION = 3, 4, 6
+        C_P, C_M2, C_M3 = 7, 11, 12
+        C_V2, C_V3 = 8, 9
+    else:
+        C_CASE, C_TYPE, C_STATION = 3, 4, 5
+        C_P, C_M2, C_M3 = 6, 10, 11
+        C_V2, C_V3 = 7, 8
     C_STORY, C_COL = 0, 1
 
     def num(parts, idx):
