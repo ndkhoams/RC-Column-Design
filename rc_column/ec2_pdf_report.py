@@ -101,10 +101,10 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                    f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
                    st["note"]))
 
-    for sec in sections:
-        S.append(_sec_head(P, st, sec["num"], sec["title"],
-                           sec.get("ref", "")))
-        cards = sec.get("cards", [])
+    for _s in sections:
+        S.append(_sec_head(P, st, _s["num"], _s["title"],
+                           _s.get("ref", "")))
+        cards = _s.get("cards", [])
         # Xếp card 2 cột
         i = 0
         while i < len(cards):
@@ -116,7 +116,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
 
         # Mục 3 (P-M-M): nhúng 2 biểu đồ ngang nhau, giữ tỉ lệ
         # Mục 2: nhúng sơ đồ mặt cắt
-        if sec["num"] == 2 and sec is not None:
+        if _s["num"] == 2 and sec is not None:
             try:
                 from .pdf_export import section_image as _si
                 import io as _io
@@ -130,7 +130,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             except Exception:
                 pass
 
-        if sec["num"] == 6 and chart_pngs:
+        if _s["num"] == 6 and chart_pngs:
             try:
                 img1 = _img_keep_aspect(chart_pngs[0])
                 img2 = _img_keep_aspect(chart_pngs[1])
@@ -150,8 +150,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 pass
 
         # Banner kết luận cho mục 3 (P-M-M) và mục 4 (cắt)
-        if sec["num"] in (3, 4):
-            if sec["num"] == 3:
+        if _s["num"] in (6, 7):
+            if _s["num"] == 6:
                 ok = bool(ec2_res.get("ok", False))
                 dc = ec2_res.get("dc", 0.0) or 0.0
                 fs = ec2_res.get("fs", 0.0) or 0.0
