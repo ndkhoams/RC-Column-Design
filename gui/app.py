@@ -1414,9 +1414,20 @@ class App(tk.Tk):
         except Exception:
             pass
 
+        # Tính alpha 1 lần từ M* (dùng chung)
+        import math as _math
+        try:
+            _mx_s = res.Mx_star if hasattr(res, 'Mx_star') else inp.Mx
+            _my_s = res.My_star if hasattr(res, 'My_star') else inp.My
+            _alpha = _math.degrees(_math.atan2(_mx_s, _my_s)) if abs(_mx_s)+abs(_my_s) > 1e-9 else 0.0
+            _Malpha = _math.hypot(_mx_s, _my_s)
+        except:
+            _alpha, _Malpha = 0.0, 0.0
         return {
             "inp": inp,
             "res": res,
+            "alpha_deg": _alpha,
+            "Malpha": _Malpha,
             "sec": sec,
             "N": inp.N,
             "M2": inp.Mx,
@@ -1778,6 +1789,12 @@ class App(tk.Tk):
             res.update(ec2_res)
             res["M2_mag"] = MEd2
             res["M3_mag"] = MEd3
+            # Tính alpha 1 lần từ M thiết kế (dùng chung)
+            import math as _math
+            _alpha = _math.degrees(_math.atan2(MEd2, MEd3)) if abs(MEd2)+abs(MEd3) > 1e-9 else 0.0
+            _Malpha = _math.hypot(MEd2, MEd3)
+            res["alpha_deg"] = _alpha
+            res["Malpha"] = _Malpha
         except Exception as ex:
             res.update({"dc": float("nan"), "ok": False, "error": str(ex)})
 
@@ -2611,8 +2628,8 @@ class App(tk.Tk):
         tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
         M2m = ec2_res.get("M2_mag", inp.Mx)
         M3m = ec2_res.get("M3_mag", inp.My)
-        alpha_deg = math.degrees(math.atan2(M2m, M3m)) \
-            if abs(M2m) + abs(M3m) > 1e-9 else 0.0
+        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(M2m, M3m)) \
+            if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
         Ma = math.hypot(M2m, M3m)
         def _sl(lbl):
             try:
@@ -2676,8 +2693,8 @@ class App(tk.Tk):
         import math
         M2m = getattr(self, "_ec2_res", {}).get("M2_mag", inp.Mx)
         M3m = getattr(self, "_ec2_res", {}).get("M3_mag", inp.My)
-        alpha_deg = math.degrees(math.atan2(M2m, M3m)) \
-            if abs(M2m) + abs(M3m) > 1e-9 else 0.0
+        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(M2m, M3m)) \
+            if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
@@ -2772,8 +2789,8 @@ class App(tk.Tk):
         M3m = ec2_res.get("M3_mag", inp.My)
         Ma = math.hypot(M2m, M3m)
         Mb = math.hypot(ec2_res["Bx"], ec2_res["By"])
-        alpha_deg = math.degrees(math.atan2(M2m, M3m)) \
-            if abs(M2m) + abs(M3m) > 1e-9 else 0.0
+        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(M2m, M3m)) \
+            if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
         box = tk.Frame(parent, bg="white",
                        highlightbackground="#E5E7EB", highlightthickness=1)
         box.pack(fill=tk.X, padx=4, pady=4)
