@@ -110,13 +110,19 @@ def _img_keep_ratio(png_bytes, w_mm):
     return Image(_io.BytesIO(png_bytes), width=w_mm * mm, height=h_mm * mm)
 
 
-def _slenderness_ec2(sec, conc, steel, inp):
+def _slenderness_ec2(sec, conc, steel, inp, precalc=None):
     """Độ mảnh & mô men thiết kế EC2 cho 2 phương (bản rút gọn cho PDF).
 
     Dùng ec2_design_moment với M01 = M02 = |M| (mô men không đổi,
     const_moment=True) vì ColumnInput chỉ lưu một giá trị M mỗi phương.
     Trả về dict {'dir2': {...}, 'dir3': {...}}.
+
+    precalc: dict đã tính sẵn từ app (nguyên tắc "tính 1 lần"). Nếu có, dùng luôn.
     """
+    # Ưu tiên dùng kết quả đã tính sẵn từ app
+    if precalc and isinstance(precalc, dict):
+        if 'dir2' in precalc or 'dir3' in precalc:
+            return precalc
     from .ec2_checker import ec2_design_moment
     from .checker import section_inertia
     from .stability import effective_length
@@ -151,13 +157,19 @@ def _slenderness_ec2(sec, conc, steel, inp):
     return out
 
 
-def _shear_ec2(sec, inp, steel, conc, q2_override=None, q3_override=None):
+def _shear_ec2(sec, inp, steel, conc, q2_override=None, q3_override=None, precalc=None):
     """Kiểm tra cắt EC2 6.2 cho 2 phương. Trả về dict {'dir2':..., 'dir3':...}.
 
     q2_override/q3_override: lực cắt (kN) ghi đè khi inp.Q2/Q3 = 0
     (chế độ ETABS: gui truyền Q từ combo có |Q| lớn nhất qua shear_info).
     ρl tính từ thép dọc chịu kéo ≈ một nửa tổng As (ước lượng).
+
+    precalc: dict đã tính sẵn từ app (nguyên tắc "tính 1 lần"). Nếu có, dùng luôn.
     """
+    # Ưu tiên dùng kết quả đã tính sẵn từ app
+    if precalc and isinstance(precalc, dict):
+        if 'dir2' in precalc or 'dir3' in precalc:
+            return precalc
     from .ec2_checker import ec2_shear_check
     from .sections import bar_area
     cols = {}
@@ -490,8 +502,11 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
             _s2 = _si["dir2"]
             _s3 = _si["dir3"]
         else:
+            # Dùng precalc từ ec2_res (đã tính bởi _ec2_calculate_full) - KHÔNG tính lại
+            _pre = (ec2_res.get("shear") or {}) if isinstance(ec2_res, dict) else {}
             _sh = _shear_ec2(sec, inp, steel, conc,
-                             q2_override=_q2o, q3_override=_q3o)
+                             q2_override=_q2o, q3_override=_q3o,
+                             precalc=_pre)
             _d2 = _sh.get("dir2", {})
             _d3 = _sh.get("dir3", {})
             _s2 = _d2.get("sh", {})
