@@ -4138,13 +4138,17 @@ class App(tk.Tk):
         def _move(ev):
             if not state["drag"]:
                 return
-            print(f"[3D-DEBUG] Mouse move: dx={ev.x - state['x0']}, dy={ev.y - state['y0']}")
             try:
                 dx = ev.x - state["x0"]
                 dy = ev.y - state["y0"]
-                ax.view_init(elev=state["elev0"] - dy * 0.3,
-                             azim=state["azim0"] + dx * 0.3)
+                new_elev = state["elev0"] - dy * 0.3
+                new_azim = state["azim0"] + dx * 0.3
+                ax.view_init(elev=new_elev, azim=new_azim)
+                # Force update Tk widget
                 fig.canvas.draw()
+                _w = fig.canvas.get_tk_widget()
+                _w.update_idletasks()
+                _w.update()
             except Exception as ex:
                 print(f"[3D-DEBUG] Move error: {ex}")
         def _rel(ev):
