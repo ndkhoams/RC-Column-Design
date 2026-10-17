@@ -1678,9 +1678,7 @@ class App(tk.Tk):
         tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
-        tk.Label(f_tl, textvariable=self.ck_var,
-                 font=("", 10, "bold"), fg="black",
-                 bg="white").pack(pady=(0, 4))
+        # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
         draw_section_ax(a1, sec, show_stats=False)
@@ -2129,9 +2127,7 @@ class App(tk.Tk):
         tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
-        tk.Label(f_tl, textvariable=self.ck_var,
-                 font=("", 10, "bold"), fg="black",
-                 bg="white").pack(pady=(0, 4))
+        # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
         draw_section_ax(a1, sec, show_stats=False)
@@ -4523,9 +4519,7 @@ class App(tk.Tk):
         tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
-        tk.Label(f_tl, textvariable=self.ck_var,
-                 font=("", 10, "bold"), fg="black",
-                 bg="white").pack(pady=(0, 4))
+        # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
         draw_section_ax(a1, sec, show_stats=False)
