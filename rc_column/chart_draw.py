@@ -55,7 +55,7 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
                label="Tia tải O-A-B"),
         Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
                markersize=8, markeredgecolor="white", label="Điểm tải A"),
-        Line2D([0], [0], marker="s", color="w", markerfacecolor=ORANGE,
+        Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
                markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
