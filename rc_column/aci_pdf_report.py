@@ -116,8 +116,7 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
     S.append(P("(Tiêu chuẩn ACI 318-19)", st["sub"]))
     _mn = _member_name(inp)
     if _mn:
-        S.append(P(f"CẤU KIỆN: {_mn}", st["title"]))
-        S.append(Spacer(1, 4*mm))
+        S.append(P(f"Cấu kiện: {_mn}", st["sec_title"]))
 
     if case_info:
         S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
