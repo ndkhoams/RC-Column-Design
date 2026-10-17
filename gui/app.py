@@ -1038,11 +1038,11 @@ class App(tk.Tk):
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
-        # Ghi chú về tổ hợp TDTX_
+        # Ghi chú về tổ hợp TDTX_ (chữ đen, căn phải)
         ttk.Label(mode_bar,
                   text="TDTX_*: tổ hợp tải thường xuyên (không kiểm tra, dùng tính βdns)",
-                  font=("", 8), foreground="#9CA3AF").pack(side=tk.LEFT,
-                                                           padx=(20, 6))
+                  font=("", 8), foreground="black").pack(side=tk.RIGHT,
+                                                          padx=(6, 6))
 
         # ---- Chế độ nhập tay ----
         self.manual_frame = ttk.Frame(f)
@@ -2972,8 +2972,14 @@ class App(tk.Tk):
                     if _cap_g is None:
                         raise RuntimeError("capacity")
                     # βdns từ TDTX_ tại đúng vị trí, mặc định 0.6
+                    # Bỏ Step Type (max/min) ở cuối tên Combo
+                    _cb = _f.case.strip()
+                    for _sf in ("max", "min"):
+                        if _cb.lower().endswith(_sf):
+                            _cb = _cb[:-len(_sf)].strip()
+                            break
                     _key = (_f.story.strip(), _f.column.strip(),
-                            round(_f.station, 3), _f.case.strip())
+                            round(_f.station, 3), _cb)
                     _n_dns = _dns_map.get(_key, None)
                     _beta = 0.6
                     if _n_dns is not None and abs(_f.N) > 1e-9:
@@ -3009,8 +3015,14 @@ class App(tk.Tk):
         worst_f, worst_r = rows[0]
         # Lưu Mc2, Mc3 (đã phóng đại) của TH nguy hiểm nhất để vẽ biểu đồ
         try:
+            # Bỏ Step Type (max/min) ở cuối tên Combo để tìm TDTX_
+            _case_base = worst_f.case.strip()
+            for _suf in ("max", "min"):
+                if _case_base.lower().endswith(_suf):
+                    _case_base = _case_base[:-len(_suf)].strip()
+                    break
             _keyw = (worst_f.story.strip(), worst_f.column.strip(),
-                     round(worst_f.station, 3), worst_f.case.strip())
+                     round(worst_f.station, 3), _case_base)
             _n_dnsw = _dns_map.get(_keyw, None)
             _betaw = 0.6
             if _n_dnsw is not None and abs(worst_f.N) > 1e-9:
