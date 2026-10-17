@@ -1293,7 +1293,7 @@ class App(tk.Tk):
         try:
             from rc_column.pdf_export import draw_section_ax
             ax1.clear()
-            draw_section_ax(ax1, sec, show_stats=False)
+            draw_section_ax(ax1, sec, show_stats=False, dot_scale=1.5)
             self._sec_fig.tight_layout()
             self._sec_canvas.draw_idle()
             # Cập nhật text các thẻ thống kê
@@ -1681,7 +1681,7 @@ class App(tk.Tk):
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
-        draw_section_ax(a1, sec, show_stats=False)
+        draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
         fig_sec.tight_layout()
         cv_sec.draw()
         self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
@@ -2130,7 +2130,7 @@ class App(tk.Tk):
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
-        draw_section_ax(a1, sec, show_stats=False)
+        draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
         fig_sec.tight_layout()
         cv_sec.draw()
         self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
@@ -4522,7 +4522,7 @@ class App(tk.Tk):
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
-        draw_section_ax(a1, sec, show_stats=False)
+        draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
         fig_sec.tight_layout()
         cv_sec.draw()
         self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
