@@ -306,9 +306,10 @@ class App(tk.Tk):
         row2 = ttk.Frame(top_grid)
         row2.grid(row=1, column=0, columnspan=4, sticky=tk.EW,
                   padx=0, pady=(6, 0))
-        row2.columnconfigure(0, weight=0)
-        row2.columnconfigure(1, weight=0)
-        row2.columnconfigure(2, weight=1)
+        row2.columnconfigure(0, weight=1, uniform="row2cols")
+        row2.columnconfigure(1, weight=1, uniform="row2cols")
+        row2.columnconfigure(2, weight=1, uniform="row2cols")
+        row2.columnconfigure(3, weight=1, uniform="row2cols")
         # Cột 0-1: Tiêu chuẩn + dropdown dài
         _std_frame = ttk.Frame(row2)
         _std_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW, padx=(0, 2))
@@ -320,9 +321,9 @@ class App(tk.Tk):
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
         self.cb_code.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
-        # Cột 2: Tên cấu kiện + textbox giãn hết phần còn lại
+        # Cột 2-3: Tên cấu kiện + textbox (rộng bằng SAVE AS + CHECK)
         _name_frame = ttk.Frame(row2)
-        _name_frame.grid(row=0, column=2, sticky=tk.EW, padx=2)
+        _name_frame.grid(row=0, column=2, columnspan=2, sticky=tk.EW, padx=2)
         ttk.Label(_name_frame, text="Tên cấu kiện:",
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(0, 4))
         self.member_var = tk.StringVar(value="")
@@ -3255,39 +3256,7 @@ class App(tk.Tk):
                 return None
             # Hàm hiện dialog thành công có nút Mở PDF
             def _show_success(ppath):
-                import tkinter as _tk
-                dlg = _tk.Toplevel(self)
-                dlg.title("Xuất PDF")
-                dlg.resizable(False, False)
-                dlg.transient(self)
-                dlg.grab_set()
-                # Căn giữa màn hình
-                dlg.update_idletasks()
-                _w, _h = 380, 130
-                _x = (dlg.winfo_screenwidth() // 2) - (_w // 2)
-                _y = (dlg.winfo_screenheight() // 2) - (_h // 2)
-                dlg.geometry(f"{_w}x{_h}+{_x}+{_y}")
-                _tk.Label(dlg, text=f"Đã lưu: {ppath}",
-                          wraplength=340, justify="left").pack(
-                              padx=16, pady=(16, 12))
-                btns = _tk.Frame(dlg)
-                btns.pack(pady=4)
-                def _open():
-                    import os as _os, sys as _sys, subprocess as _sp
-                    try:
-                        if _sys.platform.startswith("win"):
-                            _os.startfile(ppath)
-                        elif _sys.platform == "darwin":
-                            _sp.run(["open", ppath])
-                        else:
-                            _sp.run(["xdg-open", ppath])
-                    except Exception:
-                        pass
-                    dlg.destroy()
-                _tk.Button(btns, text="Mở PDF", width=12,
-                           command=_open).pack(side="left", padx=6)
-                _tk.Button(btns, text="Đóng", width=12,
-                           command=dlg.destroy).pack(side="left", padx=6)
+                self._show_pdf_success(ppath)
                 dlg.wait_window()
             # --- ACI mode: dùng PDF ACI (đặt sau khi path & _show_success đã có) ---
             if self.is_aci() and getattr(self, "_aci_res", None) is not None:
@@ -3325,6 +3294,11 @@ class App(tk.Tk):
                                    sec_img_path=_sec_png)
             else:
                 from rc_column.pdf_report_cards import export_pdf_cards
+                # Gán tên cấu kiện từ textbox để hiển thị ở đầu PDF
+                try:
+                    self._last_inp._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
+                except Exception:
+                    pass
                 export_pdf_cards(self._last_inp, self._last_res, path,
                            batch_rows=getattr(self, "_pdf_batch", None),
                            case_info=getattr(self, "_pdf_case", None),
@@ -3493,26 +3467,42 @@ class App(tk.Tk):
             messagebox.showerror("Lỗi xuất PDF", str(ex))
 
     def _show_pdf_success(self, ppath):
-        """Dialog thành công có nút Mở PDF."""
+        """Dialog thành công có nút Mở PDF - thiết kế đẹp."""
         import tkinter as _tk
+        import os as _os
         dlg = _tk.Toplevel(self)
         dlg.title("Xuất PDF")
         dlg.resizable(False, False)
         dlg.transient(self)
         dlg.grab_set()
+        dlg.configure(bg="white")
         # Căn giữa màn hình
-        dlg.update_idletasks()
-        _w, _h = 380, 130
+        _w, _h = 440, 190
         _x = (dlg.winfo_screenwidth() // 2) - (_w // 2)
         _y = (dlg.winfo_screenheight() // 2) - (_h // 2)
         dlg.geometry(f"{_w}x{_h}+{_x}+{_y}")
-        _tk.Label(dlg, text=f"Đã lưu: {ppath}",
-                  wraplength=340, justify="left").pack(
-                      padx=16, pady=(16, 12))
-        btns = _tk.Frame(dlg)
-        btns.pack(pady=4)
+        # Header xanh lá với icon check
+        _header = _tk.Frame(dlg, bg="#059669", height=52)
+        _header.pack(fill=_tk.X)
+        _header.pack_propagate(False)
+        _tk.Label(_header, text="✓", font=("", 20, "bold"),
+                  fg="white", bg="#059669").pack(side=_tk.LEFT, padx=(16, 8))
+        _tk.Label(_header, text="Xuất PDF thành công",
+                  font=("", 12, "bold"), fg="white",
+                  bg="#059669").pack(side=_tk.LEFT, pady=12)
+        # Tên file
+        _fname = _os.path.basename(ppath)
+        _tk.Label(dlg, text=_fname, font=("", 10, "bold"),
+                  fg="#111827", bg="white",
+                  wraplength=400, justify="center").pack(pady=(14, 4))
+        _tk.Label(dlg, text=_os.path.dirname(ppath), font=("", 8),
+                  fg="#6B7280", bg="white",
+                  wraplength=400, justify="center").pack(pady=(0, 12))
+        # Nút bấm
+        btns = _tk.Frame(dlg, bg="white")
+        btns.pack(pady=(0, 12))
         def _open():
-            import os as _os, sys as _sys, subprocess as _sp
+            import sys as _sys, subprocess as _sp
             try:
                 if _sys.platform.startswith("win"):
                     _os.startfile(ppath)
@@ -3523,9 +3513,14 @@ class App(tk.Tk):
             except Exception:
                 pass
             dlg.destroy()
-        _tk.Button(btns, text="Mở PDF", width=12,
+        _tk.Button(btns, text="Mở PDF", font=("", 10, "bold"),
+                   fg="white", bg="#059669", activeforeground="white",
+                   activebackground="#047857", relief="flat",
+                   padx=20, pady=6, cursor="hand2",
                    command=_open).pack(side="left", padx=6)
-        _tk.Button(btns, text="Đóng", width=12,
+        _tk.Button(btns, text="Đóng", font=("", 10),
+                   fg="#374151", bg="#F3F4F6", activebackground="#E5E7EB",
+                   relief="flat", padx=20, pady=6, cursor="hand2",
                    command=dlg.destroy).pack(side="left", padx=6)
         dlg.wait_window()
 
