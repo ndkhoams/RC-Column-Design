@@ -33,6 +33,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     """Vẽ mặt cắt kiểu VietconSoft: nền lưới, khung đen, thép lớp 1 đỏ /
     lớp 2 xanh lá (cỡ chấm theo đường kính), trục t2/t3 tại tâm, dim t3/t2,
     thẻ thống kê bên dưới."""
+    ax.set_aspect('equal', adjustable='box')
     import matplotlib.patches as mpatches
     from matplotlib.lines import Line2D
     cx, cy = sec.cx, sec.cy
