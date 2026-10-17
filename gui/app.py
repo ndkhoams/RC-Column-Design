@@ -3281,15 +3281,31 @@ class App(tk.Tk):
                     if _cap_g is None:
                         raise RuntimeError("capacity")
                     meds = []
+                    # Tính Is từ thép (chính xác)
+                    _bars_g = getattr(sec_g, 'rebars', None) or getattr(sec_g, 'bars', None) or []
+                    _Is2_g = _Is3_g = 0.0
+                    try:
+                        _cx_g = sec_g.cx / 2
+                        _cy_g = sec_g.cy / 2
+                        for _b in _bars_g:
+                            _d = getattr(_b, 'dia', 0) or 0
+                            _a = getattr(_b, 'area', 0) or (math.pi * _d**2 / 4)
+                            _x = getattr(_b, 'x', 0) or 0
+                            _y = getattr(_b, 'y', 0) or 0
+                            _Is2_g += _a * (_y - _cy_g)**2
+                            _Is3_g += _a * (_x - _cx_g)**2
+                    except Exception:
+                        pass
                     for lbl, Mdir in (("dir2", _f.Mx), ("dir3", _f.My)):
                         h_dim, Ic, l0 = geom[lbl]
+                        _Is_g = _Is2_g if lbl == "dir2" else _Is3_g
                         dm = ec2_design_moment(
                             NEd_kN=_f.N, M_top_kNm=abs(Mdir),
                             M_bot_kNm=abs(Mdir), l0_mm=l0,
                             i_mm=math.sqrt(Ic / Ac) if Ac > 0 else h_dim,
                             h_mm=h_dim, Ac_mm2=Ac, As_mm2=As,
                             fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
-                            Ecm_MPa=conc.Ecm, Ic_mm4=Ic, Is_mm4=0.0,
+                            Ecm_MPa=conc.Ecm, Ic_mm4=Ic, Is_mm4=_Is_g,
                             Es_MPa=steel.Es, fck_MPa=fck,
                             unbraced=False, method=method,
                             d_mm=max(h_dim - (_inp_g.cover or 30) - 10.0,
