@@ -4187,14 +4187,14 @@ class App(tk.Tk):
                 ax.mouse_init()
             except Exception:
                 pass
-            # Debug: kiểm tra callbacks
+            # Debug: kiểm tra Tk bindings
             try:
-                cbs = fig.canvas.callbacks.callbacks
-                print(f"[3D-CB] ACI canvas callbacks: {list(cbs.keys())}")
-                for _k in ('button_press_event', 'motion_notify_event'):
-                    print(f"[3D-CB] {_k}: {len(cbs.get(_k, {}))} handlers")
+                _w = fig.canvas.get_tk_widget()
+                for _seq in ('<ButtonPress-1>', '<B1-Motion>', '<ButtonRelease-1>'):
+                    _b = _w.bind(_seq)
+                    print(f"[3D-TK] {_seq}: {'CÓ' if _b else 'KHÔNG'} -> {str(_b)[:80]}")
             except Exception as _e:
-                print(f"[3D-CB] Error: {_e}")
+                print(f"[3D-TK] Error: {_e}")
             sec = getattr(self, '_aci_sec', None)
             conc = getattr(self, '_aci_conc', None)
             steel = getattr(self, '_aci_steel', None)
