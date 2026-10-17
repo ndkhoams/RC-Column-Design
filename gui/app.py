@@ -2946,11 +2946,40 @@ class App(tk.Tk):
                                      n_angles=24)
             except Exception:
                 _cap_g = None
+            # Tính δns cho nhóm (dùng L0 chung của nhóm)
+            from rc_column.aci_checker import moment_magnification
+            from rc_column.stability import effective_length
+            _L0_2 = effective_length(_L_grp, _inp_g.top_x, _inp_g.bottom_x,
+                                     _inp_g.psi_x) * 1000
+            _L0_3 = effective_length(_L_grp, _inp_g.top_y, _inp_g.bottom_y,
+                                     _inp_g.psi_y) * 1000
+            _Ig2 = sec_g.cx * sec_g.cy**3 / 12
+            _Ig3 = sec_g.cy * sec_g.cx**3 / 12
             for _f in _flist:
                 try:
                     if _cap_g is None:
                         raise RuntimeError("capacity")
-                    _r = _cap_g.dc_ratio(_f.N, _f.Mx, _f.My)
+                    # βdns từ TDTX_ tại đúng vị trí, mặc định 0.6
+                    _key = (_f.story.strip(), _f.column.strip(),
+                            round(_f.station, 3), _f.case.strip())
+                    _n_dns = _dns_map.get(_key, None)
+                    _beta = 0.6
+                    if _n_dns is not None and abs(_f.N) > 1e-9:
+                        _beta = max(0.0, min(1.0, _n_dns / _f.N))
+                    # Phóng đại δns 2 phương
+                    _mm2 = moment_magnification(
+                        Pu_kN=_f.N, M1_kNm=_f.Mx, M2_kNm=_f.Mx,
+                        lu_mm=_L0_2, k=1.0, Ec_MPa=conc.Ec,
+                        Ig_mm4=_Ig2, beta_dns=_beta)
+                    _mm3 = moment_magnification(
+                        Pu_kN=_f.N, M1_kNm=_f.My, M2_kNm=_f.My,
+                        lu_mm=_L0_3, k=1.0, Ec_MPa=conc.Ec,
+                        Ig_mm4=_Ig3, beta_dns=_beta)
+                    _d2 = _mm2.get("delta_ns", 1.0) if _mm2.get("ok") else 1.0
+                    _d3 = _mm3.get("delta_ns", 1.0) if _mm3.get("ok") else 1.0
+                    _M2s = _d2 * _f.Mx
+                    _M3s = _d3 * _f.My
+                    _r = _cap_g.dc_ratio(_f.N, _M2s, _M3s)
                 except Exception:
                     _r = {"dc": float("nan"), "ok": False}
                 rows.append((_f, _r))
