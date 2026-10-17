@@ -3067,8 +3067,35 @@ class App(tk.Tk):
             self._show_aci_summary()
         except Exception as _ex:
             print(f"[ETABS] _show_aci_summary lỗi: {_ex}")
-            import traceback
-            traceback.print_exc()
+        # Render tab Chi tiết cho worst case
+        try:
+            from rc_column.aci_checker import check_column_aci
+            from rc_column.aci_report_v2 import generate_aci_report_sections_v2
+            _inp_det = self._aci_inp
+            _mm_det = self._aci_mm or {}
+            # Dùng mô men đã phóng đại
+            import copy
+            _inp2 = copy.copy(_inp_det)
+            _inp2.Mx = _mm_det.get("Mc2", _inp_det.Mx)
+            _inp2.My = _mm_det.get("Mc3", _inp_det.My)
+            _res_det = check_column_aci(_inp2, self._aci_conc, self._aci_steel,
+                                        self._aci_sec, tied=self._aci_tied)
+            # Shear cho worst case (đơn giản)
+            from rc_column.aci_checker import aci_shear_check
+            _shr = {"dir2": {}, "dir3": {}}
+            try:
+                _shr = aci_shear_check(_inp2, self._aci_conc, self._aci_sec,
+                                       float(self.en_fyt.get().replace(",", ".")))
+            except Exception:
+                pass
+            _fyt = float(self.en_fyt.get().replace(",", "."))
+            _secs = generate_aci_report_sections_v2(
+                _inp2, _res_det, _mm_det, _shr,
+                self._aci_conc, self._aci_steel, self._aci_sec,
+                self._aci_tied, _fyt)
+            self._render_aci_report(_secs)
+        except Exception as _ex2:
+            print(f"[ETABS] render chi tiết lỗi: {_ex2}")
 
     def _check_ec2_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
