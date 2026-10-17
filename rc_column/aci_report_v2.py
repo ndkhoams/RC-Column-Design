@@ -282,8 +282,13 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                 [f"δns = {_f(delta_ns, 3)}"],
                 f"δns = {_f(delta_ns, 3)}"),
         ]
-    M2_star = M2 * delta_ns
-    M3_star = M3 * delta_ns
+    # Dùng delta riêng từng phương nếu có, ngược lại dùng delta_ns chung
+    try:
+        M2_star = M2 * _dl2
+        M3_star = M3 * _dl3
+    except NameError:
+        M2_star = M2 * delta_ns
+        M3_star = M3 * delta_ns
     sections.append({
         "num": 5,
         "title": "PHÓNG ĐẠI MÔ MEN UỐN DỌC",
