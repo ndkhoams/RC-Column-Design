@@ -4128,6 +4128,7 @@ class App(tk.Tk):
         """Xoay 3D thủ công bằng chuột trái (dự phòng khi mouse_init không hoạt động)."""
         state = {"drag": False, "x0": 0, "y0": 0, "elev0": 0, "azim0": 0}
         def _press(ev):
+            print(f"[3D-DEBUG] Mouse press on canvas: x={ev.x}, y={ev.y}, widget={ev.widget}")
             try:
                 state["drag"] = True
                 state["x0"], state["y0"] = ev.x, ev.y
