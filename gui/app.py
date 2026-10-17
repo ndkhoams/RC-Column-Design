@@ -4123,6 +4123,37 @@ class App(tk.Tk):
         except Exception:
             pass
 
+
+    def _enable_manual_3d_rotate(self, cv_widget, fig, ax):
+        """Xoay 3D thủ công bằng chuột trái (dự phòng khi mouse_init không hoạt động)."""
+        state = {"drag": False, "x0": 0, "y0": 0, "elev0": 0, "azim0": 0}
+        def _press(ev):
+            try:
+                state["drag"] = True
+                state["x0"], state["y0"] = ev.x, ev.y
+                state["elev0"], state["azim0"] = ax.elev, ax.azim
+            except Exception:
+                pass
+        def _move(ev):
+            if not state["drag"]:
+                return
+            try:
+                dx = ev.x - state["x0"]
+                dy = ev.y - state["y0"]
+                ax.view_init(elev=state["elev0"] - dy * 0.3,
+                             azim=state["azim0"] + dx * 0.3)
+                fig.canvas.draw_idle()
+            except Exception:
+                pass
+        def _rel(ev):
+            state["drag"] = False
+        try:
+            cv_widget.bind("<ButtonPress-1>", _press, add="+")
+            cv_widget.bind("<B1-Motion>", _move, add="+")
+            cv_widget.bind("<ButtonRelease-1>", _rel, add="+")
+        except Exception:
+            pass
+
     def _draw_3d_aci(self):
         """Vẽ biểu đồ tương tác 3D cho ACI."""
         try:
@@ -4217,9 +4248,10 @@ class App(tk.Tk):
             self._ec2_nm_cv_ref.draw()
             try:
                 ax.mouse_init()
-                self._ec2_nm_cv_ref.get_tk_widget().focus_set()
             except Exception:
                 pass
+            self._enable_manual_3d_rotate(
+                self._ec2_nm_cv_ref.get_tk_widget(), fig, ax)
         except Exception as ex:
             print(f"Lỗi vẽ 3D EC2: {ex}")
             import traceback
