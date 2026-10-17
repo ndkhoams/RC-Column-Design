@@ -288,17 +288,17 @@ class App(tk.Tk):
         for _c in range(4):
             top_grid.columnconfigure(_c, weight=1, uniform="topbtns")
         # Hàng 1: 4 nút dữ liệu
-        ttk.Button(top_grid, text="📂 OPEN", style="Top.TButton", anchor=tk.CENTER,
+        ttk.Button(top_grid, text="📂 OPEN", style="Top.TButton",
                    command=self.on_load_data).grid(row=0, column=0,
                                                    sticky=tk.EW, padx=(0, 4))
-        ttk.Button(top_grid, text="💾 SAVE", style="Top.TButton", anchor=tk.CENTER,
+        ttk.Button(top_grid, text="💾 SAVE", style="Top.TButton",
                    command=self.on_save_data).grid(row=0, column=1,
                                                    sticky=tk.EW, padx=(2, 2))
-        ttk.Button(top_grid, text="💾 SAVE AS", style="Top.TButton", anchor=tk.CENTER,
+        ttk.Button(top_grid, text="💾 SAVE AS", style="Top.TButton",
                    command=self.on_save_as_data).grid(row=0, column=2,
                                                       sticky=tk.EW,
                                                       padx=(2, 2))
-        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Top.TButton", anchor=tk.CENTER,
+        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Top.TButton",
                    command=self._export_pdf).grid(row=0, column=3,
                                                   sticky=tk.EW, padx=(4, 0))
         # Hàng 2: Tiêu chuẩn [dropdown dài] Tên cấu kiện [textbox=col2] [CHECK=col3]
