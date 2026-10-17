@@ -3146,6 +3146,8 @@ class App(tk.Tk):
                     _sh3_s = None
                 if _sh2_s or _sh3_s:
                     _shr = {"dir2": _sh2_s or {}, "dir3": _sh3_s or {}}
+                    # Lưu để PDF dùng
+                    self._aci_shear = _shr
             except Exception as _e_s:
                 print(f"[ETABS] shear lỗi: {_e_s}")
             _fyt = float(self.en_fyt.get().replace(",", "."))
