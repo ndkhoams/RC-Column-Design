@@ -27,6 +27,7 @@ def _find_font_bold():
 
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
 def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
+                   legend_y: float = 1.02,
                     small_dots: bool = False):
     """Vẽ mặt cắt kiểu VietconSoft: nền lưới, khung đen, thép lớp 1 đỏ /
     lớp 2 xanh lá (cỡ chấm theo đường kính), trục t2/t3 tại tâm, dim t3/t2,
@@ -96,7 +97,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     # Legend thép: căn giữa-trên, ngay trên đỉnh axes (cao hơn nhãn t3)
     if legend_handles:
         leg = ax.legend(handles=legend_handles, loc="upper center",
-                        bbox_to_anchor=(0.5, 1.02),
+                        bbox_to_anchor=(0.5, legend_y),
                         ncol=len(legend_handles),
                         frameon=False, fontsize=8)
         for txt in leg.get_texts():
@@ -162,7 +163,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
 
 
 def section_image(sec, width_in=3.2, dpi=300, small=False,
-                  show_stats=True) -> bytes:
+                  show_stats=True, legend_y: float = 1.08) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -171,7 +172,7 @@ def section_image(sec, width_in=3.2, dpi=300, small=False,
     # Figure theo đúng tỉ lệ t2/t3 (cao = rộng × cy/cx)
     ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
     fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
-    draw_section_ax(ax, sec, show_stats=show_stats)
+    draw_section_ax(ax, sec, show_stats=show_stats, legend_y=legend_y)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     for sp in ax.spines.values():
@@ -853,7 +854,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     right_flow = []
     try:
         # Hình mặt cắt
-        _sec_png = section_image(sec, width_in=2.2, dpi=150, small=False,
+        _sec_png = section_image(sec, width_in=2.2, dpi=200, small=False,
                                  show_stats=False)
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))

@@ -427,7 +427,7 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
         _pdf_exp = _sys.modules.get("rc_column.pdf_export")
         if _pdf_exp is None:
             from rc_column import pdf_export as _pdf_exp
-        _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=150,
+        _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=200,
                                           show_stats=False)
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))
