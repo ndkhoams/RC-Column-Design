@@ -312,8 +312,9 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     By = aci_res.get("By", 0.0) or 0.0
     BN = aci_res.get("BN", 0.0) or 0.0
     pm_ok = bool(aci_res.get("ok", False))
-    Ma = math.hypot(M2_star, M3_star)
-    alpha = math.degrees(math.atan2(M2_star, M3_star)) if Ma > 1e-9 else 0.0
+    # Dùng alpha/Malpha đã tính 1 lần trong _aci_calculate_full (nguyên tắc single source)
+    Ma = aci_res.get("Malpha", math.hypot(M2_star, M3_star))
+    alpha = aci_res.get("alpha_deg", math.degrees(math.atan2(M2_star, M3_star)) if Ma > 1e-9 else 0.0)
     sections.append({
         "num": 6,
         "title": "ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC NÉN UỐN XIÊN (P-M-M)",
