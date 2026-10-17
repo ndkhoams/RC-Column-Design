@@ -62,10 +62,12 @@ def _ec2_charts_png(sec, conc, steel, ec2_res, inp):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     out = []
+    _m2 = ec2_res.get("M2_mag", inp.Mx) if isinstance(ec2_res, dict) else inp.Mx
+    _m3 = ec2_res.get("M3_mag", inp.My) if isinstance(ec2_res, dict) else inp.My
     for draw_fn in (draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax):
         fig = plt.figure(figsize=(3.2, 3.2))
         ax = fig.add_subplot(111)
-        draw_fn(ax, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
+        draw_fn(ax, sec, conc, steel, ec2_res, inp.N, _m2, _m3)
         fig.tight_layout()
         fig.subplots_adjust(bottom=0.22, top=0.93, left=0.12, right=0.95)
         buf = _io.BytesIO()
