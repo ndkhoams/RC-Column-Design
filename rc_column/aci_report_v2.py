@@ -227,11 +227,11 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         _cm2 = _d2.get("Cm", 1.0) or 1.0
         _cm3 = _d3.get("Cm", 1.0) or 1.0
         _beta = _d2.get("beta_dns", 0.6)
-        # Nguồn beta_dns: từ TDTX_ hay mặc định
+        # Nguồn beta_dns: từ TX_ hay mặc định
         _beta_lines = []
         _bs = _mm.get("beta_src", "")
-        if _bs and "TDTX_" in _bs:
-            # _bs dạng "TDTX_ (926/943)"
+        if _bs and "TX_" in _bs:
+            # _bs dạng "TX_ (926/943)"
             import re as _re
             _m = _re.search(r"\((\d+)/([\d.]+)\)", _bs)
             if _m:
