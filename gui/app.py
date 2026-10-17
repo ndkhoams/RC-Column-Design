@@ -4218,6 +4218,7 @@ class App(tk.Tk):
             ax.set_zlabel('N (kN)')
             fig.tight_layout()
             self._aci_nm_cv_ref.draw()
+            self._aci_nm_ax_ref = None
         except Exception as ex:
             print(f"Lỗi vẽ 3D ACI: {ex}")
             import traceback
@@ -4266,6 +4267,7 @@ class App(tk.Tk):
             ax.set_zlabel('N (kN)')
             fig.tight_layout()
             self._ec2_nm_cv_ref.draw()
+            self._ec2_nm_ax_ref = None
         except Exception as ex:
             print(f"Lỗi vẽ 3D EC2: {ex}")
             import traceback
