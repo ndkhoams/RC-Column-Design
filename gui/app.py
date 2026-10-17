@@ -3028,7 +3028,8 @@ class App(tk.Tk):
             _dw2 = _mmw2.get("delta_ns", 1.0) if _mmw2.get("ok") else 1.0
             _dw3 = _mmw3.get("delta_ns", 1.0) if _mmw3.get("ok") else 1.0
             self._aci_mm = {"Mc2": _dw2 * worst_f.Mx,
-                            "Mc3": _dw3 * worst_f.My}
+                            "Mc3": _dw3 * worst_f.My,
+                            "delta2": _dw2, "delta3": _dw3}
             # Lưu sec/conc/steel/tied để vẽ biểu đồ PDF
             self._aci_sec = _secw
             self._aci_conc = conc
@@ -3060,11 +3061,6 @@ class App(tk.Tk):
             f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
             f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
         self._batch_rows = rows
-        # Hiển thị tab Kết quả cho trường hợp nguy hiểm nhất
-        try:
-            self._show_aci_summary()
-        except Exception:
-            pass
 
     def _check_ec2_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
