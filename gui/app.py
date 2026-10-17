@@ -229,6 +229,11 @@ class App(tk.Tk):
                      relief="flat", anchor=tk.CENTER)
         st.map("Check.TButton",
                background=[("active", GREEN_DARK), ("pressed", "#065F46")])
+        # Tab đang chọn: highlight xanh lá nhạt
+        st.configure("TabActive.TButton", background="#D1FAE5",
+                     foreground="#065F46", font=("", 10, "bold"),
+                     padding=(10, 4), borderwidth=1, relief="solid",
+                     bordercolor="#059669", anchor="center")
         # Treeview bảng thông số
         st.configure("Treeview", background="white",
                      fieldbackground="white", foreground=TEXT,
@@ -248,10 +253,16 @@ class App(tk.Tk):
             self.tab_calc.pack_forget()
             self.tab_sum.pack(fill=tk.BOTH, expand=True)
             self._current_tab = "sum"
+            # Highlight nút được chọn
+            self._tab_btn_sum.configure(style="TabActive.TButton")
+            self._tab_btn_calc.configure(style="Top.TButton")
         else:
             self.tab_sum.pack_forget()
             self.tab_calc.pack(fill=tk.BOTH, expand=True)
             self._current_tab = "calc"
+            # Highlight nút được chọn
+            self._tab_btn_calc.configure(style="TabActive.TButton")
+            self._tab_btn_sum.configure(style="Top.TButton")
 
     def _switch_lang(self, lang):
         """Chuyển ngôn ngữ VN/EN. Áp dụng cho kết quả mới tính."""
@@ -397,6 +408,8 @@ class App(tk.Tk):
         self.tab_calc = ttk.Frame(_tab_container)
         self.tab_sum.pack(fill=tk.BOTH, expand=True)
         self._current_tab = "sum"
+        # Highlight nút tab mặc định
+        self._tab_btn_sum.configure(style="TabActive.TButton")
 
         # Tab Tóm tắt bọc trong canvas cuộn được
         sum_canvas = tk.Canvas(self.tab_sum, highlightthickness=0)
@@ -3531,6 +3544,8 @@ class App(tk.Tk):
             return v.get()
         return {
             "version": 1,
+            # Tên cấu kiện
+            "member_name": self.member_var.get().strip() if hasattr(self, "member_var") else "",
             # 1. Vật liệu
             "concrete": self.cb_conc.get(), "gamma_b": ev(self.en_gb),
             "steel": self.cb_steel.get(), "sw_steel": self.cb_sw_steel.get(),
@@ -3609,6 +3624,10 @@ class App(tk.Tk):
         def se(e, v):
             e.delete(0, tk.END); e.insert(0, str(v))
         try:
+            # Tên cấu kiện (ưu tiên từ JSON, fallback tên file ở on_load_data)
+            _mn = d.get("member_name", "")
+            if _mn and hasattr(self, "member_var"):
+                self.member_var.set(_mn)
             self.cb_conc.set(d.get("concrete", "B25")); se(self.en_gb, d.get("gamma_b", "0.85"))
             self.cb_steel.set(d.get("steel", "CB400-V"))
             self.cb_sw_steel.set(d.get("sw_steel", "CB400-V"))
@@ -3772,10 +3791,10 @@ class App(tk.Tk):
                 self._fill_etabs_table([(f, None) for f in self.etabs_forces])
             self.current_save_path = path
             self._update_title()
-            # Điền tên file vào textbox tên cấu kiện
+            # Điền tên file vào textbox nếu JSON chưa có tên cấu kiện
             import os as _os
-            _mn = _os.path.splitext(_os.path.basename(path))[0].upper()
-            if hasattr(self, "member_var"):
+            if hasattr(self, "member_var") and not self.member_var.get().strip():
+                _mn = _os.path.splitext(_os.path.basename(path))[0].upper()
                 self.member_var.set(_mn)
             self._update_ck()
             # Tự động tính toán sau khi mở file
