@@ -857,7 +857,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     right_flow = []
     try:
         # Hình mặt cắt
-        _sec_png = section_image(sec, width_in=2.2, dpi=200, small=False,
+        _sec_png = section_image(sec, width_in=2.2, dpi=300, small=False,
                                  show_stats=False)
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))
