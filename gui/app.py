@@ -3060,6 +3060,11 @@ class App(tk.Tk):
             f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
             f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
         self._batch_rows = rows
+        # Hiển thị tab Kết quả cho trường hợp nguy hiểm nhất
+        try:
+            self._show_aci_summary()
+        except Exception:
+            pass
 
     def _check_ec2_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
