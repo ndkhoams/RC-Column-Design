@@ -175,7 +175,14 @@ def parse_etabs_clipboard(text: str,
     # Không Step Type: Story|Column|Unique Name|Output Case|Case Type|
     #               Station|P|V2|V3|T|M2|M3|...
     header_parts = [p.strip().lower() for p in lines[hi].split("\t")]
+    # Kiểm tra Step Type trên cả dòng header và các dòng lân cận
+    # (ETABS đôi khi xuất header nhiều dòng)
     has_step = "step type" in header_parts
+    if not has_step:
+        for _ln in lines[max(0, hi-2):hi+3]:
+            if "step type" in _ln.lower():
+                has_step = True
+                break
     if has_step:
         C_CASE, C_TYPE, C_STATION = 3, 4, 6
         C_P, C_M2, C_M3 = 7, 11, 12
