@@ -1951,8 +1951,12 @@ class App(tk.Tk):
             tree.insert("", "end", values=(a, b, c),
                         tags=("odd",) if i % 2 else ())
         ok_txt = "ĐẠT" if aci_res["ok"] else "KHÔNG ĐẠT"
-        fs_txt = (f"{aci_res.get('fs', 0):.2f}"
-                  if math.isfinite(aci_res.get("fs", 0)) else "∞")
+        # FS = 1/D/C nếu không có sẵn (trường hợp ETABS dùng dc_ratio)
+        _fs = aci_res.get("fs", 0)
+        _dc = aci_res.get("dc", 0)
+        if not _fs and _dc and _dc > 1e-9:
+            _fs = 1.0 / _dc
+        fs_txt = (f"{_fs:.2f}" if math.isfinite(_fs) else "∞")
         tree.insert("", "end",
                     values=("D/C", "Tỷ số sử dụng khả năng chịu lực",
                             f"{aci_res['dc']:.3f} (FS = {fs_txt})  {ok_txt}"),
@@ -2070,8 +2074,12 @@ class App(tk.Tk):
         okt = "ĐẠT" if aci_res["ok"] else "KHÔNG ĐẠT"
         bgc = "#D1FAE5" if aci_res["ok"] else "#FEE2E2"
         fgc = "#065F46" if aci_res["ok"] else "#991B1B"
-        fs_txt = (f"{aci_res.get('fs', 0):.2f}"
-                  if math.isfinite(aci_res.get("fs", 0)) else "∞")
+        # FS = 1/D/C nếu không có sẵn (trường hợp ETABS dùng dc_ratio)
+        _fs = aci_res.get("fs", 0)
+        _dc = aci_res.get("dc", 0)
+        if not _fs and _dc and _dc > 1e-9:
+            _fs = 1.0 / _dc
+        fs_txt = (f"{_fs:.2f}" if math.isfinite(_fs) else "∞")
         tk.Label(r1, text=f"  D/C = {aci_res['dc']:.3f} (FS = {fs_txt}) → {okt}  ",
                  font=("", 10, "bold"), fg=fgc,
                  bg=bgc).pack(side=tk.LEFT, padx=6)
