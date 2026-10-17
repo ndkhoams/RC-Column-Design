@@ -167,7 +167,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                         _rows2.append([P(_ln, st["formula"])])
                 if _cd.get("result"):
                     _rows2.append([P(_cd["result"], st["result"])])
-                _tf2 = _Tf2(_rows2, colWidths=[190*mm])
+                _tf2 = _Tf2(_rows2, colWidths=[170*mm])
                 _tf2.hAlign = "LEFT"
                 _tf2.setStyle(_TSf2([
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -197,7 +197,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _rows.append([P(_ln, st["formula"])])
             if _cfg.get("result"):
                 _rows.append([P(_cfg["result"], st["result"])])
-            _t1 = _T(_rows, colWidths=[190*mm])
+            _t1 = _T(_rows, colWidths=[170*mm])
             _t1.hAlign = "LEFT"
             _t1.setStyle(_TS([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
