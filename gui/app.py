@@ -4128,7 +4128,6 @@ class App(tk.Tk):
         """Xoay 3D thủ công bằng chuột trái (dự phòng khi mouse_init không hoạt động)."""
         state = {"drag": False, "x0": 0, "y0": 0, "elev0": 0, "azim0": 0}
         def _press(ev):
-            print(f"[3D-DEBUG] Mouse press on canvas: x={ev.x}, y={ev.y}, widget={ev.widget}")
             try:
                 state["drag"] = True
                 state["x0"], state["y0"] = ev.x, ev.y
@@ -4141,14 +4140,12 @@ class App(tk.Tk):
             try:
                 dx = ev.x - state["x0"]
                 dy = ev.y - state["y0"]
-                new_elev = state["elev0"] - dy * 0.3
-                new_azim = state["azim0"] + dx * 0.3
-                ax.view_init(elev=new_elev, azim=new_azim)
-                # Force update Tk widget
-                fig.canvas.draw()
-                _w = fig.canvas.get_tk_widget()
-                _w.update_idletasks()
-                _w.update()
+                ax.view_init(elev=state["elev0"] - dy * 0.3,
+                             azim=state["azim0"] + dx * 0.3)
+                # TkAgg: đánh dấu stale và vẽ lại
+                fig.stale = True
+                fig.canvas.draw_idle()
+                fig.canvas.flush_events()
             except Exception as ex:
                 print(f"[3D-DEBUG] Move error: {ex}")
         def _rel(ev):
