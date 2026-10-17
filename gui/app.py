@@ -4226,16 +4226,27 @@ class App(tk.Tk):
         """Cập nhật góc nhìn 3D ACI từ slider."""
         try:
             fig = getattr(self, '_aci_nm_fig', None)
+            print(f"[3D-SLIDER] fig={fig}, axes={len(fig.axes) if fig else 0}")
             if fig is None or not fig.axes:
+                print("[3D-SLIDER] No fig or no axes")
                 return
             ax = fig.axes[0]
+            print(f"[3D-SLIDER] ax name={getattr(ax, 'name', 'N/A')}, elev={getattr(ax, 'elev', 'N/A')}")
             if getattr(ax, 'name', '') != '3d':
+                print("[3D-SLIDER] Not 3D axes")
                 return
-            ax.view_init(elev=self._aci_elev_var.get(),
-                         azim=self._aci_azim_var.get())
+            _e = self._aci_elev_var.get()
+            _a = self._aci_azim_var.get()
+            print(f"[3D-SLIDER] Setting view elev={_e}, azim={_a}")
+            ax.view_init(elev=_e, azim=_a)
+            print(f"[3D-SLIDER] After view_init elev={ax.elev}, azim={ax.azim}")
             fig.canvas.draw_idle()
-        except Exception:
-            pass
+            fig.canvas.flush_events()
+            print("[3D-SLIDER] draw_idle done")
+        except Exception as ex:
+            print(f"[3D-SLIDER] Error: {ex}")
+            import traceback
+            traceback.print_exc()
 
     def _draw_3d_aci(self):
         """Vẽ biểu đồ tương tác 3D cho ACI."""
