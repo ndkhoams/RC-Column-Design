@@ -3354,7 +3354,8 @@ class App(tk.Tk):
                     self._aci_sec, self._aci_inp, self._aci_res,
                     self._aci_conc, self._aci_steel, self._aci_tied, path,
                     case_info=getattr(self, "_pdf_case", None),
-                    chart_pngs=pngs)
+                    chart_pngs=pngs,
+                    shear_info=getattr(self, "_aci_shear", None))
             else:
                 from rc_column.aci_pdf_report import export_aci_pdf_cards
                 export_aci_pdf_cards(
