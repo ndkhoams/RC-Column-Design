@@ -3065,7 +3065,8 @@ class App(tk.Tk):
                             "Mc3": _dw3 * worst_f.My,
                             "delta2": _dw2, "delta3": _dw3,
                             "dir2": _mmw2, "dir3": _mmw3,
-                            "beta_src": _bsrc}
+                            "beta_src": _bsrc,
+                            "L0_2": _L0w2/1000, "L0_3": _L0w3/1000}
             # Lưu sec/conc/steel/tied để vẽ biểu đồ PDF
             self._aci_sec = _secw
             self._aci_conc = conc
@@ -3118,14 +3119,35 @@ class App(tk.Tk):
                                         self._aci_steel, _inp2.N,
                                         _inp2.Mx, _inp2.My,
                                         tied=self._aci_tied)
-            # Shear cho worst case (đơn giản)
+            # Shear cho worst case (theo đúng logic manual mode)
             from rc_column.aci_checker import aci_shear_check
             _shr = {"dir2": {}, "dir3": {}}
             try:
-                _shr = aci_shear_check(_inp2, self._aci_conc, self._aci_sec,
-                                       float(self.en_fyt.get().replace(",", ".")))
-            except Exception:
-                pass
+                _sec_s = self._aci_sec
+                _fc_s = self._aci_conc.fc_MPa if hasattr(self._aci_conc, 'fc_MPa') else 21
+                _fyt_s = float(self.en_fyt.get().replace(",", "."))
+                _Acv_s = _sec_s.cx * _sec_s.cy
+                _d2_s = _sec_s.cy - _inp2.cover - 10
+                _d3_s = _sec_s.cx - _inp2.cover - 10
+                _Av_s = 2 * 3.1416 * (10**2) / 4  # 2 nhánh đai φ10
+                try:
+                    _sh2_s = aci_shear_check(Acv_mm2=_Acv_s, Ag_mm2=_Acv_s,
+                                             fc_MPa=_fc_s, Nu_kN=_inp2.N,
+                                             Vu_kN=abs(_inp2.Q2), Av_mm2=_Av_s,
+                                             fyt_MPa=_fyt_s, s_mm=200, d_mm=_d2_s)
+                except Exception:
+                    _sh2_s = None
+                try:
+                    _sh3_s = aci_shear_check(Acv_mm2=_Acv_s, Ag_mm2=_Acv_s,
+                                             fc_MPa=_fc_s, Nu_kN=_inp2.N,
+                                             Vu_kN=abs(_inp2.Q3), Av_mm2=_Av_s,
+                                             fyt_MPa=_fyt_s, s_mm=200, d_mm=_d3_s)
+                except Exception:
+                    _sh3_s = None
+                if _sh2_s or _sh3_s:
+                    _shr = {"dir2": _sh2_s or {}, "dir3": _sh3_s or {}}
+            except Exception as _e_s:
+                print(f"[ETABS] shear lỗi: {_e_s}")
             _fyt = float(self.en_fyt.get().replace(",", "."))
             _secs = generate_aci_report_sections_v2(
                 _inp2, _res_det, _mm_det, _shr,
