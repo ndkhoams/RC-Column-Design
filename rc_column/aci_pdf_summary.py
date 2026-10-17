@@ -52,7 +52,8 @@ def _f_dc(dc):
     return f"{float(dc):.3f}"
 
 
-def _aci_charts_png(sec, conc, steel, aci_res, inp, tied):
+def _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
+                    mc2=None, mc3=None):
     """Tự vẽ 2 biểu đồ ACI -> (png_nm_alpha, png_m2m3) bytes.
 
     Dùng figure cao (5.0 x 5.2) để trục tung (trục y) giãn ra tự nhiên,
@@ -62,10 +63,12 @@ def _aci_charts_png(sec, conc, steel, aci_res, inp, tied):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     out = []
+    _m2 = mc2 if mc2 is not None else inp.Mx
+    _m3 = mc3 if mc3 is not None else inp.My
     for draw_fn in (draw_aci_nm_alpha_ax, draw_aci_m2m3_ax):
         fig = plt.figure(figsize=(3.2, 3.2))
         ax = fig.add_subplot(111)
-        draw_fn(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My,
+        draw_fn(ax, sec, conc, steel, aci_res, inp.N, _m2, _m3,
                 tied=tied)
         fig.tight_layout()
         fig.subplots_adjust(bottom=0.22, top=0.93, left=0.12, right=0.95)
@@ -186,7 +189,7 @@ def _extract_shear_q(shear_info):
 
 
 def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
-                           case_info=None, sec_img_path=None, chart_pngs=None,
+                           case_info=None, mm_res=None, sec_img_path=None, chart_pngs=None,
                            shear_info=None):
     """Xuất PDF Kết quả tính toán theo mẫu Excel (ACI 318-19, 1 trang A4).
 
@@ -400,7 +403,9 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         # 2 biểu đồ ACI (có tiêu đề)
         _alpha_aci = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
-        _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied)
+        _mm = mm_res or {}
+        _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
+                                mc2=_mm.get("Mc2"), mc3=_mm.get("Mc3"))
         if _pngs and len(_pngs) >= 2:
             right_flow.append(Paragraph(
                 f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
