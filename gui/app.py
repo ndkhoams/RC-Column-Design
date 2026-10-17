@@ -508,7 +508,7 @@ class App(tk.Tk):
         return f
 
     # Độ rộng chuẩn cho cột label (để các ô nhập thẳng hàng dọc)
-    _LBL_WIDTH = 24
+    _LBL_WIDTH = 32
 
     def _row(self, parent, label, widget, r, c0=0):
         # Label xám nhỏ, độ rộng cố định để ô nhập thẳng hàng
