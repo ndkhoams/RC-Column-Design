@@ -2815,10 +2815,13 @@ class App(tk.Tk):
         t.delete(*t.get_children())
         for i, (f, r) in enumerate(rows):
             dc = r["dc"] if r else None
+            _is_tdtx = f.case.strip().startswith("TDTX_")
+            _dc_txt = ""
+            if not _is_tdtx:
+                _dc_txt = f"{dc:.3f}" if dc is not None and dc == dc else "—"
             vals = (f.story, f.column, f.case, f"{f.station:.2f}",
                     f"{f.N:.0f}", f"{f.Q2:.0f}", f"{f.Q3:.0f}",
-                    f"{f.Mx:.0f}", f"{f.My:.0f}",
-                    f"{dc:.3f}" if dc is not None and dc == dc else "—")
+                    f"{f.Mx:.0f}", f"{f.My:.0f}", _dc_txt)
             # Nền xen kẽ; dòng D/C > 1 thêm đỏ text
             tags = ["even"] if i % 2 == 0 else []
             if dc and dc == dc and dc > 1:
