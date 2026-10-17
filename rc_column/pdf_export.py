@@ -28,6 +28,7 @@ def _find_font_bold():
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
 def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                    legend_y: float = 1.02,
+                   dot_scale: float = 1.0,
                     small_dots: bool = False):
     """Vẽ mặt cắt kiểu VietconSoft: nền lưới, khung đen, thép lớp 1 đỏ /
     lớp 2 xanh lá (cỡ chấm theo đường kính), trục t2/t3 tại tâm, dim t3/t2,
@@ -74,15 +75,15 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        # Cỡ chấm nhỏ gọn (giảm 20%: 0.22 -> 0.176)
-        dot_s = (max(4.0, dia * 0.176)) ** 2
+        # Cỡ chấm theo dot_scale (app=1.5, PDF=0.8)
+        dot_s = (max(4.0, dia * 0.22 * dot_scale)) ** 2
         # Co vào trong 4% để không chạm viền
         ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
                    s=dot_s, c=color, zorder=4,
                    edgecolors="white", linewidths=0.8)
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
-            markeredgecolor="white", markersize=max(4.0, dia * 0.176),
+            markeredgecolor="white", markersize=max(4.0, dia * 0.22 * dot_scale),
             label=f"d{dia:.0f}"))
     # Trục t2/t3 vượt ra khỏi đường bao để thấy text
     alen = max(cx, cy) * 0.62
@@ -163,7 +164,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
 
 
 def section_image(sec, width_in=3.2, dpi=300, small=False,
-                  show_stats=True, legend_y: float = 1.08) -> bytes:
+                  show_stats=True, legend_y: float = 1.08,
+                  dot_scale: float = 0.8) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -172,7 +174,8 @@ def section_image(sec, width_in=3.2, dpi=300, small=False,
     # Figure theo đúng tỉ lệ t2/t3 (cao = rộng × cy/cx)
     ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
     fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
-    draw_section_ax(ax, sec, show_stats=show_stats, legend_y=legend_y)
+    draw_section_ax(ax, sec, show_stats=show_stats, legend_y=legend_y,
+                    dot_scale=dot_scale)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     for sp in ax.spines.values():
