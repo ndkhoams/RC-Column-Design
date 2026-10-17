@@ -73,15 +73,15 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        # Cỡ chấm nhỏ gọn (giảm từ 0.32 xuống 0.22)
-        dot_s = (max(4.0, dia * 0.22)) ** 2
+        # Cỡ chấm nhỏ gọn (giảm 20%: 0.22 -> 0.176)
+        dot_s = (max(4.0, dia * 0.176)) ** 2
         # Co vào trong 4% để không chạm viền
         ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
                    s=dot_s, c=color, zorder=4,
                    edgecolors="white", linewidths=0.8)
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
-            markeredgecolor="white", markersize=max(4.0, dia * 0.22),
+            markeredgecolor="white", markersize=max(4.0, dia * 0.176),
             label=f"d{dia:.0f}"))
     # Trục t2/t3 vượt ra khỏi đường bao để thấy text
     alen = max(cx, cy) * 0.62
@@ -93,11 +93,10 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
             weight="bold", va="center", ha="left")
     ax.text(0, alen * 1.08, "t3", fontsize=9, color="#1D4ED8",
             weight="bold", va="bottom", ha="center")
-    # Legend thép: vị trí tương đối từ t3 (cao hơn 0.17*alen), căn giữa
+    # Legend thép: căn giữa-trên, ngay trên đỉnh axes (cao hơn nhãn t3)
     if legend_handles:
         leg = ax.legend(handles=legend_handles, loc="upper center",
-                        bbox_to_anchor=(0, alen * 1.25),
-                        bbox_transform=ax.transData,
+                        bbox_to_anchor=(0.5, 1.02),
                         ncol=len(legend_handles),
                         frameon=False, fontsize=8)
         for txt in leg.get_texts():
