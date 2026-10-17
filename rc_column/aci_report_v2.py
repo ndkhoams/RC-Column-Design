@@ -182,20 +182,25 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     # M2,min theo ACI 6.6.4.5.4
     _h2 = cy
     _h3 = cx
-    _Mmin2 = _Nabs * (15 + 0.03 * _h2) / 1e6  # kN·m (15mm + 0.03h)
-    _Mmin3 = _Nabs * (15 + 0.03 * _h3) / 1e6
+    _Mmin2 = _Nabs * (15 + 0.03 * _h2) / 1000  # kN·m (15mm + 0.03h)
+    _Mmin3 = _Nabs * (15 + 0.03 * _h3) / 1000
     sections.append({
         "num": 4,
         "title": "ĐỘ LỆCH TÂM",
         "ref": "ACI 6.6.4.5.4",
         "cards": [
-            _mk("Mô men tối thiểu Mmin",
+            _mk("Mô men tối thiểu phương 2 (Mmin,2)",
                 "ACI 6.6.4.5.4",
                 [f"Mmin = Pu·(15 + 0.03h)",
                  f"Mmin,2 = {_f(_Nabs, 1)} × (15 + 0.03×{_f(_h2, 0)})/1000",
-                 f"= {_f(_Mmin2, 1)} kN·m",
-                 f"Mmin,3 = {_f(_Mmin3, 1)} kN·m"],
-                "", full=True),
+                 f"= {_f(_Mmin2, 1)} kN·m"],
+                ""),
+            _mk("Mô men tối thiểu phương 3 (Mmin,3)",
+                "ACI 6.6.4.5.4",
+                [f"Mmin = Pu·(15 + 0.03h)",
+                 f"Mmin,3 = {_f(_Nabs, 1)} × (15 + 0.03×{_f(_h3, 0)})/1000",
+                 f"= {_f(_Mmin3, 1)} kN·m"],
+                ""),
             _mk("Độ lệch tâm phương 2 (e2)",
                 "ACI 6.6.4.5.4",
                 [f"e₂ = |M₂| / N",
