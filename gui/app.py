@@ -1,12 +1,3 @@
-"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
-
-Bố cục:
- 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
- 5. Nội lực kiểm tra
-Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
-         thuyết minh tính toán chi tiết.
-"""
-
 # Thời điểm build: lấy từ build_info.py (do build_exe.py sinh khi đóng gói).
 try:
     from build_info import BUILD_TIME as APP_BUILD
@@ -218,6 +209,10 @@ class App(tk.Tk):
         st.configure("Ghost.TButton", background="white", foreground=TEXT,
                      font=("", 12), padding=(12, 8), borderwidth=1,
                      relief="solid", bordercolor=BORDER)
+        # Nút hàng trên cùng: gọn như nút import
+        st.configure("Top.TButton", background="white", foreground=TEXT,
+                     font=("", 10), padding=(8, 4), borderwidth=1,
+                     relief="solid", bordercolor=BORDER)
         # Treeview bảng thông số
         st.configure("Treeview", background="white",
                      fieldbackground="white", foreground=TEXT,
@@ -273,47 +268,49 @@ class App(tk.Tk):
         # Cụm nút cố định ĐỈNH: 1 grid chung 4 cột đều nhau (uniform) để
         # hàng kiểm tra căn khít với 4 nút bên trên.
         top_grid = ttk.Frame(top_bar)
-        top_grid.pack(fill=tk.X, padx=8, pady=8)
+        top_grid.pack(fill=tk.X, padx=8, pady=4)
         for _c in range(4):
             top_grid.columnconfigure(_c, weight=1, uniform="topbtns")
         # Hàng 1: 4 nút dữ liệu
-        ttk.Button(top_grid, text="📂 OPEN", style="Ghost.TButton",
+        ttk.Button(top_grid, text="📂 OPEN", style="Top.TButton",
                    command=self.on_load_data).grid(row=0, column=0,
                                                    sticky=tk.EW, padx=(0, 4))
-        ttk.Button(top_grid, text="💾 SAVE", style="Ghost.TButton",
+        ttk.Button(top_grid, text="💾 SAVE", style="Top.TButton",
                    command=self.on_save_data).grid(row=0, column=1,
                                                    sticky=tk.EW, padx=(2, 2))
-        ttk.Button(top_grid, text="💾 SAVE AS", style="Ghost.TButton",
+        ttk.Button(top_grid, text="💾 SAVE AS", style="Top.TButton",
                    command=self.on_save_as_data).grid(row=0, column=2,
                                                       sticky=tk.EW,
                                                       padx=(2, 2))
-        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Ghost.TButton",
+        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Top.TButton",
                    command=self._export_pdf).grid(row=0, column=3,
                                                   sticky=tk.EW, padx=(4, 0))
-        # Hàng 2: trái chọn tiêu chuẩn (2 cột đầu), phải nút kiểm tra
-        # (2 cột cuối = rộng đúng bằng SAVE AS + XUẤT PDF)
-        code_frame = ttk.Frame(top_grid)
-        code_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
-                        padx=(0, 2), pady=(8, 0))
-        # Chia code_frame thành 2 cột đều: nhãn ở cột 0, combobox ở cột 1
-        # (căn với nút SAVE bên trên)
-        code_frame.columnconfigure(0, weight=1, uniform="code")
-        code_frame.columnconfigure(1, weight=1, uniform="code")
-        ttk.Label(code_frame, text="Tiêu chuẩn:",
-                  style="Muted.TLabel").grid(row=0, column=0, sticky=tk.W,
-                                             padx=(4, 6), pady=2)
-        self.cb_code = ttk.Combobox(code_frame, values=["TCVN 5574:2018", "ACI 318-19",
-                                                        "EC2 (EN 1992-1-1)"],
-                                    state="readonly")
+        # Hàng 2: Tiêu chuẩn [box chọn] Tên cấu kiện [text box] [CHECK]
+        # (theo yêu cầu user 2026-10-17)
+        row2 = ttk.Frame(top_grid)
+        row2.grid(row=1, column=0, columnspan=4, sticky=tk.EW,
+                  padx=0, pady=(6, 0))
+        ttk.Label(row2, text="Tiêu chuẩn:",
+                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 4))
+        self.cb_code = ttk.Combobox(row2, values=["TCVN 5574:2018", "ACI 318-19",
+                                                  "EC2 (EN 1992-1-1)"],
+                                    state="readonly", width=14)
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
-        # Đặt ở cột 1 (vị trí nút SAVE), giãn full bằng nút SAVE
-        self.cb_code.grid(row=0, column=1, sticky=tk.EW, padx=4, pady=2)
-        ttk.Button(top_grid, text="✓  KIỂM TRA KHẢ NĂNG CHỊU LỰC",
+        self.cb_code.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(row2, text="Tên cấu kiện:",
+                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(0, 4))
+        # Textbox tên cấu kiện - thay thế tên file như trước đây
+        self.member_var = tk.StringVar(value="")
+        self.member_entry = ttk.Entry(row2, textvariable=self.member_var,
+                                      width=20)
+        self.member_entry.pack(side=tk.LEFT, fill=tk.X, expand=True,
+                               padx=(0, 8))
+        # Cập nhật hiển thị tên cấu kiện khi gõ
+        self.member_var.trace_add("write", lambda *a: self._update_ck())
+        ttk.Button(row2, text="✓ CHECK",
                    style="Accent.TButton",
-                   command=self.on_check).grid(row=1, column=2, columnspan=2,
-                                               sticky=tk.EW, padx=(2, 0),
-                                               pady=(8, 0))
+                   command=self.on_check).pack(side=tk.LEFT, padx=(0, 2))
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
         scroll_area.pack(fill=tk.BOTH, expand=True)
@@ -329,9 +326,8 @@ class App(tk.Tk):
         # Khi canvas rộng/cao hơn nội dung, giãn window fill hết
         def _fit_left_window(e):
             canvas.itemconfigure(self._left_win, width=e.width)
-            # Ép chiều cao bằng canvas để bảng nội lực fill hết cửa sổ
-            canvas.itemconfigure(self._left_win, height=e.height)
-            # Buộc cập nhật layout để section 5 giãn
+            # KHÔNG ép height: để nội dung cao tự nhiên mới cuộn được
+            # (trước đây ép height=e.height khiến panel không cuộn được)
             self.left.update_idletasks()
         canvas.bind("<Configure>", _fit_left_window)
         canvas.configure(yscrollcommand=scr.set)
@@ -1421,7 +1417,7 @@ class App(tk.Tk):
         self._aci_inp = inp
         # Đảm bảo có tên file cho PDF (giống TCVN)
         try:
-            self._aci_inp._filename = getattr(self, "current_save_path", "") or getattr(inp, "_filename", "")
+            self._aci_inp._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
         except Exception:
             pass
         self._aci_res = aci_res
@@ -1572,7 +1568,7 @@ class App(tk.Tk):
         self._ec2_sec = sec
         self._ec2_inp = inp
         try:
-            self._ec2_inp._filename = getattr(self, "current_save_path", "") or getattr(inp, "_filename", "")
+            self._ec2_inp._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
         except Exception:
             pass
         self._ec2_res = ec2_res
@@ -3280,7 +3276,7 @@ class App(tk.Tk):
                 from rc_column.pdf_export import export_summary_pdf
                 # Gán tên file vào inp để hiển thị "Cấu kiện"
                 try:
-                    self._last_inp._filename =                         getattr(self, "current_save_path", "") or ""
+                    self._last_inp._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
                 except Exception:
                     pass
                 # Lưu nguyên hình mặt cắt từ app để PDF dùng
@@ -3683,11 +3679,13 @@ class App(tk.Tk):
         from tkinter import filedialog
         path = self.current_save_path
         if not path or not os.path.exists(path):
+            _mn = self.member_var.get().strip() if hasattr(self, "member_var") else ""
+            _init = f"{_mn}.json" if _mn else "CotBTCT.json"
             path = filedialog.asksaveasfilename(
                 title="Lưu dữ liệu cột",
                 defaultextension=".json",
                 filetypes=[("JSON", "*.json")],
-                initialfile="CotBTCT.json")
+                initialfile=_init)
             if not path:
                 return
         if self._do_save(path):
@@ -3695,14 +3693,13 @@ class App(tk.Tk):
             messagebox.showinfo("Lưu dữ liệu", f"Đã lưu: {path}")
 
     def _update_ck(self):
-        """Cập nhật tên cấu kiện (IN HOA, bỏ .json)."""
-        import os
+        """Cập nhật tên cấu kiện (IN HOA) từ textbox - thay thế tên file."""
         ck = getattr(self, "ck_var", None)
         if ck is None:
             return
-        p = getattr(self, "current_save_path", None)
-        if p:
-            name = os.path.splitext(os.path.basename(p))[0].upper()
+        mv = getattr(self, "member_var", None)
+        name = mv.get().strip().upper() if mv else ""
+        if name:
             ck.set(f"Cấu kiện: {name}")
         else:
             ck.set("")
@@ -3756,6 +3753,11 @@ class App(tk.Tk):
                 self._fill_etabs_table([(f, None) for f in self.etabs_forces])
             self.current_save_path = path
             self._update_title()
+            # Điền tên file vào textbox tên cấu kiện
+            import os as _os
+            _mn = _os.path.splitext(_os.path.basename(path))[0].upper()
+            if hasattr(self, "member_var"):
+                self.member_var.set(_mn)
             self._update_ck()
             # Tự động tính toán sau khi mở file
             try:
