@@ -1,3 +1,12 @@
+"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
+
+Bố cục:
+ 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
+ 5. Nội lực kiểm tra
+Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
+         thuyết minh tính toán chi tiết.
+"""
+
 # Thời điểm build: lấy từ build_info.py (do build_exe.py sinh khi đóng gói).
 try:
     from build_info import BUILD_TIME as APP_BUILD
@@ -209,10 +218,16 @@ class App(tk.Tk):
         st.configure("Ghost.TButton", background="white", foreground=TEXT,
                      font=("", 12), padding=(12, 8), borderwidth=1,
                      relief="solid", bordercolor=BORDER)
-        # Nút hàng trên cùng: gọn như nút import
+        # Nút hàng trên cùng: gọn như nút import, icon căn giữa
         st.configure("Top.TButton", background="white", foreground=TEXT,
                      font=("", 10), padding=(8, 4), borderwidth=1,
-                     relief="solid", bordercolor=BORDER)
+                     relief="solid", bordercolor=BORDER, anchor=tk.CENTER)
+        # Nút CHECK: design nổi bật
+        st.configure("Check.TButton", background=GREEN, foreground="white",
+                     font=("", 11, "bold"), padding=(16, 6), borderwidth=0,
+                     relief="flat", anchor=tk.CENTER)
+        st.map("Check.TButton",
+               background=[("active", GREEN_DARK), ("pressed", "#065F46")])
         # Treeview bảng thông số
         st.configure("Treeview", background="white",
                      fieldbackground="white", foreground=TEXT,
@@ -309,7 +324,7 @@ class App(tk.Tk):
         # Cập nhật hiển thị tên cấu kiện khi gõ
         self.member_var.trace_add("write", lambda *a: self._update_ck())
         ttk.Button(row2, text="✓ CHECK",
-                   style="Accent.TButton",
+                   style="Check.TButton",
                    command=self.on_check).pack(side=tk.LEFT, padx=(0, 2))
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
@@ -357,11 +372,11 @@ class App(tk.Tk):
         _tab_bar = ttk.Frame(right)
         _tab_bar.pack(fill=tk.X, padx=4, pady=(4, 0))
         self._tab_btn_sum = ttk.Button(_tab_bar, text=T("KẾT QUẢ TÍNH TOÁN"),
-                                       style="Ghost.TButton",
+                                       style="Top.TButton",
                                        command=lambda: self._show_tab("sum"))
         self._tab_btn_sum.pack(side=tk.LEFT, padx=(0, 4))
         self._tab_btn_calc = ttk.Button(_tab_bar, text=T("CHI TIẾT TÍNH TOÁN"),
-                                        style="Ghost.TButton",
+                                        style="Top.TButton",
                                         command=lambda: self._show_tab("calc"))
         self._tab_btn_calc.pack(side=tk.LEFT)
         # Container chứa 2 tab (thay Notebook)
