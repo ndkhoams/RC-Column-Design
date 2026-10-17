@@ -862,7 +862,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))
         # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
-        _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
+        _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=300,
                                     small=True, right_half=True)
         right_flow.append(Paragraph(
             f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
@@ -870,7 +870,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         right_flow.append(_centered_img(_nm_png, 66))
         right_flow.append(Spacer(1, 2))
         # Biểu đồ M2-M3 (có tiêu đề như app)
-        _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
+        _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=300)
         if isinstance(_m2m3_png, bytes):
             right_flow.append(Paragraph(
                 f"<b>Mặt cắt M2-M3</b> (N = {res.N:+.1f} kN)",

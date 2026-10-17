@@ -69,7 +69,7 @@ def _ec2_charts_png(sec, conc, steel, ec2_res, inp):
         fig.tight_layout()
         fig.subplots_adjust(bottom=0.22, top=0.93, left=0.12, right=0.95)
         buf = _io.BytesIO()
-        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+        fig.savefig(buf, format="png", dpi=300, bbox_inches="tight",
                     pad_inches=0.05)
         plt.close(fig)
         out.append(buf.getvalue())
@@ -90,7 +90,7 @@ def _section_png_tcvn(sec):
     for sp in ax.spines.values():
         sp.set_visible(False)
     buf = _io.BytesIO()
-    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+    fig.savefig(buf, format="png", dpi=300, bbox_inches="tight",
                 pad_inches=0.1, facecolor="white")
     plt.close(fig)
     buf.seek(0)
