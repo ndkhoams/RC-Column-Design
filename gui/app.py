@@ -3061,38 +3061,13 @@ class App(tk.Tk):
             f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
             f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
         self._batch_rows = rows
-        # Hiển thị tóm tắt đơn giản ở tab Kết quả cho chế độ ETABS
+        # Hiển thị tab Kết quả đầy đủ cho trường hợp nguy hiểm nhất
         try:
-            self._show_aci_etabs_summary(worst_f, worst_r)
-        except Exception:
-            pass
-
-    def _show_aci_etabs_summary(self, worst_f, worst_r):
-        """Tab Kết quả đơn giản cho chế độ ETABS ACI."""
-        import tkinter as tk
-        from tkinter import ttk
-        # Xóa tab cũ
-        for w in self._sum_inner.winfo_children():
-            w.destroy()
-        f = ttk.Frame(self._sum_inner)
-        f.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        ttk.Label(f, text="KẾT QUẢ KIỂM TRA ETABS (ACI 318-19)",
-                  font=("", 12, "bold")).pack(pady=(0, 10))
-        dc = worst_r.get("dc", 0) if worst_r else 0
-        ok = dc <= 1.0 if dc == dc else False
-        status = "ĐẠT" if ok else "KHÔNG ĐẠT"
-        color = "#065F46" if ok else "#991B1B"
-        bg = "#D1FAE5" if ok else "#FEE2E2"
-        info = (f"Trường hợp nguy hiểm nhất: [{worst_f.story}, {worst_f.column}, "
-                f"{worst_f.case} @ {worst_f.station:.2f}m]\n"
-                f"N = {worst_f.N:.1f} kN, M2 = {worst_f.Mx:.1f} kN·m, "
-                f"M3 = {worst_f.My:.1f} kN·m")
-        ttk.Label(f, text=info, font=("", 10)).pack(pady=5)
-        lbl = tk.Label(f, text=f"D/C = {dc:.3f} — {status}",
-                       font=("", 14, "bold"), fg=color, bg=bg, padx=20, pady=10)
-        lbl.pack(pady=10)
-        ttk.Label(f, text="Xem chi tiết tất cả tổ hợp ở bảng nội lực (mục 5).",
-                  font=("", 9), foreground="#6B7280").pack(pady=5)
+            self._show_aci_summary()
+        except Exception as _ex:
+            print(f"[ETABS] _show_aci_summary lỗi: {_ex}")
+            import traceback
+            traceback.print_exc()
 
     def _check_ec2_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
