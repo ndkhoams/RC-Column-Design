@@ -220,8 +220,9 @@ class App(tk.Tk):
                      relief="solid", bordercolor=BORDER)
         # Nút hàng trên cùng: gọn như nút import, icon căn giữa
         st.configure("Top.TButton", background="white", foreground=TEXT,
-                     font=("", 10), padding=(8, 4), borderwidth=1,
-                     relief="solid", bordercolor=BORDER, anchor=tk.CENTER)
+                     font=("", 10), padding=(10, 4), borderwidth=1,
+                     relief="solid", bordercolor=BORDER, anchor="center",
+                     justify="center")
         # Nút CHECK: design nổi bật
         st.configure("Check.TButton", background=GREEN, foreground="white",
                      font=("", 11, "bold"), padding=(16, 6), borderwidth=0,
@@ -287,45 +288,51 @@ class App(tk.Tk):
         for _c in range(4):
             top_grid.columnconfigure(_c, weight=1, uniform="topbtns")
         # Hàng 1: 4 nút dữ liệu
-        ttk.Button(top_grid, text="📂 OPEN", style="Top.TButton",
+        ttk.Button(top_grid, text="📂 OPEN", style="Top.TButton", anchor=tk.CENTER,
                    command=self.on_load_data).grid(row=0, column=0,
                                                    sticky=tk.EW, padx=(0, 4))
-        ttk.Button(top_grid, text="💾 SAVE", style="Top.TButton",
+        ttk.Button(top_grid, text="💾 SAVE", style="Top.TButton", anchor=tk.CENTER,
                    command=self.on_save_data).grid(row=0, column=1,
                                                    sticky=tk.EW, padx=(2, 2))
-        ttk.Button(top_grid, text="💾 SAVE AS", style="Top.TButton",
+        ttk.Button(top_grid, text="💾 SAVE AS", style="Top.TButton", anchor=tk.CENTER,
                    command=self.on_save_as_data).grid(row=0, column=2,
                                                       sticky=tk.EW,
                                                       padx=(2, 2))
-        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Top.TButton",
+        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Top.TButton", anchor=tk.CENTER,
                    command=self._export_pdf).grid(row=0, column=3,
                                                   sticky=tk.EW, padx=(4, 0))
-        # Hàng 2: Tiêu chuẩn [box chọn] Tên cấu kiện [text box] [CHECK]
-        # (theo yêu cầu user 2026-10-17)
+        # Hàng 2: Tiêu chuẩn [dropdown dài] Tên cấu kiện [textbox=col2] [CHECK=col3]
+        # (theo yêu cầu user 2026-10-17: textbox bằng SAVE AS, CHECK bằng XUẤT PDF)
         row2 = ttk.Frame(top_grid)
         row2.grid(row=1, column=0, columnspan=4, sticky=tk.EW,
                   padx=0, pady=(6, 0))
-        ttk.Label(row2, text="Tiêu chuẩn:",
+        for _c in range(4):
+            row2.columnconfigure(_c, weight=1)
+        # Cột 0-1: Tiêu chuẩn + dropdown dài
+        _std_frame = ttk.Frame(row2)
+        _std_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW, padx=(0, 2))
+        ttk.Label(_std_frame, text="Tiêu chuẩn:",
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 4))
-        self.cb_code = ttk.Combobox(row2, values=["TCVN 5574:2018", "ACI 318-19",
-                                                  "EC2 (EN 1992-1-1)"],
-                                    state="readonly", width=14)
+        self.cb_code = ttk.Combobox(_std_frame, values=["TCVN 5574:2018", "ACI 318-19",
+                                                        "EC2 (EN 1992-1-1)"],
+                                    state="readonly")
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
-        self.cb_code.pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Label(row2, text="Tên cấu kiện:",
+        self.cb_code.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
+        # Cột 2: Tên cấu kiện + textbox (rộng bằng nút SAVE AS)
+        _name_frame = ttk.Frame(row2)
+        _name_frame.grid(row=0, column=2, sticky=tk.EW, padx=2)
+        ttk.Label(_name_frame, text="Tên cấu kiện:",
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(0, 4))
-        # Textbox tên cấu kiện - thay thế tên file như trước đây
         self.member_var = tk.StringVar(value="")
-        self.member_entry = ttk.Entry(row2, textvariable=self.member_var,
-                                      width=20)
-        self.member_entry.pack(side=tk.LEFT, fill=tk.X, expand=True,
-                               padx=(0, 8))
+        self.member_entry = ttk.Entry(_name_frame, textvariable=self.member_var)
+        self.member_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         # Cập nhật hiển thị tên cấu kiện khi gõ
         self.member_var.trace_add("write", lambda *a: self._update_ck())
         ttk.Button(row2, text="✓ CHECK",
                    style="Check.TButton",
-                   command=self.on_check).pack(side=tk.LEFT, padx=(0, 2))
+                   command=self.on_check).grid(row=0, column=3, sticky=tk.EW,
+                                              padx=(2, 0))
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
         scroll_area.pack(fill=tk.BOTH, expand=True)
