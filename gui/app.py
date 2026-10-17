@@ -4215,6 +4215,11 @@ class App(tk.Tk):
             ax.set_zlabel('N (kN)')
             fig.tight_layout()
             self._ec2_nm_cv_ref.draw()
+            try:
+                ax.mouse_init()
+                self._ec2_nm_cv_ref.get_tk_widget().focus_set()
+            except Exception:
+                pass
         except Exception as ex:
             print(f"Lỗi vẽ 3D EC2: {ex}")
             import traceback
