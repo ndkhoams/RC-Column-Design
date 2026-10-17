@@ -2994,9 +2994,9 @@ class App(tk.Tk):
             # Tính δns cho nhóm (dùng L0 chung của nhóm)
             from rc_column.aci_checker import moment_magnification
             from rc_column.stability import effective_length
-            _L0_2 = effective_length(_L_grp, _inp_g.top_x, _inp_g.bottom_x,
+            _L0_2 = effective_length(_Lx_grp, _inp_g.top_x, _inp_g.bottom_x,
                                      _inp_g.psi_x) * 1000
-            _L0_3 = effective_length(_L_grp, _inp_g.top_y, _inp_g.bottom_y,
+            _L0_3 = effective_length(_Ly_grp, _inp_g.top_y, _inp_g.bottom_y,
                                      _inp_g.psi_y) * 1000
             _Ig2 = sec_g.cx * sec_g.cy**3 / 12
             _Ig3 = sec_g.cy * sec_g.cx**3 / 12
@@ -3263,12 +3263,13 @@ class App(tk.Tk):
             Ac = sec_g.gross_area
             As = sec_g.steel_area
             try:
-                l0_2 = effective_length(_L_grp, _inp_g.top_x, _inp_g.bottom_x,
+                l0_2 = effective_length(_Lx_grp, _inp_g.top_x, _inp_g.bottom_x,
                                         _inp_g.psi_x) * 1000.0
-                l0_3 = effective_length(_L_grp, _inp_g.top_y, _inp_g.bottom_y,
+                l0_3 = effective_length(_Ly_grp, _inp_g.top_y, _inp_g.bottom_y,
                                         _inp_g.psi_y) * 1000.0
             except Exception:
-                l0_2 = l0_3 = _L_grp * 1000.0
+                l0_2 = _Lx_grp * 1000.0
+                l0_3 = _Ly_grp * 1000.0
             geom = {"dir2": (cy, cx * cy**3 / 12.0, l0_2),
                     "dir3": (cx, cy * cx**3 / 12.0, l0_3)}
             # Tối ưu: dựng EC2Capacity 1 lần cho cả nhóm,
