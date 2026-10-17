@@ -5175,14 +5175,7 @@ class App(tk.Tk):
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
             ax.set_axisbelow(True)
-            # Chỉ hiện nửa có tải (Mα >= 0, N >= 0), giữ khi đổi góc xem
-            try:
-                _xmax = max(m_pos) if m_pos else 0
-                ax.set_xlim(left=0, right=_xmax*1.05)
-                _ymax = max(n_pos) if n_pos else 0
-                ax.set_ylim(bottom=0, top=_ymax*1.05)
-            except:
-                pass
+
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             for sp in ("left", "bottom"):
