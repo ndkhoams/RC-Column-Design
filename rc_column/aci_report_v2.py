@@ -240,7 +240,6 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                 _beta_lines = [f"βdns = {_f(_beta, 3)} (từ {_bs})"]
         else:
             _beta_lines = [f"βdns = {_f(_beta, 3)} (mặc định)"]
-        delta_ns = max(_dl2, _dl3)
         _cards5 = [
             _mk("Tải trọng tới hạn Euler Pc",
                 "ACI 6.6.4.4.2",
@@ -264,15 +263,15 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                  f"= {_f(_dl2, 3)}",
                  f"δns3 = {_f(_cm3, 3)} / [1 - {_f(abs(N), 1)}/(0.75×{_f(_pc3, 0)})]",
                  f"= {_f(_dl3, 3)}"],
-                f"δns = {_f(delta_ns, 3)}"),
+                ""),
             _mk("Mô men sau phóng đại",
                 "ACI 6.6.4.5.1",
-                [f"M2* = δns · M2",
-                 f"= {_f(delta_ns, 3)} × {_f(M2, 1)}",
-                 f"= {_f(M2*delta_ns, 1)} kN·m",
-                 f"M3* = δns · M3",
-                 f"= {_f(delta_ns, 3)} × {_f(M3, 1)}",
-                 f"= {_f(M3*delta_ns, 1)} kN·m"],
+                [f"M2* = δns2 · M2",
+                 f"= {_f(_dl2, 3)} × {_f(M2, 1)}",
+                 f"= {_f(M2*_dl2, 1)} kN·m",
+                 f"M3* = δns3 · M3",
+                 f"= {_f(_dl3, 3)} × {_f(M3, 1)}",
+                 f"= {_f(M3*_dl3, 1)} kN·m"],
                 ""),
         ]
     else:
