@@ -3029,6 +3029,19 @@ class App(tk.Tk):
             _dw3 = _mmw3.get("delta_ns", 1.0) if _mmw3.get("ok") else 1.0
             self._aci_mm = {"Mc2": _dw2 * worst_f.Mx,
                             "Mc3": _dw3 * worst_f.My}
+            # Cập nhật _aci_inp/_aci_res cho worst case để PDF chi tiết dùng
+            _inp_worst = self.collect()
+            _inp_worst.N = worst_f.N
+            _inp_worst.Mx = worst_f.Mx
+            _inp_worst.My = worst_f.My
+            _inp_worst.Q2 = worst_f.Q2
+            _inp_worst.Q3 = worst_f.Q3
+            self._aci_inp = _inp_worst
+            # Dùng worst_r (đã tính với mô men phóng đại) cho biểu đồ
+            self._aci_res = worst_r
+            # Lưu case info cho PDF
+            self._pdf_case = (f"[{worst_f.story}, {worst_f.column}, "
+                              f"{worst_f.case}@{worst_f.station:.2f}]")
         except Exception:
             pass
         children = self.etabs_tree.get_children()
@@ -3523,6 +3536,18 @@ class App(tk.Tk):
                     pass
                 return None
             pngs = _get_pngs()
+            # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu hiện tại
+            # (tránh dùng hình GUI cũ sai mô men phóng đại)
+            if not is_summary:
+                try:
+                    from rc_column.aci_pdf_summary import _aci_charts_png
+                    _mmc = getattr(self, "_aci_mm", None) or {}
+                    pngs = _aci_charts_png(
+                        self._aci_sec, self._aci_conc, self._aci_steel,
+                        self._aci_res, self._aci_inp, self._aci_tied,
+                        mc2=_mmc.get("Mc2"), mc3=_mmc.get("Mc3"))
+                except Exception:
+                    pass
             if is_summary:
                 from rc_column.aci_pdf_summary import export_aci_summary_pdf
                 export_aci_summary_pdf(
@@ -3562,6 +3587,18 @@ class App(tk.Tk):
                     pass
                 return None
             pngs = _get_pngs()
+            # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu hiện tại
+            # (tránh dùng hình GUI cũ sai mô men phóng đại)
+            if not is_summary:
+                try:
+                    from rc_column.aci_pdf_summary import _aci_charts_png
+                    _mmc = getattr(self, "_aci_mm", None) or {}
+                    pngs = _aci_charts_png(
+                        self._aci_sec, self._aci_conc, self._aci_steel,
+                        self._aci_res, self._aci_inp, self._aci_tied,
+                        mc2=_mmc.get("Mc2"), mc3=_mmc.get("Mc3"))
+                except Exception:
+                    pass
             if is_summary:
                 from rc_column.ec2_pdf_summary import export_ec2_summary_pdf
                 _fyk_sw = None
