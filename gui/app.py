@@ -4516,20 +4516,13 @@ class App(tk.Tk):
             fig = Figure(figsize=figsize, dpi=100)
             cv = FigureCanvasTkAgg(fig, master=parent)
             _w = cv.get_tk_widget()
-            # Bỏ viền highlight khi click chọn canvas:
-            # chặn focus ngay từ bindtags (trước class binding của tkinter)
+            # takefocus=0 ngăn canvas chiếm focus (đủ để cuộn chuột
+            # hoạt động); KHÔNG chặn ButtonPress/Release để biểu đồ
+            # 3D xoay được bằng kéo chuột
             try:
                 _w.configure(highlightthickness=0, takefocus=0,
                              highlightbackground="white", highlightcolor="white",
                              borderwidth=0)
-                _bt = list(_w.bindtags())
-                _block = "NoFocus%d" % id(_w)
-                _w.bind_class(_block, "<ButtonPress>",
-                              lambda e: "break")
-                _w.bind_class(_block, "<ButtonRelease>",
-                              lambda e: "break")
-                _bt.insert(1, _block)
-                _w.bindtags(tuple(_bt))
             except Exception:
                 pass
             _w.pack(fill=tk.BOTH, expand=True)
