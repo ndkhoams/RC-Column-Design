@@ -83,12 +83,6 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white", markersize=max(4.0, dia * 0.22),
             label=f"d{dia:.0f}"))
-    if legend_handles:
-        leg = ax.legend(handles=legend_handles, loc="upper center",
-                        bbox_to_anchor=(0.5, 1.05), ncol=len(legend_handles),
-                        frameon=False, fontsize=8)
-        for txt in leg.get_texts():
-            txt.set_fontweight("bold")
     # Trục t2/t3 vượt ra khỏi đường bao để thấy text
     alen = max(cx, cy) * 0.62
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
@@ -99,6 +93,15 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
             weight="bold", va="center", ha="left")
     ax.text(0, alen * 1.08, "t3", fontsize=9, color="#1D4ED8",
             weight="bold", va="bottom", ha="center")
+    # Legend thép: vị trí tương đối từ t3 (cao hơn 0.17*alen), căn giữa
+    if legend_handles:
+        leg = ax.legend(handles=legend_handles, loc="upper center",
+                        bbox_to_anchor=(0, alen * 1.25),
+                        bbox_transform=ax.transData,
+                        ncol=len(legend_handles),
+                        frameon=False, fontsize=8)
+        for txt in leg.get_texts():
+            txt.set_fontweight("bold")
     # Dim t3 (dưới đáy), t2 (bên trái)
     if show_dims and sec.kind == "rect":
         doff = max(cx, cy) * 0.10
@@ -150,7 +153,8 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     # Giới hạn trục + tỉ lệ (đủ chỗ cho trục t2/t3 vượt ra)
     m = max(cx, cy) * 0.30
     ax.set_xlim(-cx/2 - m, cx/2 + m)
-    ax.set_ylim(-cy/2 - m, cy/2 + m * 1.35)
+    # Top đủ chứa legend thép ở alen*1.25 = max*0.775
+    ax.set_ylim(-cy/2 - m, max(cy/2 + m * 1.35, max(cx, cy) * 0.85))
     ax.set_aspect("equal")
     ax.set_xticks([])
     ax.set_yticks([])
