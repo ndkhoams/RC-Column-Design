@@ -1946,7 +1946,7 @@ class App(tk.Tk):
             tree.insert("", "end", values=(a, b, c),
                         tags=("odd",) if i % 2 else ())
         ok_txt = "ĐẠT" if aci_res["ok"] else "KHÔNG ĐẠT"
-        fs_txt = (f"{aci_res['fs']:.2f}"
+        fs_txt = (f"{aci_res.get('fs', 0):.2f}"
                   if math.isfinite(aci_res.get("fs", 0)) else "∞")
         tree.insert("", "end",
                     values=("D/C", "Tỷ số sử dụng khả năng chịu lực",
@@ -2065,7 +2065,7 @@ class App(tk.Tk):
         okt = "ĐẠT" if aci_res["ok"] else "KHÔNG ĐẠT"
         bgc = "#D1FAE5" if aci_res["ok"] else "#FEE2E2"
         fgc = "#065F46" if aci_res["ok"] else "#991B1B"
-        fs_txt = (f"{aci_res['fs']:.2f}"
+        fs_txt = (f"{aci_res.get('fs', 0):.2f}"
                   if math.isfinite(aci_res.get("fs", 0)) else "∞")
         tk.Label(r1, text=f"  D/C = {aci_res['dc']:.3f} (FS = {fs_txt}) → {okt}  ",
                  font=("", 10, "bold"), fg=fgc,
