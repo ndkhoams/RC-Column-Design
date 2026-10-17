@@ -2956,6 +2956,14 @@ class App(tk.Tk):
                 rows.append((_f, _r))
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
+        # Thêm các dòng TDTX_ vào cuối (không tính D/C)
+        try:
+            _tdtx = [f for f in self.etabs_forces
+                     if f.case.strip().startswith("TDTX_")]
+            for _f in _tdtx:
+                rows.append((_f, None))
+        except Exception:
+            pass
         self._fill_etabs_table(rows)
         worst_f, worst_r = rows[0]
         children = self.etabs_tree.get_children()
@@ -3098,6 +3106,14 @@ class App(tk.Tk):
                 rows.append((_f, _r))
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
+        # Thêm các dòng TDTX_ vào cuối (không tính D/C)
+        try:
+            _tdtx = [f for f in self.etabs_forces
+                     if f.case.strip().startswith("TDTX_")]
+            for _f in _tdtx:
+                rows.append((_f, None))
+        except Exception:
+            pass
         self._fill_etabs_table(rows)
         worst_f, worst_r = rows[0]
         children = self.etabs_tree.get_children()
@@ -3197,6 +3213,14 @@ class App(tk.Tk):
         # sắp xếp theo D/C giảm dần (nguy hiểm nhất lên đầu)
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
+        # Thêm các dòng TDTX_ vào cuối (không tính D/C)
+        try:
+            _tdtx = [f for f in self.etabs_forces
+                     if f.case.strip().startswith("TDTX_")]
+            for _f in _tdtx:
+                rows.append((_f, None))
+        except Exception:
+            pass
         # highlight dòng nguy hiểm nhất (dòng đầu sau sắp xếp)
         self._fill_etabs_table(rows)
         worst_f, worst_r = rows[0]
