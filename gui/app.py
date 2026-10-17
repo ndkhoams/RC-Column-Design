@@ -3066,10 +3066,14 @@ class App(tk.Tk):
             from rc_column.aci_checker import moment_magnification as _mmf
             from rc_column.stability import effective_length as _elf
             _inpw = self.collect()
-            _Lw = _L_manual if _L_manual > 0 else worst_f.station
+            # L riêng từng phương: ưu tiên ô nhập tay, nếu không dùng station ETABS
+            _Lx_man = self._f(self.en_Lx, 0.0)
+            _Ly_man = self._f(self.en_Ly, 0.0)
+            _Lw2 = _Lx_man if _Lx_man > 0 else worst_f.station
+            _Lw3 = _Ly_man if _Ly_man > 0 else worst_f.station
             _secw = build_section(_inpw)
-            _L0w2 = _elf(_Lw, _inpw.top_x, _inpw.bottom_x, _inpw.psi_x) * 1000
-            _L0w3 = _elf(_Lw, _inpw.top_y, _inpw.bottom_y, _inpw.psi_y) * 1000
+            _L0w2 = _elf(_Lw2, _inpw.top_x, _inpw.bottom_x, _inpw.psi_x) * 1000
+            _L0w3 = _elf(_Lw3, _inpw.top_y, _inpw.bottom_y, _inpw.psi_y) * 1000
             _Igw2 = _secw.cx * _secw.cy**3 / 12
             _Igw3 = _secw.cy * _secw.cx**3 / 12
             _mmw2 = _mmf(Pu_kN=worst_f.N, M1_kNm=worst_f.Mx, M2_kNm=worst_f.Mx,
