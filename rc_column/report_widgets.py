@@ -718,12 +718,22 @@ def render_report_sections(parent, sections, chart_figs=None):
                 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
                 chart_frame = tk.Frame(parent, bg=WHITE)
                 chart_frame.pack(fill=tk.X, padx=8, pady=8)
-                for fig in chart_figs:
+                chart_frame.columnconfigure(0, weight=1)
+                chart_frame.columnconfigure(1, weight=1)
+                _titles = ("Biểu đồ tương tác N-Mα", "Biểu đồ tương tác M2-M3")
+                for col, fig in enumerate(chart_figs):
                     if fig is not None:
-                        cv = FigureCanvasTkAgg(fig, master=chart_frame)
+                        # Frame có viền giống TCVN, với tiêu đề căn giữa phía trên
+                        cf = tk.Frame(chart_frame, bg=WHITE,
+                                      highlightbackground=BORDER, highlightthickness=1,
+                                      highlightcolor=BORDER, bd=0, padx=8, pady=8)
+                        cf.grid(row=0, column=col, sticky="nsew", padx=4)
+                        _t = _titles[col] if col < len(_titles) else ""
+                        tk.Label(cf, text=_t, font=("", 10, "bold"),
+                                 fg=TEXT, bg=WHITE).pack(pady=(0, 4))
+                        cv = FigureCanvasTkAgg(fig, master=cf)
                         cv.draw()
-                        cv.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH,
-                                                expand=True, padx=4)
+                        cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             except Exception:
                 pass
 
