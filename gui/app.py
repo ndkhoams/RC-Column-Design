@@ -3057,10 +3057,15 @@ class App(tk.Tk):
                          Ig_mm4=_Igw3, beta_dns=_betaw)
             _dw2 = _mmw2.get("delta_ns", 1.0) if _mmw2.get("ok") else 1.0
             _dw3 = _mmw3.get("delta_ns", 1.0) if _mmw3.get("ok") else 1.0
+            # beta_src để report diễn giải (TDTX_ hay mặc định)
+            _bsrc = "mặc định"
+            if _n_dnsw is not None:
+                _bsrc = f"TDTX_ ({_n_dnsw:.0f}/{worst_f.N:.0f})"
             self._aci_mm = {"Mc2": _dw2 * worst_f.Mx,
                             "Mc3": _dw3 * worst_f.My,
                             "delta2": _dw2, "delta3": _dw3,
-                            "dir2": _mmw2, "dir3": _mmw3}
+                            "dir2": _mmw2, "dir3": _mmw3,
+                            "beta_src": _bsrc}
             # Lưu sec/conc/steel/tied để vẽ biểu đồ PDF
             self._aci_sec = _secw
             self._aci_conc = conc
