@@ -4,13 +4,6 @@ Phần mềm kiểm tra khả năng chịu lực cột bê tông cốt thép ti�
 chịu **nén uốn xiên** (N + Mx + My) theo **mô hình biến dạng phi tuyến (NDM)** —
 Điều 8.1.2.7, TCVN 5574:2018.
 
-Tham khảo giao diện & phạm vi từ công cụ
-[Kiểm tra cột BTCT — VietconSoft](https://vietcons.org/cong-cu/kiem-tra-cot-btct)
-và phương pháp trong bài báo
-["Xác định khả năng chịu lực của cột BTCT sử dụng các mô hình vật liệu phi tuyến
-của TCVN 5574:2018"](https://stce.huce.edu.vn/index.php/vn/article/view/1709/928)
-(Tạp chí KHCN Xây dựng, NUCE 2020).
-
 ## Tính năng
 
 - Vật liệu: bê tông B15–B60, thép CB240-T / CB300-V / CB400-V / CB500-V,
