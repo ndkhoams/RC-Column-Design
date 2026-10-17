@@ -4190,9 +4190,9 @@ class App(tk.Tk):
             # Debug: kiểm tra Tk bindings
             try:
                 _w = fig.canvas.get_tk_widget()
-                for _seq in ('<ButtonPress-1>', '<B1-Motion>', '<ButtonRelease-1>'):
+                for _seq in ('<ButtonPress-1>', '<Motion>', '<ButtonRelease-1>', '<B1-Motion>'):
                     _b = _w.bind(_seq)
-                    print(f"[3D-TK] {_seq}: {'CÓ' if _b else 'KHÔNG'} -> {str(_b)[:80]}")
+                    print(f"[3D-TK] {_seq}: {'CÓ' if _b else 'KHÔNG'}")
             except Exception as _e:
                 print(f"[3D-TK] Error: {_e}")
             sec = getattr(self, '_aci_sec', None)
