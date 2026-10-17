@@ -510,10 +510,11 @@ class App(tk.Tk):
     # Độ rộng chuẩn cho cột label (để các ô nhập thẳng hàng dọc)
     _LBL_WIDTH = 32
 
-    def _row(self, parent, label, widget, r, c0=0):
+    def _row(self, parent, label, widget, r, c0=0, lbl_width=None):
         # Label xám nhỏ, độ rộng cố định để ô nhập thẳng hàng
+        _w = lbl_width if lbl_width is not None else self._LBL_WIDTH
         lbl = ttk.Label(parent, text=label, style="Muted.TLabel",
-                        width=self._LBL_WIDTH, anchor=tk.W)
+                        width=_w, anchor=tk.W)
         lbl.grid(row=r, column=c0, sticky=tk.W, padx=(4, 8), pady=5)
         widget.grid(row=r, column=c0 + 1, sticky=tk.EW, padx=4, pady=5)
         parent.columnconfigure(c0 + 1, weight=1)
@@ -645,20 +646,20 @@ class App(tk.Tk):
                                  padx=4, pady=4)
         self.dxf_info_label.grid_remove()  # mặc định ẩn
         self.en_cy = ttk.Entry(dim_box, width=12); self.en_cy.insert(0, "400")
-        self._row(dim_box, "Cạnh t2 (mm) — đứng", self.en_cy, 0)
+        self._row(dim_box, "Cạnh t2 (mm) — đứng", self.en_cy, 0, lbl_width=20)
         self.en_cx = ttk.Entry(dim_box, width=12); self.en_cx.insert(0, "400")
-        self._row(dim_box, "Cạnh t3 (mm) — ngang", self.en_cx, 1)
+        self._row(dim_box, "Cạnh t3 (mm) — ngang", self.en_cx, 1, lbl_width=20)
         # Ô đường kính cho tiết diện tròn (hiện thay dim_box khi chọn Tròn)
         dia_box = ttk.Frame(fr)
         dia_box.grid(row=0, column=0, sticky=tk.NSEW)
         self.sec_dia_frame = dia_box
         self.en_dia = ttk.Entry(dia_box, width=12); self.en_dia.insert(0, "600")
-        self._row(dia_box, "Đường kính D (mm)", self.en_dia, 0)
+        self._row(dia_box, "Đường kính D (mm)", self.en_dia, 0, lbl_width=20)
         dia_box.grid_remove()  # mặc định ẩn (chỉ hiện khi chọn Tròn)
         self.en_dia.bind("<FocusOut>", lambda e: self._refresh_rebar())
         # Hàng loại tiết diện: combobox gọn, không giãn full
         ttk.Label(fl, text="Loại tiết diện", style="Muted.TLabel",
-                  width=self._LBL_WIDTH, anchor=tk.W).grid(
+                  width=16, anchor=tk.W).grid(
                       row=0, column=0, sticky=tk.W, padx=(4, 8), pady=5)
         self.cb_kind = ttk.Combobox(fl, values=["Chữ nhật", "Tròn",
                                                  "Tiết diện bất kỳ (DXF)"],
@@ -718,7 +719,7 @@ class App(tk.Tk):
         self.sp_e2n.pack(side=tk.LEFT)
         ttk.Label(fr2, text="– d").pack(side=tk.LEFT, padx=2)
         self.cb_e2d.pack(side=tk.LEFT)
-        self._row(rr, "Thép cạnh t2 (2 mặt trái/phải)", fr2, r)
+        self._row(rr, "Thép cạnh t2 (2 mặt trái/phải)", fr2, r, lbl_width=26)
         r += 1
         # Thép cạnh t3
         fr3 = ttk.Frame(rr)
@@ -729,7 +730,7 @@ class App(tk.Tk):
         self.sp_e3n.pack(side=tk.LEFT)
         ttk.Label(fr3, text="– d").pack(side=tk.LEFT, padx=2)
         self.cb_e3d.pack(side=tk.LEFT)
-        self._row(rr, "Thép cạnh t3 (2 mặt trên/dưới)", fr3, r)
+        self._row(rr, "Thép cạnh t3 (2 mặt trên/dưới)", fr3, r, lbl_width=26)
         r += 1
         # Toggle 2 lớp thép
         tog = tk.Frame(rr, bg="white")
