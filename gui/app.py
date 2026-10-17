@@ -4223,12 +4223,39 @@ class App(tk.Tk):
             pass
 
     def _on_aci_3d_view(self):
-        """Cập nhật góc nhìn 3D ACI từ slider (vẽ lại hoàn toàn)."""
+        """Cập nhật góc nhìn 3D ACI từ slider (tạo lại widget)."""
         try:
-            # Lưu góc nhìn mong muốn
             self._aci_3d_elev = self._aci_elev_var.get()
             self._aci_3d_azim = self._aci_azim_var.get()
-            # Vẽ lại 3D với góc mới
+            # Tạo lại hoàn toàn figure + canvas widget
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            _old_cv = getattr(self, '_aci_nm_cv_ref', None)
+            if _old_cv is not None:
+                try:
+                    _parent = _old_cv.get_tk_widget().master
+                    _old_cv.get_tk_widget().destroy()
+                except Exception:
+                    _parent = None
+                    _old_cv = None
+            else:
+                _parent = None
+            if _parent is None:
+                # Fallback: vẽ lại thường
+                self._draw_3d_aci()
+                return
+            _fig = Figure(figsize=(5.2, 3.9), dpi=100)
+            _cv = FigureCanvasTkAgg(_fig, master=_parent)
+            _w = _cv.get_tk_widget()
+            try:
+                _w.configure(highlightthickness=0, takefocus=0,
+                             highlightbackground="white",
+                             highlightcolor="white", borderwidth=0)
+            except Exception:
+                pass
+            _w.pack(fill=tk.BOTH, expand=True)
+            self._aci_nm_fig = _fig
+            self._aci_nm_cv_ref = _cv
             self._draw_3d_aci()
         except Exception:
             pass
