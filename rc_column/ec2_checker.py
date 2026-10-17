@@ -629,7 +629,7 @@ def ec2_shear_check(bw_mm: float, d_mm: float, Ac_mm2: float,
                 "VRd_s_kN": 0.0, "VRd_kN": VRd_max,
                 "ok": False, "Asw_s_req": float("inf"),
                 "k": k, "rho_l": rho_l, "sigma_cp": sigma_cp,
-                "vmin": vmin, "z_mm": z,
+                "vmin": vmin, "z_mm": z, "bw_mm": bw_mm, "d_mm": d_mm,
                 "reason": "VEd > VRd,max: vượt khả năng thanh chống nén"}
 
     if VEd_kN <= VRd_c:
@@ -638,7 +638,8 @@ def ec2_shear_check(bw_mm: float, d_mm: float, Ac_mm2: float,
                 "VRd_s_kN": 0.0, "VRd_kN": VRd_c,
                 "ok": True, "Asw_s_req": 0.0,
                 "k": k, "rho_l": rho_l, "sigma_cp": sigma_cp,
-                "vmin": vmin, "z_mm": z, "reason": ""}
+                "vmin": vmin, "z_mm": z, "bw_mm": bw_mm, "d_mm": d_mm,
+                "reason": ""}
 
     # Cần cốt đai: Asw/s yêu cầu
     Asw_s_req = (VEd_kN * 1000.0) / (z * fyd_MPa * cot) \
@@ -651,7 +652,7 @@ def ec2_shear_check(bw_mm: float, d_mm: float, Ac_mm2: float,
             "ok": ok, "Asw_s_req": Asw_s_req,
             "k": k, "rho_l": rho_l, "sigma_cp": sigma_cp,
             "vmin": vmin, "z_mm": z,
-            "reason": "" if ok else "Thiếu cốt đai chịu cắt"}
+            "reason": "" if ok else "Thiếu cốt đai chịu cắt", "bw_mm": bw_mm, "d_mm": d_mm}
 
 
 # ---------------------------------------------------------------------------

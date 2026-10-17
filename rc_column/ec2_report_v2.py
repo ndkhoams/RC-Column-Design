@@ -259,11 +259,12 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         deff = d.get("d_mm", 0.0) or 0.0
         k = d.get("k", 0.0) or 0.0
         rho = d.get("rho_l", 0.0) or 0.0
+        scp = d.get("sigma_cp", 0.0) or 0.0
         _lines = [f"VEd = {_f(VEd, 1)} kN",
-                  f"VRd,c = [0.12·k·(100·ρl·fck)^(1/3)]·bw·d",
-                  f"= [0.12×{_f(k, 2)}×(100×{_f(rho, 4)}×{_f(fck, 0)})^(1/3)]×{_f(bw, 0)}×{_f(deff, 0)}/1000",
+                  f"VRd,c = [CRd,c·k·(100·ρl·fck)^(1/3) + k1·σcp]·bw·d",
+                  f"= [0.12×{_f(k, 2)}×(100×{_f(rho, 4)}×{_f(fck, 0)})^(1/3) + 0.15×{_f(scp, 2)}]×{_f(bw, 0)}×{_f(deff, 0)}/1000",
                   f"= {_f(VRd_c, 1)} kN",
-                  f"VRd,max = αcw·bw·z·ν1·fcd/2 = {_f(VRd_max, 1)} kN"]
+                  f"VRd,max = αcw·bw·z·ν1·fcd/(cotθ+tanθ) = {_f(VRd_max, 1)} kN"]
         if VRd_s > 0:
             _lines.append(f"VRd,s = Asw/s·z·fyd·cotθ = {_f(VRd_s, 1)} kN")
         _VRd = max(VRd_c, VRd_s)
