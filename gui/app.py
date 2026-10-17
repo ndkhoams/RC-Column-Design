@@ -1,12 +1,3 @@
-"""Giao diện kiểm tra cột BTCT theo mẫu VietconSoft.
-
-Bố cục:
- 1. Vật liệu | 2. Tiết diện | 3. Bố trí cốt thép dọc | 4. Chiều dài tính toán
- 5. Nội lực kiểm tra
-Kết quả: trạng thái ĐẠT/KHÔNG ĐẠT, sơ đồ tiết diện, biểu đồ tương tác,
-         thuyết minh tính toán chi tiết.
-"""
-
 # Thời điểm build: lấy từ build_info.py (do build_exe.py sinh khi đóng gói).
 try:
     from build_info import BUILD_TIME as APP_BUILD
