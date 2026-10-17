@@ -63,7 +63,7 @@ def _aci_charts_png(sec, conc, steel, aci_res, inp, tied):
     import matplotlib.pyplot as plt
     out = []
     for draw_fn in (draw_aci_nm_alpha_ax, draw_aci_m2m3_ax):
-        fig = plt.figure(figsize=(5.0, 5.0))
+        fig = plt.figure(figsize=(3.2, 3.2))
         ax = fig.add_subplot(111)
         draw_fn(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My,
                 tied=tied)
