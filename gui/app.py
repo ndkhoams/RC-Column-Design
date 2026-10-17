@@ -298,16 +298,17 @@ class App(tk.Tk):
                    command=self.on_save_as_data).grid(row=0, column=2,
                                                       sticky=tk.EW,
                                                       padx=(2, 2))
-        ttk.Button(top_grid, text="XUẤT PDF", style="Top.TButton",
-                   command=self._export_pdf).grid(row=0, column=3,
-                                                  sticky=tk.EW, padx=(4, 0))
+        ttk.Button(top_grid, text="✓ CHECK", style="Check.TButton",
+                   command=self.on_check).grid(row=0, column=3,
+                                               sticky=tk.EW, padx=(4, 0))
         # Hàng 2: Tiêu chuẩn [dropdown dài] Tên cấu kiện [textbox=col2] [CHECK=col3]
         # (theo yêu cầu user 2026-10-17: textbox bằng SAVE AS, CHECK bằng XUẤT PDF)
         row2 = ttk.Frame(top_grid)
         row2.grid(row=1, column=0, columnspan=4, sticky=tk.EW,
                   padx=0, pady=(6, 0))
-        for _c in range(4):
-            row2.columnconfigure(_c, weight=1, uniform="row2cols")
+        row2.columnconfigure(0, weight=0)
+        row2.columnconfigure(1, weight=0)
+        row2.columnconfigure(2, weight=1)
         # Cột 0-1: Tiêu chuẩn + dropdown dài
         _std_frame = ttk.Frame(row2)
         _std_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW, padx=(0, 2))
@@ -319,7 +320,7 @@ class App(tk.Tk):
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
         self.cb_code.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
-        # Cột 2: Tên cấu kiện + textbox (rộng bằng nút SAVE AS)
+        # Cột 2: Tên cấu kiện + textbox giãn hết phần còn lại
         _name_frame = ttk.Frame(row2)
         _name_frame.grid(row=0, column=2, sticky=tk.EW, padx=2)
         ttk.Label(_name_frame, text="Tên cấu kiện:",
@@ -329,10 +330,7 @@ class App(tk.Tk):
         self.member_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         # Cập nhật hiển thị tên cấu kiện khi gõ
         self.member_var.trace_add("write", lambda *a: self._update_ck())
-        ttk.Button(row2, text="✓ CHECK",
-                   style="Check.TButton",
-                   command=self.on_check).grid(row=0, column=3, sticky=tk.EW,
-                                              padx=(2, 0))
+
         # Vùng cuộn
         scroll_area = ttk.Frame(left_outer)
         scroll_area.pack(fill=tk.BOTH, expand=True)
@@ -386,6 +384,11 @@ class App(tk.Tk):
                                         style="Top.TButton",
                                         command=lambda: self._show_tab("calc"))
         self._tab_btn_calc.pack(side=tk.LEFT)
+        # Nút XUẤT PDF chuyển từ hàng trên sang đây
+        self._btn_pdf_tab = ttk.Button(_tab_bar, text="IN PDF",
+                                       style="Top.TButton",
+                                       command=self._export_pdf)
+        self._btn_pdf_tab.pack(side=tk.LEFT, padx=(4, 0))
         # Container chứa 2 tab (thay Notebook)
         _tab_container = ttk.Frame(right)
         _tab_container.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
