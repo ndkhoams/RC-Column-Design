@@ -1965,22 +1965,7 @@ class App(tk.Tk):
         self._aci_nm_angle_cb.bind("<<ComboboxSelected>>",
                                    self._on_aci_nm_angle_changed)
         self._aci_nm_view_angle = None  # None = góc tải mặc định
-        # Điều khiển xoay 3D thủ công (hiện khi chọn 3D)
-        self._aci_3d_ctrl = tk.Frame(right, bg="white")
-        tk.Label(self._aci_3d_ctrl, text="Nghiêng:", font=("", 8),
-                 bg="white").pack(side=tk.LEFT)
-        self._aci_elev_var = tk.DoubleVar(value=20)
-        tk.Scale(self._aci_3d_ctrl, from_=-90, to=90, orient=tk.HORIZONTAL,
-                 variable=self._aci_elev_var, length=80, font=("", 7),
-                 bg="white", highlightthickness=0,
-                 command=lambda v: self._on_aci_3d_view()).pack(side=tk.LEFT)
-        tk.Label(self._aci_3d_ctrl, text="Xoay:", font=("", 8),
-                 bg="white").pack(side=tk.LEFT)
-        self._aci_azim_var = tk.DoubleVar(value=-60)
-        tk.Scale(self._aci_3d_ctrl, from_=-180, to=180, orient=tk.HORIZONTAL,
-                 variable=self._aci_azim_var, length=80, font=("", 7),
-                 bg="white", highlightthickness=0,
-                 command=lambda v: self._on_aci_3d_view()).pack(side=tk.LEFT)
+
 
     def _on_aci_nm_angle_changed(self, event=None):
         """Vẽ lại biểu đồ N-Mα (ACI) tại góc được chọn."""
@@ -1988,15 +1973,7 @@ class App(tk.Tk):
             sel = self._aci_nm_angle_cb.get()
             if sel == "3D":
                 self._draw_3d_aci()
-                try:
-                    self._aci_3d_ctrl.pack(side=tk.LEFT, padx=(8, 0))
-                except Exception:
-                    pass
                 return
-            try:
-                self._aci_3d_ctrl.pack_forget()
-            except Exception:
-                pass
             if sel.startswith("α"):
                 angle = None
             else:
@@ -2455,22 +2432,7 @@ class App(tk.Tk):
         self._ec2_nm_angle_cb.bind("<<ComboboxSelected>>",
                                    self._on_ec2_nm_angle_changed)
         self._ec2_nm_view_angle = None  # None = góc tải mặc định
-        # Điều khiển xoay 3D thủ công (hiện khi chọn 3D)
-        self._ec2_3d_ctrl = tk.Frame(right, bg="white")
-        tk.Label(self._ec2_3d_ctrl, text="Nghiêng:", font=("", 8),
-                 bg="white").pack(side=tk.LEFT)
-        self._ec2_elev_var = tk.DoubleVar(value=20)
-        tk.Scale(self._ec2_3d_ctrl, from_=-90, to=90, orient=tk.HORIZONTAL,
-                 variable=self._ec2_elev_var, length=80, font=("", 7),
-                 bg="white", highlightthickness=0,
-                 command=lambda v: self._on_ec2_3d_view()).pack(side=tk.LEFT)
-        tk.Label(self._ec2_3d_ctrl, text="Xoay:", font=("", 8),
-                 bg="white").pack(side=tk.LEFT)
-        self._ec2_azim_var = tk.DoubleVar(value=-60)
-        tk.Scale(self._ec2_3d_ctrl, from_=-180, to=180, orient=tk.HORIZONTAL,
-                 variable=self._ec2_azim_var, length=80, font=("", 7),
-                 bg="white", highlightthickness=0,
-                 command=lambda v: self._on_ec2_3d_view()).pack(side=tk.LEFT)
+
 
     def _on_ec2_nm_angle_changed(self, event=None):
         """Vẽ lại biểu đồ N-Mα (EC2) tại góc được chọn."""
@@ -2478,15 +2440,7 @@ class App(tk.Tk):
             sel = self._ec2_nm_angle_cb.get()
             if sel == "3D":
                 self._draw_3d_ec2()
-                try:
-                    self._ec2_3d_ctrl.pack(side=tk.LEFT, padx=(8, 0))
-                except Exception:
-                    pass
                 return
-            try:
-                self._ec2_3d_ctrl.pack_forget()
-            except Exception:
-                pass
             if sel.startswith("α"):
                 angle = None
             else:
@@ -4222,44 +4176,6 @@ class App(tk.Tk):
         except Exception:
             pass
 
-    def _on_aci_3d_view(self):
-        """Cập nhật góc nhìn 3D ACI từ slider (tạo lại widget)."""
-        try:
-            self._aci_3d_elev = self._aci_elev_var.get()
-            self._aci_3d_azim = self._aci_azim_var.get()
-            # Tạo lại hoàn toàn figure + canvas widget
-            from matplotlib.figure import Figure
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-            _old_cv = getattr(self, '_aci_nm_cv_ref', None)
-            if _old_cv is not None:
-                try:
-                    _parent = _old_cv.get_tk_widget().master
-                    _old_cv.get_tk_widget().destroy()
-                except Exception:
-                    _parent = None
-                    _old_cv = None
-            else:
-                _parent = None
-            if _parent is None:
-                # Fallback: vẽ lại thường
-                self._draw_3d_aci()
-                return
-            _fig = Figure(figsize=(5.2, 3.9), dpi=100)
-            _cv = FigureCanvasTkAgg(_fig, master=_parent)
-            _w = _cv.get_tk_widget()
-            try:
-                _w.configure(highlightthickness=0, takefocus=0,
-                             highlightbackground="white",
-                             highlightcolor="white", borderwidth=0)
-            except Exception:
-                pass
-            _w.pack(fill=tk.BOTH, expand=True)
-            self._aci_nm_fig = _fig
-            self._aci_nm_cv_ref = _cv
-            self._draw_3d_aci()
-        except Exception:
-            pass
-
     def _draw_3d_aci(self):
         """Vẽ biểu đồ tương tác 3D cho ACI."""
         try:
@@ -4332,42 +4248,6 @@ class App(tk.Tk):
             print(f"Lỗi vẽ 3D ACI: {ex}")
             import traceback
             traceback.print_exc()
-
-    def _on_ec2_3d_view(self):
-        """Cập nhật góc nhìn 3D EC2 từ slider (tạo lại widget)."""
-        try:
-            self._ec2_3d_elev = self._ec2_elev_var.get()
-            self._ec2_3d_azim = self._ec2_azim_var.get()
-            from matplotlib.figure import Figure
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-            _old_cv = getattr(self, '_ec2_nm_cv_ref', None)
-            if _old_cv is not None:
-                try:
-                    _parent = _old_cv.get_tk_widget().master
-                    _old_cv.get_tk_widget().destroy()
-                except Exception:
-                    _parent = None
-                    _old_cv = None
-            else:
-                _parent = None
-            if _parent is None:
-                self._draw_3d_ec2()
-                return
-            _fig = Figure(figsize=(5.2, 3.9), dpi=100)
-            _cv = FigureCanvasTkAgg(_fig, master=_parent)
-            _w = _cv.get_tk_widget()
-            try:
-                _w.configure(highlightthickness=0, takefocus=0,
-                             highlightbackground="white",
-                             highlightcolor="white", borderwidth=0)
-            except Exception:
-                pass
-            _w.pack(fill=tk.BOTH, expand=True)
-            self._ec2_nm_fig = _fig
-            self._ec2_nm_cv_ref = _cv
-            self._draw_3d_ec2()
-        except Exception:
-            pass
 
     def _draw_3d_ec2(self):
         """Vẽ biểu đồ tương tác 3D cho EC2."""
