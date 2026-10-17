@@ -381,7 +381,8 @@ def moment_magnification(Pu_kN: float, M1_kNm: float, M2_kNm: float,
         ratio = M1_kNm / M2_kNm
     else:
         ratio = 0.0
-    Cm = Cm_input if Cm_input is not None else 0.6 - 0.4 * ratio
+    # ACI 6.6.4.5.3a: Cm = 0.6 - 0.4*(M1/M2) >= 0.4
+    Cm = Cm_input if Cm_input is not None else max(0.4, 0.6 - 0.4 * ratio)
 
     # EI hiệu dụng (ACI 6.6.4.4.4a): EI = 0.4*Ec*Ig/(1+beta_dns)
     EI_eff = 0.4 * Ec_MPa * Ig_mm4 / (1.0 + beta_dns)  # N.mm2
