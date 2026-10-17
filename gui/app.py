@@ -3002,6 +3002,35 @@ class App(tk.Tk):
             pass
         self._fill_etabs_table(rows)
         worst_f, worst_r = rows[0]
+        # Lưu Mc2, Mc3 (đã phóng đại) của TH nguy hiểm nhất để vẽ biểu đồ
+        try:
+            _keyw = (worst_f.story.strip(), worst_f.column.strip(),
+                     round(worst_f.station, 3), worst_f.case.strip())
+            _n_dnsw = _dns_map.get(_keyw, None)
+            _betaw = 0.6
+            if _n_dnsw is not None and abs(worst_f.N) > 1e-9:
+                _betaw = max(0.0, min(1.0, _n_dnsw / worst_f.N))
+            from rc_column.aci_checker import moment_magnification as _mmf
+            from rc_column.stability import effective_length as _elf
+            _inpw = self.collect()
+            _Lw = _L_manual if _L_manual > 0 else worst_f.station
+            _secw = build_section(_inpw)
+            _L0w2 = _elf(_Lw, _inpw.top_x, _inpw.bottom_x, _inpw.psi_x) * 1000
+            _L0w3 = _elf(_Lw, _inpw.top_y, _inpw.bottom_y, _inpw.psi_y) * 1000
+            _Igw2 = _secw.cx * _secw.cy**3 / 12
+            _Igw3 = _secw.cy * _secw.cx**3 / 12
+            _mmw2 = _mmf(Pu_kN=worst_f.N, M1_kNm=worst_f.Mx, M2_kNm=worst_f.Mx,
+                         lu_mm=_L0w2, k=1.0, Ec_MPa=conc.Ec,
+                         Ig_mm4=_Igw2, beta_dns=_betaw)
+            _mmw3 = _mmf(Pu_kN=worst_f.N, M1_kNm=worst_f.My, M2_kNm=worst_f.My,
+                         lu_mm=_L0w3, k=1.0, Ec_MPa=conc.Ec,
+                         Ig_mm4=_Igw3, beta_dns=_betaw)
+            _dw2 = _mmw2.get("delta_ns", 1.0) if _mmw2.get("ok") else 1.0
+            _dw3 = _mmw3.get("delta_ns", 1.0) if _mmw3.get("ok") else 1.0
+            self._aci_mm = {"Mc2": _dw2 * worst_f.Mx,
+                            "Mc3": _dw3 * worst_f.My}
+        except Exception:
+            pass
         children = self.etabs_tree.get_children()
         if children:
             self.etabs_tree.item(children[0], tags=("worst",))
