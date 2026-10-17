@@ -223,18 +223,28 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         _cm3 = _d3.get("Cm", 1.0) or 1.0
         _beta = _d2.get("beta_dns", 0.6)
         # Nguồn beta_dns: từ TDTX_ hay mặc định
-        _beta_src = ""
+        _beta_lines = []
         _bs = _mm.get("beta_src", "")
-        if _bs:
-            _beta_src = f" ({_bs})"
+        if _bs and "TDTX_" in _bs:
+            # _bs dạng "TDTX_ (926/943)"
+            import re as _re
+            _m = _re.search(r"\((\d+)/([\d.]+)\)", _bs)
+            if _m:
+                _n_sus, _n_tot = _m.group(1), _m.group(2)
+                _beta_lines = [
+                    "βdns = N_thường_xuyên / N_tính_toán",
+                    f"= {_n_sus} / {_n_tot}",
+                    f"= {_f(_beta, 3)}",
+                ]
+            else:
+                _beta_lines = [f"βdns = {_f(_beta, 3)} (từ {_bs})"]
         else:
-            _beta_src = " (mặc định)"
+            _beta_lines = [f"βdns = {_f(_beta, 3)} (mặc định)"]
         delta_ns = max(_dl2, _dl3)
         _cards5 = [
             _mk("Tải trọng tới hạn Euler Pc",
                 "ACI 6.6.4.4.2",
-                [f"EI = 0.4·Ec·Ig / (1 + βdns)",
-                 f"βdns = {_f(_beta, 3)}{_beta_src}",
+                [f"EI = 0.4·Ec·Ig / (1 + βdns)"] + _beta_lines + [
                  f"Pc = π²·EI / (k·lu)²",
                  f"Pc2 = {_f(_pc2, 0)} kN",
                  f"Pc3 = {_f(_pc3, 0)} kN"],
