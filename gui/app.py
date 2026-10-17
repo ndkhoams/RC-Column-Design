@@ -2855,9 +2855,9 @@ class App(tk.Tk):
         col_id = t.identify_column(event.x)
         if not row_id or not col_id:
             return
-        # Chỉ cho sửa cột N (1), M2 (2), M3 (3) - 0-based trong values
+        # Cho sửa N(4), V2(5), V3(6), M2(7), M3(8) - 0-based
         col_idx = int(col_id[1:]) - 1
-        if col_idx not in (1, 2, 3):
+        if col_idx not in (4, 5, 6, 7, 8):
             return
         # Lấy index dòng trong etabs_forces (theo thứ tự hiển thị)
         children = t.get_children()
@@ -2884,16 +2884,22 @@ class App(tk.Tk):
             except ValueError:
                 entry.destroy()
                 return
-            # Cập nhật etabs_forces theo row_pos
-            # (table có thể đã sắp xếp lại, tìm theo case+station)
-            case_station = vals[0]
+            # Cập nhật etabs_forces (tìm theo story+label+case+station)
+            _st, _lb, _cs, _sn = vals[0], vals[1], vals[2], vals[3]
             for f in self.etabs_forces:
-                if f"{f.case}@{f.station:.2f}" == case_station:
-                    if col_idx == 1:
+                if (f.story.strip() == _st.strip() and
+                    f.column.strip() == _lb.strip() and
+                    f.case.strip() == _cs.strip() and
+                    abs(f.station - float(_sn)) < 0.01):
+                    if col_idx == 4:
                         f.N = num
-                    elif col_idx == 2:
+                    elif col_idx == 5:
+                        f.Q2 = num
+                    elif col_idx == 6:
+                        f.Q3 = num
+                    elif col_idx == 7:
                         f.Mx = num
-                    elif col_idx == 3:
+                    elif col_idx == 8:
                         f.My = num
                     break
             new_vals = list(vals)
