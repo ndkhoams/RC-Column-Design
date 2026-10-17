@@ -4127,22 +4127,33 @@ class App(tk.Tk):
     def _enable_manual_3d_rotate(self, cv_widget, fig, ax):
         """Xoay 3D thủ công bằng chuột trái (dự phòng khi mouse_init không hoạt động)."""
         state = {"drag": False, "x0": 0, "y0": 0, "elev0": 0, "azim0": 0}
+        def _get_ax():
+            try:
+                _a = fig.axes[0] if fig.axes else None
+                return _a if getattr(_a, 'name', '') == '3d' else None
+            except Exception:
+                return None
         def _press(ev):
+            _a = _get_ax()
+            if _a is None:
+                return
             try:
                 state["drag"] = True
                 state["x0"], state["y0"] = ev.x, ev.y
-                state["elev0"], state["azim0"] = ax.elev, ax.azim
+                state["elev0"], state["azim0"] = _a.elev, _a.azim
             except Exception:
                 pass
         def _move(ev):
             if not state["drag"]:
                 return
+            _a = _get_ax()
+            if _a is None:
+                return
             try:
                 dx = ev.x - state["x0"]
                 dy = ev.y - state["y0"]
-                ax.view_init(elev=state["elev0"] - dy * 0.3,
+                _a.view_init(elev=state["elev0"] - dy * 0.3,
                              azim=state["azim0"] + dx * 0.3)
-                # TkAgg: đánh dấu stale và vẽ lại
                 fig.stale = True
                 fig.canvas.draw_idle()
                 fig.canvas.flush_events()
@@ -4151,15 +4162,20 @@ class App(tk.Tk):
         def _rel(ev):
             state["drag"] = False
         try:
-            cv_widget.bind("<ButtonPress-1>", _press, add="+")
-            cv_widget.bind("<B1-Motion>", _move, add="+")
-            cv_widget.bind("<ButtonRelease-1>", _rel, add="+")
+            # Xóa binding cũ tránh trùng lặp khi hàm 3D được gọi nhiều lần
+            for _seq in ("<ButtonPress-1>", "<B1-Motion>", "<ButtonRelease-1>"):
+                try:
+                    cv_widget.unbind(_seq)
+                except Exception:
+                    pass
+            cv_widget.bind("<ButtonPress-1>", _press)
+            cv_widget.bind("<B1-Motion>", _move)
+            cv_widget.bind("<ButtonRelease-1>", _rel)
         except Exception:
             pass
 
     def _draw_3d_aci(self):
         """Vẽ biểu đồ tương tác 3D cho ACI."""
-        print("[3D] _draw_3d_aci called")
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
             import numpy as np
@@ -4215,7 +4231,6 @@ class App(tk.Tk):
 
     def _draw_3d_ec2(self):
         """Vẽ biểu đồ tương tác 3D cho EC2."""
-        print("[3D] _draw_3d_ec2 called")
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
             import numpy as np
