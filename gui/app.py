@@ -3631,8 +3631,12 @@ class App(tk.Tk):
         except Exception:
             pass
         if _L_auto and _L_auto > 0:
-            self.en_Lx.delete(0, tk.END); self.en_Lx.insert(0, f"{_L_auto:.2f}")
-            self.en_Ly.delete(0, tk.END); self.en_Ly.insert(0, f"{_L_auto:.2f}")
+            # Chỉ điền L tự động khi ô đang trống (không ghi đè số user đã nhập)
+            # Quy tắc: ô trống -> dùng max station; user nhập -> giữ nguyên, dùng số đã nhập
+            if not self.en_Lx.get().strip():
+                self.en_Lx.delete(0, tk.END); self.en_Lx.insert(0, f"{_L_auto:.2f}")
+            if not self.en_Ly.get().strip():
+                self.en_Ly.delete(0, tk.END); self.en_Ly.insert(0, f"{_L_auto:.2f}")
         children = self.etabs_tree.get_children()
         if children:
             self.etabs_tree.item(children[0], tags=("worst",))
