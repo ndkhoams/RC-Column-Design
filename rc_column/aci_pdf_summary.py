@@ -427,7 +427,8 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     t_main = Table([[left_flow, right_flow]],
                    colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
     t_main.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("VALIGN", (0, 0), (0, 0), "TOP"),
+        ("VALIGN", (1, 0), (1, 0), "BOTTOM"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
         ("TOPPADDING", (0, 0), (-1, -1), 0),
