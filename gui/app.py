@@ -2970,7 +2970,7 @@ class App(tk.Tk):
         if children:
             self.etabs_tree.item(children[0], tags=("worst",))
             self.etabs_tree.see(children[0])
-        n_ng = sum(1 for _, r in rows if r["dc"] == r["dc"] and r["dc"] > 1)
+        n_ng = sum(1 for _, r in rows if r and r["dc"] == r["dc"] and r["dc"] > 1)
         dt = time.time() - t0
         self.etabs_info.set(
             f"Xong {len(rows)} tổ hợp trong {dt:.1f}s (ACI 318-19) — "
@@ -3120,7 +3120,7 @@ class App(tk.Tk):
         if children:
             self.etabs_tree.item(children[0], tags=("worst",))
             self.etabs_tree.see(children[0])
-        n_ng = sum(1 for _, r in rows if r["dc"] == r["dc"] and r["dc"] > 1)
+        n_ng = sum(1 for _, r in rows if r and r["dc"] == r["dc"] and r["dc"] > 1)
         dt = time.time() - t0
         self.etabs_info.set(
             f"Xong {len(rows)} tổ hợp trong {dt:.1f}s (EC2 EN 1992-1-1) — "
@@ -3240,7 +3240,7 @@ class App(tk.Tk):
         if children:
             self.etabs_tree.item(children[0], tags=("worst",))
             self.etabs_tree.see(children[0])
-        n_ng = sum(1 for _, r in rows if r["dc"] > 1)
+        n_ng = sum(1 for _, r in rows if r and r["dc"] > 1)
         dt = time.time() - t0
         self.etabs_info.set(
             f"Xong {len(rows)} tổ hợp trong {dt:.1f}s — "
