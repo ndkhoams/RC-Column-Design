@@ -4138,14 +4138,15 @@ class App(tk.Tk):
         def _move(ev):
             if not state["drag"]:
                 return
+            print(f"[3D-DEBUG] Mouse move: dx={ev.x - state['x0']}, dy={ev.y - state['y0']}")
             try:
                 dx = ev.x - state["x0"]
                 dy = ev.y - state["y0"]
                 ax.view_init(elev=state["elev0"] - dy * 0.3,
                              azim=state["azim0"] + dx * 0.3)
-                fig.canvas.draw_idle()
-            except Exception:
-                pass
+                fig.canvas.draw()
+            except Exception as ex:
+                print(f"[3D-DEBUG] Move error: {ex}")
         def _rel(ev):
             state["drag"] = False
         try:
@@ -4199,6 +4200,12 @@ class App(tk.Tk):
             ax.set_zlabel('N (kN)')
             fig.tight_layout()
             self._aci_nm_cv_ref.draw()
+            try:
+                ax.mouse_init()
+            except Exception:
+                pass
+            self._enable_manual_3d_rotate(
+                self._aci_nm_cv_ref.get_tk_widget(), fig, ax)
         except Exception as ex:
             print(f"Lỗi vẽ 3D ACI: {ex}")
             import traceback
