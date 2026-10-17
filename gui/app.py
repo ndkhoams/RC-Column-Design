@@ -3015,6 +3015,11 @@ class App(tk.Tk):
             _betaw = 0.6
             if _n_dnsw is not None and abs(worst_f.N) > 1e-9:
                 _betaw = max(0.0, min(1.0, _n_dnsw / worst_f.N))
+            # Debug: in key và số lượng
+            print(f"[ETABS] βdns: tìm key={_keyw}")
+            print(f"[ETABS] βdns: _dns_map có {len(_dns_map)} key, "
+                  f"vd: {list(_dns_map.keys())[:2] if _dns_map else 'rỗng'}")
+            print(f"[ETABS] βdns: tìm thấy={_n_dnsw is not None}, β={_betaw:.3f}")
             from rc_column.aci_checker import moment_magnification as _mmf
             from rc_column.stability import effective_length as _elf
             _inpw = self.collect()
