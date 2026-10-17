@@ -3088,6 +3088,24 @@ class App(tk.Tk):
             _inp_worst._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
             self._aci_inp = _inp_worst
             # Dùng worst_r (đã tính với mô men phóng đại) cho biểu đồ
+            # Tính N_cap (φPn,max) cho worst_r vì dc_ratio không có
+            try:
+                _Ag = _secw.cx * _secw.cy
+                _Ast = sum(getattr(_secw, 'As_total', [0])) if hasattr(_secw, 'As_total') else 0
+                # Tính Ast từ thép
+                _Ast = 0
+                if hasattr(_secw, 'bars'):
+                    import math as _m
+                    for _b in _secw.bars:
+                        _d = getattr(_b, 'd', getattr(_b, 'dia', 0))
+                        _Ast += _m.pi * _d**2 / 4
+                _fc = conc.fc_MPa if hasattr(conc, 'fc_MPa') else 21
+                _fy = steel.fy_MPa if hasattr(steel, 'fy_MPa') else 400
+                _Pnmax = 0.80 * (0.85 * _fc * (_Ag - _Ast) + _fy * _Ast) / 1000  # kN
+                _phi_Pnmax = 0.65 * _Pnmax  # tied
+                worst_r["N_cap"] = _phi_Pnmax
+            except Exception:
+                pass
             self._aci_res = worst_r
             # Lưu case info cho PDF (dạng dict)
             self._pdf_case = {"story": worst_f.story, "column": worst_f.column,
