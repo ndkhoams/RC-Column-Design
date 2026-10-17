@@ -1702,7 +1702,7 @@ class App(tk.Tk):
                     Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"], Is_mm4=_Is,
                     Es_MPa=steel.Es, fck_MPa=fck,
                     unbraced=False, method=method,
-                    d_mm=max(g["h"] - inp.cover - 10.0, 0.5 * g["h"]),
+                    d_mm=max(g["h"] - inp.cover - getattr(inp, "sw_dia", 10) - 12.0, 0.5 * g["h"]),
                     eps_yd=steel.eps_yd, n_bal=n_bal,
                     const_moment=True)
         except Exception as ex:
