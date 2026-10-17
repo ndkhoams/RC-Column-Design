@@ -267,12 +267,12 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     from matplotlib.lines import Line2D as _L2D
     _leg = [
         _L2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+        _L2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+             label="Tia tải O-A-B"),
         _L2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
              markersize=8, markeredgecolor="white", label="Điểm tải A"),
         _L2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
              markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
-        _L2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-             label="Tia tải O-A-B"),
     ]
     ax.legend(handles=_leg, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
@@ -321,12 +321,12 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     from matplotlib.lines import Line2D as _L2D2
     _leg2 = [
         _L2D2([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+        _L2D2([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+              label="Tia tải O-A-B"),
         _L2D2([0], [0], marker="o", color="w", markerfacecolor=GREEN,
               markersize=8, markeredgecolor="white", label="Điểm tải A"),
         _L2D2([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
               markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
-        _L2D2([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-              label="Tia tải O-A-B"),
     ]
     ax.legend(handles=_leg2, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
