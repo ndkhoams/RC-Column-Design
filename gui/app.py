@@ -3045,9 +3045,10 @@ class App(tk.Tk):
             self._aci_inp = _inp_worst
             # Dùng worst_r (đã tính với mô men phóng đại) cho biểu đồ
             self._aci_res = worst_r
-            # Lưu case info cho PDF
-            self._pdf_case = (f"[{worst_f.story}, {worst_f.column}, "
-                              f"{worst_f.case}@{worst_f.station:.2f}]")
+            # Lưu case info cho PDF (dạng dict)
+            self._pdf_case = {"story": worst_f.story, "column": worst_f.column,
+                              "case": worst_f.case, "station": worst_f.station,
+                              "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My}
         except Exception:
             pass
         children = self.etabs_tree.get_children()
