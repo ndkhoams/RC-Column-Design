@@ -4244,6 +4244,12 @@ class App(tk.Tk):
             import numpy as np
             fig = self._aci_nm_fig
             fig.clear()
+            # Reset callbacks để xóa handlers 3D cũ còn sót
+            try:
+                from matplotlib.cbook import CallbackRegistry
+                fig.canvas.callbacks = CallbackRegistry()
+            except Exception:
+                pass
             ax = fig.add_subplot(111, projection='3d')
             # Đảm bảo mouse rotation hoạt động
             try:
@@ -4310,6 +4316,11 @@ class App(tk.Tk):
             import numpy as np
             fig = self._ec2_nm_fig
             fig.clear()
+            try:
+                from matplotlib.cbook import CallbackRegistry
+                fig.canvas.callbacks = CallbackRegistry()
+            except Exception:
+                pass
             ax = fig.add_subplot(111, projection='3d')
             # Đảm bảo mouse rotation hoạt động
             try:
