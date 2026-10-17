@@ -3547,12 +3547,16 @@ class App(tk.Tk):
                 try:
                     from rc_column.aci_pdf_summary import _aci_charts_png
                     _mmc = getattr(self, "_aci_mm", None) or {}
+                    print(f"[PDF] Vẽ biểu đồ mới: Mc2={_mmc.get('Mc2')}, "
+                          f"Mc3={_mmc.get('Mc3')}, "
+                          f"sec={self._aci_sec is not None}")
                     pngs = _aci_charts_png(
                         self._aci_sec, self._aci_conc, self._aci_steel,
                         self._aci_res, self._aci_inp, self._aci_tied,
                         mc2=_mmc.get("Mc2"), mc3=_mmc.get("Mc3"))
-                except Exception:
-                    pass
+                    print("[PDF] Vẽ biểu đồ mới: OK")
+                except Exception as _ex:
+                    print(f"[PDF] Vẽ biểu đồ mới lỗi: {_ex}")
             if is_summary:
                 from rc_column.aci_pdf_summary import export_aci_summary_pdf
                 export_aci_summary_pdf(
@@ -3598,12 +3602,16 @@ class App(tk.Tk):
                 try:
                     from rc_column.aci_pdf_summary import _aci_charts_png
                     _mmc = getattr(self, "_aci_mm", None) or {}
+                    print(f"[PDF] Vẽ biểu đồ mới: Mc2={_mmc.get('Mc2')}, "
+                          f"Mc3={_mmc.get('Mc3')}, "
+                          f"sec={self._aci_sec is not None}")
                     pngs = _aci_charts_png(
                         self._aci_sec, self._aci_conc, self._aci_steel,
                         self._aci_res, self._aci_inp, self._aci_tied,
                         mc2=_mmc.get("Mc2"), mc3=_mmc.get("Mc3"))
-                except Exception:
-                    pass
+                    print("[PDF] Vẽ biểu đồ mới: OK")
+                except Exception as _ex:
+                    print(f"[PDF] Vẽ biểu đồ mới lỗi: {_ex}")
             if is_summary:
                 from rc_column.ec2_pdf_summary import export_ec2_summary_pdf
                 _fyk_sw = None
