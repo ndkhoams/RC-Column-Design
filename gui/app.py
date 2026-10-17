@@ -1038,11 +1038,11 @@ class App(tk.Tk):
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
-        # Ghi chú về tổ hợp TDTX_ (chữ đen, căn phải)
+        # Ghi chú về tổ hợp TDTX_ (in nghiêng, căn phải, cỡ chữ thường)
         ttk.Label(mode_bar,
                   text="TDTX_*: tổ hợp tải thường xuyên (không kiểm tra, dùng tính βdns)",
-                  font=("", 8), foreground="black").pack(side=tk.RIGHT,
-                                                          padx=(6, 6))
+                  font=("", 9, "italic"), foreground="black").pack(side=tk.RIGHT,
+                                                                   padx=(6, 6))
 
         # ---- Chế độ nhập tay ----
         self.manual_frame = ttk.Frame(f)
