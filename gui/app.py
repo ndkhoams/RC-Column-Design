@@ -1346,18 +1346,178 @@ class App(tk.Tk):
             if self.is_aci():
                 self._check_aci(inp)
                 return
-            res = check_column(inp, n_angles=24)
+            # TÍNH 1 LẦN: gọi hàm tính đầy đủ (không tính lại ở nơi khác)
+            _full = self._tcvn_calculate_full(inp, n_angles=24)
+            res = _full["res"]
+            sec = _full["sec"]
+            # Lưu full dict để tab/PDF chỉ đọc hiển thị
+            self._tcvn_full = _full
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
             return
-        # Tóm tắt + biểu đồ + L0
-        sec = build_section(inp)
+        # Tóm tắt + biểu đồ + L0 (chỉ đọc từ _full, không tính lại)
         self._show_summary(sec, inp, res)
-        # Thuyết minh (có format màu sắc) + nhúng hình
+        # Thuyết minh (có format màu sắc) + nhúng hình (chỉ đọc từ _full)
         self._render_report_sections(generate_report_sections(inp, res),
                                       sec, inp, res, case_info=None,
                                       shear_info=None)
         self._pdf_inp, self._pdf_res = inp, res
+
+    def _tcvn_calculate_full(self, inp, n_angles=24):
+        """Tính toán đầy đủ TCVN cho 1 bộ nội lực. Trả về dict kết quả hoàn chỉnh.
+
+        NGUYÊN TẮC: Tính 1 lần ở đây, các nơi khác (tab, PDF) chỉ đọc hiển thị.
+
+        Dict trả về gồm:
+        - inp: ColumnInput (đã gán N/Mx/My/Q2/Q3)
+        - res: CheckResult từ check_column (đầy đủ dc, fs, v.v.)
+        - sec: Section object
+        - N, M2, M3, Q2, Q3: nội lực (M2=Mx, M3=My)
+        - case_info: dict thông tin tổ hợp (nếu có)
+        - shear_info: dict thông tin cắt (nếu có)
+        """
+        from rc_column.checker import check_column, build_section
+
+        # Tính toán đầy đủ 1 lần
+        res = check_column(inp, n_angles=n_angles)
+        sec = build_section(inp)
+
+        return {
+            "inp": inp,
+            "res": res,
+            "sec": sec,
+            "N": inp.N,
+            "M2": inp.Mx,
+            "M3": inp.My,
+            "Q2": inp.Q2,
+            "Q3": inp.Q3,
+            "dc": res.dc if hasattr(res, 'dc') else 0,
+            "fs": res.fs if hasattr(res, 'fs') else 0,
+            "ok": res.ok if hasattr(res, 'ok') else False,
+        }
+
+    def _aci_calculate_full(self, sec, conc, steel, inp, N, M2, M3, Q2, Q3,
+                              beta_dns=0.6, beta_src="", tied=True, fyt=400.0, fc=21.0):
+        """Tính toán đầy đủ ACI cho 1 tổ hợp nội lực. Trả về dict kết quả hoàn chỉnh.
+
+        NGUYÊN TẮC: Tính 1 lần ở đây, các nơi khác (tab, PDF) chỉ đọc hiển thị.
+
+        Dict trả về gồm:
+        - N, M2_orig, M3_orig, Q2, Q3: nội lực đầu vào
+        - L0_2, L0_3: chiều dài tính toán (m)
+        - mm2, mm3: dict từ moment_magnification (đầy đủ)
+        - delta2, delta3, M2_mag, M3_mag: hệ số và mô men đã phóng đại
+        - beta_dns, beta_src
+        - dc, fs, phi, ok, Bx, By, BN: từ check_column_aci
+        - N_cap: phi_Pn,max
+        - shear2, shear3: dict từ aci_shear_check
+        - sec, conc, steel, tied: objects để vẽ biểu đồ/PDF
+        """
+        from rc_column.aci_checker import (check_column_aci, moment_magnification,
+                                          aci_shear_check, sway_magnification)
+        from rc_column.stability import effective_length
+        import math
+
+        res = {
+            "N": N, "M2_orig": M2, "M3_orig": M3, "Q2": Q2, "Q3": Q3,
+            "beta_dns": beta_dns, "beta_src": beta_src,
+            "sec": sec, "conc": conc, "steel": steel, "tied": tied,
+        }
+
+        # 1. Độ mảnh & phóng đại mô men (ACI 6.6.4)
+        try:
+            L0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x, inp.psi_x) * 1000
+            Ig2 = sec.cx * sec.cy**3 / 12
+            mm2 = moment_magnification(Pu_kN=N, M1_kNm=M2, M2_kNm=M2,
+                                      lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
+                                      Ig_mm4=Ig2, beta_dns=beta_dns)
+            L0_3 = effective_length(inp.Ly, inp.top_y, inp.bottom_y, inp.psi_y) * 1000
+            Ig3 = sec.cy * sec.cx**3 / 12
+            mm3 = moment_magnification(Pu_kN=N, M1_kNm=M3, M2_kNm=M3,
+                                      lu_mm=L0_3, k=1.0, Ec_MPa=conc.Ec,
+                                      Ig_mm4=Ig3, beta_dns=beta_dns)
+            d2 = mm2.get("delta_ns", 1.0)
+            d3 = mm3.get("delta_ns", 1.0)
+            Mc2 = d2 * M2
+            Mc3 = d3 * M3
+            res.update({
+                "mm2": mm2, "mm3": mm3,
+                "delta2": d2, "delta3": d3,
+                "M2_mag": Mc2, "M3_mag": Mc3,
+                "L0_2": L0_2/1000, "L0_3": L0_3/1000,
+            })
+        except Exception:
+            Mc2, Mc3 = M2, M3
+            res.update({
+                "mm2": {}, "mm3": {},
+                "delta2": 1.0, "delta3": 1.0,
+                "M2_mag": Mc2, "M3_mag": Mc3,
+                "L0_2": 0, "L0_3": 0,
+            })
+
+        # 1b. Sway (luôn Q=0, bỏ qua)
+        Qsw = 0.0
+        if Qsw > 0:
+            sway_res = sway_magnification(Q=Qsw)
+            ds = sway_res.get("delta_s", 1.0)
+            Mc2 *= ds
+            Mc3 *= ds
+            res["M2_mag"] = Mc2
+            res["M3_mag"] = Mc3
+
+        # 2. P-M-M với mô men đã phóng đại
+        try:
+            aci_res = check_column_aci(sec, conc, steel, N_kN=N,
+                                       M2_kNm=Mc2, M3_kNm=Mc3, tied=tied)
+            res.update(aci_res)
+        except Exception as ex:
+            res.update({"dc": float("nan"), "ok": False, "error": str(ex)})
+
+        # 2b. N_cap (phi_Pn,max)
+        try:
+            _Ag = sec.cx * sec.cy
+            _Ast = 0.0
+            _bars = getattr(sec, 'rebars', None) or getattr(sec, 'bars', None) or []
+            for _b in _bars:
+                _d = getattr(_b, 'dia', 0) or 0
+                _a = getattr(_b, 'area', 0) or (math.pi * _d**2 / 4)
+                _Ast += _a
+            _fc = getattr(conc, 'fc_MPa', fc)
+            _fy = getattr(steel, 'fy_MPa', 400)
+            _Pnmax = 0.80 * (0.85 * _fc * (_Ag - _Ast) + _fy * _Ast) / 1000
+            _phi = 0.65 if tied else 0.75
+            res["N_cap"] = _phi * _Pnmax
+        except Exception:
+            res["N_cap"] = 0.0
+
+        # 3. Cắt 2 phương
+        try:
+            Acv = sec.cx * sec.cy
+            cover = getattr(inp, 'cover', 40)
+            d2_s = sec.cy - cover - 10
+            d3_s = sec.cx - cover - 10
+            Av = 2 * math.pi * (10**2) / 4  # 2 nhánh đai phi10
+            try:
+                sh2 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
+                                     Nu_kN=N, Vu_kN=abs(Q2),
+                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d2_s)
+            except Exception:
+                sh2 = {}
+            try:
+                sh3 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
+                                     Nu_kN=N, Vu_kN=abs(Q3),
+                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d3_s)
+            except Exception:
+                sh3 = {}
+            res["shear2"] = sh2 or {}
+            res["shear3"] = sh3 or {}
+            res["shear"] = {"dir2": sh2 or {}, "dir3": sh3 or {}}
+        except Exception:
+            res["shear2"] = {}
+            res["shear3"] = {}
+            res["shear"] = {"dir2": {}, "dir3": {}}
+
+        return res
 
     def _check_aci(self, inp):
         """Kiểm tra cột theo ACI 318-19: P-M-M, độ mảnh, cắt. Vẽ biểu đồ + thuyết minh."""
@@ -1376,9 +1536,8 @@ class App(tk.Tk):
         conc = ACIConcrete(fc=fc)
         steel = ACISteel(fy=fy)
         sec = build_section(inp)
-        # 1. Độ mảnh & phóng đại mô men (ACI 6.6.4) — tính TRƯỚC, áp vào mô men
-        # P0-1/P0-3: Mc = δns·M theo từng phương, rồi mới check P-M-M
-        # Tính beta_dns từ TDTX_* nếu có (không dùng 0.6 mặc định)
+        # TÍNH 1 LẦN: gọi hàm tính đầy đủ (không tính lại ở nơi khác)
+        # Tính beta_dns từ TDTX_* nếu có
         _beta = 0.6
         _beta_src = ""
         try:
@@ -1390,81 +1549,26 @@ class App(tk.Tk):
                 _beta_src = f"TDTX_ ({_n_sus:.0f}/{inp.N:.0f})"
         except Exception:
             pass
-        try:
-            from rc_column.stability import effective_length
-            # Phương 2 (M2): lu = Lx, Ig = t3·t2³/12
-            L0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x, inp.psi_x) * 1000
-            Ig2 = sec.cx * sec.cy**3 / 12
-            mm2 = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.Mx, M2_kNm=inp.Mx,
-                                      lu_mm=L0_2, k=1.0, Ec_MPa=conc.Ec,
-                                      Ig_mm4=Ig2, beta_dns=_beta)
-            # Phương 3 (M3): lu = Ly, Ig = t2·t3³/12
-            L0_3 = effective_length(inp.Ly, inp.top_y, inp.bottom_y, inp.psi_y) * 1000
-            Ig3 = sec.cy * sec.cx**3 / 12
-            mm3 = moment_magnification(Pu_kN=inp.N, M1_kNm=inp.My, M2_kNm=inp.My,
-                                      lu_mm=L0_3, k=1.0, Ec_MPa=conc.Ec,
-                                      Ig_mm4=Ig3, beta_dns=_beta)
-            d2 = mm2.get("delta_ns", 1.0)
-            d3 = mm3.get("delta_ns", 1.0)
-            Mc2 = d2 * inp.Mx
-            Mc3 = d3 * inp.My
-            mm_res = {"dir2": mm2, "dir3": mm3, "delta2": d2, "delta3": d3,
-                        "L0_2": L0_2/1000, "L0_3": L0_3/1000,
-                        "beta_src": _beta_src,
-                        "Mc2": Mc2, "Mc3": Mc3}
-        except Exception:
-            Mc2, Mc3 = inp.Mx, inp.My
-            mm_res = None
-        # 1b. Sway (ACI 6.6.4.6): δs = 1/(1-Q) — đã bỏ ô nhập, luôn Q=0 (bỏ qua)
-        from rc_column.aci_checker import sway_magnification
-        Qsw = 0.0
-        sway_res = None
-        if Qsw > 0:
-            sway_res = sway_magnification(Q=Qsw)
-            ds = sway_res.get("delta_s", 1.0)
-            Mc2 *= ds
-            Mc3 *= ds
-        self._aci_sway = sway_res
-        # 2. P-M-M với mô men đã phóng đại
-        try:
-            aci_res = check_column_aci(sec, conc, steel, N_kN=inp.N,
-                                       M2_kNm=Mc2, M3_kNm=Mc3, tied=tied)
-            # Lưu mô men gốc và phóng đại để thuyết minh
-            aci_res["M2_orig"] = inp.Mx
-            aci_res["M3_orig"] = inp.My
-            aci_res["M2_mag"] = Mc2
-            aci_res["M3_mag"] = Mc3
-        except Exception as ex:
-            messagebox.showerror("Lỗi ACI P-M-M", str(ex))
-            return
-        # 3. Cắt
-        try:
-            Acv = sec.cx * sec.cy
-            d = sec.cy - inp.cover - 10
-            Av = 2 * 3.1416 * (8**2) / 4
-            try:
-                _sh2 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
-                                       Nu_kN=inp.N, Vu_kN=abs(inp.Q2),
-                                       Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d)
-            except Exception:
-                _sh2 = None
-            try:
-                _sh3 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
-                                       Nu_kN=inp.N, Vu_kN=abs(inp.Q3),
-                                       Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d)
-            except Exception:
-                _sh3 = None
-            # Gộp 2 phương vào shear_res
-            if _sh2 is not None or _sh3 is not None:
-                shear_res = {"dir2": _sh2 or {}, "dir3": _sh3 or {}}
-                # Giữ tương thích: các key cũ lấy từ phương có Vu lớn nhất
-                _mx = _sh2 if abs(inp.Q2) >= abs(inp.Q3) else _sh3
-                if _mx:
-                    shear_res.update(_mx)
-            else:
-                shear_res = None
-        except Exception:
-            shear_res = None
+        # Gọi hàm tính đầy đủ 1 lần
+        _full = self._aci_calculate_full(
+            sec, conc, steel, inp,
+            N=inp.N, M2=inp.Mx, M3=inp.My, Q2=inp.Q2, Q3=inp.Q3,
+            beta_dns=_beta, beta_src=_beta_src,
+            tied=tied, fyt=fyt, fc=fc)
+        # Lưu full result để tab/PDF chỉ đọc hiển thị (không tính lại)
+        self._aci_full = _full
+        # Tương thích ngược: gán các biến cũ từ full dict
+        aci_res = _full
+        mm_res = {"dir2": _full.get("mm2", {}), "dir3": _full.get("mm3", {}),
+                  "delta2": _full.get("delta2", 1.0), "delta3": _full.get("delta3", 1.0),
+                  "Mc2": _full.get("M2_mag"), "Mc3": _full.get("M3_mag"),
+                  "L0_2": _full.get("L0_2"), "L0_3": _full.get("L0_3"),
+                  "beta_src": _full.get("beta_src", "")}
+        shear_res = _full.get("shear")
+        # Cập nhật các thuộc tính cũ để tương thích
+        self._aci_mm = mm_res
+        self._aci_shear = shear_res
+        self._aci_res = aci_res
         # Lưu để vẽ lại / xuất PDF
         self._aci_sec = sec
         self._aci_inp = inp
@@ -1500,6 +1604,161 @@ class App(tk.Tk):
         self._pdf_inp, self._pdf_res = inp, None  # đánh dấu ACI mode
         self._update_ck()  # cập nhật tên cấu kiện
 
+    def _ec2_calculate_full(self, sec, conc, steel, inp, N, M2, M3, Q2, Q3,
+                              method="stiffness", fck=30.0, fyk_sw=500.0):
+        """Tính toán đầy đủ EC2 cho 1 tổ hợp nội lực. Trả về dict kết quả hoàn chỉnh.
+
+        NGUYÊN TẮC: Tính 1 lần ở đây, các nơi khác (tab, PDF) chỉ đọc hiển thị.
+
+        Dict trả về gồm:
+        - N, M2_orig, M3_orig, Q2, Q3, V2, V3: nội lực đầu vào
+        - l0_2, l0_3: chiều dài tính toán (m)
+        - lambda_2, lambda_3: độ mảnh
+        - MEd2, MEd3: mô men thiết kế đã gồm bậc 2
+        - dm: dict từ ec2_design_moment (đầy đủ chi tiết)
+        - dc, fs, ok: từ check_column_ec2
+        - N_Rd_max: từ check_column_ec2
+        - shear2, shear3: dict từ ec2_shear_check
+        - sec, conc, steel, method: objects để vẽ biểu đồ/PDF
+        """
+        from rc_column.ec2_checker import (ec2_design_moment, check_column_ec2,
+                                           ec2_shear_check, ec2_balanced_point)
+        from rc_column.sections import bar_area
+        from rc_column.stability import effective_length
+        import math
+
+        res = {
+            "N": N, "M2_orig": M2, "M3_orig": M3,
+            "Q2": Q2, "Q3": Q3, "V2": abs(Q2), "V3": abs(Q3),
+            "sec": sec, "conc": conc, "steel": steel, "method": method,
+        }
+
+        # 1. Hình học theo từng phương
+        cx, cy = sec.cx, sec.cy  # t3 (ngang), t2 (đứng)
+        Ac = sec.gross_area
+        As = sec.steel_area
+        try:
+            l0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x,
+                                    inp.psi_x) * 1000.0  # mm
+            l0_3 = effective_length(inp.Ly, inp.top_y, inp.bottom_y,
+                                    inp.psi_y) * 1000.0
+        except Exception:
+            l0_2 = l0_3 = (inp.Lx or 4.0) * 1000.0
+        res["l0_2"] = l0_2 / 1000.0
+        res["l0_3"] = l0_3 / 1000.0
+
+        # Ic mỗi phương
+        geom = {}
+        for lbl, h_dim, Ic in (("dir2", cy, cx * cy**3 / 12.0),
+                               ("dir3", cx, cy * cx**3 / 12.0)):
+            geom[lbl] = {"h": h_dim, "Ic": Ic,
+                         "i": math.sqrt(Ic / Ac) if Ac > 0 else h_dim,
+                         "l0": l0_2 if lbl == "dir2" else l0_3}
+        res["lambda_2"] = (l0_2 / geom["dir2"]["i"]) if geom["dir2"]["i"] > 0 else 0
+        res["lambda_3"] = (l0_3 / geom["dir3"]["i"]) if geom["dir3"]["i"] > 0 else 0
+
+        # n_bal cho phương pháp độ cong
+        n_bal = 0.0
+        if method == "curvature":
+            try:
+                Nb, _Mb = ec2_balanced_point(sec, conc, steel, 0.0)
+                n_bal = Nb / (conc.fcd * Ac / 1000.0) if Ac > 0 else 0.0
+            except Exception:
+                n_bal = 0.0
+        res["n_bal"] = n_bal
+
+        # 2. Tính Is từ vị trí thép (chính xác, không hardcode 0)
+        _Is2 = _Is3 = 0.0
+        try:
+            _bars = getattr(sec, 'rebars', None) or getattr(sec, 'bars', None) or []
+            _cx = getattr(sec, 'cx', 0) / 2
+            _cy = getattr(sec, 'cy', 0) / 2
+            for _b in _bars:
+                _d = getattr(_b, 'dia', 0) or 0
+                _a = getattr(_b, 'area', 0) or (math.pi * _d**2 / 4)
+                _x = getattr(_b, 'x', 0) or 0
+                _y = getattr(_b, 'y', 0) or 0
+                _Is2 += _a * (_y - _cy)**2
+                _Is3 += _a * (_x - _cx)**2
+        except Exception:
+            pass
+        res["Is2"] = _Is2
+        res["Is3"] = _Is3
+
+        # 3. Mô men thiết kế mỗi phương (đã gồm sai lệch, emin, bậc 2)
+        dm = {}
+        try:
+            for lbl, Mdir in (("dir2", M2), ("dir3", M3)):
+                g = geom[lbl]
+                _Is = _Is2 if lbl == "dir2" else _Is3
+                dm[lbl] = ec2_design_moment(
+                    NEd_kN=N, M_top_kNm=abs(Mdir),
+                    M_bot_kNm=abs(Mdir), l0_mm=g["l0"], i_mm=g["i"],
+                    h_mm=g["h"], Ac_mm2=Ac, As_mm2=As,
+                    fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
+                    Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"], Is_mm4=_Is,
+                    Es_MPa=steel.Es, fck_MPa=fck,
+                    unbraced=False, method=method,
+                    d_mm=max(g["h"] - inp.cover - 10.0, 0.5 * g["h"]),
+                    eps_yd=steel.eps_yd, n_bal=n_bal,
+                    const_moment=True)
+        except Exception as ex:
+            res.update({"dc": float("nan"), "ok": False, "error": str(ex)})
+            return res
+
+        MEd2 = dm["dir2"]["MEd"]
+        MEd3 = dm["dir3"]["MEd"]
+        res["MEd2"] = MEd2
+        res["MEd3"] = MEd3
+        res["dm"] = dm
+        # Thêm l0/lambda vào dm để tương thích với code cũ
+        dm["l0_2"] = l0_2 / 1000.0
+        dm["l0_3"] = l0_3 / 1000.0
+        dm["lambda_2"] = res["lambda_2"]
+        dm["lambda_3"] = res["lambda_3"]
+
+        # 4. P-M-M với mô men thiết kế
+        try:
+            ec2_res = check_column_ec2(sec, conc, steel, N_kN=N,
+                                       M2_kNm=MEd2, M3_kNm=MEd3)
+            res.update(ec2_res)
+            res["M2_mag"] = MEd2
+            res["M3_mag"] = MEd3
+        except Exception as ex:
+            res.update({"dc": float("nan"), "ok": False, "error": str(ex)})
+
+        # 5. Cắt mỗi phương (EC2 6.2)
+        try:
+            sw_dia = getattr(inp, "sw_dia", 8.0) or 8.0
+            sw_s = getattr(inp, "sw_spacing", 200.0) or 200.0
+            sw_legs = getattr(inp, "sw_legs", 2) or 2
+            Asw = sw_legs * bar_area(sw_dia)
+            Asw_s = Asw / sw_s if sw_s > 0 else 0.0
+            fyd_sw = fyk_sw / 1.15
+            dia_max = max((r.dia for r in sec.rebars), default=20.0)
+            Asl = As / 2.0
+            shear = {}
+            for Vu, lbl, bw, h_dim in ((abs(Q2), "dir2", cy, cx),
+                                       (abs(Q3), "dir3", cx, cy)):
+                d = h_dim - inp.cover - sw_dia - dia_max / 2.0
+                shear[lbl] = ec2_shear_check(
+                    bw_mm=bw, d_mm=max(d, 0.5 * h_dim), Ac_mm2=Ac,
+                    fck_MPa=fck, NEd_kN=max(N, 0.0), VEd_kN=Vu,
+                    Asl_mm2=Asl, fyd_MPa=fyd_sw, Asw_s_mm2mm=Asw_s,
+                    theta_deg=45.0)
+                shear[lbl]["bw"] = bw
+                shear[lbl]["d"] = d
+                shear[lbl]["VEd"] = Vu
+            res["shear2"] = shear.get("dir2", {})
+            res["shear3"] = shear.get("dir3", {})
+            res["shear"] = shear
+        except Exception:
+            res["shear2"] = {}
+            res["shear3"] = {}
+            res["shear"] = {}
+
+        return res
+
     def _check_ec2(self, inp):
         """Kiểm tra cột theo EC2 (EN 1992-1-1): P-M-M, độ mảnh (bậc 2), cắt."""
         from rc_column.ec2_materials import (EC2Concrete, EC2Steel,
@@ -1526,114 +1785,25 @@ class App(tk.Tk):
         except Exception as ex:
             messagebox.showerror("Lỗi tiết diện", str(ex))
             return
-        # 1. Hình học theo từng phương (bbox cho poly, như ACI)
-        cx, cy = sec.cx, sec.cy  # t3 (ngang), t2 (đứng)
-        Ac = sec.gross_area
-        As = sec.steel_area
-        try:
-            from rc_column.stability import effective_length
-            l0_2 = effective_length(inp.Lx, inp.top_x, inp.bottom_x,
-                                    inp.psi_x) * 1000.0  # mm
-            l0_3 = effective_length(inp.Ly, inp.top_y, inp.bottom_y,
-                                    inp.psi_y) * 1000.0
-        except Exception:
-            l0_2 = l0_3 = (inp.Lx or 4.0) * 1000.0
-        # Ic mỗi phương (bbox): phương 2 → Ig = t3·t2³/12, phương 3 → t2·t3³/12
-        geom = {}
-        for lbl, h_dim, Ic in (("dir2", cy, cx * cy**3 / 12.0),
-                               ("dir3", cx, cy * cx**3 / 12.0)):
-            geom[lbl] = {"h": h_dim, "Ic": Ic,
-                         "i": math.sqrt(Ic / Ac) if Ac > 0 else h_dim,
-                         "l0": l0_2 if lbl == "dir2" else l0_3}
-        # n_bal cho phương pháp độ cong danh nghĩa (Kr)
-        n_bal = 0.0
-        if method == "curvature":
-            try:
-                Nb, _Mb = ec2_balanced_point(sec, conc, steel, 0.0)
-                n_bal = Nb / (conc.fcd * Ac / 1000.0) if Ac > 0 else 0.0
-            except Exception:
-                n_bal = 0.0
-        # 2. Mô men thiết kế mỗi phương (đã gồm sai lệch, emin, bậc 2)
-        dm = {}
-        try:
-            for lbl, Mdir in (("dir2", inp.Mx), ("dir3", inp.My)):
-                g = geom[lbl]
-                # Tính Is từ vị trí thép (thay vì hardcode 0.0)
-                _Is = 0.0
-                try:
-                    import math as _mm
-                    _bars = getattr(sec, 'rebars', None) or getattr(sec, 'bars', None) or []
-                    _cx = getattr(sec, 'cx', 0) / 2
-                    _cy = getattr(sec, 'cy', 0) / 2
-                    for _b in _bars:
-                        _d = getattr(_b, 'dia', getattr(_b, 'd', 0)) or 0
-                        _As = getattr(_b, 'area', 0) or (_mm.pi * _d**2 / 4)
-                        _x = getattr(_b, 'x', 0) or 0
-                        _y = getattr(_b, 'y', 0) or 0
-                        _dist = abs(_y - _cy) if lbl == "dir2" else abs(_x - _cx)
-                        _Is += _As * _dist**2
-                except Exception:
-                    _Is = 0.0
-
-                dm[lbl] = ec2_design_moment(
-                    NEd_kN=inp.N, M_top_kNm=abs(Mdir),
-                    M_bot_kNm=abs(Mdir), l0_mm=g["l0"], i_mm=g["i"],
-                    h_mm=g["h"], Ac_mm2=Ac, As_mm2=As,
-                    fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
-                    Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"], Is_mm4=_Is,
-                    Es_MPa=steel.Es, fck_MPa=fck,
-                    unbraced=False, method=method,
-                    d_mm=max(g["h"] - inp.cover - 10.0, 0.5 * g["h"]),
-                    eps_yd=steel.eps_yd, n_bal=n_bal,
-                    const_moment=True)
-        except Exception as ex:
-            messagebox.showerror("Lỗi độ mảnh EC2", str(ex))
+        # TÍNH 1 LẦN bằng hàm chung (nguyên tắc: tính 1 lần, hiển thị nhiều nơi)
+        _full = self._ec2_calculate_full(
+            sec, conc, steel, inp,
+            N=inp.N, M2=inp.Mx, M3=inp.My, Q2=inp.Q2, Q3=inp.Q3,
+            method=method, fck=fck, fyk_sw=fyk_sw)
+        # Kiểm tra lỗi tính toán
+        if _full.get("error"):
+            messagebox.showerror("Lỗi EC2", _full["error"])
             return
-        MEd2 = dm["dir2"]["MEd"]
-        MEd3 = dm["dir3"]["MEd"]
-        # Lưu l0 (m) và lambda để report dùng
-        dm["l0_2"] = l0_2 / 1000.0
-        dm["l0_3"] = l0_3 / 1000.0
-        dm["lambda_2"] = (l0_2 / geom["dir2"]["i"]) if geom["dir2"]["i"] > 0 else 0
-        dm["lambda_3"] = (l0_3 / geom["dir3"]["i"]) if geom["dir3"]["i"] > 0 else 0
-        # 3. P-M-M với mô men thiết kế
-        try:
-            ec2_res = check_column_ec2(sec, conc, steel, N_kN=inp.N,
-                                       M2_kNm=MEd2, M3_kNm=MEd3)
-            ec2_res["M2_orig"] = inp.Mx
-            ec2_res["M3_orig"] = inp.My
-            ec2_res["M2_mag"] = MEd2
-            ec2_res["M3_mag"] = MEd3
-            ec2_res["method"] = method
-        except Exception as ex:
-            messagebox.showerror("Lỗi EC2 P-M-M", str(ex))
-            return
-        # 4. Cắt mỗi phương (EC2 6.2)
-        try:
-            sw_dia = getattr(inp, "sw_dia", 8.0) or 8.0
-            sw_s = getattr(inp, "sw_spacing", 200.0) or 200.0
-            sw_legs = getattr(inp, "sw_legs", 2) or 2
-            Asw = sw_legs * bar_area(sw_dia)
-            Asw_s = Asw / sw_s if sw_s > 0 else 0.0
-            fyd_sw = fyk_sw / 1.15
-            dia_max = max((r.dia for r in sec.rebars), default=20.0)
-            Asl = As / 2.0  # thép dọc chịu kéo neo qua gối (ước lượng)
-            shear = {}
-            # V2: bw = t2 = cy, d từ t3 = cx; V3 ngược lại
-            for Vu, lbl, bw, h_dim in ((abs(inp.Q2), "dir2", cy, cx),
-                                       (abs(inp.Q3), "dir3", cx, cy)):
-                d = h_dim - inp.cover - sw_dia - dia_max / 2.0
-                shear[lbl] = ec2_shear_check(
-                    bw_mm=bw, d_mm=max(d, 0.5 * h_dim), Ac_mm2=Ac,
-                    fck_MPa=fck, NEd_kN=max(inp.N, 0.0), VEd_kN=Vu,
-                    Asl_mm2=Asl, fyd_MPa=fyd_sw, Asw_s_mm2mm=Asw_s,
-                    theta_deg=45.0)
-                shear[lbl]["bw"] = bw
-                shear[lbl]["d"] = d
-                shear[lbl]["VEd"] = Vu
-            shear_res = shear
-        except Exception:
-            shear_res = None
+        # Lưu full result để tab/PDF chỉ đọc hiển thị (không tính lại)
+        self._ec2_full = _full
+        # Tương thích ngược: gán các biến cũ từ full dict
+        ec2_res = _full
+        dm = _full.get("dm", {})
+        shear_res = _full.get("shear")
+        MEd2 = _full.get("MEd2", 0)
+        MEd3 = _full.get("MEd3", 0)
+        l0_2 = _full.get("l0_2", 0) * 1000.0
+        l0_3 = _full.get("l0_3", 0) * 1000.0
         # Lưu để vẽ lại / xuất PDF
         self._ec2_sec = sec
         self._ec2_inp = inp
@@ -3049,9 +3219,9 @@ class App(tk.Tk):
             pass
         self._fill_etabs_table(rows)
         worst_f, worst_r = rows[0]
-        # Lưu Mc2, Mc3 (đã phóng đại) của TH nguy hiểm nhất để vẽ biểu đồ
+        # TÍNH 1 LẦN cho worst case bằng hàm chung (không tính lại ở tab/PDF)
         try:
-            # Bỏ Step Type (max/min) ở cuối tên Combo để tìm TDTX_
+            # beta_dns từ TDTX_
             _case_base = worst_f.case.strip()
             for _suf in ("max", "min"):
                 if _case_base.lower().endswith(_suf):
@@ -3061,80 +3231,55 @@ class App(tk.Tk):
                      round(worst_f.station, 3), _case_base)
             _n_dnsw = _dns_map.get(_keyw, None)
             _betaw = 0.6
+            _bsrcw = "mặc định"
             if _n_dnsw is not None and abs(worst_f.N) > 1e-9:
                 _betaw = max(0.0, min(1.0, _n_dnsw / worst_f.N))
-            # Debug: in key và số lượng
-            print(f"[ETABS] βdns: tìm key={_keyw}")
-            print(f"[ETABS] βdns: _dns_map có {len(_dns_map)} key, "
-                  f"vd: {list(_dns_map.keys())[:2] if _dns_map else 'rỗng'}")
-            print(f"[ETABS] βdns: tìm thấy={_n_dnsw is not None}, β={_betaw:.3f}")
-            from rc_column.aci_checker import moment_magnification as _mmf
-            from rc_column.stability import effective_length as _elf
+                _bsrcw = f"TDTX_ ({_n_dnsw:.0f}/{worst_f.N:.0f})"
+            # Chuẩn bị inp cho worst case
             _inpw = self.collect()
-            # L riêng từng phương: ưu tiên ô nhập tay, nếu không dùng station ETABS
             _Lx_man = self._f(self.en_Lx, 0.0)
             _Ly_man = self._f(self.en_Ly, 0.0)
-            _Lw2 = _Lx_man if _Lx_man > 0 else worst_f.station
-            _Lw3 = _Ly_man if _Ly_man > 0 else worst_f.station
+            _inpw.Lx = _Lx_man if _Lx_man > 0 else worst_f.station
+            _inpw.Ly = _Ly_man if _Ly_man > 0 else worst_f.station
+            _inpw.N = worst_f.N
+            _inpw.Mx = worst_f.Mx
+            _inpw.My = worst_f.My
+            _inpw.Q2 = worst_f.Q2
+            _inpw.Q3 = worst_f.Q3
+            _inpw._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
             _secw = build_section(_inpw)
-            _L0w2 = _elf(_Lw2, _inpw.top_x, _inpw.bottom_x, _inpw.psi_x) * 1000
-            _L0w3 = _elf(_Lw3, _inpw.top_y, _inpw.bottom_y, _inpw.psi_y) * 1000
-            _Igw2 = _secw.cx * _secw.cy**3 / 12
-            _Igw3 = _secw.cy * _secw.cx**3 / 12
-            _mmw2 = _mmf(Pu_kN=worst_f.N, M1_kNm=worst_f.Mx, M2_kNm=worst_f.Mx,
-                         lu_mm=_L0w2, k=1.0, Ec_MPa=conc.Ec,
-                         Ig_mm4=_Igw2, beta_dns=_betaw)
-            _mmw3 = _mmf(Pu_kN=worst_f.N, M1_kNm=worst_f.My, M2_kNm=worst_f.My,
-                         lu_mm=_L0w3, k=1.0, Ec_MPa=conc.Ec,
-                         Ig_mm4=_Igw3, beta_dns=_betaw)
-            _dw2 = _mmw2.get("delta_ns", 1.0) if _mmw2.get("ok") else 1.0
-            _dw3 = _mmw3.get("delta_ns", 1.0) if _mmw3.get("ok") else 1.0
-            # beta_src để report diễn giải (TDTX_ hay mặc định)
-            _bsrc = "mặc định"
-            if _n_dnsw is not None:
-                _bsrc = f"TDTX_ ({_n_dnsw:.0f}/{worst_f.N:.0f})"
-            self._aci_mm = {"Mc2": _dw2 * worst_f.Mx,
-                            "Mc3": _dw3 * worst_f.My,
-                            "delta2": _dw2, "delta3": _dw3,
-                            "dir2": _mmw2, "dir3": _mmw3,
-                            "beta_src": _bsrc,
-                            "L0_2": _L0w2/1000, "L0_3": _L0w3/1000}
-            # Lưu sec/conc/steel/tied để vẽ biểu đồ PDF
+            _fytw = float(self.en_fyt.get().replace(",", "."))
+            _fcw = float(self.en_fc.get().replace(",", "."))
+            # Gọi hàm tính đầy đủ 1 lần
+            _full_w = self._aci_calculate_full(
+                _secw, conc, steel, _inpw,
+                N=worst_f.N, M2=worst_f.Mx, M3=worst_f.My,
+                Q2=worst_f.Q2, Q3=worst_f.Q3,
+                beta_dns=_betaw, beta_src=_bsrcw,
+                tied=tied, fyt=_fytw, fc=_fcw)
+            # Lưu full result
+            self._aci_full = _full_w
+            # Tương thích ngược
             self._aci_sec = _secw
             self._aci_conc = conc
             self._aci_steel = steel
             self._aci_tied = tied
-            # Cập nhật _aci_inp/_aci_res cho worst case để PDF chi tiết dùng
-            _inp_worst = self.collect()
-            _inp_worst.N = worst_f.N
-            _inp_worst.Mx = worst_f.Mx
-            _inp_worst.My = worst_f.My
-            _inp_worst.Q2 = worst_f.Q2
-            _inp_worst.Q3 = worst_f.Q3
-            _inp_worst._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
-            self._aci_inp = _inp_worst
-            # Dùng worst_r (đã tính với mô men phóng đại) cho biểu đồ
-            # Tính N_cap (φPn,max) cho worst_r vì dc_ratio không có
-            try:
-                _Ag = _secw.cx * _secw.cy
-                _Ast = sum(getattr(_secw, 'As_total', [0])) if hasattr(_secw, 'As_total') else 0
-                # Tính Ast từ thép
-                _Ast = 0
-                if hasattr(_secw, 'bars'):
-                    import math as _m
-                    for _b in _secw.bars:
-                        _d = getattr(_b, 'd', getattr(_b, 'dia', 0))
-                        _Ast += _m.pi * _d**2 / 4
-                _fc = conc.fc_MPa if hasattr(conc, 'fc_MPa') else 21
-                _fy = steel.fy_MPa if hasattr(steel, 'fy_MPa') else 400
-                _Pnmax = 0.80 * (0.85 * _fc * (_Ag - _Ast) + _fy * _Ast) / 1000  # kN
-                _phi_Pnmax = 0.65 * _Pnmax  # tied
-                worst_r["N_cap"] = _phi_Pnmax
-            except Exception:
-                pass
-            self._aci_res = worst_r
-            # Lưu case info cho PDF (dạng dict)
-            self._pdf_case = {"story": worst_f.story, "column": worst_f.column,
+            self._aci_inp = _inpw
+            self._aci_res = _full_w
+            _mmw = {"dir2": _full_w.get("mm2", {}), "dir3": _full_w.get("mm3", {}),
+                    "delta2": _full_w.get("delta2", 1.0), "delta3": _full_w.get("delta3", 1.0),
+                    "Mc2": _full_w.get("M2_mag"), "Mc3": _full_w.get("M3_mag"),
+                    "L0_2": _full_w.get("L0_2"), "L0_3": _full_w.get("L0_3"),
+                    "beta_src": _full_w.get("beta_src", "")}
+            self._aci_mm = _mmw
+            self._aci_shear = _full_w.get("shear")
+            # Cập nhật worst_r để bảng hiển thị đúng D/C từ full calc
+            worst_r = _full_w
+            rows[0] = (worst_f, worst_r)
+        except Exception as _exw:
+            print(f"[ETABS] tính full worst case lỗi: {_exw}")
+        try:
+                    self._pdf_case = {"story": worst_f.story, "column": worst_f.column,
                               "case": worst_f.case, "station": worst_f.station,
                               "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My}
         except Exception:
@@ -3155,55 +3300,26 @@ class App(tk.Tk):
             self._show_aci_summary()
         except Exception as _ex:
             print(f"[ETABS] _show_aci_summary lỗi: {_ex}")
-        # Render tab Chi tiết cho worst case
+        # Render tab Chi tiết cho worst case - CHỈ ĐỌC từ _aci_full (không tính lại)
         try:
-            from rc_column.aci_checker import check_column_aci
             from rc_column.aci_report_v2 import generate_aci_report_sections_v2
-            _inp_det = self._aci_inp
-            _mm_det = self._aci_mm or {}
-            # Dùng mô men đã phóng đại
+            _full = getattr(self, "_aci_full", None)
+            if _full is None:
+                raise RuntimeError("Chưa có kết quả tính toán")
+            # Dựng inp/mm/shear từ full dict (không tính lại)
             import copy
-            _inp2 = copy.copy(_inp_det)
-            _inp2.Mx = _mm_det.get("Mc2", _inp_det.Mx)
-            _inp2.My = _mm_det.get("Mc3", _inp_det.My)
-            _res_det = check_column_aci(self._aci_sec, self._aci_conc,
-                                        self._aci_steel, _inp2.N,
-                                        _inp2.Mx, _inp2.My,
-                                        tied=self._aci_tied)
-            # Shear cho worst case (theo đúng logic manual mode)
-            from rc_column.aci_checker import aci_shear_check
-            _shr = {"dir2": {}, "dir3": {}}
-            try:
-                _sec_s = self._aci_sec
-                _fc_s = self._aci_conc.fc_MPa if hasattr(self._aci_conc, 'fc_MPa') else 21
-                _fyt_s = float(self.en_fyt.get().replace(",", "."))
-                _Acv_s = _sec_s.cx * _sec_s.cy
-                _d2_s = _sec_s.cy - _inp2.cover - 10
-                _d3_s = _sec_s.cx - _inp2.cover - 10
-                _Av_s = 2 * 3.1416 * (10**2) / 4  # 2 nhánh đai φ10
-                try:
-                    _sh2_s = aci_shear_check(Acv_mm2=_Acv_s, Ag_mm2=_Acv_s,
-                                             fc_MPa=_fc_s, Nu_kN=_inp2.N,
-                                             Vu_kN=abs(_inp2.Q2), Av_mm2=_Av_s,
-                                             fyt_MPa=_fyt_s, s_mm=200, d_mm=_d2_s)
-                except Exception:
-                    _sh2_s = None
-                try:
-                    _sh3_s = aci_shear_check(Acv_mm2=_Acv_s, Ag_mm2=_Acv_s,
-                                             fc_MPa=_fc_s, Nu_kN=_inp2.N,
-                                             Vu_kN=abs(_inp2.Q3), Av_mm2=_Av_s,
-                                             fyt_MPa=_fyt_s, s_mm=200, d_mm=_d3_s)
-                except Exception:
-                    _sh3_s = None
-                if _sh2_s or _sh3_s:
-                    _shr = {"dir2": _sh2_s or {}, "dir3": _sh3_s or {}}
-                    # Lưu để PDF dùng
-                    self._aci_shear = _shr
-            except Exception as _e_s:
-                print(f"[ETABS] shear lỗi: {_e_s}")
+            _inp2 = copy.copy(self._aci_inp)
+            _inp2.Mx = _full.get("M2_mag", _inp2.Mx)
+            _inp2.My = _full.get("M3_mag", _inp2.My)
+            _mm_det = {"dir2": _full.get("mm2", {}), "dir3": _full.get("mm3", {}),
+                       "delta2": _full.get("delta2", 1.0), "delta3": _full.get("delta3", 1.0),
+                       "Mc2": _full.get("M2_mag"), "Mc3": _full.get("M3_mag"),
+                       "L0_2": _full.get("L0_2"), "L0_3": _full.get("L0_3"),
+                       "beta_src": _full.get("beta_src", "")}
+            _shr = _full.get("shear", {"dir2": {}, "dir3": {}})
             _fyt = float(self.en_fyt.get().replace(",", "."))
             _secs = generate_aci_report_sections_v2(
-                _inp2, _res_det, _mm_det, _shr,
+                _inp2, _full, _mm_det, _shr,
                 self._aci_conc, self._aci_steel, self._aci_sec,
                 self._aci_tied, _fyt)
             self._render_aci_report(_secs)
@@ -3378,7 +3494,19 @@ class App(tk.Tk):
                           "story": getattr(worst_f, "story", ""),
                           "column": getattr(worst_f, "column", "")}
         # Tạm lưu inp gốc để _check_ec2 dùng đúng nội lực worst
+        # _check_ec2 sẽ gọi _ec2_calculate_full (tính 1 lần) và lưu self._ec2_full
         self._check_ec2(inp_w)
+        # Cập nhật worst_r từ full calc để bảng hiển thị đúng D/C
+        # (nguyên tắc: tính 1 lần, hiển thị nhiều nơi)
+        try:
+            _full_w = getattr(self, "_ec2_full", None)
+            if _full_w is not None:
+                worst_r = _full_w
+                rows[0] = (worst_f, worst_r)
+                # Cập nhật lại bảng với D/C từ full calc
+                self._fill_etabs_table(rows)
+        except Exception as _exu:
+            print(f"[ETABS-EC2] cập nhật worst_r lỗi: {_exu}")
 
     def on_check_etabs(self):
         if not self.etabs_forces:
@@ -3509,8 +3637,16 @@ class App(tk.Tk):
                    "story": getattr(f_q3, "story", ""),
                    "column": getattr(f_q3, "column", "")},
         }
-        res_w = check_column(inp_w, n_angles=24)
-        sec_w = build_section(inp_w)
+        # TÍNH 1 LẦN cho worst case: gọi hàm tính đầy đủ (không tính lại ở nơi khác)
+        _full_w = self._tcvn_calculate_full(inp_w, n_angles=24)
+        res_w = _full_w["res"]
+        sec_w = _full_w["sec"]
+        # Lưu full dict để tab/PDF chỉ đọc hiển thị
+        self._tcvn_full = _full_w
+        # Giữ tương thích với _last_* hiện có
+        self._last_inp = inp_w
+        self._last_res = res_w
+        self._last_sec = sec_w
         batch = getattr(self, "_batch_rows", None)
         if not getattr(self, "var_export_table", None) or \
                 not self.var_export_table.get():
@@ -3695,11 +3831,13 @@ class App(tk.Tk):
                     pass
                 return None
             pngs = _get_pngs()
-            # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu hiện tại
-            # (dùng mô men thiết kế MEd đã gồm bậc 2)
+            # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu EC2 hiện tại
+            # (dùng mô men thiết kế MEd2/MEd3 từ _ec2_full, đã gồm bậc 2)
             if not is_summary:
                 try:
                     from rc_column.ec2_pdf_summary import _ec2_charts_png
+                    # _ec2_charts_png tự lấy M2_mag/M3_mag từ ec2_res
+                    # (đã lưu trong _ec2_full, tương thích ngược qua _ec2_res)
                     print(f"[PDF] Vẽ biểu đồ EC2 mới cho chi tiết")
                     pngs = _ec2_charts_png(
                         self._ec2_sec, self._ec2_conc, self._ec2_steel,
@@ -3747,11 +3885,13 @@ class App(tk.Tk):
                     pass
                 return None
             pngs = _get_pngs()
-            # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu hiện tại
-            # (dùng mô men thiết kế MEd đã gồm bậc 2)
+            # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu EC2 hiện tại
+            # (dùng mô men thiết kế MEd2/MEd3 từ _ec2_full, đã gồm bậc 2)
             if not is_summary:
                 try:
                     from rc_column.ec2_pdf_summary import _ec2_charts_png
+                    # _ec2_charts_png tự lấy M2_mag/M3_mag từ ec2_res
+                    # (đã lưu trong _ec2_full, tương thích ngược qua _ec2_res)
                     print(f"[PDF] Vẽ biểu đồ EC2 mới cho chi tiết")
                     pngs = _ec2_charts_png(
                         self._ec2_sec, self._ec2_conc, self._ec2_steel,
