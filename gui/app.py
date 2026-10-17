@@ -1362,6 +1362,8 @@ class App(tk.Tk):
                                       sec, inp, res, case_info=None,
                                       shear_info=None)
         self._pdf_inp, self._pdf_res = inp, res
+        # Lưu shear đã tính để PDF chỉ đọc hiển thị (nguyên tắc "tính 1 lần")
+        self._pdf_shear = _full.get("shear_cols")
 
     def _tcvn_calculate_full(self, inp, n_angles=24):
         """Tính toán đầy đủ TCVN cho 1 bộ nội lực. Trả về dict kết quả hoàn chỉnh.
