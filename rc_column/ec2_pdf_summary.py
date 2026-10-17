@@ -477,12 +477,23 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
     _sw_story = []
     try:
         _q2o, _q3o = _extract_shear_q(shear_info)
-        _sh = _shear_ec2(sec, inp, steel, conc,
-                         q2_override=_q2o, q3_override=_q3o)
-        _d2 = _sh.get("dir2", {})
-        _d3 = _sh.get("dir3", {})
-        _s2 = _d2.get("sh", {})
-        _s3 = _d3.get("sh", {})
+        # Ưu tiên dùng kết quả từ app (đồng nhất với tab Chi tiết)
+        _si = shear_info if isinstance(shear_info, dict) else {}
+        if "dir2" in _si and isinstance(_si["dir2"], dict) and "VRd_c_kN" in _si["dir2"]:
+            # shear_info từ app: {"dir2": {"VRd_c_kN":..., "bw":..., "d":...}, ...}
+            _d2 = {"b": _si["dir2"].get("bw", 0), "d": _si["dir2"].get("d", 0),
+                   "Q": _si["dir2"].get("VEd", _q2o)}
+            _d3 = {"b": _si["dir3"].get("bw", 0), "d": _si["dir3"].get("d", 0),
+                   "Q": _si["dir3"].get("VEd", _q3o)}
+            _s2 = _si["dir2"]
+            _s3 = _si["dir3"]
+        else:
+            _sh = _shear_ec2(sec, inp, steel, conc,
+                             q2_override=_q2o, q3_override=_q3o)
+            _d2 = _sh.get("dir2", {})
+            _d3 = _sh.get("dir3", {})
+            _s2 = _d2.get("sh", {})
+            _s3 = _d3.get("sh", {})
         _sw_dia = getattr(inp, "sw_dia", 8)
         _sw_s = getattr(inp, "sw_spacing", 200)
         _sw_legs = getattr(inp, "sw_legs", 2)
