@@ -295,6 +295,10 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     # ---- 6. Kiểm tra P-M-M ----
     dc = aci_res.get("dc", 0.0) or 0.0
     fs = aci_res.get("fs", 0.0) or 0.0
+    # Tính FS từ D/C nếu không có (chế độ ETABS)
+    _dc_tmp = aci_res.get("dc", 0) or 0
+    if not fs and _dc_tmp and _dc_tmp > 1e-9:
+        fs = 1.0 / _dc_tmp
     Bx = aci_res.get("Bx", 0.0) or 0.0
     By = aci_res.get("By", 0.0) or 0.0
     BN = aci_res.get("BN", 0.0) or 0.0
