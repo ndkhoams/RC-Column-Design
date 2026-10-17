@@ -1479,6 +1479,12 @@ class App(tk.Tk):
                 "M2_mag": Mc2, "M3_mag": Mc3,
                 "L0_2": L0_2/1000, "L0_3": L0_3/1000,
             })
+            # Tính alpha và Malpha 1 lần từ M đã phóng đại (dùng chung cho tab/PDF)
+            import math as _math
+            _alpha = _math.degrees(_math.atan2(Mc2, Mc3)) if abs(Mc2)+abs(Mc3) > 1e-9 else 0.0
+            _Malpha = _math.hypot(Mc2, Mc3)
+            res["alpha_deg"] = _alpha
+            res["Malpha"] = _Malpha
         except Exception:
             Mc2, Mc3 = M2, M3
             res.update({
@@ -2131,9 +2137,9 @@ class App(tk.Tk):
         dc_bg = "#D1FAE5" if aci_res["ok"] else "#FEE2E2"
         dc_fg = "#065F46" if aci_res["ok"] else "#991B1B"
         tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
-        alpha_deg = math.degrees(math.atan2(inp.Mx, inp.My)) \
-            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
-        Ma = math.hypot(inp.Mx, inp.My)
+        alpha_deg = aci_res.get("alpha_deg", math.degrees(math.atan2(inp.Mx, inp.My)) \
+            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
+        Ma = aci_res.get("Malpha", math.hypot(inp.Mx, inp.My))
         delta_txt = "—"
         if mm_res:
             try:
@@ -2193,8 +2199,8 @@ class App(tk.Tk):
     def _build_aci_nm_header(self, parent, inp):
         """Header trên biểu đồ N-Mα (ACI)."""
         import math
-        alpha_deg = math.degrees(math.atan2(inp.Mx, inp.My)) \
-            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+        alpha_deg = aci_res.get("alpha_deg", math.degrees(math.atan2(inp.Mx, inp.My)) \
+            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
@@ -2286,10 +2292,10 @@ class App(tk.Tk):
         """3 dòng chú thích dưới biểu đồ ACI."""
         import math
         mono = ("TkFixedFont", 10)
-        Ma = math.hypot(inp.Mx, inp.My)
+        Ma = aci_res.get("Malpha", math.hypot(inp.Mx, inp.My))
         Mb = math.hypot(aci_res["Bx"], aci_res["By"])
-        alpha_deg = math.degrees(math.atan2(inp.Mx, inp.My)) \
-            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+        alpha_deg = aci_res.get("alpha_deg", math.degrees(math.atan2(inp.Mx, inp.My)) \
+            if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
         box = tk.Frame(parent, bg="white",
                        highlightbackground="#E5E7EB", highlightthickness=1)
         box.pack(fill=tk.X, padx=4, pady=4)
