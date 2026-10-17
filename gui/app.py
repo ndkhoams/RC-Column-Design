@@ -732,11 +732,13 @@ class App(tk.Tk):
         self._row(rr, "Thép cạnh t3 (2 mặt trên/dưới)", fr3, r)
         r += 1
         # Toggle 2 lớp thép
-        tog = ttk.Frame(rr)
+        tog = tk.Frame(rr, bg="white")
         self.var_two_layer = tk.BooleanVar(value=False)
-        ttk.Checkbutton(tog, text="Bố trí 2 lớp thép",
-                        variable=self.var_two_layer,
-                        command=self._toggle_two_layer).pack(side=tk.LEFT)
+        tk.Checkbutton(tog, text="Bố trí 2 lớp thép",
+                       variable=self.var_two_layer,
+                       command=self._toggle_two_layer,
+                       bg="white", activebackground="white",
+                       highlightthickness=0).pack(side=tk.LEFT)
         tog.grid(row=r, column=0, columnspan=2, sticky=tk.W, padx=4,
                  pady=(6, 2))
         r += 1
@@ -1054,18 +1056,20 @@ class App(tk.Tk):
                   self.en_My, 2)
         self.en_Q2 = ttk.Entry(self.manual_frame, width=18)
         self.en_Q2.insert(0, "0")
-        self._row(self.manual_frame, "Lực cắt Q2/V2 (kN)",
+        self._row(self.manual_frame, "Lực cắt V2 (kN)",
                   self.en_Q2, 3)
         self.en_Q3 = ttk.Entry(self.manual_frame, width=18)
         self.en_Q3.insert(0, "0")
-        self._row(self.manual_frame, "Lực cắt Q3/V3 (kN)",
+        self._row(self.manual_frame, "Lực cắt V3 (kN)",
                   self.en_Q3, 4)
         self.var_lt = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.manual_frame, text="Khai báo thành phần tải dài hạn",
-                        variable=self.var_lt,
-                        command=self._toggle_lt).grid(row=5, column=0,
-                                                     columnspan=2, sticky=tk.W,
-                                                     padx=4, pady=4)
+        tk.Checkbutton(self.manual_frame, text="Khai báo thành phần tải dài hạn",
+                       variable=self.var_lt,
+                       command=self._toggle_lt,
+                       bg="white", activebackground="white",
+                       highlightthickness=0).grid(row=5, column=0,
+                                                  columnspan=2, sticky=tk.W,
+                                                  padx=4, pady=4)
         self.lt_frame = ttk.Frame(self.manual_frame)
         self.lt_frame.grid(row=6, column=0, columnspan=2, sticky=tk.EW, padx=4)
         self.lt_frame.grid_remove()
@@ -4127,6 +4131,11 @@ class App(tk.Tk):
             fig = self._aci_nm_fig
             fig.clear()
             ax = fig.add_subplot(111, projection='3d')
+            # Đảm bảo mouse rotation hoạt động
+            try:
+                ax.mouse_init()
+            except Exception:
+                pass
             sec = getattr(self, '_aci_sec', None)
             conc = getattr(self, '_aci_conc', None)
             steel = getattr(self, '_aci_steel', None)
@@ -4171,6 +4180,11 @@ class App(tk.Tk):
             fig = self._ec2_nm_fig
             fig.clear()
             ax = fig.add_subplot(111, projection='3d')
+            # Đảm bảo mouse rotation hoạt động
+            try:
+                ax.mouse_init()
+            except Exception:
+                pass
             sec = getattr(self, '_ec2_sec', None)
             conc = getattr(self, '_ec2_conc', None)
             steel = getattr(self, '_ec2_steel', None)
@@ -4214,6 +4228,11 @@ class App(tk.Tk):
             fig = self._nm_fig
             fig.clear()
             ax = fig.add_subplot(111, projection='3d')
+            # Đảm bảo mouse rotation hoạt động
+            try:
+                ax.mouse_init()
+            except Exception:
+                pass
             # Lấy sec và inp từ lần tính cuối, dựng BiaxialCapacity
             sec = getattr(self, '_last_sec', None)
             inp = getattr(self, '_last_inp', None)
