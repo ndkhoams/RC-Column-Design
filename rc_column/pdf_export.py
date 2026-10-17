@@ -85,7 +85,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
             label=f"d{dia:.0f}"))
     if legend_handles:
         leg = ax.legend(handles=legend_handles, loc="upper left",
-                        bbox_to_anchor=(0.02, 0.98), ncol=len(legend_handles),
+                        bbox_to_anchor=(0.02, 1.12), ncol=len(legend_handles),
                         frameon=False, fontsize=8)
         for txt in leg.get_texts():
             txt.set_fontweight("bold")
