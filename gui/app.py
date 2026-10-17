@@ -1562,19 +1562,19 @@ class App(tk.Tk):
                 _Is = 0.0
                 try:
                     import math as _mm
-                    _cx, _cy = sec.cx / 2, sec.cy / 2  # tâm
-                    for _b in sec.bars:
-                        _d = getattr(_b, 'd', getattr(_b, 'dia', 0))
-                        _As = _mm.pi * _d**2 / 4
-                        _x = getattr(_b, 'x', 0)
-                        _y = getattr(_b, 'y', 0)
-                        if lbl == "dir2":
-                            _dist = abs(_y - _cy)
-                        else:
-                            _dist = abs(_x - _cx)
+                    _bars = getattr(sec, 'rebars', None) or getattr(sec, 'bars', None) or []
+                    _cx = getattr(sec, 'cx', 0) / 2
+                    _cy = getattr(sec, 'cy', 0) / 2
+                    for _b in _bars:
+                        _d = getattr(_b, 'dia', getattr(_b, 'd', 0)) or 0
+                        _As = getattr(_b, 'area', 0) or (_mm.pi * _d**2 / 4)
+                        _x = getattr(_b, 'x', 0) or 0
+                        _y = getattr(_b, 'y', 0) or 0
+                        _dist = abs(_y - _cy) if lbl == "dir2" else abs(_x - _cx)
                         _Is += _As * _dist**2
                 except Exception:
                     _Is = 0.0
+
                 dm[lbl] = ec2_design_moment(
                     NEd_kN=inp.N, M_top_kNm=abs(Mdir),
                     M_bot_kNm=abs(Mdir), l0_mm=g["l0"], i_mm=g["i"],
