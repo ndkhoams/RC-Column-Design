@@ -197,7 +197,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _rows.append([P(_ln, st["formula"])])
             if _cfg.get("result"):
                 _rows.append([P(_cfg["result"], st["result"])])
-            _t1 = _T(_rows)
+            _t1 = _T(_rows, colWidths=[190*mm])
+            _t1.hAlign = "LEFT"
             _t1.setStyle(_TS([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 6),
