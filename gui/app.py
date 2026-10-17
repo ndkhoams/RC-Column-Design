@@ -3078,8 +3078,10 @@ class App(tk.Tk):
             _inp2 = copy.copy(_inp_det)
             _inp2.Mx = _mm_det.get("Mc2", _inp_det.Mx)
             _inp2.My = _mm_det.get("Mc3", _inp_det.My)
-            _res_det = check_column_aci(_inp2, self._aci_conc, self._aci_steel,
-                                        self._aci_sec, tied=self._aci_tied)
+            _res_det = check_column_aci(self._aci_sec, self._aci_conc,
+                                        self._aci_steel, _inp2.N,
+                                        _inp2.Mx, _inp2.My,
+                                        tied=self._aci_tied)
             # Shear cho worst case (đơn giản)
             from rc_column.aci_checker import aci_shear_check
             _shr = {"dir2": {}, "dir3": {}}
