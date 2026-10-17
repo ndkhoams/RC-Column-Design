@@ -1490,23 +1490,26 @@ class App(tk.Tk):
         except Exception:
             res["N_cap"] = 0.0
 
-        # 3. Cắt 2 phương
+        # 3. Cắt 2 phương (dùng đai thật từ inp, không hardcode)
         try:
             Acv = sec.cx * sec.cy
             cover = getattr(inp, 'cover', 40)
-            d2_s = sec.cy - cover - 10
-            d3_s = sec.cx - cover - 10
-            Av = 2 * math.pi * (10**2) / 4  # 2 nhánh đai phi10
+            sw_dia = getattr(inp, 'sw_dia', 10) or 10
+            sw_legs = getattr(inp, 'sw_legs', 2) or 2
+            sw_s = getattr(inp, 'sw_spacing', 200) or 200
+            d2_s = sec.cy - cover - sw_dia - 12
+            d3_s = sec.cx - cover - sw_dia - 12
+            Av = sw_legs * math.pi * (sw_dia**2) / 4
             try:
                 sh2 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
                                      Nu_kN=N, Vu_kN=abs(Q2),
-                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d2_s)
+                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=sw_s, d_mm=d2_s)
             except Exception:
                 sh2 = {}
             try:
                 sh3 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
                                      Nu_kN=N, Vu_kN=abs(Q3),
-                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=200, d_mm=d3_s)
+                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=sw_s, d_mm=d3_s)
             except Exception:
                 sh3 = {}
             res["shear2"] = sh2 or {}
