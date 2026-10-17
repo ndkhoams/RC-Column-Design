@@ -224,8 +224,12 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 from .aci_chart_draw import (aci_interaction_image,
                                              aci_m2m3_image)
                 _N = float(getattr(inp, "N", 0) or 0)
-                _M2 = float(getattr(inp, "Mx", 0) or getattr(inp, "M2", 0) or 0)
-                _M3 = float(getattr(inp, "My", 0) or getattr(inp, "M3", 0) or 0)
+                # Dùng mô men đã phóng đại (từ mm_res) để điểm A nằm trên tia
+                _mm = mm_res or {}
+                _M2 = float(_mm.get("Mc2") or getattr(inp, "Mx", 0)
+                            or getattr(inp, "M2", 0) or 0)
+                _M3 = float(_mm.get("Mc3") or getattr(inp, "My", 0)
+                            or getattr(inp, "M3", 0) or 0)
                 _pngs = (aci_interaction_image(sec, conc, steel, aci_res,
                                                _N, _M2, _M3, tied=tied),
                          aci_m2m3_image(sec, conc, steel, aci_res,
