@@ -4180,17 +4180,6 @@ class App(tk.Tk):
             from mpl_toolkits.mplot3d import Axes3D  # noqa
             import numpy as np
             fig = self._aci_nm_fig
-            # Ngắt handlers 3D cũ tránh trùng lặp (fig.clear không ngắt callbacks)
-            try:
-                for _ev in ('button_press_event', 'button_release_event',
-                            'motion_notify_event', 'scroll_event'):
-                    for _cid in list(fig.canvas.callbacks.callbacks.get(_ev, {}).keys()):
-                        try:
-                            fig.canvas.mpl_disconnect(_cid)
-                        except Exception:
-                            pass
-            except Exception:
-                pass
             fig.clear()
             ax = fig.add_subplot(111, projection='3d')
             # Đảm bảo mouse rotation hoạt động
@@ -4242,16 +4231,6 @@ class App(tk.Tk):
             from mpl_toolkits.mplot3d import Axes3D  # noqa
             import numpy as np
             fig = self._ec2_nm_fig
-            try:
-                for _ev in ('button_press_event', 'button_release_event',
-                            'motion_notify_event', 'scroll_event'):
-                    for _cid in list(fig.canvas.callbacks.callbacks.get(_ev, {}).keys()):
-                        try:
-                            fig.canvas.mpl_disconnect(_cid)
-                        except Exception:
-                            pass
-            except Exception:
-                pass
             fig.clear()
             ax = fig.add_subplot(111, projection='3d')
             # Đảm bảo mouse rotation hoạt động
