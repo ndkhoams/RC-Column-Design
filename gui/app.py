@@ -4223,24 +4223,13 @@ class App(tk.Tk):
             pass
 
     def _on_aci_3d_view(self):
-        """Cập nhật góc nhìn 3D ACI từ slider."""
+        """Cập nhật góc nhìn 3D ACI từ slider (vẽ lại hoàn toàn)."""
         try:
-            fig = getattr(self, '_aci_nm_fig', None)
-            if fig is None or not fig.axes:
-                return
-            ax = fig.axes[0]
-            if getattr(ax, 'name', '') != '3d':
-                return
-            _e = self._aci_elev_var.get()
-            _a = self._aci_azim_var.get()
-            ax.view_init(elev=_e, azim=_a)
-            fig.canvas.draw()
-            # Force Tk update
-            try:
-                _w = fig.canvas.get_tk_widget()
-                _w.update_idletasks()
-            except Exception:
-                pass
+            # Lưu góc nhìn mong muốn
+            self._aci_3d_elev = self._aci_elev_var.get()
+            self._aci_3d_azim = self._aci_azim_var.get()
+            # Vẽ lại 3D với góc mới
+            self._draw_3d_aci()
         except Exception:
             pass
 
@@ -4251,12 +4240,6 @@ class App(tk.Tk):
             import numpy as np
             fig = self._aci_nm_fig
             fig.clear()
-            # Reset callbacks để xóa handlers 3D cũ còn sót
-            try:
-                from matplotlib.cbook import CallbackRegistry
-                fig.canvas.callbacks = CallbackRegistry()
-            except Exception:
-                pass
             ax = fig.add_subplot(111, projection='3d')
             # Đảm bảo mouse rotation hoạt động
             try:
