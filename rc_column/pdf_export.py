@@ -244,7 +244,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     ax.plot([0, Ma], [res.N, res.N], color=BLUE_DASH, ls="--",
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
-    ax.scatter([lim[1]], [lim[0]], c=ORANGE, s=70, zorder=5,
+    ax.scatter([lim[1]], [lim[0]], c=ORANGE, marker="D", s=70, zorder=5,
                edgecolors="white", linewidths=1.2)
     ax.scatter([Ma], [res.N], c=GREEN, s=70, zorder=6,
                edgecolors="white", linewidths=1.2)
@@ -306,7 +306,7 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
     ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
             ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([res.Bx], [res.By], c=ORANGE, s=70, zorder=5,
+    ax.scatter([res.Bx], [res.By], c=ORANGE, marker="D", s=70, zorder=5,
                edgecolors="white", linewidths=1.2)
     ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70, zorder=6,
                edgecolors="white", linewidths=1.2)
