@@ -3257,7 +3257,6 @@ class App(tk.Tk):
             # Hàm hiện dialog thành công có nút Mở PDF
             def _show_success(ppath):
                 self._show_pdf_success(ppath)
-                dlg.wait_window()
             # --- ACI mode: dùng PDF ACI (đặt sau khi path & _show_success đã có) ---
             if self.is_aci() and getattr(self, "_aci_res", None) is not None:
                 self._export_pdf_aci(is_summary, path, _show_success)
