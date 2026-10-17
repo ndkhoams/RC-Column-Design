@@ -134,14 +134,37 @@ def _slenderness_aci(sec, conc, inp):
         return None, None, None
 
 
-def _shear_aci(sec, inp, steel, conc, q2_override=None, q3_override=None):
+def _shear_aci(sec, inp, steel, conc, q2_override=None, q3_override=None, precalc=None):
     """Kiểm tra cắt ACI 22.5.5.1 cho 2 phương. Trả về dict phương -> dict.
 
     q2_override/q3_override: lực cắt (kN) ghi đè khi inp.Q2/Q3 = 0
     (chế độ ETABS: gui truyền Q từ combo có |Q| lớn nhất qua shear_info).
     Nếu Q vẫn = 0 sau override, 'Q' = None -> hiển thị '—' thay vì 0.0
     để tránh kết luận ĐẠT gây hiểu lầm khi thiếu dữ liệu.
+    
+    precalc: dict {'2': {...}, '3': {...}} đã tính sẵn từ app (nguyên tắc "tính 1 lần").
+             Nếu có, dùng luôn không tính lại.
     """
+    # Ưu tiên dùng kết quả đã tính sẵn từ app
+    if precalc and isinstance(precalc, dict):
+        # precalc có dạng {'2': {'Q':.., 'b':.., 'd':.., 'sh': {...}}, ...}
+        # hoặc {'dir2': {...}, 'dir3': {...}} từ _aci_calculate_full
+        if '2' in precalc or 'dir2' in precalc:
+            # Chuyển đổi format nếu cần
+            result = {}
+            for lbl, key in (('2', '2'), ('3', '3')):
+                src = precalc.get(lbl) or precalc.get(f'dir{lbl}') or {}
+                if src:
+                    # src có thể là dict shear trực tiếp hoặc dict bọc
+                    sh = src.get('sh', src) if isinstance(src, dict) else {}
+                    result[lbl] = {
+                        'Q': src.get('Q'),
+                        'b': src.get('b'),
+                        'd': src.get('d'),
+                        'sh': sh,
+                    }
+            if result:
+                return result
     from .aci_checker import aci_shear_check
     cols = {}
     try:
@@ -449,8 +472,13 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     story.append(Spacer(1, 4))
 
     # ===== KIỂM TRA CẮT (full width, giữ ở trang 1) =====
+    # Nguyên tắc "tính 1 lần": ưu tiên dùng kết quả đã tính từ app (aci_res)
     from reportlab.platypus import KeepTogether
     _sw_story = []
+    # Lấy shear đã tính sẵn từ aci_res (do _aci_calculate_full tính)
+    _precalc_sh2 = (aci_res.get("shear2") or {}) if isinstance(aci_res, dict) else {}
+    _precalc_sh3 = (aci_res.get("shear3") or {}) if isinstance(aci_res, dict) else {}
+    _use_precalc = bool(_precalc_sh2 or _precalc_sh3)
     try:
         from .aci_checker import aci_shear_check
         from .sections import bar_area
