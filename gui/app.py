@@ -1918,6 +1918,22 @@ class App(tk.Tk):
         if not HAS_MPL:
             return
         import math
+        # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
+        try:
+            for w in self._sum_inner.winfo_children():
+                try:
+                    w.destroy()
+                except:
+                    pass
+            # Reset grid
+            for i in range(10):
+                try:
+                    self._sum_inner.columnconfigure(i, weight=0)
+                    self._sum_inner.rowconfigure(i, weight=0)
+                except:
+                    pass
+        except:
+            pass
         sec = self._aci_sec
         inp = self._aci_inp
         aci_res = self._aci_res
@@ -2381,6 +2397,21 @@ class App(tk.Tk):
         Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
         if not HAS_MPL:
             return
+        # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
+        try:
+            for w in self._sum_inner.winfo_children():
+                try:
+                    w.destroy()
+                except:
+                    pass
+            for _ci in range(10):
+                try:
+                    self._sum_inner.columnconfigure(_ci, weight=0)
+                    self._sum_inner.rowconfigure(_ci, weight=0)
+                except:
+                    pass
+        except:
+            pass
         import math
         sec = self._ec2_sec
         inp = self._ec2_inp
