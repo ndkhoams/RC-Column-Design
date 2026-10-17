@@ -4988,11 +4988,13 @@ class App(tk.Tk):
         except:
             pass
         for i, (label, v2, v3) in enumerate(rows, start=1):
-            tk.Label(tf, text=label, font=("", 9), bg="white", fg="#111827",
+            # Màu xen kẽ như bảng thông số bên trên
+            _bg = "#F9FAFB" if i % 2 == 0 else "white"
+            tk.Label(tf, text=label, font=("", 9), bg=_bg, fg="#111827",
                      anchor="w", padx=6, pady=4).grid(row=i, column=0, sticky="nsew")
-            tk.Label(tf, text=v2, font=("", 9), bg="white", fg="#111827",
+            tk.Label(tf, text=v2, font=("", 9), bg=_bg, fg="#111827",
                      anchor="center", padx=6, pady=4).grid(row=i, column=1, sticky="nsew")
-            tk.Label(tf, text=v3, font=("", 9), bg="white", fg="#111827",
+            tk.Label(tf, text=v3, font=("", 9), bg=_bg, fg="#111827",
                      anchor="center", padx=6, pady=4).grid(row=i, column=2, sticky="nsew")
 
 
