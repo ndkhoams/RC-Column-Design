@@ -1989,8 +1989,15 @@ class App(tk.Tk):
             pass
         try:
             from rc_column.aci_chart_draw import draw_aci_nm_alpha_ax
-            ax = self._aci_nm_ax_ref
-            ax.clear()
+            _fig = self._aci_nm_fig
+            _cur = _fig.axes[0] if _fig.axes else None
+            if _cur is not None and getattr(_cur, 'name', '') == '3d':
+                _fig.clear()
+                ax = _fig.add_subplot(111)
+                self._aci_nm_ax_ref = ax
+            else:
+                ax = self._aci_nm_ax_ref
+                ax.clear()
             draw_aci_nm_alpha_ax(
                 ax, self._aci_sec, self._aci_conc, self._aci_steel,
                 self._aci_res, self._aci_inp.N, self._aci_inp.Mx,
@@ -2448,8 +2455,15 @@ class App(tk.Tk):
             pass
         try:
             from rc_column.ec2_chart_draw import draw_ec2_nm_alpha_ax
-            ax = self._ec2_nm_ax_ref
-            ax.clear()
+            _fig = self._ec2_nm_fig
+            _cur = _fig.axes[0] if _fig.axes else None
+            if _cur is not None and getattr(_cur, 'name', '') == '3d':
+                _fig.clear()
+                ax = _fig.add_subplot(111)
+                self._ec2_nm_ax_ref = ax
+            else:
+                ax = self._ec2_nm_ax_ref
+                ax.clear()
             draw_ec2_nm_alpha_ax(
                 ax, self._ec2_sec, self._ec2_conc, self._ec2_steel,
                 self._ec2_res, self._ec2_inp.N,
@@ -4087,8 +4101,17 @@ class App(tk.Tk):
             pass
         # Vẽ lại chỉ biểu đồ N-M
         try:
-            ax = self._nm_ax_ref
-            ax.clear()
+            # Nếu đang ở 3D (axes có projection 3d), tạo lại axes 2D
+            _fig = self._nm_fig
+            _cur_axes = _fig.axes[0] if _fig.axes else None
+            _is_3d = _cur_axes is not None and getattr(_cur_axes, 'name', '') == '3d'
+            if _is_3d:
+                _fig.clear()
+                ax = _fig.add_subplot(111)
+                self._nm_ax_ref = ax
+            else:
+                ax = self._nm_ax_ref
+                ax.clear()
             self._nm_draw_fn(ax, angle)
             self._nm_fig.tight_layout()
             self._nm_fig.subplots_adjust(bottom=0.30)
