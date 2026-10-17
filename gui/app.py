@@ -2894,9 +2894,25 @@ class App(tk.Tk):
         t0 = time.time()
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        _groups = defaultdict(list)
+        # Tách tổ hợp TDTX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        _dns_map = {}  # (story, column, station, base_case) -> N_dns
+        _forces_check = []
         for _f in self.etabs_forces:
+            _cn = _f.case.strip()
+            if _cn.startswith("TDTX_"):
+                _base = _cn[5:]
+                _key = (_f.story.strip(), _f.column.strip(),
+                        round(_f.station, 3), _base)
+                _dns_map[_key] = _f.N
+            else:
+                _forces_check.append(_f)
+        if _dns_map:
+            print(f"[ACI] Tìm thấy {len(_dns_map)} tổ hợp TDTX_*")
+        _groups = defaultdict(list)
+        for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
+        # Lưu map để dùng tính beta_dns
+        self._dns_map = _dns_map
         rows = []
         from rc_column.aci_checker import ACICapacity
         for (_st, _cl), _flist in _groups.items():
@@ -2986,9 +3002,25 @@ class App(tk.Tk):
         t0 = time.time()
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        _groups = defaultdict(list)
+        # Tách tổ hợp TDTX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        _dns_map = {}  # (story, column, station, base_case) -> N_dns
+        _forces_check = []
         for _f in self.etabs_forces:
+            _cn = _f.case.strip()
+            if _cn.startswith("TDTX_"):
+                _base = _cn[5:]
+                _key = (_f.story.strip(), _f.column.strip(),
+                        round(_f.station, 3), _base)
+                _dns_map[_key] = _f.N
+            else:
+                _forces_check.append(_f)
+        if _dns_map:
+            print(f"[EC2] Tìm thấy {len(_dns_map)} tổ hợp TDTX_* (tính beta_dns)")
+        _groups = defaultdict(list)
+        for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
+        # Lưu map để dùng tính beta_dns
+        self._dns_map = _dns_map
         rows = []
         for (_st, _cl), _flist in _groups.items():
             if _L_manual > 0:
@@ -3115,9 +3147,25 @@ class App(tk.Tk):
         # - Nếu ô L TRỐNG: L = station lớn nhất của từng (Story, Column)
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        _groups = defaultdict(list)
+        # Tách tổ hợp TDTX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        _dns_map = {}  # (story, column, station, base_case) -> N_dns
+        _forces_check = []
         for _f in self.etabs_forces:
+            _cn = _f.case.strip()
+            if _cn.startswith("TDTX_"):
+                _base = _cn[5:]
+                _key = (_f.story.strip(), _f.column.strip(),
+                        round(_f.station, 3), _base)
+                _dns_map[_key] = _f.N
+            else:
+                _forces_check.append(_f)
+        if _dns_map:
+            print(f"[TCVN] Tìm thấy {len(_dns_map)} tổ hợp TDTX_* (tính beta_dns)")
+        _groups = defaultdict(list)
+        for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
+        # Lưu map để dùng tính beta_dns
+        self._dns_map = _dns_map
         rows = []
         for (_st, _cl), _flist in _groups.items():
             if _L_manual > 0:
