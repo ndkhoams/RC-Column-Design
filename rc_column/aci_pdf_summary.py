@@ -457,14 +457,21 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
         _rows = []
-        for Q, b_w, h_dim in ((inp.Q2, _t2, _t3), (inp.Q3, _t3, _t2)):
-            _d = h_dim - inp.cover - _sw_dia - 10
-            _r = aci_shear_check(Acv_mm2=b_w * h_dim, Ag_mm2=b_w * h_dim,
-                                 fc_MPa=conc.fc, Nu_kN=inp.N,
-                                 Vu_kN=abs(Q), Av_mm2=_Av,
-                                 fyt_MPa=_fyt, s_mm=_sw_s, d_mm=_d)
-            _rows.append((Q, _r))
-        (_q2, _r2), (_q3, _r3) = _rows
+        # Ưu tiên dùng kết quả cắt từ app (đồng nhất với tab Chi tiết)
+        _si = shear_info if isinstance(shear_info, dict) else {}
+        if "dir2" in _si and "dir3" in _si:
+            _r2 = _si.get("dir2", {})
+            _r3 = _si.get("dir3", {})
+            _q2, _q3 = inp.Q2, inp.Q3
+        else:
+            for Q, b_w, h_dim in ((inp.Q2, _t2, _t3), (inp.Q3, _t3, _t2)):
+                _d = h_dim - inp.cover - _sw_dia - 10
+                _r = aci_shear_check(Acv_mm2=b_w * h_dim, Ag_mm2=b_w * h_dim,
+                                     fc_MPa=conc.fc, Nu_kN=inp.N,
+                                     Vu_kN=abs(Q), Av_mm2=_Av,
+                                     fyt_MPa=_fyt, s_mm=_sw_s, d_mm=_d)
+                _rows.append((Q, _r))
+            (_q2, _r2), (_q3, _r3) = _rows
         _d2 = _t3 - inp.cover - _sw_dia - 12
         _d3 = _t2 - inp.cover - _sw_dia - 12
         _sw_lines = [
