@@ -389,7 +389,7 @@ def moment_magnification(Pu_kN: float, M1_kNm: float, M2_kNm: float,
     klu = k * lu_mm
     if klu <= 0:
         return {"delta_ns": 1.0, "Pc_kN": float("inf"), "Cm": Cm,
-                "ok": True, "reason": "klu <= 0"}
+                "beta_dns": beta_dns, "ok": True, "reason": "klu <= 0"}
     Pc_N = math.pi ** 2 * EI_eff / (klu ** 2)  # N (Euler)
     Pc_kN = Pc_N / 1000.0
     Pu_N = Pu_kN * 1000.0
@@ -401,7 +401,7 @@ def moment_magnification(Pu_kN: float, M1_kNm: float, M2_kNm: float,
     delta_ns = Cm / denom
     delta_ns = max(delta_ns, 1.0)
     return {"delta_ns": delta_ns, "Pc_kN": Pc_kN, "Cm": Cm,
-            "ok": True, "reason": ""}
+            "beta_dns": beta_dns, "ok": True, "reason": ""}
 
 
 # ---------------------------------------------------------------------------

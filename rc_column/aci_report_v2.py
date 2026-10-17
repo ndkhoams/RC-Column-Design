@@ -221,11 +221,20 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         _pc3 = _d3.get("Pc_kN", 0) or 0
         _cm2 = _d2.get("Cm", 1.0) or 1.0
         _cm3 = _d3.get("Cm", 1.0) or 1.0
+        _beta = _d2.get("beta_dns", 0.6)
+        # Nguồn beta_dns: từ TDTX_ hay mặc định
+        _beta_src = ""
+        _bs = _mm.get("beta_src", "")
+        if _bs:
+            _beta_src = f" ({_bs})"
+        else:
+            _beta_src = " (mặc định)"
         delta_ns = max(_dl2, _dl3)
         _cards5 = [
             _mk("Tải trọng tới hạn Euler Pc",
                 "ACI 6.6.4.4.2",
                 [f"EI = 0.4·Ec·Ig / (1 + βdns)",
+                 f"βdns = {_f(_beta, 3)}{_beta_src}",
                  f"Pc = π²·EI / (k·lu)²",
                  f"Pc2 = {_f(_pc2, 0)} kN",
                  f"Pc3 = {_f(_pc3, 0)} kN"],
