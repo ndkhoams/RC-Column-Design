@@ -4265,8 +4265,30 @@ class App(tk.Tk):
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
             import numpy as np
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            # Tạo figure/canvas mới hoàn toàn để tránh canvas bị lock
+            try:
+                _old = getattr(self, '_aci_nm_cv_ref', None)
+                _par = _old.get_tk_widget().master if _old else None
+                if _old:
+                    _old.get_tk_widget().destroy()
+            except Exception:
+                _par = None
+            if _par is not None:
+                _fig = Figure(figsize=(5.2, 3.9), dpi=100)
+                _cv = FigureCanvasTkAgg(_fig, master=_par)
+                _w = _cv.get_tk_widget()
+                try:
+                    _w.configure(highlightthickness=0, takefocus=0,
+                                 highlightbackground="white",
+                                 highlightcolor="white", borderwidth=0)
+                except Exception:
+                    pass
+                _w.pack(fill=tk.BOTH, expand=True)
+                self._aci_nm_fig = _fig
+                self._aci_nm_cv_ref = _cv
             fig = self._aci_nm_fig
-            fig.clear()
             ax = fig.add_subplot(111, projection='3d')
             # Đảm bảo mouse rotation hoạt động
             try:
