@@ -4981,6 +4981,7 @@ class App(tk.Tk):
                 ("Độ bền trên dải nén xiên Q ≤ 0.3×Rb×b×h0", f"{sh2.Qcap1:.1f} kN", f"{sh3.Qcap1:.1f} kN"),
                 ("Qb = 1.5×Rbt×b×h0²/C", f"{sh2.Qb:.1f} kN", f"{sh3.Qb:.1f} kN"),
                 ("Qsw = 0.75×qsw×C", f"{sh2.Qsw:.1f} kN", f"{sh3.Qsw:.1f} kN"),
+                ("Chiều dài hình chiếu của vết nứt xiên C", f"{getattr(sh2, 'C', 0):.0f} mm", f"{getattr(sh3, 'C', 0):.0f} mm"),
                 ("Khả năng chịu cắt [Q] = Qb + Qsw", f"{sh2.Qcap:.1f} kN", f"{sh3.Qcap:.1f} kN"),
                 ("Kết luận", "✓ ĐẠT" if sh2.ok else "✗ KHÔNG ĐẠT", "✓ ĐẠT" if sh3.ok else "✗ KHÔNG ĐẠT"),
             ])
