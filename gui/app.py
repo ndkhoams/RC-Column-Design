@@ -2975,12 +2975,14 @@ class App(tk.Tk):
         rows = []
         from rc_column.aci_checker import ACICapacity
         for (_st, _cl), _flist in _groups.items():
-            if _L_manual > 0:
-                _L_grp = _L_manual
-            else:
-                _L_grp = max(_f.station for _f in _flist)
+            _Lx_man = self._f(self.en_Lx, 0.0)
+            _Ly_man = self._f(self.en_Ly, 0.0)
+            _max_st = max(_f.station for _f in _flist)
+            _Lx_grp = _Lx_man if _Lx_man > 0 else _max_st
+            _Ly_grp = _Ly_man if _Ly_man > 0 else _max_st
             _inp_g = self.collect()
-            _inp_g.Lx = _inp_g.Ly = _L_grp
+            _inp_g.Lx = _Lx_grp
+            _inp_g.Ly = _Ly_grp
             sec_g = build_section(_inp_g)
             # Tối ưu: dựng ACICapacity 1 lần cho cả nhóm (đắt),
             # mỗi tổ hợp chỉ tính D/C tia (rẻ)
@@ -3248,12 +3250,14 @@ class App(tk.Tk):
         self._dns_map = _dns_map
         rows = []
         for (_st, _cl), _flist in _groups.items():
-            if _L_manual > 0:
-                _L_grp = _L_manual
-            else:
-                _L_grp = max(_f.station for _f in _flist)
+            _Lx_man = self._f(self.en_Lx, 0.0)
+            _Ly_man = self._f(self.en_Ly, 0.0)
+            _max_st = max(_f.station for _f in _flist)
+            _Lx_grp = _Lx_man if _Lx_man > 0 else _max_st
+            _Ly_grp = _Ly_man if _Ly_man > 0 else _max_st
             _inp_g = self.collect()
-            _inp_g.Lx = _inp_g.Ly = _L_grp
+            _inp_g.Lx = _Lx_grp
+            _inp_g.Ly = _Ly_grp
             sec_g = build_section(_inp_g)
             cx, cy = sec_g.cx, sec_g.cy
             Ac = sec_g.gross_area
@@ -3417,12 +3421,14 @@ class App(tk.Tk):
         self._dns_map = _dns_map
         rows = []
         for (_st, _cl), _flist in _groups.items():
-            if _L_manual > 0:
-                _L_grp = _L_manual
-            else:
-                _L_grp = max(_f.station for _f in _flist)
+            _Lx_man = self._f(self.en_Lx, 0.0)
+            _Ly_man = self._f(self.en_Ly, 0.0)
+            _max_st = max(_f.station for _f in _flist)
+            _Lx_grp = _Lx_man if _Lx_man > 0 else _max_st
+            _Ly_grp = _Ly_man if _Ly_man > 0 else _max_st
             _inp_g = self.collect()
-            _inp_g.Lx = _inp_g.Ly = _L_grp
+            _inp_g.Lx = _Lx_grp
+            _inp_g.Ly = _Ly_grp
             _bc = BatchChecker(_inp_g, n_angles=12)
             for _f in _flist:
                 _r = _bc.check_one(_f.N, _f.Mx, _f.My, _inp_g.long_term)
