@@ -4312,21 +4312,38 @@ class App(tk.Tk):
             traceback.print_exc()
 
     def _on_ec2_3d_view(self):
-        """Cập nhật góc nhìn 3D EC2 từ slider."""
+        """Cập nhật góc nhìn 3D EC2 từ slider (tạo lại widget)."""
         try:
-            fig = getattr(self, '_ec2_nm_fig', None)
-            if fig is None or not fig.axes:
+            self._ec2_3d_elev = self._ec2_elev_var.get()
+            self._ec2_3d_azim = self._ec2_azim_var.get()
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            _old_cv = getattr(self, '_ec2_nm_cv_ref', None)
+            if _old_cv is not None:
+                try:
+                    _parent = _old_cv.get_tk_widget().master
+                    _old_cv.get_tk_widget().destroy()
+                except Exception:
+                    _parent = None
+                    _old_cv = None
+            else:
+                _parent = None
+            if _parent is None:
+                self._draw_3d_ec2()
                 return
-            ax = fig.axes[0]
-            if getattr(ax, 'name', '') != '3d':
-                return
-            ax.view_init(elev=self._ec2_elev_var.get(),
-                         azim=self._ec2_azim_var.get())
-            fig.canvas.draw()
+            _fig = Figure(figsize=(5.2, 3.9), dpi=100)
+            _cv = FigureCanvasTkAgg(_fig, master=_parent)
+            _w = _cv.get_tk_widget()
             try:
-                fig.canvas.get_tk_widget().update_idletasks()
+                _w.configure(highlightthickness=0, takefocus=0,
+                             highlightbackground="white",
+                             highlightcolor="white", borderwidth=0)
             except Exception:
                 pass
+            _w.pack(fill=tk.BOTH, expand=True)
+            self._ec2_nm_fig = _fig
+            self._ec2_nm_cv_ref = _cv
+            self._draw_3d_ec2()
         except Exception:
             pass
 
@@ -4335,13 +4352,30 @@ class App(tk.Tk):
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
             import numpy as np
-            fig = self._ec2_nm_fig
-            fig.clear()
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            # Tạo figure/canvas mới hoàn toàn để tránh canvas bị lock
             try:
-                from matplotlib.cbook import CallbackRegistry
-                fig.canvas.callbacks = CallbackRegistry()
+                _old = getattr(self, '_ec2_nm_cv_ref', None)
+                _par = _old.get_tk_widget().master if _old else None
+                if _old:
+                    _old.get_tk_widget().destroy()
             except Exception:
-                pass
+                _par = None
+            if _par is not None:
+                _fig = Figure(figsize=(5.2, 3.9), dpi=100)
+                _cv = FigureCanvasTkAgg(_fig, master=_par)
+                _w = _cv.get_tk_widget()
+                try:
+                    _w.configure(highlightthickness=0, takefocus=0,
+                                 highlightbackground="white",
+                                 highlightcolor="white", borderwidth=0)
+                except Exception:
+                    pass
+                _w.pack(fill=tk.BOTH, expand=True)
+                self._ec2_nm_fig = _fig
+                self._ec2_nm_cv_ref = _cv
+            fig = self._ec2_nm_fig
             ax = fig.add_subplot(111, projection='3d')
             # Đảm bảo mouse rotation hoạt động
             try:
