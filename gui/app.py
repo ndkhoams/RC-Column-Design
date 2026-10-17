@@ -3570,8 +3570,9 @@ class App(tk.Tk):
         # - Nếu ô L TRỐNG: L = station lớn nhất của từng (Story, Column)
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        # Tách tổ hợp TX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        # Tách tổ hợp TX_* (tải thường xuyên): không kiểm tra D/C
         _dns_map = {}  # (story, column, station, base_case) -> N_dns
+        _tx_moment_map = {}  # (story, column, station, base_case) -> (M2, M3) cho phi_L TCVN
         _forces_check = []
         for _f in self.etabs_forces:
             _cn = _f.case.strip()
@@ -3580,6 +3581,7 @@ class App(tk.Tk):
                 _key = (_f.story.strip(), _f.column.strip(),
                         round(_f.station, 3), _base)
                 _dns_map[_key] = _f.N
+                _tx_moment_map[_key] = (_f.Mx, _f.My)  # Mx=M2, My=M3 cho phi_L
             else:
                 _forces_check.append(_f)
         if _dns_map:
@@ -3652,6 +3654,34 @@ class App(tk.Tk):
         # hiện thuyết minh của tổ hợp nguy hiểm nhất
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
+        # phi_L TCVN: tra mô men dài hạn từ tổ hợp TX_* (nếu có)
+        try:
+            from rc_column.stability import LongTermLoads
+            _cn_w = worst_f.case.strip()
+            # Bỏ hậu tố Step Type max/min
+            _base_w = _cn_w
+            if _base_w.endswith("max") or _base_w.endswith("min"):
+                # Tìm vị trí bắt đầu của max/min (cần cẩn thận với tên có chứa max/min)
+                # Đơn giản: thử bỏ 3 ký tự cuối nếu là max/min
+                _low = _base_w.lower()
+                if _low.endswith("max"):
+                    _base_w = _base_w[:-3]
+                elif _low.endswith("min"):
+                    _base_w = _base_w[:-3]
+            _key_w = (worst_f.story.strip(), worst_f.column.strip(),
+                      round(worst_f.station, 3), _base_w)
+            _tx_m = _tx_moment_map.get(_key_w)
+            if _tx_m:
+                _m2_lt, _m3_lt = _tx_m
+                inp_w.long_term = LongTermLoads(
+                    has_data=True, N_lt=0.0,  # N không dùng cho phi_L (chỉ dùng M)
+                    Mx_lt=_m2_lt, My_lt=_m3_lt)
+                print(f"[TCVN] phi_L: dùng TX_* M2={_m2_lt:.1f}, M3={_m3_lt:.1f} cho {_cn_w}")
+            else:
+                # Không có TX_*: giữ nguyên long_term từ collect() (mặc định 2.0)
+                print(f"[TCVN] phi_L: không tìm thấy TX_* cho {_cn_w}, dùng mặc định")
+        except Exception as _epl:
+            print(f"[TCVN] phi_L lỗi: {_epl}")
         # L cho worst (riêng từng phương): ưu tiên ô nhập tay,
         # nếu trống thì dùng station max của nhóm worst
         _Lxw_man = self._f(self.en_Lx, 0.0)
