@@ -1405,7 +1405,8 @@ class App(tk.Tk):
             Mc3 = d3 * inp.My
             mm_res = {"dir2": mm2, "dir3": mm3, "delta2": d2, "delta3": d3,
                         "L0_2": L0_2/1000, "L0_3": L0_3/1000,
-                        "beta_src": _beta_src}
+                        "beta_src": _beta_src,
+                        "Mc2": Mc2, "Mc3": Mc3}
         except Exception:
             Mc2, Mc3 = inp.Mx, inp.My
             mm_res = None
@@ -1718,8 +1719,11 @@ class App(tk.Tk):
         fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
         self._aci_nm_fig = fig_nm
         a3 = fig_nm.add_subplot(111)
+        _mm = getattr(self, "_aci_mm", None) or {}
+        _Mc2 = _mm.get("Mc2", inp.Mx)
+        _Mc3 = _mm.get("Mc3", inp.My)
         draw_aci_nm_alpha_ax(a3, sec, conc, steel, aci_res,
-                             inp.N, inp.Mx, inp.My, tied=tied)
+                             inp.N, _Mc2, _Mc3, tied=tied)
         fig_nm.tight_layout()
         fig_nm.subplots_adjust(bottom=0.30)
         cv_nm.draw()
@@ -2016,10 +2020,13 @@ class App(tk.Tk):
             else:
                 ax = self._aci_nm_ax_ref
                 ax.clear()
+            _mm2 = getattr(self, "_aci_mm", None) or {}
+            _Mc2b = _mm2.get("Mc2", self._aci_inp.Mx)
+            _Mc3b = _mm2.get("Mc3", self._aci_inp.My)
             draw_aci_nm_alpha_ax(
                 ax, self._aci_sec, self._aci_conc, self._aci_steel,
-                self._aci_res, self._aci_inp.N, self._aci_inp.Mx,
-                self._aci_inp.My, tied=self._aci_tied,
+                self._aci_res, self._aci_inp.N, _Mc2b,
+                _Mc3b, tied=self._aci_tied,
                 view_angle_deg=angle)
             self._aci_nm_fig.tight_layout()
             self._aci_nm_fig.subplots_adjust(bottom=0.30)
