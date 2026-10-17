@@ -3060,32 +3060,6 @@ class App(tk.Tk):
             f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
             f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
         self._batch_rows = rows
-        # Tính lại tổ hợp nguy hiểm nhất để hiển thị
-        inp_w = self.collect()
-        inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
-        _Lw = self._f(self.en_Lx, 0.0)
-        if _Lw <= 0:
-            _sts_w = [f.station for f in self.etabs_forces
-                      if f.story == worst_f.story and f.column == worst_f.column]
-            if _sts_w:
-                _Lw = max(_sts_w)
-        if _Lw > 0:
-            inp_w.Lx = inp_w.Ly = _Lw
-        # Lực cắt: lấy từ combo có |Q| lớn nhất (giống TCVN)
-        try:
-            f_q2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
-            f_q3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
-            inp_w.Q2, inp_w.Q3 = f_q2.Q2, f_q3.Q3
-        except Exception:
-            pass
-        # Gọi _check_aci với inp_w (nó tự vẽ charts + report + lưu PDF data)
-        # nhưng cần giữ case_info cho thuyết minh
-        self._pdf_case = {"case": worst_f.case, "station": worst_f.station,
-                          "N": worst_f.N, "M2": worst_f.Mx, "M3": worst_f.My,
-                          "story": getattr(worst_f, "story", ""),
-                          "column": getattr(worst_f, "column", "")}
-        # Tạm lưu inp gốc để _check_aci dùng đúng nội lực worst
-        self._check_aci(inp_w)
 
     def _check_ec2_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
