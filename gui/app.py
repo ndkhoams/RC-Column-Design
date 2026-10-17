@@ -1645,6 +1645,9 @@ class App(tk.Tk):
         self._ec2_conc = conc
         self._ec2_steel = steel
         self._ec2_slend = dm
+        # Lưu gọn MEd + l0 cho chế độ ETABS / PDF
+        self._ec2_dm = {"MEd2": MEd2, "MEd3": MEd3,
+                        "l0_2": l0_2 / 1000.0, "l0_3": l0_3 / 1000.0}
         self._ec2_shear = shear_res
         self._ec2_method = method
         # Vẽ tab Kết quả
@@ -3352,14 +3355,15 @@ class App(tk.Tk):
         # Tính lại tổ hợp nguy hiểm nhất để hiển thị
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
-        _Lw = self._f(self.en_Lx, 0.0)
-        if _Lw <= 0:
-            _sts_w = [f.station for f in self.etabs_forces
-                      if f.story == worst_f.story and f.column == worst_f.column]
-            if _sts_w:
-                _Lw = max(_sts_w)
-        if _Lw > 0:
-            inp_w.Lx = inp_w.Ly = _Lw
+        # L riêng từng phương: ưu tiên ô nhập tay (collect() đã đọc),
+        # nếu trống thì dùng max station của cột đó
+        _sts_w = [f.station for f in self.etabs_forces
+                  if f.story == worst_f.story and f.column == worst_f.column]
+        _max_stw = max(_sts_w) if _sts_w else 0.0
+        if self._f(self.en_Lx, 0.0) <= 0 and _max_stw > 0:
+            inp_w.Lx = _max_stw
+        if self._f(self.en_Ly, 0.0) <= 0 and _max_stw > 0:
+            inp_w.Ly = _max_stw
         # Lực cắt: lấy từ combo có |Q| lớn nhất (giống TCVN)
         try:
             f_q2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
@@ -3447,6 +3451,10 @@ class App(tk.Tk):
             pass
         # highlight dòng nguy hiểm nhất (dòng đầu sau sắp xếp)
         self._fill_etabs_table(rows)
+        if not _forces_check:
+            from tkinter import messagebox
+            messagebox.showinfo("ETABS", "Chỉ có tổ hợp TDTX_*, không có tổ hợp nào để kiểm tra.")
+            return
         worst_f, worst_r = rows[0]
         # Tự động xác định L: station lớn nhất của cùng Story + Column Label
         _L_auto = None
@@ -3475,19 +3483,24 @@ class App(tk.Tk):
         # hiện thuyết minh của tổ hợp nguy hiểm nhất
         inp_w = self.collect()
         inp_w.N, inp_w.Mx, inp_w.My = worst_f.N, worst_f.Mx, worst_f.My
-        # L cho worst: nếu ô L trống thì dùng station max của nhóm worst
-        _Lw = self._f(self.en_Lx, 0.0)
-        if _Lw <= 0:
-            _sts_w = [f.station for f in self.etabs_forces
-                      if f.story == worst_f.story and f.column == worst_f.column]
-            if _sts_w:
-                _Lw = max(_sts_w)
-        if _Lw > 0:
-            inp_w.Lx = inp_w.Ly = _Lw
+        # L cho worst (riêng từng phương): ưu tiên ô nhập tay,
+        # nếu trống thì dùng station max của nhóm worst
+        _Lxw_man = self._f(self.en_Lx, 0.0)
+        _Lyw_man = self._f(self.en_Ly, 0.0)
+        _sts_w = [f.station for f in self.etabs_forces
+                  if f.story == worst_f.story and f.column == worst_f.column]
+        _max_st_w = max(_sts_w) if _sts_w else 0.0
+        _Lxw = _Lxw_man if _Lxw_man > 0 else _max_st_w
+        _Lyw = _Lyw_man if _Lyw_man > 0 else _max_st_w
+        if _Lxw > 0:
+            inp_w.Lx = _Lxw
+        if _Lyw > 0:
+            inp_w.Ly = _Lyw
         # Lực cắt: lấy từ combo có |Q| lớn nhất (độc lập với combo N-M)
         f_q2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
         f_q3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
         inp_w.Q2, inp_w.Q3 = f_q2.Q2, f_q3.Q3
+        inp_w._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
         shear_info = {
             "q2": {"case": f_q2.case, "station": f_q2.station, "Q": f_q2.Q2,
                    "story": getattr(f_q2, "story", ""),
@@ -3683,21 +3696,17 @@ class App(tk.Tk):
                 return None
             pngs = _get_pngs()
             # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu hiện tại
-            # (tránh dùng hình GUI cũ sai mô men phóng đại)
+            # (dùng mô men thiết kế MEd đã gồm bậc 2)
             if not is_summary:
                 try:
-                    from rc_column.aci_pdf_summary import _aci_charts_png
-                    _mmc = getattr(self, "_aci_mm", None) or {}
-                    print(f"[PDF] Vẽ biểu đồ mới: Mc2={_mmc.get('Mc2')}, "
-                          f"Mc3={_mmc.get('Mc3')}, "
-                          f"sec={self._aci_sec is not None}")
-                    pngs = _aci_charts_png(
-                        self._aci_sec, self._aci_conc, self._aci_steel,
-                        self._aci_res, self._aci_inp, self._aci_tied,
-                        mc2=_mmc.get("Mc2"), mc3=_mmc.get("Mc3"))
-                    print("[PDF] Vẽ biểu đồ mới: OK")
+                    from rc_column.ec2_pdf_summary import _ec2_charts_png
+                    print(f"[PDF] Vẽ biểu đồ EC2 mới cho chi tiết")
+                    pngs = _ec2_charts_png(
+                        self._ec2_sec, self._ec2_conc, self._ec2_steel,
+                        self._ec2_res, self._ec2_inp)
+                    print("[PDF] Vẽ biểu đồ EC2 mới: OK")
                 except Exception as _ex:
-                    print(f"[PDF] Vẽ biểu đồ mới lỗi: {_ex}")
+                    print(f"[PDF] Vẽ biểu đồ EC2 mới lỗi: {_ex}")
             if is_summary:
                 from rc_column.aci_pdf_summary import export_aci_summary_pdf
                 export_aci_summary_pdf(
@@ -3739,21 +3748,17 @@ class App(tk.Tk):
                 return None
             pngs = _get_pngs()
             # Với PDF chi tiết: luôn vẽ biểu đồ mới từ dữ liệu hiện tại
-            # (tránh dùng hình GUI cũ sai mô men phóng đại)
+            # (dùng mô men thiết kế MEd đã gồm bậc 2)
             if not is_summary:
                 try:
-                    from rc_column.aci_pdf_summary import _aci_charts_png
-                    _mmc = getattr(self, "_aci_mm", None) or {}
-                    print(f"[PDF] Vẽ biểu đồ mới: Mc2={_mmc.get('Mc2')}, "
-                          f"Mc3={_mmc.get('Mc3')}, "
-                          f"sec={self._aci_sec is not None}")
-                    pngs = _aci_charts_png(
-                        self._aci_sec, self._aci_conc, self._aci_steel,
-                        self._aci_res, self._aci_inp, self._aci_tied,
-                        mc2=_mmc.get("Mc2"), mc3=_mmc.get("Mc3"))
-                    print("[PDF] Vẽ biểu đồ mới: OK")
+                    from rc_column.ec2_pdf_summary import _ec2_charts_png
+                    print(f"[PDF] Vẽ biểu đồ EC2 mới cho chi tiết")
+                    pngs = _ec2_charts_png(
+                        self._ec2_sec, self._ec2_conc, self._ec2_steel,
+                        self._ec2_res, self._ec2_inp)
+                    print("[PDF] Vẽ biểu đồ EC2 mới: OK")
                 except Exception as _ex:
-                    print(f"[PDF] Vẽ biểu đồ mới lỗi: {_ex}")
+                    print(f"[PDF] Vẽ biểu đồ EC2 mới lỗi: {_ex}")
             if is_summary:
                 from rc_column.ec2_pdf_summary import export_ec2_summary_pdf
                 _fyk_sw = None
