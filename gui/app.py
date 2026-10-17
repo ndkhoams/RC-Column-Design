@@ -1038,9 +1038,9 @@ class App(tk.Tk):
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
-        # Ghi chú về tổ hợp TDTX_ (in nghiêng, căn phải, cỡ chữ thường)
+        # Ghi chú về tổ hợp TX_ (in nghiêng, căn phải, cỡ chữ thường)
         ttk.Label(mode_bar,
-                  text="TDTX_*: tổ hợp tải thường xuyên (không kiểm tra, dùng tính βdns)",
+                  text="TX_*: tổ hợp tải trọng thường xuyên để tính các tham số (không kiểm tra D/C)",
                   font=("", 9, "italic"), foreground="black").pack(side=tk.RIGHT,
                                                                    padx=(6, 6))
 
@@ -1579,16 +1579,16 @@ class App(tk.Tk):
         steel = ACISteel(fy=fy)
         sec = build_section(inp)
         # TÍNH 1 LẦN: gọi hàm tính đầy đủ (không tính lại ở nơi khác)
-        # Tính beta_dns từ TDTX_* nếu có
+        # Tính beta_dns từ TX_* nếu có
         _beta = 0.6
         _beta_src = ""
         try:
-            _tdtx_ns = [f.N for f in getattr(self, 'etabs_forces', [])
-                        if f.case.strip().startswith("TDTX_")]
-            if _tdtx_ns and inp.N > 1e-9:
-                _n_sus = max(_tdtx_ns)
+            _tx_ns = [f.N for f in getattr(self, 'etabs_forces', [])
+                        if f.case.strip().startswith("TX_")]
+            if _tx_ns and inp.N > 1e-9:
+                _n_sus = max(_tx_ns)
                 _beta = max(0.0, min(1.0, _n_sus / inp.N))
-                _beta_src = f"TDTX_ ({_n_sus:.0f}/{inp.N:.0f})"
+                _beta_src = f"TX_ ({_n_sus:.0f}/{inp.N:.0f})"
         except Exception:
             pass
         # Gọi hàm tính đầy đủ 1 lần
@@ -3062,7 +3062,7 @@ class App(tk.Tk):
         t.delete(*t.get_children())
         for i, (f, r) in enumerate(rows):
             dc = r["dc"] if r else None
-            _is_tdtx = f.case.strip().startswith("TDTX_")
+            _is_tdtx = f.case.strip().startswith("TX_")
             _dc_txt = ""
             if not _is_tdtx:
                 _dc_txt = f"{dc:.3f}" if dc is not None and dc == dc else "—"
@@ -3163,20 +3163,20 @@ class App(tk.Tk):
         t0 = time.time()
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        # Tách tổ hợp TDTX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        # Tách tổ hợp TX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
         _dns_map = {}  # (story, column, station, base_case) -> N_dns
         _forces_check = []
         for _f in self.etabs_forces:
             _cn = _f.case.strip()
-            if _cn.startswith("TDTX_"):
-                _base = _cn[5:]
+            if _cn.startswith("TX_"):
+                _base = _cn[3:]
                 _key = (_f.story.strip(), _f.column.strip(),
                         round(_f.station, 3), _base)
                 _dns_map[_key] = _f.N
             else:
                 _forces_check.append(_f)
         if _dns_map:
-            print(f"[ACI] Tìm thấy {len(_dns_map)} tổ hợp TDTX_*")
+            print(f"[ACI] Tìm thấy {len(_dns_map)} tổ hợp TX_*")
         _groups = defaultdict(list)
         for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
@@ -3214,7 +3214,7 @@ class App(tk.Tk):
                 try:
                     if _cap_g is None:
                         raise RuntimeError("capacity")
-                    # βdns từ TDTX_ tại đúng vị trí, mặc định 0.6
+                    # βdns từ TX_ tại đúng vị trí, mặc định 0.6
                     # Bỏ Step Type (max/min) ở cuối tên Combo
                     _cb = _f.case.strip()
                     for _sf in ("max", "min"):
@@ -3246,10 +3246,10 @@ class App(tk.Tk):
                 rows.append((_f, _r))
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
-        # Thêm các dòng TDTX_ vào cuối (không tính D/C)
+        # Thêm các dòng TX_ vào cuối (không tính D/C)
         try:
             _tdtx = [f for f in self.etabs_forces
-                     if f.case.strip().startswith("TDTX_")]
+                     if f.case.strip().startswith("TX_")]
             for _f in _tdtx:
                 rows.append((_f, None))
         except Exception:
@@ -3258,7 +3258,7 @@ class App(tk.Tk):
         worst_f, worst_r = rows[0]
         # TÍNH 1 LẦN cho worst case bằng hàm chung (không tính lại ở tab/PDF)
         try:
-            # beta_dns từ TDTX_
+            # beta_dns từ TX_
             _case_base = worst_f.case.strip()
             for _suf in ("max", "min"):
                 if _case_base.lower().endswith(_suf):
@@ -3271,7 +3271,7 @@ class App(tk.Tk):
             _bsrcw = "mặc định"
             if _n_dnsw is not None and abs(worst_f.N) > 1e-9:
                 _betaw = max(0.0, min(1.0, _n_dnsw / worst_f.N))
-                _bsrcw = f"TDTX_ ({_n_dnsw:.0f}/{worst_f.N:.0f})"
+                _bsrcw = f"TX_ ({_n_dnsw:.0f}/{worst_f.N:.0f})"
             # Chuẩn bị inp cho worst case
             _inpw = self.collect()
             _Lx_man = self._f(self.en_Lx, 0.0)
@@ -3385,20 +3385,20 @@ class App(tk.Tk):
         t0 = time.time()
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        # Tách tổ hợp TDTX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        # Tách tổ hợp TX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
         _dns_map = {}  # (story, column, station, base_case) -> N_dns
         _forces_check = []
         for _f in self.etabs_forces:
             _cn = _f.case.strip()
-            if _cn.startswith("TDTX_"):
-                _base = _cn[5:]
+            if _cn.startswith("TX_"):
+                _base = _cn[3:]
                 _key = (_f.story.strip(), _f.column.strip(),
                         round(_f.station, 3), _base)
                 _dns_map[_key] = _f.N
             else:
                 _forces_check.append(_f)
         if _dns_map:
-            print(f"[EC2] Tìm thấy {len(_dns_map)} tổ hợp TDTX_* (tính beta_dns)")
+            print(f"[EC2] Tìm thấy {len(_dns_map)} tổ hợp TX_* (tính beta_dns)")
         _groups = defaultdict(list)
         for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
@@ -3484,10 +3484,10 @@ class App(tk.Tk):
                 rows.append((_f, _r))
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
-        # Thêm các dòng TDTX_ vào cuối (không tính D/C)
+        # Thêm các dòng TX_ vào cuối (không tính D/C)
         try:
             _tdtx = [f for f in self.etabs_forces
-                     if f.case.strip().startswith("TDTX_")]
+                     if f.case.strip().startswith("TX_")]
             for _f in _tdtx:
                 rows.append((_f, None))
         except Exception:
@@ -3570,20 +3570,20 @@ class App(tk.Tk):
         # - Nếu ô L TRỐNG: L = station lớn nhất của từng (Story, Column)
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        # Tách tổ hợp TDTX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        # Tách tổ hợp TX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
         _dns_map = {}  # (story, column, station, base_case) -> N_dns
         _forces_check = []
         for _f in self.etabs_forces:
             _cn = _f.case.strip()
-            if _cn.startswith("TDTX_"):
-                _base = _cn[5:]
+            if _cn.startswith("TX_"):
+                _base = _cn[3:]
                 _key = (_f.story.strip(), _f.column.strip(),
                         round(_f.station, 3), _base)
                 _dns_map[_key] = _f.N
             else:
                 _forces_check.append(_f)
         if _dns_map:
-            print(f"[TCVN] Tìm thấy {len(_dns_map)} tổ hợp TDTX_* (tính beta_dns)")
+            print(f"[TCVN] Tìm thấy {len(_dns_map)} tổ hợp TX_* (tính beta_dns)")
         _groups = defaultdict(list)
         for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
@@ -3606,10 +3606,10 @@ class App(tk.Tk):
         # sắp xếp theo D/C giảm dần (nguy hiểm nhất lên đầu)
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
-        # Thêm các dòng TDTX_ vào cuối (không tính D/C)
+        # Thêm các dòng TX_ vào cuối (không tính D/C)
         try:
             _tdtx = [f for f in self.etabs_forces
-                     if f.case.strip().startswith("TDTX_")]
+                     if f.case.strip().startswith("TX_")]
             for _f in _tdtx:
                 rows.append((_f, None))
         except Exception:
@@ -3618,7 +3618,7 @@ class App(tk.Tk):
         self._fill_etabs_table(rows)
         if not _forces_check:
             from tkinter import messagebox
-            messagebox.showinfo("ETABS", "Chỉ có tổ hợp TDTX_*, không có tổ hợp nào để kiểm tra.")
+            messagebox.showinfo("ETABS", "Chỉ có tổ hợp TX_*, không có tổ hợp nào để kiểm tra.")
             return
         worst_f, worst_r = rows[0]
         # Tự động xác định L: station lớn nhất của cùng Story + Column Label
@@ -4918,115 +4918,81 @@ class App(tk.Tk):
     def _build_stirrup_summary(self, parent, inp, res, full_res=None):
         """Bảng kiểm tra thép đai: Phương 2 | Phương 3.
         CHỈ hiển thị từ full_res (đã tính bởi _tcvn_calculate_full), KHÔNG tính lại."""
-        # Lấy kết quả cắt đã tính sẵn - KHÔNG gọi check_shear ở đây
+        # Lấy kết quả cắt đã tính sẵn
         _fr = full_res or {}
         _cols = _fr.get("shear_cols") or {}
         if _cols:
-            # Dùng kết quả có sẵn, bỏ qua toàn bộ logic tính bên dưới
+            # Dùng kết quả có sẵn - KHÔNG tính lại (nguyên tắc "tính 1 lần")
             cols = _cols
         else:
-            # Fallback (không nên xảy ra): tính lại để không vỡ UI
-            from rc_column.stirrup import (StirrupInput, check_stirrup,
-                                          check_shear)
-        from rc_column.sections import bar_area
-        from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
-                                        ConcreteMaterial)
+            # Fallback: tính lại nếu không có precalc (giữ để không vỡ UI)
+            from rc_column.stirrup import (StirrupInput, check_stirrup, check_shear)
+            from rc_column.sections import bar_area
+            from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES, ConcreteMaterial)
+            try:
+                stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing, legs=inp.sw_legs)
+                conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade], inp.gamma_b)
+                swg = STEEL_GRADES.get(inp.sw_steel_grade)
+                sr = check_stirrup(self._last_sec, stir_in, inp.cover)
+                cols = {}
+                for Q, lbl, b_w, h_dim, mdia, ms, mlegs in (
+                        (inp.Q2, "2", inp.cy, inp.cx, inp.swm2_dia, inp.swm2_spacing, inp.swm2_legs),
+                        (inp.Q3, "3", inp.cx, inp.cy, inp.swm3_dia, inp.swm3_spacing, inp.swm3_legs)):
+                    h0 = h_dim - inp.cover - inp.sw_dia - 12
+                    Asw = stir_in.legs * bar_area(stir_in.dia)
+                    s_eff = stir_in.spacing
+                    sw_txt = f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} a{stir_in.spacing:.0f}"
+                    if mlegs and mlegs > 0:
+                        try:
+                            Asw += mlegs * bar_area(float(mdia))
+                        except:
+                            pass
+                    sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt, Asw, swg.Rsw, s_eff)
+                    qsw = swg.Rsw * Asw / s_eff if s_eff > 0 else 0
+                    cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh, sw_txt=sw_txt, s_eff=s_eff)
+            except Exception as ex:
+                # Nếu lỗi, hiển thị thông báo
+                import tkinter as tk
+                tk.Label(parent, text=f"Không tính được thép đai: {ex}", fg="red", bg="white").pack()
+                return
+        # Hiển thị bảng từ cols (dùng chung cho cả 2 nhánh)
+        import tkinter as tk
+        tf = tk.Frame(parent, bg="white")
+        tf.pack(fill=tk.X, padx=8, pady=6)
+        headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT", "Phương V2", "Phương V3"]
+        for j, h in enumerate(headers):
+            tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6", fg="#111827",
+                     borderwidth=0, highlightthickness=0,
+                     anchor="w" if j == 0 else "center",
+                     padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
+            tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
+        rows = [
+            ("Thép đai bố trí", cols['2']['sw_txt'], cols['3']['sw_txt']),
+            ("Lực cắt tính toán, Q", f"{cols['2']['Q']:.1f} kN", f"{cols['3']['Q']:.1f} kN"),
+            ("Kích thước tiết diện, b × h0", f"{cols['2']['b']:.0f} × {cols['2']['h0']:.0f} mm", f"{cols['3']['b']:.0f} × {cols['3']['h0']:.0f} mm"),
+            ("Asw = n × φ", f"{cols['2']['Asw']:.0f} mm²", f"{cols['3']['Asw']:.0f} mm²"),
+            ("qsw = Rsw × Asw/s", f"{cols['2']['qsw']:.1f} N/mm", f"{cols['3']['qsw']:.1f} N/mm"),
+        ]
+        # Thêm các hàng từ kết quả check_shear
         try:
-            # Lấy đai bao (dùng chung) — có thể mở rộng theo t2/t3 sau
-            stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
-                                   legs=inp.sw_legs)
-            conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade],
-                                    inp.gamma_b)
-            swg = STEEL_GRADES.get(inp.sw_steel_grade)
-            sr = check_stirrup(self._last_sec, stir_in, inp.cover)
-
-            # Tính chi tiết từng phương (kể cả đai giữa)
-            cols = {}
-            # Q2 (theo trục 2): b = t2 = cy, h0 từ t3 = cx; dùng đai giữa t2
-            # Q3 (theo trục 3): b = t3 = cx, h0 từ t2 = cy; dùng đai giữa t3
-            for Q, lbl, b_w, h_dim, mdia, ms, mlegs in (
-                    (inp.Q2, "2", inp.cy, inp.cx,
-                     inp.swm2_dia, inp.swm2_spacing, inp.swm2_legs),
-                    (inp.Q3, "3", inp.cx, inp.cy,
-                     inp.swm3_dia, inp.swm3_spacing, inp.swm3_legs)):
-                h0 = h_dim - inp.cover - inp.sw_dia - 12
-                # Asw = đai bao + đai giữa
-                Asw = stir_in.legs * bar_area(stir_in.dia)
-                s_eff = stir_in.spacing
-                sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
-                          f"a{stir_in.spacing:.0f}")
-                if mlegs > 0:
-                    Asw += mlegs * bar_area(mdia)
-                    s_eff = min(s_eff, ms) if ms > 0 else s_eff
-                    sw_txt += (f" + {mlegs:.0f}φ{mdia:.0f} a{ms:.0f} "
-                               f"(giữa)")
-                sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt,
-                                 Asw, swg.Rsw, s_eff)
-                qsw = swg.Rsw * Asw / s_eff if s_eff > 0 else 0
-                cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw,
-                                 sh=sh, sw_txt=sw_txt, s_eff=s_eff)
-
-            # Bảng Phương 2 | Phương 3 (header là tiêu đề, không cần label riêng)
-            tf = tk.Frame(parent, bg="white")
-            tf.pack(fill=tk.X, padx=8, pady=(4, 2))
-            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT", "Phương V2", "Phương V3"]
-            for j, h in enumerate(headers):
-                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
-                         fg="#111827", borderwidth=0,
-                         highlightthickness=0,
-                         anchor="w" if j == 0 else "center",
-                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
-                # Tỉ lệ cột 90-45-45 (2:1:1), uniform để giữ đúng tỉ lệ
-                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
-            rows = [
-                ("Thép đai bố trí",
-                 cols['2']['sw_txt'], cols['3']['sw_txt']),
-                ("Lực cắt tính toán, Q",
-                 f"{cols['2']['Q']:.1f} kN", f"{cols['3']['Q']:.1f} kN"),
-                ("Kích thước tiết diện, b × h0",
-                 f"{cols['2']['b']:.0f} × {cols['2']['h0']:.0f} mm",
-                 f"{cols['3']['b']:.0f} × {cols['3']['h0']:.0f} mm"),
-                ("Asw = n × φ",
-                 f"{cols['2']['Asw']:.0f} mm²", f"{cols['3']['Asw']:.0f} mm²"),
-                ("qsw = Rsw × Asw/s",
-                 f"{cols['2']['qsw']:.1f} N/mm", f"{cols['3']['qsw']:.1f} N/mm"),
-                ("Độ bền trên dải nén xiên Q ≤ 0.3×Rb×b×h0",
-                 f"{cols['2']['sh'].Qcap1:.1f} kN",
-                 f"{cols['3']['sh'].Qcap1:.1f} kN"),
-                ("Qb = 1.5×Rbt×b×h0²/C",
-                 f"{cols['2']['sh'].Qb_opt:.1f} kN",
-                 f"{cols['3']['sh'].Qb_opt:.1f} kN"),
-                ("Qsw = 0.75×qsw×C",
-                 f"{cols['2']['sh'].Qsw_opt:.1f} kN",
-                 f"{cols['3']['sh'].Qsw_opt:.1f} kN"),
-                ("Chiều dài hình chiếu của vết nứt xiên C",
-                 f"{cols['2']['sh'].C_opt:.0f} mm",
-                 f"{cols['3']['sh'].C_opt:.0f} mm"),
-                ("Độ bền trên vết nứt xiên Q ≤ [Q] = Qb + Qsw",
-                 f"{cols['2']['sh'].Qcap2:.1f} kN",
-                 f"{cols['3']['sh'].Qcap2:.1f} kN"),
-                ("Kết luận",
-                 "ĐẠT" if cols['2']['sh'].ok else "KHÔNG ĐẠT",
-                 "ĐẠT" if cols['3']['sh'].ok else "KHÔNG ĐẠT"),
-            ]
-            for i, (a, b, c) in enumerate(rows):
-                bg = "#F9FAFB" if i % 2 else "white"
-                is_kl = (a == "Kết luận")
-                for j, t in enumerate((a, b, c)):
-                    fw = ("", 9)  # nội dung bảng không in đậm
-                    fg = "#1F2937"
-                    if is_kl and j > 0:
-                        fg = "#065F46" if t == "ĐẠT" else "#991B1B"
-                        fw = ("", 9, "bold")  # kết quả in đậm
-                    tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
-                             borderwidth=0,
-                             highlightthickness=0,
-                             padx=6, pady=6, anchor="w" if j == 0
-                             else "center").grid(row=i + 1, column=j,
-                                                 sticky="nsew")
-        except Exception as e:
-            tk.Label(parent, text=f"Không tính được thép đai: {e}",
-                     fg="#991B1B", bg="white").pack(padx=8, pady=4)
+            sh2 = cols['2']['sh']
+            sh3 = cols['3']['sh']
+            rows.extend([
+                ("Độ bền trên dải nén xiên Q ≤ 0.3×Rb×b×h0", f"{sh2.Qcap1:.1f} kN", f"{sh3.Qcap1:.1f} kN"),
+                ("Qb = 1.5×Rbt×b×h0²/C", f"{sh2.Qb:.1f} kN", f"{sh3.Qb:.1f} kN"),
+                ("Qsw = 0.75×qsw×C", f"{sh2.Qsw:.1f} kN", f"{sh3.Qsw:.1f} kN"),
+                ("Khả năng chịu cắt [Q] = Qb + Qsw", f"{sh2.Qcap:.1f} kN", f"{sh3.Qcap:.1f} kN"),
+                ("Kết luận", "✓ ĐẠT" if sh2.ok else "✗ KHÔNG ĐẠT", "✓ ĐẠT" if sh3.ok else "✗ KHÔNG ĐẠT"),
+            ])
+        except:
+            pass
+        for i, (label, v2, v3) in enumerate(rows, start=1):
+            tk.Label(tf, text=label, font=("", 9), bg="white", fg="#111827",
+                     anchor="w", padx=6, pady=4).grid(row=i, column=0, sticky="nsew")
+            tk.Label(tf, text=v2, font=("", 9), bg="white", fg="#111827",
+                     anchor="center", padx=6, pady=4).grid(row=i, column=1, sticky="nsew")
+            tk.Label(tf, text=v3, font=("", 9), bg="white", fg="#111827",
+                     anchor="center", padx=6, pady=4).grid(row=i, column=2, sticky="nsew")
 
 
     def _redraw(self):
