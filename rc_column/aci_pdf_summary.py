@@ -315,7 +315,10 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     _alpha = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
         if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
     _dc = aci_res.get("dc", 0)
-    _fs = aci_res.get("fs", 0)
+    _fs = aci_res.get("fs", 0) or 0
+    _dc = aci_res.get("dc", 0) or 0
+    if not _fs and _dc and _dc > 1e-9:
+        _fs = 1.0 / _dc
     _ok_txt = "<b>ĐẠT</b>" if aci_res.get("ok") else "<b>KHÔNG ĐẠT</b>"
     tie_txt = "Đai rời (tied)" if tied else "Đai xoắn (spiral)"
     _fyt = getattr(inp, "fyt", None) or getattr(steel, "fyt", steel.fy)
