@@ -602,12 +602,27 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     h0_3 = sec.cy - inp.cover - stir_in.dia - inp.bar_dia / 2
     shear_ok = True
     cards7 = []
+    # Ưu tiên dùng kết quả đã tính từ app (nguyên tắc "tính 1 lần")
+    _pre = shear_info if isinstance(shear_info, dict) else {}
+    # shear_info có thể là {"2": {...}, "3": {...}} từ _tcvn_calculate_full
+    _has_pre = "2" in _pre and "3" in _pre
     for Q, b_w, h0, dnum in ((inp.Q2, sec.cy, h0_2, "2"),
                              (inp.Q3, sec.cx, h0_3, "3")):
-        Asw = Asw_1 * stir_in.legs
-        h0u = max(h0, 1)
-        sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
-                         stir_in.spacing, direction=dnum)
+        if _has_pre:
+            # Dùng kết quả đã tính - KHÔNG gọi check_shear
+            _pc = _pre.get(dnum, {})
+            sh = _pc.get("sh")
+            if sh is None:
+                # Fallback: tính lại (không nên xảy ra)
+                Asw = Asw_1 * stir_in.legs
+                h0u = max(h0, 1)
+                sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
+                                 stir_in.spacing, direction=dnum)
+        else:
+            Asw = Asw_1 * stir_in.legs
+            h0u = max(h0, 1)
+            sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
+                             stir_in.spacing, direction=dnum)
         m1 = "✓" if sh.ok1 else "✗"
         m2 = "✓" if sh.ok2 else "✗"
         qsw = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
