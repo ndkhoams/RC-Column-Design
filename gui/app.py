@@ -1382,6 +1382,36 @@ class App(tk.Tk):
         res = check_column(inp, n_angles=n_angles)
         sec = build_section(inp)
 
+        # Tính cắt 1 lần ở đây (để tab/PDF chỉ hiển thị, không tính lại)
+        from rc_column.stirrup import StirrupInput, check_stirrup, check_shear
+        from rc_column.sections import bar_area
+        from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES, ConcreteMaterial
+        _shear_cols = {}
+        try:
+            _stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing, legs=inp.sw_legs)
+            _conc_mat = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade], inp.gamma_b)
+            _swg = STEEL_GRADES.get(inp.sw_steel_grade)
+            _sr = check_stirrup(sec, _stir_in, inp.cover)
+            for _Q, _lbl, _b_w, _h_dim, _mdia, _ms, _mlegs in (
+                    (inp.Q2, "2", inp.cy, inp.cx, inp.swm2_dia, inp.swm2_spacing, inp.swm2_legs),
+                    (inp.Q3, "3", inp.cx, inp.cy, inp.swm3_dia, inp.swm3_spacing, inp.swm3_legs)):
+                _h0 = _h_dim - inp.cover - inp.sw_dia - 12
+                _Asw = _stir_in.legs * bar_area(_stir_in.dia)
+                _s_eff = _stir_in.spacing
+                _sw_txt = f"{_stir_in.legs:.0f}φ{_stir_in.dia:.0f} a{_stir_in.spacing:.0f}"
+                # Đai giữa (nếu có)
+                if _mdia and _ms:
+                    try:
+                        _Asw += _mlegs * bar_area(float(_mdia))
+                    except: pass
+                _sh = check_shear(_Q, _b_w, max(_h0, 1), _conc_mat.Rb, _conc_mat.Rbt,
+                                 _Asw, _swg.Rsw, _s_eff)
+                _qsw = _swg.Rsw * _Asw / _s_eff if _s_eff > 0 else 0
+                _shear_cols[_lbl] = dict(Q=_Q, b=_b_w, h0=_h0, Asw=_Asw, qsw=_qsw,
+                                        sh=_sh, sw_txt=_sw_txt, s_eff=_s_eff)
+        except Exception:
+            pass
+
         return {
             "inp": inp,
             "res": res,
@@ -1394,6 +1424,7 @@ class App(tk.Tk):
             "dc": res.dc if hasattr(res, 'dc') else 0,
             "fs": res.fs if hasattr(res, 'fs') else 0,
             "ok": res.ok if hasattr(res, 'ok') else False,
+            "shear_cols": _shear_cols,
         }
 
     def _aci_calculate_full(self, sec, conc, steel, inp, N, M2, M3, Q2, Q3,
@@ -1497,8 +1528,9 @@ class App(tk.Tk):
             sw_dia = getattr(inp, 'sw_dia', 10) or 10
             sw_legs = getattr(inp, 'sw_legs', 2) or 2
             sw_s = getattr(inp, 'sw_spacing', 200) or 200
-            d2_s = sec.cy - cover - sw_dia - 12
-            d3_s = sec.cx - cover - sw_dia - 12
+            # V2: b=t2(750), d theo t3(500); V3: b=t3(500), d theo t2(750) - khớp hiển thị
+            d2_s = sec.cx - cover - sw_dia - 12
+            d3_s = sec.cy - cover - sw_dia - 12
             Av = sw_legs * math.pi * (sw_dia**2) / 4
             try:
                 sh2 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
@@ -1515,6 +1547,11 @@ class App(tk.Tk):
             res["shear2"] = sh2 or {}
             res["shear3"] = sh3 or {}
             res["shear"] = {"dir2": sh2 or {}, "dir3": sh3 or {}}
+            # Lưu thêm thông số hiển thị (để tab/PDF không phải tính lại)
+            res["shear_disp"] = {
+                "2": {"b": sec.cx, "d": d2_s, "Av": Av, "Vu": abs(Q2), "sw_txt": f"{sw_legs}φ{sw_dia} a{sw_s}"},
+                "3": {"b": sec.cy, "d": d3_s, "Av": Av, "Vu": abs(Q3), "sw_txt": f"{sw_legs}φ{sw_dia} a{sw_s}"},
+            }
         except Exception:
             res["shear2"] = {}
             res["shear3"] = {}
@@ -1953,7 +1990,8 @@ class App(tk.Tk):
         f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
         f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
                   padx=4, pady=4)
-        self._build_aci_shear_summary(f_sw, inp, sec, conc, steel)
+        _full = getattr(self, '_aci_full', {}) or {}
+        self._build_aci_shear_summary(f_sw, inp, sec, conc, steel, _full)
         self._sum_inner.rowconfigure(3, weight=0)
 
         # Gắn lại cuộn chuột cho các widget mới
@@ -1995,37 +2033,31 @@ class App(tk.Tk):
         _card(row1, "Diện tích Ab", vals["ab"])
         _card(row1, "Hàm lượng μ", vals["mu"])
 
-    def _build_aci_shear_summary(self, parent, inp, sec, conc, steel):
-        """Bảng kiểm tra khả năng chịu cắt ACI: Phương V2 | Phương V3."""
-        from rc_column.aci_checker import aci_shear_check
-        from rc_column.sections import bar_area
+    def _build_aci_shear_summary(self, parent, inp, sec, conc, steel, full_res=None):
+        """Bảng kiểm tra khả năng chịu cắt ACI: Phương V2 | Phương V3.
+        CHỈ hiển thị từ full_res (đã tính bởi _aci_calculate_full), KHÔNG tính lại."""
+        # Lấy kết quả đã tính sẵn từ _aci_calculate_full - KHÔNG tính lại
+        _fr = full_res or {}
+        _sh2 = _fr.get("shear2") or {}
+        _sh3 = _fr.get("shear3") or {}
+        _disp = _fr.get("shear_disp") or {}
+        _d2 = _disp.get("2") or {}
+        _d3 = _disp.get("3") or {}
         try:
-            fc = conc.fc
-            fyt = getattr(steel, "fyt", steel.fy)
-            # Thông tin đai
-            sw_dia = getattr(inp, "sw_dia", 10)
-            sw_spacing = getattr(inp, "sw_spacing", 200)
-            sw_legs = getattr(inp, "sw_legs", 2)
-            Av = sw_legs * bar_area(sw_dia)
-            sw_txt = f"{sw_legs:.0f}φ{sw_dia:.0f} a{sw_spacing:.0f}"
-
             cols = {}
-            # V2: b = t2 = cy, d từ t3 = cx
-            # V3: b = t3 = cx, d từ t2 = cy
-            for Vu, lbl, b_w, h_dim in (
-                    (abs(inp.Q2), "2", inp.cy, inp.cx),
-                    (abs(inp.Q3), "3", inp.cx, inp.cy)):
-                d = h_dim - inp.cover - sw_dia - 12
-                Acv = b_w * d
-                Ag = inp.cx * inp.cy
-                sr = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Ag, fc_MPa=fc,
-                                    Nu_kN=max(inp.N, 0), Vu_kN=Vu,
-                                    Av_mm2=Av, fyt_MPa=fyt,
-                                    s_mm=sw_spacing, d_mm=d)
-                cols[lbl] = dict(Vu=Vu, b=b_w, d=d, Av=Av,
-                                Vc=sr["Vc_kN"], Vs=sr["Vs_kN"],
-                                phiVn=sr["phi_Vn_kN"], ok=sr["ok"],
-                                sw_txt=sw_txt)
+            # Đọc trực tiếp từ kết quả đã tính, không gọi aci_shear_check
+            for lbl, sh, dp in (("2", _sh2, _d2), ("3", _sh3, _d3)):
+                cols[lbl] = dict(
+                    Vu=dp.get("Vu", 0),
+                    b=dp.get("b", 0),
+                    d=dp.get("d", 0),
+                    Av=dp.get("Av", 0),
+                    Vc=sh.get("Vc_kN", 0),
+                    Vs=sh.get("Vs_kN", 0),
+                    phiVn=sh.get("phi_Vn_kN", 0),
+                    ok=sh.get("ok", False),
+                    sw_txt=dp.get("sw_txt", ""),
+                )
 
             tf = tk.Frame(parent, bg="white")
             tf.pack(fill=tk.X, padx=8, pady=6)
@@ -4881,10 +4913,19 @@ class App(tk.Tk):
         # Cập nhật tên cấu kiện
         self._update_ck()
 
-    def _build_stirrup_summary(self, parent, inp, res):
-        """Bảng kiểm tra thép đai: Phương 2 | Phương 3."""
-        from rc_column.stirrup import (StirrupInput, check_stirrup,
-                                      check_shear)
+    def _build_stirrup_summary(self, parent, inp, res, full_res=None):
+        """Bảng kiểm tra thép đai: Phương 2 | Phương 3.
+        CHỈ hiển thị từ full_res (đã tính bởi _tcvn_calculate_full), KHÔNG tính lại."""
+        # Lấy kết quả cắt đã tính sẵn - KHÔNG gọi check_shear ở đây
+        _fr = full_res or {}
+        _cols = _fr.get("shear_cols") or {}
+        if _cols:
+            # Dùng kết quả có sẵn, bỏ qua toàn bộ logic tính bên dưới
+            cols = _cols
+        else:
+            # Fallback (không nên xảy ra): tính lại để không vỡ UI
+            from rc_column.stirrup import (StirrupInput, check_stirrup,
+                                          check_shear)
         from rc_column.sections import bar_area
         from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                         ConcreteMaterial)
@@ -5208,7 +5249,8 @@ class App(tk.Tk):
         f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
         f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
                   padx=4, pady=4)
-        self._build_stirrup_summary(f_sw, inp, res)
+        _tfull = getattr(self, '_tcvn_full', {}) or {}
+        self._build_stirrup_summary(f_sw, inp, res, _tfull)
         self._sum_inner.rowconfigure(3, weight=0)
 
         self._sum_inner.rowconfigure(2, weight=0)
