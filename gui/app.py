@@ -1558,12 +1558,29 @@ class App(tk.Tk):
         try:
             for lbl, Mdir in (("dir2", inp.Mx), ("dir3", inp.My)):
                 g = geom[lbl]
+                # Tính Is từ vị trí thép (thay vì hardcode 0.0)
+                _Is = 0.0
+                try:
+                    import math as _mm
+                    _cx, _cy = sec.cx / 2, sec.cy / 2  # tâm
+                    for _b in sec.bars:
+                        _d = getattr(_b, 'd', getattr(_b, 'dia', 0))
+                        _As = _mm.pi * _d**2 / 4
+                        _x = getattr(_b, 'x', 0)
+                        _y = getattr(_b, 'y', 0)
+                        if lbl == "dir2":
+                            _dist = abs(_y - _cy)
+                        else:
+                            _dist = abs(_x - _cx)
+                        _Is += _As * _dist**2
+                except Exception:
+                    _Is = 0.0
                 dm[lbl] = ec2_design_moment(
                     NEd_kN=inp.N, M_top_kNm=abs(Mdir),
                     M_bot_kNm=abs(Mdir), l0_mm=g["l0"], i_mm=g["i"],
                     h_mm=g["h"], Ac_mm2=Ac, As_mm2=As,
                     fcd_MPa=conc.fcd, fyd_MPa=steel.fyd,
-                    Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"], Is_mm4=0.0,
+                    Ecm_MPa=conc.Ecm, Ic_mm4=g["Ic"], Is_mm4=_Is,
                     Es_MPa=steel.Es, fck_MPa=fck,
                     unbraced=False, method=method,
                     d_mm=max(g["h"] - inp.cover - 10.0, 0.5 * g["h"]),
