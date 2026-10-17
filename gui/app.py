@@ -1965,6 +1965,22 @@ class App(tk.Tk):
         self._aci_nm_angle_cb.bind("<<ComboboxSelected>>",
                                    self._on_aci_nm_angle_changed)
         self._aci_nm_view_angle = None  # None = góc tải mặc định
+        # Điều khiển xoay 3D thủ công (hiện khi chọn 3D)
+        self._aci_3d_ctrl = tk.Frame(right, bg="white")
+        tk.Label(self._aci_3d_ctrl, text="Nghiêng:", font=("", 8),
+                 bg="white").pack(side=tk.LEFT)
+        self._aci_elev_var = tk.DoubleVar(value=20)
+        tk.Scale(self._aci_3d_ctrl, from_=-90, to=90, orient=tk.HORIZONTAL,
+                 variable=self._aci_elev_var, length=80, font=("", 7),
+                 bg="white", highlightthickness=0,
+                 command=lambda v: self._on_aci_3d_view()).pack(side=tk.LEFT)
+        tk.Label(self._aci_3d_ctrl, text="Xoay:", font=("", 8),
+                 bg="white").pack(side=tk.LEFT)
+        self._aci_azim_var = tk.DoubleVar(value=-60)
+        tk.Scale(self._aci_3d_ctrl, from_=-180, to=180, orient=tk.HORIZONTAL,
+                 variable=self._aci_azim_var, length=80, font=("", 7),
+                 bg="white", highlightthickness=0,
+                 command=lambda v: self._on_aci_3d_view()).pack(side=tk.LEFT)
 
     def _on_aci_nm_angle_changed(self, event=None):
         """Vẽ lại biểu đồ N-Mα (ACI) tại góc được chọn."""
@@ -1972,7 +1988,15 @@ class App(tk.Tk):
             sel = self._aci_nm_angle_cb.get()
             if sel == "3D":
                 self._draw_3d_aci()
+                try:
+                    self._aci_3d_ctrl.pack(side=tk.LEFT, padx=(8, 0))
+                except Exception:
+                    pass
                 return
+            try:
+                self._aci_3d_ctrl.pack_forget()
+            except Exception:
+                pass
             if sel.startswith("α"):
                 angle = None
             else:
@@ -2431,6 +2455,22 @@ class App(tk.Tk):
         self._ec2_nm_angle_cb.bind("<<ComboboxSelected>>",
                                    self._on_ec2_nm_angle_changed)
         self._ec2_nm_view_angle = None  # None = góc tải mặc định
+        # Điều khiển xoay 3D thủ công (hiện khi chọn 3D)
+        self._ec2_3d_ctrl = tk.Frame(right, bg="white")
+        tk.Label(self._ec2_3d_ctrl, text="Nghiêng:", font=("", 8),
+                 bg="white").pack(side=tk.LEFT)
+        self._ec2_elev_var = tk.DoubleVar(value=20)
+        tk.Scale(self._ec2_3d_ctrl, from_=-90, to=90, orient=tk.HORIZONTAL,
+                 variable=self._ec2_elev_var, length=80, font=("", 7),
+                 bg="white", highlightthickness=0,
+                 command=lambda v: self._on_ec2_3d_view()).pack(side=tk.LEFT)
+        tk.Label(self._ec2_3d_ctrl, text="Xoay:", font=("", 8),
+                 bg="white").pack(side=tk.LEFT)
+        self._ec2_azim_var = tk.DoubleVar(value=-60)
+        tk.Scale(self._ec2_3d_ctrl, from_=-180, to=180, orient=tk.HORIZONTAL,
+                 variable=self._ec2_azim_var, length=80, font=("", 7),
+                 bg="white", highlightthickness=0,
+                 command=lambda v: self._on_ec2_3d_view()).pack(side=tk.LEFT)
 
     def _on_ec2_nm_angle_changed(self, event=None):
         """Vẽ lại biểu đồ N-Mα (EC2) tại góc được chọn."""
@@ -2438,7 +2478,15 @@ class App(tk.Tk):
             sel = self._ec2_nm_angle_cb.get()
             if sel == "3D":
                 self._draw_3d_ec2()
+                try:
+                    self._ec2_3d_ctrl.pack(side=tk.LEFT, padx=(8, 0))
+                except Exception:
+                    pass
                 return
+            try:
+                self._ec2_3d_ctrl.pack_forget()
+            except Exception:
+                pass
             if sel.startswith("α"):
                 angle = None
             else:
@@ -4174,6 +4222,21 @@ class App(tk.Tk):
         except Exception:
             pass
 
+    def _on_aci_3d_view(self):
+        """Cập nhật góc nhìn 3D ACI từ slider."""
+        try:
+            fig = getattr(self, '_aci_nm_fig', None)
+            if fig is None or not fig.axes:
+                return
+            ax = fig.axes[0]
+            if getattr(ax, 'name', '') != '3d':
+                return
+            ax.view_init(elev=self._aci_elev_var.get(),
+                         azim=self._aci_azim_var.get())
+            fig.canvas.draw_idle()
+        except Exception:
+            pass
+
     def _draw_3d_aci(self):
         """Vẽ biểu đồ tương tác 3D cho ACI."""
         try:
@@ -4224,6 +4287,21 @@ class App(tk.Tk):
             print(f"Lỗi vẽ 3D ACI: {ex}")
             import traceback
             traceback.print_exc()
+
+    def _on_ec2_3d_view(self):
+        """Cập nhật góc nhìn 3D EC2 từ slider."""
+        try:
+            fig = getattr(self, '_ec2_nm_fig', None)
+            if fig is None or not fig.axes:
+                return
+            ax = fig.axes[0]
+            if getattr(ax, 'name', '') != '3d':
+                return
+            ax.view_init(elev=self._ec2_elev_var.get(),
+                         azim=self._ec2_azim_var.get())
+            fig.canvas.draw_idle()
+        except Exception:
+            pass
 
     def _draw_3d_ec2(self):
         """Vẽ biểu đồ tương tác 3D cho EC2."""
