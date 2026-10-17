@@ -3085,6 +3085,7 @@ class App(tk.Tk):
             _inp_worst.My = worst_f.My
             _inp_worst.Q2 = worst_f.Q2
             _inp_worst.Q3 = worst_f.Q3
+            _inp_worst._filename = self.member_var.get().strip() if hasattr(self, "member_var") else ""
             self._aci_inp = _inp_worst
             # Dùng worst_r (đã tính với mô men phóng đại) cho biểu đồ
             self._aci_res = worst_r
