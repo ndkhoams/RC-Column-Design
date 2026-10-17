@@ -79,7 +79,7 @@ def draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res,
     ax.plot([0, Ma], [N_kN, N_kN], color=BLUE_DASH, ls="--",
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     # Điểm B (giới hạn) vẽ trước, điểm A (tải trọng) vẽ sau
-    ax.scatter([lim[1]], [lim[0]], c=ORANGE, marker="s", s=70, zorder=5,
+    ax.scatter([lim[1]], [lim[0]], c=ORANGE, marker="D", s=70, zorder=5,
                edgecolors="white", linewidths=1.2, label="Giới hạn")
     ax.scatter([Ma], [N_kN], c=GREEN, s=70, zorder=6,
                edgecolors="white", linewidths=1.2,
@@ -102,7 +102,7 @@ def draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res,
                label="Tia tải O-A-B"),
         Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
                markersize=8, markeredgecolor="white", label="Điểm tải A"),
-        Line2D([0], [0], marker="s", color="w", markerfacecolor=ORANGE,
+        Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
                markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
@@ -141,7 +141,7 @@ def draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res,
     # Nét đứt đỏ từ tâm qua A tới B
     ax.plot([0, ec2_res["Bx"] * 1.18], [0, ec2_res["By"] * 1.18],
             color=RED, ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([ec2_res["Bx"]], [ec2_res["By"]], c=ORANGE, marker="s", s=70,
+    ax.scatter([ec2_res["Bx"]], [ec2_res["By"]], c=ORANGE, marker="D", s=70,
                zorder=5, edgecolors="white", linewidths=1.2,
                label="Giới hạn")
     ax.scatter([M2_kNm], [M3_kNm], c=GREEN, s=70,

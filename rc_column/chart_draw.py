@@ -35,7 +35,7 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
     ax.plot([0, Ma], [res.N, res.N], color=BLUE_DASH, ls="--",
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     # Điểm B (giới hạn) vẽ trước, điểm A (tải trọng) vẽ sau
-    ax.scatter([lim[1]], [lim[0]], c=ORANGE, marker="s", s=70, zorder=5,
+    ax.scatter([lim[1]], [lim[0]], c=ORANGE, marker="D", s=70, zorder=5,
                edgecolors="white", linewidths=1.2, label="Giới hạn")
     ax.scatter([Ma], [res.N], c=GREEN, s=70, zorder=6,
                edgecolors="white", linewidths=1.2,
@@ -87,7 +87,7 @@ def draw_m2m3_ax(ax, sec, inp, res):
     # Nét đứt đỏ từ tâm qua A tới B
     ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
             ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([res.Bx], [res.By], c=ORANGE, marker="s", s=70, zorder=5,
+    ax.scatter([res.Bx], [res.By], c=ORANGE, marker="D", s=70, zorder=5,
                edgecolors="white", linewidths=1.2, label="Giới hạn")
     ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70,
                zorder=6, edgecolors="white", linewidths=1.2,
