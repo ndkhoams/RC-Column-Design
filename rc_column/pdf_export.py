@@ -811,7 +811,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     ]))
 
     # NỘI LỰC TÍNH TOÁN (bỏ V2, V3 theo yêu cầu)
-    left_flow.append(_sec_table("NỘI LỰC TÍNH TOÁN", [
+    left_flow.append(_sec_table("NỘI LỰC THIẾT KẾ", [
         ("Vị trí cột", _vpos),
         ("Tổ hợp tính toán", _combo_txt),
         ("Lực dọc, N", f"{res.N:.1f} kN"),

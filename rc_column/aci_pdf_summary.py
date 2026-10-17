@@ -340,7 +340,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         ("Cốt thép dọc", " + ".join(_parts)),
         ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
     ]))
-    left_flow.append(_sec_table("NỘI LỰC TÍNH TOÁN", [
+    left_flow.append(_sec_table("NỘI LỰC THIẾT KẾ", [
         ("Vị trí cột", _vpos),
         ("Tổ hợp tính toán", _combo_txt),
         ("Lực dọc, N", f"{inp.N:.1f} kN"),
