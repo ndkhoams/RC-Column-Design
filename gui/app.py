@@ -288,17 +288,17 @@ class App(tk.Tk):
         for _c in range(4):
             top_grid.columnconfigure(_c, weight=1, uniform="topbtns")
         # Hàng 1: 4 nút dữ liệu
-        ttk.Button(top_grid, text="📂 OPEN", style="Top.TButton",
+        ttk.Button(top_grid, text="OPEN", style="Top.TButton",
                    command=self.on_load_data).grid(row=0, column=0,
                                                    sticky=tk.EW, padx=(0, 4))
-        ttk.Button(top_grid, text="💾 SAVE", style="Top.TButton",
+        ttk.Button(top_grid, text="SAVE", style="Top.TButton",
                    command=self.on_save_data).grid(row=0, column=1,
                                                    sticky=tk.EW, padx=(2, 2))
-        ttk.Button(top_grid, text="💾 SAVE AS", style="Top.TButton",
+        ttk.Button(top_grid, text="SAVE AS", style="Top.TButton",
                    command=self.on_save_as_data).grid(row=0, column=2,
                                                       sticky=tk.EW,
                                                       padx=(2, 2))
-        ttk.Button(top_grid, text="📄 XUẤT PDF", style="Top.TButton",
+        ttk.Button(top_grid, text="XUẤT PDF", style="Top.TButton",
                    command=self._export_pdf).grid(row=0, column=3,
                                                   sticky=tk.EW, padx=(4, 0))
         # Hàng 2: Tiêu chuẩn [dropdown dài] Tên cấu kiện [textbox=col2] [CHECK=col3]
@@ -307,7 +307,7 @@ class App(tk.Tk):
         row2.grid(row=1, column=0, columnspan=4, sticky=tk.EW,
                   padx=0, pady=(6, 0))
         for _c in range(4):
-            row2.columnconfigure(_c, weight=1)
+            row2.columnconfigure(_c, weight=1, uniform="row2cols")
         # Cột 0-1: Tiêu chuẩn + dropdown dài
         _std_frame = ttk.Frame(row2)
         _std_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW, padx=(0, 2))
@@ -666,11 +666,11 @@ class App(tk.Tk):
                             sticky=tk.EW, padx=0, pady=2)
         _dxf_btn_frame.columnconfigure(0, weight=1, uniform="dxfbtn")
         _dxf_btn_frame.columnconfigure(1, weight=1, uniform="dxfbtn")
-        self.btn_dxf = ttk.Button(_dxf_btn_frame, text="📐 Import (.dxf)",
+        self.btn_dxf = ttk.Button(_dxf_btn_frame, text="Import (.dxf)",
                                   command=self.on_import_dxf)
         self.btn_dxf.grid(row=0, column=0, sticky=tk.EW, padx=4)
         self.btn_dxf_export = ttk.Button(_dxf_btn_frame,
-                                         text="📤 Export (.dxf)",
+                                         text="Export (.dxf)",
                                          command=self.on_export_dxf)
         self.btn_dxf_export.grid(row=0, column=1, sticky=tk.EW, padx=4)
         for w in (self.en_cx, self.en_cy):
@@ -1083,13 +1083,13 @@ class App(tk.Tk):
         btn_row.grid(row=0, column=0, columnspan=3, sticky=tk.EW,
                      padx=4, pady=4)
         st.configure("Big.TButton", font=("", 9), padding=(6, 4))
-        ttk.Button(btn_row, text="📂 Chọn file Excel", style="Big.TButton",
+        ttk.Button(btn_row, text="Chọn file Excel", style="Big.TButton",
                    command=self.on_import_etabs).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
-        ttk.Button(btn_row, text="📋 Paste từ Clipboard", style="Big.TButton",
+        ttk.Button(btn_row, text="Paste từ Clipboard", style="Big.TButton",
                    command=self.on_paste_etabs).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=2)
-        ttk.Button(btn_row, text="🗑️ Xóa nội lực", style="Big.TButton",
+        ttk.Button(btn_row, text="Xóa nội lực", style="Big.TButton",
                    command=self.on_delete_forces).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
 
