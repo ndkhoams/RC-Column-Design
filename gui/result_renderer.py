@@ -66,7 +66,7 @@ def render_result_tab(app, config):
     f_tl = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
                     highlightthickness=1, takefocus=0)
     f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-    tk.Label(f_tl, text="VÙNG NÉN TIẾT DIỆN",
+    tk.Label(f_tl, text="MẶT CẮT TIẾT DIỆN",
              font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
     fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
     a1 = fig_sec.add_subplot(111)
