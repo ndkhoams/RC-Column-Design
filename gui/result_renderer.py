@@ -84,6 +84,11 @@ def render_result_tab(app, config):
         draw_section_ax(a1, config["section"], show_stats=False, dot_scale=1.5)
     fig_sec.tight_layout()
     cv_sec.draw()
+    # Lưu ref để live preview update (không cần CHECK lại)
+    app._sec_fig = fig_sec
+    app._sec_ax = a1
+    app._sec_cv = cv_sec
+    app._sec_canvas = cv_sec  # tương thích tên TCVN
 
     # Thẻ thống kê (4 cards)
     cards = config.get("section_cards")
