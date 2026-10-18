@@ -197,6 +197,25 @@ def section_image(sec, width_in=3.2, dpi=300, small=False,
     return buf.getvalue()
 
 
+def compression_zone_image(sec, N_kN: float, M2_kNm: float, M3_kNm: float,
+                           na_info=None, width_in=2.8, dpi=150) -> bytes:
+    """Vẽ hình vùng nén (giống app) trả về PNG bytes."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from .pdf_export import draw_compression_zone_ax
+    fig = plt.Figure(figsize=(width_in, width_in), dpi=dpi)
+    ax = fig.add_subplot(111)
+    draw_compression_zone_ax(ax, sec, N_kN, M2_kNm, M3_kNm,
+                             Nmax_kN=abs(N_kN)*2 if N_kN else None,
+                             na_info=na_info)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight",
+                facecolor="white", pad_inches=0.1)
+    plt.close(fig)
+    return buf.getvalue()
+
+
 def _radial_limit(curve, N_load: float, M_load: float):
     """Giao của tia từ gốc qua (N_load, M_load) với đường cong [(N, M)]."""
     best = None
