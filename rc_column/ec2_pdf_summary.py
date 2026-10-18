@@ -388,14 +388,7 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
         ("Momen trục 2, MEd2", f"{inp.Mx:.1f} kNm"),
         ("Momen trục 3, MEd3", f"{inp.My:.1f} kNm"),
     ]))
-    left_flow.append(_sec_table("ĐỘ MẢNH & BẬC 2", [
-        ("λ2 / λlim,2",
-         f"{_f(_sl2.get('lambda_sl'), 1)} / {_f(_sl2.get('lambda_lim'), 1)}"),
-        ("λ3 / λlim,3",
-         f"{_f(_sl3.get('lambda_sl'), 1)} / {_f(_sl3.get('lambda_lim'), 1)}"),
-        ("MEd2 (đã bậc 2)", f"{_f(_sl2.get('MEd'), 1)} kNm"),
-        ("MEd3 (đã bậc 2)", f"{_f(_sl3.get('MEd'), 1)} kNm"),
-    ]))
+
     _BN = ec2_res.get("BN", 0)
     _Bx = ec2_res.get("Bx", 0)
     _By = ec2_res.get("By", 0)
