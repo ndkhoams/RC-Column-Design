@@ -305,7 +305,7 @@ class AciMixin:
                 _w = _canvas.winfo_width()
                 if _w > 1:
                     _canvas.itemconfig(_win_id_aci, width=_w)
-                _canvas.bind("<Configure>", lambda e: _canvas.itemconfig(_win_id_aci, width=e.width))
+                # Giữ nguyên bind gốc của app.py
             except:
                 pass
             self._sum_inner.bind("<Configure>", lambda e: _canvas.configure(scrollregion=_canvas.bbox("all")))
