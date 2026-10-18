@@ -62,16 +62,25 @@ def render_result_tab(app, config):
     app._sum_inner.rowconfigure(0, weight=0)
     app._sum_inner.rowconfigure(1, weight=1)
 
-    # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
+    # ===== Ô trên-phải: vùng nén tiết diện + thẻ thống kê =====
     f_tl = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
                     highlightthickness=1, takefocus=0)
     f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-    tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
+    tk.Label(f_tl, text="VÙNG NÉN TIẾT DIỆN",
              font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
     fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
     a1 = fig_sec.add_subplot(111)
-    from rc_column.pdf_export import draw_section_ax
-    draw_section_ax(a1, config["section"], show_stats=False, dot_scale=1.5)
+    from rc_column.pdf_export import draw_compression_zone_ax
+    _cz = config.get("comp_zone")
+    if _cz:
+        draw_compression_zone_ax(a1, config["section"],
+                                 N_kN=_cz.get("N", 0),
+                                 M2_kNm=_cz.get("M2", 0),
+                                 M3_kNm=_cz.get("M3", 0),
+                                 Nmax_kN=_cz.get("Nmax"))
+    else:
+        from rc_column.pdf_export import draw_section_ax
+        draw_section_ax(a1, config["section"], show_stats=False, dot_scale=1.5)
     fig_sec.tight_layout()
     cv_sec.draw()
 
