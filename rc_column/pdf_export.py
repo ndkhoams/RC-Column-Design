@@ -609,7 +609,7 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         leg = ax.legend(handles=legend_handles, loc="center left",
                         bbox_to_anchor=(1.02, 0.5),
                         ncol=1,
-                        frameon=True, fontsize=7,
+                        frameon=True, fontsize=8,
                         facecolor="white", edgecolor="#D1D5DB")
         for txt in leg.get_texts():
             txt.set_fontweight("bold")
@@ -617,7 +617,7 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     alen = max(cx, cy) * 0.62
     # Mũi tên trục t2 (xanh lá, ngang), t3 (xanh dương, đứng) - vẽ trên cùng
     # Đặt giới hạn trục để mũi tên không bị cắt
-    _lim = max(cx, cy) * 0.85
+    _lim = max(cx, cy) * 0.70
     ax.set_xlim(-_lim, _lim)
     ax.set_ylim(-_lim, _lim)
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
@@ -628,9 +628,9 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0,
                                 shrinkA=0, shrinkB=0),
                 zorder=6)
-    ax.text(alen * 1.02, 0, "t2", fontsize=7, color="#15803D",
+    ax.text(alen * 1.02, 0, "t2", fontsize=8, color="#15803D",
             weight="bold", va="center", ha="left", zorder=6)
-    ax.text(0, alen * 1.02, "t3", fontsize=7, color="#1D4ED8",
+    ax.text(0, alen * 1.02, "t3", fontsize=8, color="#1D4ED8",
             weight="bold", va="bottom", ha="center", zorder=6)
     
     # Không set title bên trong (đã có tiêu đề card bên ngoài)
@@ -639,16 +639,16 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         # Cạnh t2 là đứng (cy), cạnh t3 là ngang (cx) theo quy ước app
         # Đặt sát mép mặt cắt (dùng text thay vì xlabel/ylabel)
         ax.text(0, -cy/2 - max(cx,cy)*0.04, f"t3 = {cx:.0f} mm",
-                fontsize=7, weight="bold", ha="center", va="top")
+                fontsize=8, weight="bold", ha="center", va="top")
         ax.text(-cx/2 - max(cx,cy)*0.04, 0, f"t2 = {cy:.0f} mm",
-                fontsize=7, weight="bold", ha="right", va="center",
+                fontsize=8, weight="bold", ha="right", va="center",
                 rotation=90)
     elif sec.kind == "circle":
-        ax.set_xlabel(f"D = {cx:.0f} mm", fontsize=7, weight="bold")
-        ax.set_ylabel(f"D = {cx:.0f} mm", fontsize=7, weight="bold")
+        ax.set_xlabel(f"D = {cx:.0f} mm", fontsize=8, weight="bold")
+        ax.set_ylabel(f"D = {cx:.0f} mm", fontsize=8, weight="bold")
     else:
-        ax.set_xlabel("Trục 2 (mm)", fontsize=7)
-        ax.set_ylabel("Trục 3 (mm)", fontsize=7)
+        ax.set_xlabel("Trục 2 (mm)", fontsize=8)
+        ax.set_ylabel("Trục 3 (mm)", fontsize=8)
     ax.tick_params(labelsize=7)
 
     # Đơn giản hóa cho PDF: bỏ box, số quanh box; chỉ giữ mặt cắt, mũi tên, tên trục, kích thước, ghi chú thép
