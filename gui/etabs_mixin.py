@@ -629,8 +629,9 @@ class EtabsMixin:
                 try:
                     from rc_column.ec2_report_v2 import generate_ec2_report_sections_v2
                     _inp2 = getattr(self, "_ec2_inp", None)
-                    _res2 = getattr(self, "_ec2_full", {}).get("res", {})
-                    _dm2 = getattr(self, "_ec2_full", {}).get("dm", {})
+                    _full2 = getattr(self, "_ec2_full", None) or {}
+                    _res2 = _full2  # ec2_res chính là _full
+                    _dm2 = _full2.get("dm", {})
                     _conc2 = getattr(self, "_ec2_conc", None)
                     _steel2 = getattr(self, "_ec2_steel", None)
                     _sec2 = getattr(self, "_ec2_sec", None)
