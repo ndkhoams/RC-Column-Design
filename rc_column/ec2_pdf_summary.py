@@ -514,7 +514,23 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
         _sw_dia = getattr(inp, "sw_dia", 8)
         _sw_s = getattr(inp, "sw_spacing", 200)
         _sw_legs = getattr(inp, "sw_legs", 2)
-        _sw_txt = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        from .sections import bar_area as _ba
+        _m2_dia = getattr(inp, "swm2_dia", 0) or 0
+        _m2_s = getattr(inp, "swm2_spacing", 0) or 0
+        _m2_legs = getattr(inp, "swm2_legs", 0) or 0
+        _m3_dia = getattr(inp, "swm3_dia", 0) or 0
+        _m3_s = getattr(inp, "swm3_spacing", 0) or 0
+        _m3_legs = getattr(inp, "swm3_legs", 0) or 0
+        _Asw2 = _sw_legs * _ba(_sw_dia) + (_m2_legs * _ba(_m2_dia) if _m2_dia > 0 else 0)
+        _Asw3 = _sw_legs * _ba(_sw_dia) + (_m3_legs * _ba(_m3_dia) if _m3_dia > 0 else 0)
+        if _m2_dia > 0:
+            _sw_txt2 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f} + {_m2_legs:.0f}φ{_m2_dia:.0f} a{_m2_s:.0f}"
+        else:
+            _sw_txt2 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        if _m3_dia > 0:
+            _sw_txt3 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f} + {_m3_legs:.0f}φ{_m3_dia:.0f} a{_m3_s:.0f}"
+        else:
+            _sw_txt3 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
         _data = [
             [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT (EC2 6.2)</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
@@ -523,23 +539,25 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
         _v2 = _d2.get("Q")
         _v3 = _d3.get("Q")
         _sw_lines = [
-            ("Thép đai bố trí", _sw_txt, _sw_txt),
+            ("Thép đai bố trí", _sw_txt2, _sw_txt3),
+            ("Asw = n × φ",
+             f"{_Asw2:.0f} mm²", f"{_Asw3:.0f} mm²"),
             ("Lực cắt tính toán, VEd",
              f"{abs(_v2):.1f} kN" if _v2 else "—",
              f"{abs(_v3):.1f} kN" if _v3 else "—"),
             ("Kích thước chịu cắt, bw × d",
              f"{_d2.get('b', 0):.0f} × {_d2.get('d', 0):.0f} mm",
              f"{_d3.get('b', 0):.0f} × {_d3.get('d', 0):.0f} mm"),
-            ("VRd,c = [CRd,c·k·(100ρl·fck)⅓ + k1·σcp]·bw·d",
+            ("VRd,c = [CRd,c×k×(100ρl×fck)⅓ + k1×σcp]×bw×d",
              f"{_s2.get('VRd_c_kN', 0):.1f} kN",
              f"{_s3.get('VRd_c_kN', 0):.1f} kN"),
-            ("VRd,max = αcw·bw·z·ν1·fcd/(cotθ+tanθ)",
+            ("VRd,max = αcw×bw×z×ν1×fcd/(cotθ+tanθ)",
              f"{_s2.get('VRd_max_kN', 0):.1f} kN",
              f"{_s3.get('VRd_max_kN', 0):.1f} kN"),
-            ("VRd,s = (Asw/s)·z·fywd·cotθ (θ=45°)",
+            ("VRd,s = (Asw/s)×z×fywd×cotθ (θ=45°)",
              f"{_s2.get('VRd_s_kN', 0):.1f} kN",
              f"{_s3.get('VRd_s_kN', 0):.1f} kN"),
-            ("Asw/s yêu cầu = VEd/(z·fywd·cotθ)",
+            ("Asw/s yêu cầu = VEd/(z×fywd×cotθ)",
              f"{_s2.get('Asw_s_req', 0):.3f} mm²/mm",
              f"{_s3.get('Asw_s_req', 0):.3f} mm²/mm"),
             ("Kết luận",
