@@ -161,7 +161,17 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _plt.close(_fig)
                 _buf.seek(0)
                 from reportlab.platypus import Image as _Img
-                _simg = _Img(_buf, width=65*mm, height=65*mm)
+                try:
+                    from PIL import Image as _PIL2
+                    _buf.seek(0)
+                    _pil2 = _PIL2.open(_buf)
+                    _pw2, _ph2 = _pil2.size
+                    _buf.seek(0)
+                    _hh2 = 65 * _ph2 / _pw2 if _pw2 > 0 else 65
+                except Exception:
+                    _hh2 = 65
+                    _buf.seek(0)
+                _simg = _Img(_buf, width=65*mm, height=_hh2*mm)
                 _simg.hAlign = "CENTER"
                 S.append(_simg)
                 S.append(Spacer(1, 4*mm))
