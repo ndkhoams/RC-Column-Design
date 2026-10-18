@@ -439,12 +439,9 @@ class AciMixin:
             else:
                 self._aci_nm_view_angle = float(sel.replace("°", ""))
             if _is_3d:
-                # Đang ở 3D, cần render lại toàn tab để về 2D
+                # Đang ở 3D, chỉ tạo lại khung 2D (không render toàn tab)
                 self._aci_is_3d = False
-                self._show_aci_summary()
-                # Khôi phục lựa chọn combobox
-                if hasattr(self, '_nm_angle_cb'):
-                    self._nm_angle_cb.set(sel)
+                self._restore_2d_aci()
             else:
                 # Đang ở 2D, chỉ vẽ lại axes (mượt)
                 ax = getattr(self, "_nm_ax", None)
@@ -457,6 +454,47 @@ class AciMixin:
                         canvas.draw()
         except Exception as e:
             print(f"[ACI] Lỗi đổi góc xem: {e}")
+
+    def _restore_2d_aci(self):
+        """Khôi phục biểu đồ 2D sau khi xem 3D - chỉ tạo lại khung chart."""
+        try:
+            import tkinter as tk
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            parent = getattr(self, "_nm_parent", None)
+            draw_fn = getattr(self, "_nm_draw_fn", None)
+            if parent is None or draw_fn is None:
+                # Fallback: render lại toàn tab
+                self._show_aci_summary()
+                return
+            # Xóa canvas 3D cũ (giữ lại header)
+            _old_cv = getattr(self, "_nm_canvas", None)
+            if _old_cv:
+                try:
+                    _old_cv.get_tk_widget().destroy()
+                except Exception:
+                    pass
+            # Xóa các widget canvas còn sót (trừ header là Frame đầu tiên)
+            for w in parent.winfo_children():
+                # Header là ttk.Frame, canvas là tk.Canvas
+                if w.winfo_class() == "Canvas":
+                    w.destroy()
+            # Tạo figure/canvas 2D mới
+            fig = Figure(figsize=(5.2, 3.9), dpi=100)
+            cv = FigureCanvasTkAgg(fig, master=parent)
+            cw = cv.get_tk_widget()
+            cw.configure(highlightthickness=0, takefocus=0)
+            cw.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+            ax = fig.add_subplot(111)
+            draw_fn(ax)
+            fig.tight_layout()
+            cv.draw()
+            # Cập nhật ref
+            self._nm_ax = ax
+            self._nm_canvas = cv
+        except Exception as e:
+            print(f"[ACI] Lỗi khôi phục 2D: {e}")
+            self._show_aci_summary()
 
     def _build_aci_section_cards(self, parent, sec, conc, steel, tied):
         """6 thẻ thống kê ACI: hàng vật liệu (f'c, fy, đai) + hàng thép."""

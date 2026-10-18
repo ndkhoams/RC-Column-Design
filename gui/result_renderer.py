@@ -166,6 +166,7 @@ def render_result_tab(app, config):
     app._nm_ax = ax_nm
     app._nm_canvas = cv_nm
     app._nm_draw_fn = config["draw_nm"]
+    app._nm_parent = f_bl
 
     # (Notes sẽ đặt ở frame full-width bên dưới)
 
