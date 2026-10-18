@@ -30,7 +30,8 @@ class Ec2Mixin:
         return self.cb_code.get().startswith("EC2")
 
     def _ec2_calculate_full(self, sec, conc, steel, inp, N, M2, M3, Q2, Q3,
-                              method="stiffness", fck=30.0, fyk_sw=500.0):
+                              method="stiffness", fck=30.0, fyk_sw=500.0,
+                              phi_ef2=1.21, phi_ef3=1.21):
         """Tính toán đầy đủ EC2 cho 1 tổ hợp nội lực. Trả về dict kết quả hoàn chỉnh.
 
         NGUYÊN TẮC: Tính 1 lần ở đây, các nơi khác (tab, PDF) chỉ đọc hiển thị.
@@ -116,6 +117,7 @@ class Ec2Mixin:
             for lbl, Mdir in (("dir2", M2), ("dir3", M3)):
                 g = geom[lbl]
                 _Is = _Is2 if lbl == "dir2" else _Is3
+                _phi = phi_ef2 if lbl == "dir2" else phi_ef3
                 dm[lbl] = ec2_design_moment(
                     NEd_kN=N, M_top_kNm=abs(Mdir),
                     M_bot_kNm=abs(Mdir), l0_mm=g["l0"], i_mm=g["i"],
@@ -126,7 +128,7 @@ class Ec2Mixin:
                     unbraced=False, method=method,
                     d_mm=max(g["h"] - inp.cover - getattr(inp, "sw_dia", 10) - 12.0, 0.5 * g["h"]),
                     eps_yd=steel.eps_yd, n_bal=n_bal,
-                    const_moment=True)
+                    const_moment=True, phi_ef=_phi)
         except Exception as ex:
             res.update({"dc": float("nan"), "ok": False, "error": str(ex)})
             return res
@@ -244,10 +246,14 @@ class Ec2Mixin:
             messagebox.showerror("Lỗi tiết diện", str(ex))
             return
         # TÍNH 1 LẦN bằng hàm chung (nguyên tắc: tính 1 lần, hiển thị nhiều nơi)
+        # phi_ef: lấy từ inp (ETABS tính từ TX_*) hoặc mặc định 1.21
+        _phi2 = getattr(inp, "phi_ef2", 1.21)
+        _phi3 = getattr(inp, "phi_ef3", 1.21)
         _full = self._ec2_calculate_full(
             sec, conc, steel, inp,
             N=inp.N, M2=inp.Mx, M3=inp.My, Q2=inp.Q2, Q3=inp.Q3,
-            method=method, fck=fck, fyk_sw=fyk_sw)
+            method=method, fck=fck, fyk_sw=fyk_sw,
+            phi_ef2=_phi2, phi_ef3=_phi3)
         # Kiểm tra lỗi tính toán
         if _full.get("error"):
             messagebox.showerror("Lỗi EC2", _full["error"])
