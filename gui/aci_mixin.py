@@ -291,26 +291,15 @@ class AciMixin:
         if not HAS_MPL:
             return
         import math
-        # TRIỆT ĐỂ: Hủy và tạo lại _sum_inner
+        # Xóa và tạo lại _sum_inner (bản đơn giản đã verified hết trùng)
         try:
-            _canvas = self._sum_inner.master
+            _p = self._sum_inner.master
             self._sum_inner.destroy()
             import tkinter as tk
             from tkinter import ttk
-            self._sum_inner = ttk.Frame(_canvas)
-            _win_id_aci = _canvas.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
-            # Ép frame rộng bằng canvas
-            try:
-                _canvas.update_idletasks()
-                _w = _canvas.winfo_width()
-                if _w > 1:
-                    _canvas.itemconfig(_win_id_aci, width=_w)
-                # Giữ nguyên bind gốc của app.py
-            except:
-                pass
-            self._sum_inner.bind("<Configure>", lambda e: _canvas.configure(scrollregion=_canvas.bbox("all")))
-        except Exception as _e2:
-            print(f"recreate _sum_inner lỗi: {_e2}")
+            self._sum_inner = ttk.Frame(_p)
+            self._sum_inner.pack(fill=tk.BOTH, expand=True)
+        except:
             for w in self._sum_inner.winfo_children():
                 w.destroy()
         sec = self._aci_sec
