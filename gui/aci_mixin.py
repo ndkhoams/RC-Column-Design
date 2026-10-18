@@ -338,7 +338,7 @@ class AciMixin:
             w.destroy()
         self._sum_inner.columnconfigure(0, weight=1)
         self._sum_inner.columnconfigure(1, weight=1)
-        self._sum_inner.rowconfigure(0, weight=1)
+        self._sum_inner.rowconfigure(0, weight=0)
         self._sum_inner.rowconfigure(1, weight=1)
 
         # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
