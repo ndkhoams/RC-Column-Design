@@ -283,7 +283,8 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         else:
             _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f}"
         _mark = "✓" if ok else "✗"
-        _lines = [f"VEd = {_f(VEd, 1)} kN",
+        _ci = d.get("combo_info", "") or ""
+        _lines = [f"VEd = {_f(VEd, 1)} kN" + (f" {_ci}" if _ci else ""),
                   f"bw = {bw:.0f} mm, d = {deff:.0f} mm",
                   f"Asw = {_sw_txt} = {_Asw_tot:.0f} mm²",
                   f"VRd,c = [CRd,c×k×(100×ρl×fck)^(1/3) + k1×σcp]×bw×d",
