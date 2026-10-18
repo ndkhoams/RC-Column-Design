@@ -484,8 +484,26 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         _sw_dia = getattr(inp, "sw_dia", 8)
         _sw_s = getattr(inp, "sw_spacing", 200)
         _sw_legs = getattr(inp, "sw_legs", 2)
-        _Av = _sw_legs * bar_area(_sw_dia)
-        _sw_txt = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        # Đai giữa (nếu có)
+        _m2_dia = getattr(inp, "swm2_dia", 0) or 0
+        _m2_s = getattr(inp, "swm2_spacing", 0) or 0
+        _m2_legs = getattr(inp, "swm2_legs", 0) or 0
+        _m3_dia = getattr(inp, "swm3_dia", 0) or 0
+        _m3_s = getattr(inp, "swm3_spacing", 0) or 0
+        _m3_legs = getattr(inp, "swm3_legs", 0) or 0
+        _Av_outer = _sw_legs * bar_area(_sw_dia)
+        _Av_m2 = _m2_legs * bar_area(_m2_dia) if _m2_dia > 0 else 0
+        _Av_m3 = _m3_legs * bar_area(_m3_dia) if _m3_dia > 0 else 0
+        _Av2 = _Av_outer + _Av_m2
+        _Av3 = _Av_outer + _Av_m3
+        if _Av_m2 > 0:
+            _sw_txt2 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f} + {_m2_legs:.0f}φ{_m2_dia:.0f} a{_m2_s:.0f}"
+        else:
+            _sw_txt2 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        if _Av_m3 > 0:
+            _sw_txt3 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f} + {_m3_legs:.0f}φ{_m3_dia:.0f} a{_m3_s:.0f}"
+        else:
+            _sw_txt3 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
         _data = [
             [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
@@ -508,20 +526,20 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         _d2 = _t3 - inp.cover - _sw_dia - 12
         _d3 = _t2 - inp.cover - _sw_dia - 12
         _sw_lines = [
-            ("Thép đai bố trí", _sw_txt, _sw_txt),
+            ("Thép đai bố trí", _sw_txt2, _sw_txt3),
             ("Lực cắt tính toán, Vu",
              f"{abs(_q2):.1f} kN", f"{abs(_q3):.1f} kN"),
             ("Kích thước tiết diện, b × d",
              f"{_t2:.0f} × {_d2:.0f} mm", f"{_t3:.0f} × {_d3:.0f} mm"),
             ("Av = n × φ",
-             f"{_Av:.0f} mm²", f"{_Av:.0f} mm²"),
-            ("Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d (ACI 22.5.5)",
+             f"{_Av2:.0f} mm²", f"{_Av3:.0f} mm²"),
+            ("Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]×bw×d (ACI 22.5.5)",
              f"{_r2['Vc_kN']:.1f} kN",
              f"{_r3['Vc_kN']:.1f} kN"),
-            ("Vs = Av·fyt·d/s (ACI 22.5.8)",
+            ("Vs = Av×fyt×d/s (ACI 22.5.8)",
              f"{_r2['Vs_kN']:.1f} kN",
              f"{_r3['Vs_kN']:.1f} kN"),
-            ("φVn = φ·(Vc+Vs)", f"{_r2['phi_Vn_kN']:.1f} kN",
+            ("φVn = φ×(Vc+Vs)", f"{_r2['phi_Vn_kN']:.1f} kN",
              f"{_r3['phi_Vn_kN']:.1f} kN"),
             ("Kết luận",
              "<b>ĐẠT</b>" if _r2['ok'] else "<b>KHÔNG ĐẠT</b>",
