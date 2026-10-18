@@ -879,26 +879,7 @@ class Ec2Mixin:
             ax2 = fig2.add_subplot(111)
             draw_ec2_m2m3_ax(ax2, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
             fig2.tight_layout()
-            # Fig vùng nén - dùng điểm B từ ec2_res (đã sửa dấu đúng)
-            fig3 = Figure(figsize=(5.2, 3.9), dpi=100)
-            ax3 = fig3.add_subplot(111)
-            _BN = ec2_res.get("BN", inp.N) if isinstance(ec2_res, dict) else inp.N
-            _BM2 = ec2_res.get("Bx", 0) if isinstance(ec2_res, dict) else 0
-            _BM3 = ec2_res.get("By", 0) if isinstance(ec2_res, dict) else 0
-            _Nmax = abs(_BN) * 2
-            _ec2_na3 = None
-            try:
-                import math as _m3
-                from rc_column.ec2_checker import ec2_neutral_axis_at_N
-                _alpha3 = _m3.degrees(_m3.atan2(_BM2, _BM3)) if abs(_BM2)+abs(_BM3) > 1e-9 else 0.0
-                _ec2_na3 = ec2_neutral_axis_at_N(sec, conc, steel, _BN, _alpha3)
-            except Exception:
-                _ec2_na3 = None
-            draw_compression_zone_ax(ax3, sec, N_kN=_BN, M2_kNm=_BM2, M3_kNm=_BM3,
-                                     Nmax_kN=_Nmax, title="Vùng nén tại điểm B",
-                                     na_info=_ec2_na3)
-            fig3.tight_layout()
-            return (fig1, fig2, fig3)
+            return (fig1, fig2)
         except Exception as e:
             print(f"[EC2] Lỗi tạo fig detail: {e}")
             return (None, None, None)
