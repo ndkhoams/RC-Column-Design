@@ -202,6 +202,7 @@ def render_result_tab(app, config):
     config["draw_m2m3"](ax_mm)
     fig_mm.tight_layout()
     cv_mm.draw()
+    app._m2m3_fig = fig_mm
 
     # ===== Ghi chú A/B (full-width dưới cả 2 biểu đồ) =====
     notes = config.get("notes_nm", [])

@@ -420,7 +420,9 @@ class AciMixin:
                 parent, inp, sec, conc, steel, getattr(self, '_aci_full', {}) or {}),
         }
         render_result_tab(self, config)
-        # Lưu ref cho các chức năng khác
+        # Lưu fig cho detail tab dùng (tên cũ để tương thích)
+        self._aci_nm_fig = getattr(self, "_nm_fig", None)
+        self._aci_m2m3_fig = getattr(self, "_m2m3_fig", None)
         self._update_ck()
 
     def _on_aci_angle_unified(self, sel):
