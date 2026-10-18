@@ -40,7 +40,7 @@ def draw_section_preview(app):
     if not HAS_MPL:
         return
     try:
-        from rc_column.pdf_export import draw_section_ax
+        from rc_column.pdf_export import draw_compression_zone_ax
         sec = _build_section_from_inputs(app)
         if sec is None:
             return
@@ -60,7 +60,8 @@ def draw_section_preview(app):
             return
         # Vẽ lại vào axes hiện có (không vùng nén)
         ax.clear()
-        draw_section_ax(ax, sec, show_stats=False, dot_scale=1.5)
+        draw_compression_zone_ax(ax, sec, N_kN=0, M2_kNm=0, M3_kNm=0,
+                                   show_compression=False)
         try:
             fig.tight_layout()
         except Exception:
@@ -75,7 +76,7 @@ def create_preview_layout(app, sec):
     if not HAS_MPL:
         return
     try:
-        from rc_column.pdf_export import draw_section_ax
+        from rc_column.pdf_export import draw_compression_zone_ax
         # Xóa nội dung cũ
         for w in app._sum_inner.winfo_children():
             w.destroy()
@@ -96,7 +97,8 @@ def create_preview_layout(app, sec):
             pass
         _w.pack(fill=tk.BOTH, expand=True)
         ax = fig.add_subplot(111)
-        draw_section_ax(ax, sec, show_stats=False, dot_scale=1.5)
+        draw_compression_zone_ax(ax, sec, N_kN=0, M2_kNm=0, M3_kNm=0,
+                                   show_compression=False)
         try:
             fig.tight_layout()
         except Exception:
