@@ -362,8 +362,16 @@ class Ec2Mixin:
         section_cards = {"n": vals["n"], "as": vals["as"], "ab": vals["ab"], "mu": vals["mu"]}
 
         def _draw_nm(ax):
-            draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res, inp.N,
-                                 ec2_res.get("M2_mag", inp.Mx), ec2_res.get("M3_mag", inp.My))
+            _M2m = ec2_res.get("M2_mag", inp.Mx)
+            _M3m = ec2_res.get("M3_mag", inp.My)
+            _view_angle = getattr(self, "_ec2_nm_view_angle", None)
+            if _view_angle is not None:
+                import math
+                _Ma = math.hypot(_M2m, _M3m)
+                _rad = math.radians(_view_angle)
+                _M2m = _Ma * math.sin(_rad)
+                _M3m = _Ma * math.cos(_rad)
+            draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res, inp.N, _M2m, _M3m)
 
         def _draw_m2m3(ax):
             draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
@@ -406,11 +414,76 @@ class Ec2Mixin:
             "m2m3_title": "Mặt cắt M2-M3",
             "m2m3_n_text": f"N = {inp.N:+.1f} kN",
             "notes_nm": notes,
+            "on_nm_angle_change": lambda sel: self._on_ec2_angle_unified(sel),
             "shear_builder": lambda parent: self._build_ec2_shear_summary(
                 parent, inp, sec, conc, steel, getattr(self, '_ec2_full', {}) or {}),
         }
         render_result_tab(self, config)
         self._update_ck()
+
+    def _on_ec2_angle_unified(self, sel):
+        """Xử lý chọn góc xem EC2 - chỉ vẽ lại biểu đồ N-M."""
+        try:
+            _is_3d = getattr(self, "_ec2_is_3d", False)
+            if sel == "3D":
+                if _is_3d:
+                    return
+                self._draw_3d_ec2()
+                self._ec2_is_3d = True
+                return
+            if sel.startswith("α"):
+                self._ec2_nm_view_angle = None
+            else:
+                self._ec2_nm_view_angle = float(sel.replace("°", ""))
+            if _is_3d:
+                self._ec2_is_3d = False
+                self._restore_2d_ec2()
+            else:
+                ax = getattr(self, "_nm_ax", None)
+                canvas = getattr(self, "_nm_canvas", None)
+                draw_fn = getattr(self, "_nm_draw_fn", None)
+                if ax is not None and draw_fn is not None:
+                    ax.clear()
+                    draw_fn(ax)
+                    if canvas:
+                        canvas.draw()
+        except Exception as e:
+            print(f"[EC2] Lỗi đổi góc xem: {e}")
+
+    def _restore_2d_ec2(self):
+        """Khôi phục biểu đồ 2D EC2 sau khi xem 3D."""
+        try:
+            import tkinter as tk
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            parent = getattr(self, "_nm_parent", None)
+            draw_fn = getattr(self, "_nm_draw_fn", None)
+            if parent is None or draw_fn is None:
+                self._show_ec2_summary()
+                return
+            _old_cv = getattr(self, "_nm_canvas", None)
+            if _old_cv:
+                try:
+                    _old_cv.get_tk_widget().destroy()
+                except Exception:
+                    pass
+            for w in parent.winfo_children():
+                if w.winfo_class() == "Canvas":
+                    w.destroy()
+            fig = Figure(figsize=(5.2, 3.9), dpi=100)
+            cv = FigureCanvasTkAgg(fig, master=parent)
+            cw = cv.get_tk_widget()
+            cw.configure(highlightthickness=0, takefocus=0)
+            cw.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+            ax = fig.add_subplot(111)
+            draw_fn(ax)
+            fig.tight_layout()
+            cv.draw()
+            self._nm_ax = ax
+            self._nm_canvas = cv
+        except Exception as e:
+            print(f"[EC2] Lỗi khôi phục 2D: {e}")
+            self._show_ec2_summary()
 
     def _build_ec2_section_cards(self, parent, sec, conc, steel):
         """6 thẻ thống kê EC2: hàng vật liệu (fck, fyk, đai) + hàng thép."""
@@ -771,7 +844,7 @@ class Ec2Mixin:
             from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
             # Tạo figure/canvas mới hoàn toàn để tránh canvas bị lock
             try:
-                _old = getattr(self, '_ec2_nm_cv_ref', None)
+                _old = getattr(self, '_nm_canvas', None) or getattr(self, '_ec2_nm_cv_ref', None)
                 _par = _old.get_tk_widget().master if _old else None
                 if _old:
                     _old.get_tk_widget().destroy()
