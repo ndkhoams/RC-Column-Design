@@ -592,20 +592,18 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                          f"chọn {chk.provided}")
     S.extend(_full_card("Cấu tạo cốt đai (10.3.4)", "", chk_lines))
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
-    if shear_info:
-        # Hỗ trợ cả 2 cấu trúc: {"q2","q3"} (cũ) và {"2","3"} (shear_cols từ _tcvn_calculate_full)
-        if "q2" in shear_info and "q3" in shear_info:
-            q2i, q3i = shear_info["q2"], shear_info["q3"]
-            S.extend(_full_card("Lực cắt tính toán", "",
-                           [f"Q2 = {_f(q2i['Q'], 1)} kN {_full_case(q2i)}",
-                            f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case(q3i)}"]))
-        elif "2" in shear_info and "3" in shear_info:
-            # shear_cols: lấy Q từ precalc
-            _q2 = shear_info["2"].get("Q", inp.Q2)
-            _q3 = shear_info["3"].get("Q", inp.Q3)
-            S.extend(_full_card("Lực cắt tính toán", "",
-                           [f"Q2 = {_f(_q2, 1)} kN",
-                            f"Q3 = {_f(_q3, 1)} kN"]))
+    # Lấy combo/vị trí từ shear_cols (đã merge)
+    _q2c = ""
+    _q3c = ""
+    if isinstance(shear_info, dict):
+        try:
+            _qi = shear_info.get("_q2_info")
+            if _qi: _q2c = f" {_full_case(_qi)}"
+        except: pass
+        try:
+            _qi = shear_info.get("_q3_info")
+            if _qi: _q3c = f" {_full_case(_qi)}"
+        except: pass
     Rb = conc.Rb
     Rbt = conc.Rbt
     Rsw = sw_grade.Rsw * inp.gamma_s
@@ -643,7 +641,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         Qb_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         cards7.append(_mk( f"Kiểm tra chịu cắt phương {dnum}", "",
-            [f"Q = {_f(Q, 1)} kN; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
+            [f"Q = {_f(Q, 1)} kN{(_q2c if dnum=='2' else _q3c)}; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
              f"Asw = {sw_txt} = {Asw:.0f} mm²",
              f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
              f"  = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
