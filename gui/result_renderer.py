@@ -176,9 +176,14 @@ def render_result_tab(app, config):
     cv_mm.draw()
 
     # ===== Bảng cắt (nếu có) =====
-    shear = config.get("shear_config")
-    if shear:
-        app._build_shear_table_unified(shear)
+    shear_builder = config.get("shear_builder")
+    if shear_builder:
+        import tkinter as tk
+        from tkinter import ttk
+        f_sw = ttk.Frame(app._sum_inner, style="Card.TLabelframe")
+        f_sw.grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
+        shear_builder(f_sw)
+        app._sum_inner.rowconfigure(2, weight=0)
 
     # Cập nhật scroll
     app._sum_inner.update_idletasks()
