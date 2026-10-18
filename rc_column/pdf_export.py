@@ -926,7 +926,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
         _sw_rows = [
-            ("Thép đai bố trí", _sw_txt, _sw_txt),
+            ("Thép đai bố trí", _r2.get("sw_txt", _sw_txt), _r3.get("sw_txt", _sw_txt)),
             ("Lực cắt tính toán, Q",
              f"{_r2['Q']:.1f} kN", f"{_r3['Q']:.1f} kN"),
             ("Kích thước tiết diện, b × h<sub>0</sub>",
