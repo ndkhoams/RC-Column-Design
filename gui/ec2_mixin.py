@@ -311,13 +311,14 @@ class Ec2Mixin:
             import tkinter as tk
             from tkinter import ttk
             self._sum_inner = ttk.Frame(_cv_ec2)
-            _cv_ec2.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
+            _win_id_ec2 = _cv_ec2.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
             # Ép frame rộng bằng canvas
             try:
                 _cv_ec2.update_idletasks()
                 _w = _cv_ec2.winfo_width()
                 if _w > 1:
-                    _cv_ec2.itemconfig(1, width=_w)
+                    _cv_ec2.itemconfig(_win_id_ec2, width=_w)
+                _cv_ec2.bind("<Configure>", lambda e: _cv_ec2.itemconfig(_win_id_ec2, width=e.width))
             except:
                 pass
             self._sum_inner.bind("<Configure>", lambda e: _cv_ec2.configure(scrollregion=_cv_ec2.bbox("all")))
