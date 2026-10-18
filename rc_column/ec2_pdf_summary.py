@@ -436,13 +436,24 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
 
     right_flow = []
     try:
-        # Mặt cắt (dùng hàm TCVN vì giống nhau)
+        # Hình vùng nén (giống app) thay cho mặt cắt trơn
         import sys as _sys
         _pdf_exp = _sys.modules.get("rc_column.pdf_export")
         if _pdf_exp is None:
             from rc_column import pdf_export as _pdf_exp
-        _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=300,
-                                          show_stats=False)
+        _eBN = (ec2_res or {}).get("BN", 0) or 0
+        _eBx = (ec2_res or {}).get("Bx", 0) or 0
+        _eBy = (ec2_res or {}).get("By", 0) or 0
+        _e_na = None
+        try:
+            from rc_column.ec2_checker import ec2_neutral_axis_at_N
+            _e_alpha = _m.degrees(_m.atan2(_eBx, _eBy)) if (abs(_eBx)+abs(_eBy)) > 1e-9 else 0.0
+            _e_na = ec2_neutral_axis_at_N(sec, conc, steel, _eBN, _e_alpha)
+        except Exception:
+            _e_na = None
+        _sec_png = _pdf_exp.compression_zone_image(sec, _eBN, _eBx, _eBy,
+                                                   na_info=_e_na,
+                                                   width_in=2.2, dpi=300)
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))
         # 2 biểu đồ EC2 (có tiêu đề)
