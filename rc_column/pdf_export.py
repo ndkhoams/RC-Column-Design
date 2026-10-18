@@ -903,24 +903,23 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     from reportlab.platypus import KeepTogether
     _sw_story = []
     try:
-        from .stirrup import StirrupInput, check_shear
-        from .sections import bar_area
+        from .stirrup import StirrupInput
         stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
                                legs=inp.sw_legs)
         _sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
                    f"a{stir_in.spacing:.0f}")
-        _cols = []
-        for Q, b_w, h_dim in ((inp.Q2, _t2, _t3), (inp.Q3, _t3, _t2)):
-            h0 = h_dim - inp.cover - inp.sw_dia - 12
-            Asw = stir_in.legs * bar_area(stir_in.dia)
-            sh = check_shear(abs(Q), b_w, max(h0, 1),
-                             _cg.Rb if _cg else 0,
-                             _cg.Rbt if _cg else 0,
-                             Asw, _swg.Rsw if _swg else 0,
-                             stir_in.spacing)
-            qsw = (_swg.Rsw * Asw / stir_in.spacing) if _swg else 0
-            _cols.append(dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh))
-        _r2, _r3 = _cols[0], _cols[1]
+        # DÙNG shear_cols từ _tcvn_calculate_full - KHÔNG TÍNH LẠI (nguyên tắc "tính 1 lần")
+        _pre = shear_info if isinstance(shear_info, dict) else {}
+        if "2" in _pre and "3" in _pre:
+            # shear_cols structure
+            _r2 = _pre["2"]
+            _r3 = _pre["3"]
+            # Đảm bảo có đầy đủ keys
+            for _r in (_r2, _r3):
+                if "sh" not in _r:
+                    raise ValueError("Thiếu kết quả cắt precalc - vi phạm nguyên tắc 'tính 1 lần'")
+        else:
+            raise ValueError("Thiếu shear_cols từ _tcvn_calculate_full - vi phạm nguyên tắc 'tính 1 lần'")
         _sw_data = [
             [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
