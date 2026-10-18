@@ -136,7 +136,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             try:
                 import io as _io
                 import math as _math
-                from .pdf_export import draw_compression_zone_ax as _dcz
+                from .pdf_export import compression_zone_image as _czi
                 _BN = ec2_res.get("BN", 0) or 0
                 _Bx = ec2_res.get("Bx", 0) or 0
                 _By = ec2_res.get("By", 0) or 0
@@ -147,19 +147,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                     _na = _nafn(sec, conc, steel, _BN, _alpha)
                 except Exception:
                     pass
-                import matplotlib
-                matplotlib.use("Agg")
-                import matplotlib.pyplot as _plt
-                _fig = _plt.Figure(figsize=(3.5, 3.5), dpi=300)
-                _ax = _fig.add_subplot(111)
-                _dcz(_ax, sec, _BN, _Bx, _By,
-                     Nmax_kN=abs(_BN)*2 if _BN else None,
-                     na_info=_na)
-                _buf = _io.BytesIO()
-                _fig.savefig(_buf, format="png", dpi=300,
-                             bbox_inches="tight", facecolor="white")
-                _plt.close(_fig)
-                _buf.seek(0)
+                _sec_png = _czi(sec, _BN, _Bx, _By, na_info=_na)
+                _buf = _io.BytesIO(_sec_png)
                 from reportlab.platypus import Image as _Img
                 try:
                     from PIL import Image as _PIL2
