@@ -1,6 +1,8 @@
 """Các method import và kiểm tra dữ liệu ETABS."""
 
 
+
+import tkinter as tk
 class EtabsMixin:
     """Các method import và kiểm tra dữ liệu ETABS."""
 
