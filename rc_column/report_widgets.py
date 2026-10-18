@@ -580,16 +580,20 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None, she
                          f"chọn {chk.provided}")
     c = _param_card(grid, "Cấu tạo cốt đai (10.3.4)", "", chk_lines)
     c.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
-    # Lực cắt tính toán
+    # Kiểm tra chịu cắt từng phương (thông tin Q kèm combo/vị trí đưa vào từng phương)
     conc = sec.concrete
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
-    if shear_info:
-        q2i, q3i = shear_info["q2"], shear_info["q3"]
-        c = _param_card(grid, "Lực cắt tính toán", "",
-                        [f"Q2 = {_f(q2i['Q'], 1)} kN {_full_case_w(q2i)}",
-                         f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case_w(q3i)}"])
-        c.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=4, pady=4)
-    # Kiểm tra chịu cắt từng phương
+    # Lấy thông tin combo/vị trí cho từng phương
+    _q2_info = ""
+    _q3_info = ""
+    if shear_info and "q2" in shear_info:
+        try:
+            _q2_info = f" {_full_case_w(shear_info['q2'])}"
+        except: pass
+    if shear_info and "q3" in shear_info:
+        try:
+            _q3_info = f" {_full_case_w(shear_info['q3'])}"
+        except: pass
     Rb = conc.Rb
     Rbt = conc.Rbt
     Rsw = sw_grade.Rsw * inp.gamma_s
@@ -619,7 +623,7 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None, she
         Qb_lim_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         lines = [
-            f"Q = {_f(Q, 1)} kN; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
+            f"Q = {_f(Q, 1)} kN{(_q2_info if dnum=='2' else _q3_info)}; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
             f"Asw = {sw_txt} = {Asw:.0f} mm²",
             f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
             f"  = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
