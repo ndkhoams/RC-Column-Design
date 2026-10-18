@@ -486,11 +486,15 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
             continue
 def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
                              Nmax_kN: float = None, title: str = None,
-                             na_info: dict = None):
+                             na_info: dict = None, show_compression: bool = True):
     """Vẽ mặt cắt kiểu VietconSoft (giống tab Kết quả) + tô vùng nén.
-    
+
     na_info: dict từ neutral_axis_at_N (đường trung hòa chính xác từ fiber model).
              Nếu None, dùng ước lượng đơn giản theo hướng mô men.
+    show_compression: False → chỉ vẽ mặt cắt trơn (KHÔNG tô vùng nén xanh,
+             KHÔNG vẽ đường trung hòa đỏ) — dùng cho live preview trước khi CHECK.
+             Mọi chi tiết khác (legend, nhãn, mũi tên, màu sắc, font) GIỐNG HỆT
+             như khi show_compression=True.
     """
     import math
     import matplotlib.patches as mpatches
@@ -562,7 +566,7 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         def _naval(_x, _y):
             return _x*_nx + _y*_ny - _threshold
     
-    if sec_poly and len(sec_poly) >= 3:
+    if show_compression and sec_poly and len(sec_poly) >= 3:
         _corners = list(sec_poly)
         _comp_corners = [(_cx, _cy) for (_cx, _cy) in _corners
                          if _naval(_cx, _cy) >= -1e-9]
