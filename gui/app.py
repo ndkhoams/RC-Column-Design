@@ -3896,7 +3896,9 @@ class App(tk.Tk):
                                    self._last_res, path,
                                    case_info=getattr(self, "_pdf_case",
                                                      None),
-                                   sec_img_path=_sec_png)
+                                   sec_img_path=_sec_png,
+                                   shear_info=getattr(self, "_pdf_shear",
+                                                      None))
             else:
                 from rc_column.pdf_report_cards import export_pdf_cards
                 # Gán tên cấu kiện từ textbox để hiển thị ở đầu PDF
