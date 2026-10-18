@@ -600,10 +600,13 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
                                           state="readonly", width=12)
         self.cb_ec2_method.set("Độ cứng danh nghĩa")
         self.en_ec2_fyt = ttk.Entry(self.frm_ec2, width=12); self.en_ec2_fyt.insert(0, "500")
+        self.en_ec2_phi = ttk.Entry(self.frm_ec2, width=12); self.en_ec2_phi.insert(0, "2.0")
         _mat_row(self.frm_ec2, 0, "Bê tông", self.cb_ec2_conc,
                  "Phương pháp tính bậc 2", self.cb_ec2_method)
         _mat_row(self.frm_ec2, 1, "Thép dọc fyk (MPa)", self.en_ec2_fyk,
                  "Thép đai fyk (MPa)", self.en_ec2_fyt)
+        _mat_row(self.frm_ec2, 2, "Hệ số từ biến φ(∞,t0)", self.en_ec2_phi,
+                 "", None)
         self.frm_ec2.grid_remove()
 
     def _toggle_code(self):
@@ -1622,6 +1625,7 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             "ec2_steel": ev(self.en_ec2_fyk),
             "ec2_method": self.cb_ec2_method.get(),
             "ec2_fyt": ev(self.en_ec2_fyt),
+            "ec2_phi": ev(self.en_ec2_phi),
             # 2. Tiết diện
             "kind": self.cb_kind.get(),
             "cx": ev(self.en_cx), "cy": ev(self.en_cy),
@@ -1702,6 +1706,7 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             self.cb_ec2_conc.set(d.get("ec2_conc", "C30/37"))
             se(self.en_ec2_fyk, d.get("ec2_steel", "500"))
             self.cb_ec2_method.set(d.get("ec2_method", "Độ cứng danh nghĩa"))
+            se(self.en_ec2_phi, d.get("ec2_phi", "2.0"))
             se(self.en_ec2_fyt, d.get("ec2_fyt", "500"))
             self._toggle_code()
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
