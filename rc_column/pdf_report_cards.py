@@ -640,7 +640,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         Qb_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         cards7.append(_mk( f"Kiểm tra chịu cắt phương {dnum}", "",
-            [f"Q = {_f(Q, 1)} kN{(_q2c if dnum=='2' else _q3c)}; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
+            [f"Q = {_f(Q, 1)} kN{(_q2c if dnum=='2' else _q3c)}",
+             f"b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
              f"Asw = {sw_txt} = {Asw:.0f} mm²",
              f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
              f"  = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
