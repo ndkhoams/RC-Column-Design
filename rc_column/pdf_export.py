@@ -101,9 +101,9 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0,
                                 shrinkA=0, shrinkB=0),
                 zorder=6)
-    ax.text(alen * 1.02, 0, "t2", fontsize=10, color="#15803D",
+    ax.text(alen * 1.02, 0, "t2", fontsize=7, color="#15803D",
             weight="bold", va="center", ha="left", zorder=6)
-    ax.text(0, alen * 1.02, "t3", fontsize=10, color="#1D4ED8",
+    ax.text(0, alen * 1.02, "t3", fontsize=7, color="#1D4ED8",
             weight="bold", va="bottom", ha="center", zorder=6)
     # Legend thép: căn giữa-trên, ngay trên đỉnh axes (cao hơn nhãn t3)
     if legend_handles:
@@ -609,7 +609,7 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         leg = ax.legend(handles=legend_handles, loc="upper center",
                         bbox_to_anchor=(0.5, -0.08),
                         ncol=len(legend_handles),
-                        frameon=True, fontsize=9,
+                        frameon=True, fontsize=7,
                         facecolor="white", edgecolor="#D1D5DB")
         for txt in leg.get_texts():
             txt.set_fontweight("bold")
@@ -628,23 +628,23 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0,
                                 shrinkA=0, shrinkB=0),
                 zorder=6)
-    ax.text(alen * 1.02, 0, "t2", fontsize=10, color="#15803D",
+    ax.text(alen * 1.02, 0, "t2", fontsize=7, color="#15803D",
             weight="bold", va="center", ha="left", zorder=6)
-    ax.text(0, alen * 1.02, "t3", fontsize=10, color="#1D4ED8",
+    ax.text(0, alen * 1.02, "t3", fontsize=7, color="#1D4ED8",
             weight="bold", va="bottom", ha="center", zorder=6)
     
     # Không set title bên trong (đã có tiêu đề card bên ngoài)
     # Nhãn trục thành kích thước t2/t3
     if sec.kind == "rect":
         # Cạnh t2 là đứng (cy), cạnh t3 là ngang (cx) theo quy ước app
-        ax.set_xlabel(f"t3 = {cx:.0f} mm", fontsize=9, weight="bold")
-        ax.set_ylabel(f"t2 = {cy:.0f} mm", fontsize=9, weight="bold")
+        ax.set_xlabel(f"t3 = {cx:.0f} mm", fontsize=7, weight="bold")
+        ax.set_ylabel(f"t2 = {cy:.0f} mm", fontsize=7, weight="bold")
     elif sec.kind == "circle":
-        ax.set_xlabel(f"D = {cx:.0f} mm", fontsize=9, weight="bold")
-        ax.set_ylabel(f"D = {cx:.0f} mm", fontsize=9, weight="bold")
+        ax.set_xlabel(f"D = {cx:.0f} mm", fontsize=7, weight="bold")
+        ax.set_ylabel(f"D = {cx:.0f} mm", fontsize=7, weight="bold")
     else:
-        ax.set_xlabel("Trục 2 (mm)", fontsize=8)
-        ax.set_ylabel("Trục 3 (mm)", fontsize=8)
+        ax.set_xlabel("Trục 2 (mm)", fontsize=7)
+        ax.set_ylabel("Trục 3 (mm)", fontsize=7)
     ax.tick_params(labelsize=7)
 
 
