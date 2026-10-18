@@ -462,8 +462,13 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
         elif "title" in tags:
             continue
 def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
-                             Nmax_kN: float = None, title: str = None):
-    """Vẽ mặt cắt kiểu VietconSoft (giống tab Kết quả) + tô vùng nén."""
+                             Nmax_kN: float = None, title: str = None,
+                             na_info: dict = None):
+    """Vẽ mặt cắt kiểu VietconSoft (giống tab Kết quả) + tô vùng nén.
+    
+    na_info: dict từ neutral_axis_at_N (đường trung hòa chính xác từ fiber model).
+             Nếu None, dùng ước lượng đơn giản theo hướng mô men.
+    """
     import math
     import matplotlib.patches as mpatches
     from matplotlib.patches import Polygon as MplPolygon
@@ -498,33 +503,51 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         _th = np.linspace(0, 2*np.pi, 64)
         sec_poly = [(cx/2*np.cos(t), cx/2*np.sin(t)) for t in _th]
     
-    _Mstar = math.hypot(M2_kNm, M3_kNm)
-    _alpha = math.atan2(M2_kNm, M3_kNm) if _Mstar > 1e-9 else 0.0
-    _dx = math.sin(_alpha)
-    _dy = math.cos(_alpha)
-    if Nmax_kN and Nmax_kN > 1e-9:
-        _c_ratio = min(1.0, max(0.0, abs(N_kN) / Nmax_kN))
+    # --- Xác định đường trung hòa và phía nén ---
+    # Nếu có na_info (chính xác từ fiber model), dùng nó; nếu không, ước lượng
+    _use_exact = (na_info is not None and na_info.get('found') and
+                  na_info.get('yp_na') is not None)
+    if _use_exact:
+        _na_st = na_info['st']
+        _na_ct = na_info['ct']
+        _na_yp = na_info['yp_na']
+        # Hàm giá trị: val = -x*st + y*ct - yp_na; nén khi val > 0
+        def _naval(_x, _y):
+            return -_x*_na_st + _y*_na_ct - _na_yp
     else:
-        _c_ratio = 0.5
-    _m_factor = min(1.0, _Mstar / 2000.0) if _Mstar > 0 else 0
-    _c_ratio = _c_ratio * (1 - 0.3*_m_factor) + 0.15*_m_factor
-    
-    if sec_poly and len(sec_poly) >= 3:
-        _corners = list(sec_poly)
-        _xs = [p[0] for p in _corners]
-        _ys = [p[1] for p in _corners]
-        _diag = math.hypot(max(_xs)-min(_xs), max(_ys)-min(_ys))
+        _Mstar = math.hypot(M2_kNm, M3_kNm)
+        _alpha = math.atan2(M2_kNm, M3_kNm) if _Mstar > 1e-9 else 0.0
+        _dx = math.sin(_alpha)
+        _dy = math.cos(_alpha)
+        if Nmax_kN and Nmax_kN > 1e-9:
+            _c_ratio = min(1.0, max(0.0, abs(N_kN) / Nmax_kN))
+        else:
+            _c_ratio = 0.5
+        _m_factor = min(1.0, _Mstar / 2000.0) if _Mstar > 0 else 0
+        _c_ratio = _c_ratio * (1 - 0.3*_m_factor) + 0.15*_m_factor
+        _corners_tmp = list(sec_poly) if sec_poly else []
+        if _corners_tmp:
+            _xs = [p[0] for p in _corners_tmp]
+            _ys = [p[1] for p in _corners_tmp]
+            _diag = math.hypot(max(_xs)-min(_xs), max(_ys)-min(_ys))
+        else:
+            _diag = 1.0
         _d = (0.5 - _c_ratio) * _diag * 0.7
         _nx, _ny = -_dx, -_dy
         _px, _py = _d * _nx, _d * _ny
         _threshold = _px * _nx + _py * _ny
+        def _naval(_x, _y):
+            return _x*_nx + _y*_ny - _threshold
+    
+    if sec_poly and len(sec_poly) >= 3:
+        _corners = list(sec_poly)
         _comp_corners = [(_cx, _cy) for (_cx, _cy) in _corners
-                         if _cx * _nx + _cy * _ny >= _threshold - 1e-9]
+                         if _naval(_cx, _cy) >= -1e-9]
         _edges = [(_corners[i], _corners[(i+1)%len(_corners)]) for i in range(len(_corners))]
         _intersects = []
         for (_x1, _y1), (_x2, _y2) in _edges:
-            _v1 = _x1*_nx + _y1*_ny - _threshold
-            _v2 = _x2*_nx + _y2*_ny - _threshold
+            _v1 = _naval(_x1, _y1)
+            _v2 = _naval(_x2, _y2)
             if _v1 * _v2 < 0:
                 _t = abs(_v1) / (abs(_v1) + abs(_v2))
                 _intersects.append((_x1 + _t*(_x2-_x1), _y1 + _t*(_y2-_y1)))
