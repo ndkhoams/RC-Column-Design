@@ -304,52 +304,17 @@ class Ec2Mixin:
         Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
         if not HAS_MPL:
             return
-        # TRIỆT ĐỂ: Hủy và tạo lại _sum_inner
+        # Xóa và tạo lại _sum_inner (bản đơn giản đã verified hết trùng)
         try:
-            _cv_ec2 = self._sum_inner.master
+            _p = self._sum_inner.master
             self._sum_inner.destroy()
             import tkinter as tk
             from tkinter import ttk
-            self._sum_inner = ttk.Frame(_cv_ec2)
-            _win_id_ec2 = _cv_ec2.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
-            # Ép frame rộng bằng canvas
-            try:
-                _cv_ec2.update_idletasks()
-                _w = _cv_ec2.winfo_width()
-                if _w > 1:
-                    _cv_ec2.itemconfig(_win_id_ec2, width=_w)
-                # Giữ nguyên bind gốc của app.py
-            except:
-                pass
-            self._sum_inner.bind("<Configure>", lambda e: _cv_ec2.configure(scrollregion=_cv_ec2.bbox("all")))
-        except Exception as _e_ec2:
-            print(f"[EC2] recreate lỗi: {_e_ec2}")
-        # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
-        try:
-            self._sum_inner.update_idletasks()
-            try:
-                import matplotlib.pyplot as plt
-                plt.close('all')
-            except:
-                pass
-            for w in list(self._sum_inner.winfo_children()):
-                try:
-                    w.grid_forget()
-                    w.pack_forget()
-                    w.destroy()
-                except:
-                    pass
-            self._sum_inner.update_idletasks()
-            for _ci in range(10):
-                try:
-                    self._sum_inner.columnconfigure(_ci, weight=0, minsize=0)
-                    self._sum_inner.rowconfigure(_ci, weight=0, minsize=0)
-                except:
-                    pass
-            self._sum_inner.update_idletasks()
+            self._sum_inner = ttk.Frame(_p)
+            self._sum_inner.pack(fill=tk.BOTH, expand=True)
         except:
-            pass
-        import math
+            for w in self._sum_inner.winfo_children():
+                w.destroy()
         sec = self._ec2_sec
         inp = self._ec2_inp
         ec2_res = self._ec2_res
