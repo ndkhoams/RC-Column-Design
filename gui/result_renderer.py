@@ -162,6 +162,10 @@ def render_result_tab(app, config):
     config["draw_nm"](ax_nm)
     fig_nm.tight_layout()
     cv_nm.draw()
+    # Lưu ref để vẽ lại khi đổi góc (mượt)
+    app._nm_ax = ax_nm
+    app._nm_canvas = cv_nm
+    app._nm_draw_fn = config["draw_nm"]
 
     # (Notes sẽ đặt ở frame full-width bên dưới)
 
