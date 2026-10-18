@@ -110,7 +110,7 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
-                            topMargin=15 * mm, bottomMargin=15 * mm)
+                            topMargin=15 * mm, bottomMargin=10 * mm)
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
     S.append(P("(Tiêu chuẩn ACI 318-19)", st["sub"]))
@@ -126,8 +126,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                    st["note"]))
 
     for _s in sections:
-        # Mục 3: luôn sang trang mới (bỏ mục 6 để tránh trang trắng thừa)
-        if _s["num"] in (3,):
+        # Mục 3, 6: luôn sang trang mới (ngắt tiêu đề để dễ theo dõi khi in)
+        if _s["num"] in (3, 6):
             from reportlab.platypus import PageBreak as _PB36
             S.append(_PB36())
         S.append(_sec_head(P, st, _s["num"], _s["title"],
