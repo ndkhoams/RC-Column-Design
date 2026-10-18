@@ -131,18 +131,40 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
             S.append(_PB47())
         S.append(_sec_head(P, st, _s["num"], _s["title"],
                            _s.get("ref", "")))
-        # Mục 2: sơ đồ mặt cắt TRƯỚC (như TCVN)
+        # Mục 2: hình VÙNG NÉN (giống app) thay cho mặt cắt trơn
         if _s["num"] == 2 and sec is not None:
             try:
-                from .pdf_export import section_image as _si
                 import io as _io
-                _sec_png = _si(sec, width_in=2.8, show_stats=False)
-                if _sec_png:
-                    from reportlab.platypus import Image as _Img
-                    _simg = _Img(_io.BytesIO(_sec_png), width=65*mm, height=65*mm)
-                    _simg.hAlign = "CENTER"
-                    S.append(_simg)
-                    S.append(Spacer(1, 4*mm))
+                import math as _math
+                from .pdf_export import draw_compression_zone_ax as _dcz
+                _BN = ec2_res.get("BN", 0) or 0
+                _Bx = ec2_res.get("Bx", 0) or 0
+                _By = ec2_res.get("By", 0) or 0
+                _alpha = _math.degrees(_math.atan2(_Bx, _By)) if (abs(_Bx)+abs(_By)) > 1e-9 else 0.0
+                _na = None
+                try:
+                    from .ec2_checker import ec2_neutral_axis_at_N as _nafn
+                    _na = _nafn(sec, conc, steel, _BN, _alpha)
+                except Exception:
+                    pass
+                import matplotlib
+                matplotlib.use("Agg")
+                import matplotlib.pyplot as _plt
+                _fig = _plt.Figure(figsize=(2.8, 2.8), dpi=150)
+                _ax = _fig.add_subplot(111)
+                _dcz(_ax, sec, _BN, _Bx, _By,
+                     Nmax_kN=abs(_BN)*2 if _BN else None,
+                     na_info=_na)
+                _buf = _io.BytesIO()
+                _fig.savefig(_buf, format="png", dpi=150,
+                             bbox_inches="tight", facecolor="white")
+                _plt.close(_fig)
+                _buf.seek(0)
+                from reportlab.platypus import Image as _Img
+                _simg = _Img(_buf, width=65*mm, height=65*mm)
+                _simg.hAlign = "CENTER"
+                S.append(_simg)
+                S.append(Spacer(1, 4*mm))
             except Exception:
                 pass
         cards = _s.get("cards", [])
