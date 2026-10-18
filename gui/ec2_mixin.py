@@ -384,7 +384,8 @@ class Ec2Mixin:
         f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
         f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
                   padx=4, pady=4)
-        self._build_ec2_shear_summary(f_sw, inp, sec, conc, steel)
+        _efull = getattr(self, '_ec2_full', {}) or {}
+        self._build_ec2_shear_summary(f_sw, inp, sec, conc, steel, _efull)
         self._sum_inner.rowconfigure(3, weight=0)
 
         # Gắn lại cuộn chuột cho các widget mới
@@ -427,10 +428,14 @@ class Ec2Mixin:
         _card(row1, "Diện tích Ab", vals["ab"])
         _card(row1, "Hàm lượng μ", vals["mu"])
 
-    def _build_ec2_shear_summary(self, parent, inp, sec, conc, steel):
-        """Bảng kiểm tra khả năng chịu cắt EC2: Phương V2 | Phương V3."""
+    def _build_ec2_shear_summary(self, parent, inp, sec, conc, steel, full_res=None):
+        """2 card kiểm tra khả năng chịu cắt EC2: Phương V2 | Phương V3 (giống TCVN).
+        CHỈ hiển thị từ full_res (đã tính bởi _ec2_calculate_full), KHÔNG tính lại."""
+        from rc_column.report_widgets import _param_card, _grid2
         try:
-            shear = getattr(self, "_ec2_shear", None) or {}
+            # Ưu tiên full_res, fallback về _ec2_shear (tương thích cũ)
+            _fr = full_res or {}
+            shear = _fr.get("shear") or getattr(self, "_ec2_shear", None) or {}
             try:
                 sw_dia = float(getattr(inp, "sw_dia", 8) or 8)
                 sw_s = float(getattr(inp, "sw_spacing", 200) or 200)
@@ -438,69 +443,43 @@ class Ec2Mixin:
             except Exception:
                 sw_dia, sw_s, sw_legs = 8.0, 200.0, 2
             sw_txt = f"{sw_legs:.0f}φ{sw_dia:.0f} a{sw_s:.0f}"
-            cols = {}
+            grid = _grid2(parent)
+            row = 0
             for lbl, qv in (("2", abs(inp.Q2)), ("3", abs(inp.Q3))):
                 sr = shear.get("dir2" if lbl == "2" else "dir3", {}) or {}
-                cols[lbl] = dict(
-                    Vu=qv, sw_txt=sw_txt,
-                    bw=sr.get("bw", 0.0), d=sr.get("d", 0.0),
-                    VRdc=sr.get("VRd_c_kN", 0.0),
-                    VRdmax=sr.get("VRd_max_kN", 0.0),
-                    VRds=sr.get("VRd_s_kN", 0.0),
-                    VRd=sr.get("VRd_kN", 0.0),
-                    Asws=sr.get("Asw_s_req", 0.0),
-                    ok=bool(sr.get("ok", False)))
-            tf = tk.Frame(parent, bg="white")
-            tf.pack(fill=tk.X, padx=8, pady=6)
-            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT",
-                       "Phương V2", "Phương V3"]
-            for j, h in enumerate(headers):
-                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
-                         fg="#111827", borderwidth=0,
-                         highlightthickness=0,
-                         anchor="w" if j == 0 else "center",
-                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
-                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
-            def _asws(v):
-                if v is None or (isinstance(v, float) and
-                                 (v != v or v == float("inf"))):
-                    return "—"
-                return f"{v:.3f} mm²/mm"
-            rows = [
-                ("Thép đai bố trí",
-                 cols['2']['sw_txt'], cols['3']['sw_txt']),
-                ("Lực cắt tính toán, VEd",
-                 f"{cols['2']['Vu']:.1f} kN", f"{cols['3']['Vu']:.1f} kN"),
-                ("Kích thước tiết diện, bw × d",
-                 f"{cols['2']['bw']:.0f} × {cols['2']['d']:.0f} mm",
-                 f"{cols['3']['bw']:.0f} × {cols['3']['d']:.0f} mm"),
-                ("VRd,c = [CRd,c·k·(100ρl·fck)⅓ + k1·σcp]·bw·d",
-                 f"{cols['2']['VRdc']:.1f} kN", f"{cols['3']['VRdc']:.1f} kN"),
-                ("VRd,max = αcw·bw·z·ν1·fcd/(cotθ+tanθ)",
-                 f"{cols['2']['VRdmax']:.1f} kN",
-                 f"{cols['3']['VRdmax']:.1f} kN"),
-                ("VRd,s = (Asw/s)·z·fywd·cotθ (θ=45°)",
-                 f"{cols['2']['VRds']:.1f} kN", f"{cols['3']['VRds']:.1f} kN"),
-                ("Asw/s yêu cầu = VEd/(z·fywd·cotθ)",
-                 _asws(cols['2']['Asws']), _asws(cols['3']['Asws'])),
-                ("Kết luận",
-                 "ĐẠT" if cols['2']['ok'] else "KHÔNG ĐẠT",
-                 "ĐẠT" if cols['3']['ok'] else "KHÔNG ĐẠT"),
-            ]
-            for i, (a, b, c) in enumerate(rows):
-                bg = "#F9FAFB" if i % 2 else "white"
-                is_kl = (a == "Kết luận")
-                for j, t in enumerate((a, b, c)):
-                    fw = ("", 9)  # nội dung bảng không in đậm
-                    fg = "#1F2937"
-                    if is_kl and j > 0:
-                        fg = "#065F46" if t == "ĐẠT" else "#991B1B"
-                        fw = ("", 9, "bold")  # kết quả in đậm
-                    tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
-                             borderwidth=0, highlightthickness=0,
-                             padx=6, pady=6, anchor="w" if j == 0
-                             else "center").grid(row=i + 1, column=j,
-                                                 sticky="nsew")
+                Vu = qv
+                bw = sr.get("bw", 0.0)
+                d = sr.get("d", 0.0)
+                VRdc = sr.get("VRd_c_kN", 0.0)
+                VRdmax = sr.get("VRd_max_kN", 0.0)
+                VRds = sr.get("VRd_s_kN", 0.0)
+                VRd = sr.get("VRd_kN", 0.0)
+                Asws = sr.get("Asw_s_req", 0.0)
+                ok = bool(sr.get("ok", False))
+                # Combo info nếu có trong full_res
+                _combo = sr.get("combo_info", "")
+                _qinfo = f" {_combo}" if _combo else ""
+                mark = "✓" if ok else "✗"
+                _asws_txt = ("—" if Asws is None or (isinstance(Asws, float)
+                             and (Asws != Asws or Asws == float("inf")))
+                             else f"{Asws:.3f} mm²/mm")
+                lines = [
+                    f"VEd = {Vu:.1f} kN{_qinfo}; bw = {bw:.0f} mm, d = {d:.0f} mm",
+                    f"Thép đai: {sw_txt}",
+                    f"VRd,c = [CRd,c·k·(100ρl·fck)⅓ + k1·σcp]·bw·d",
+                    f"  = {VRdc:.1f} kN",
+                    f"VRd,max = αcw·bw·z·ν1·fcd/(cotθ+tanθ)",
+                    f"  = {VRdmax:.1f} kN",
+                    f"VRd,s = (Asw/s)·z·fywd·cotθ (θ=45°)",
+                    f"  = {VRds:.1f} kN",
+                    f"Asw/s yêu cầu = VEd/(z·fywd·cotθ) = {_asws_txt}",
+                    f"{mark} So sánh: VEd = {Vu:.1f} kN "
+                    f"{'≤' if Vu <= VRd else '>'} VRd = {VRd:.1f} kN",
+                ]
+                c = _param_card(grid, f"Kiểm tra chịu cắt phương {lbl}",
+                                "EN 1992-1-1 §6.2", lines,
+                                "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
+                c.grid(row=row, column=int(lbl) - 2, sticky="nsew", padx=4, pady=4)
         except Exception as e:
             tk.Label(parent, text=f"Không tính được chịu cắt: {e}",
                      fg="#991B1B", bg="white").pack(padx=8, pady=4)
