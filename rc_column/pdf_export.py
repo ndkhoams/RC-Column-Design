@@ -1067,13 +1067,15 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     _dy = math.cos(_alpha)  # Hướng M3
     
     # Vẽ vùng nén (màu xanh nhạt) - xử lý uốn xiên bằng polygon cắt xiên
-    if sec.kind == "rect":
-        _hw, _hh = cx/2, cy/2
-        # 4 đỉnh tiết diện
-        _corners = [(-_hw, -_hh), (_hw, -_hh), (_hw, _hh), (-_hw, _hh)]
+    # Dùng sec_poly chung cho cả rect/circle/poly
+    if sec_poly and len(sec_poly) >= 3:
+        _corners = list(sec_poly)
         # Đường trung hòa: vuông góc với (_dx, _dy), cách tâm một khoảng
         # Khoảng cách từ tâm đến đường trung hòa: d = (0.5 - _c_ratio) * đường chéo
-        _diag = math.hypot(cx, cy)
+        # Tính kích thước đặc trưng từ bounds của polygon (đúng cho cả 3 loại)
+        _xs = [p[0] for p in _corners]
+        _ys = [p[1] for p in _corners]
+        _diag = math.hypot(max(_xs)-min(_xs), max(_ys)-min(_ys))
         _d = (0.5 - _c_ratio) * _diag * 0.7
         # Vector pháp tuyến của đường trung hòa (hướng về phía nén)
         # Vùng nén ở phía (-_dx, -_dy) vì mô men dương gây kéo ở (+_dx, +_dy)
