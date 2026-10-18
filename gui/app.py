@@ -5175,6 +5175,9 @@ class App(tk.Tk):
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
             ax.set_axisbelow(True)
+            # Chỉ hiện nửa có tải (Mα >= 0, N >= 0) — giữ khi đổi góc xem
+            ax.set_xlim(left=0)
+            ax.set_ylim(bottom=0)
 
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
