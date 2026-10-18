@@ -882,29 +882,6 @@ class AciMixin:
             ax2 = fig2.add_subplot(111)
             draw_aci_m2m3_ax(ax2, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
             fig2.tight_layout()
-            # Fig vùng nén (tại điểm B)
-            fig3 = Figure(figsize=(5.2, 3.9), dpi=100)
-            ax3 = fig3.add_subplot(111)
-            _BN = aci_res.get("BN", inp.N)
-            _BM2 = aci_res.get("Bx", Mc2)
-            _BM3 = aci_res.get("By", Mc3)
-            _Nmax = aci_res.get("phiPn_max", abs(_BN) * 2) if isinstance(aci_res, dict) else abs(_BN) * 2
-            # aci_res có thể là dict hoặc object
-            try:
-                _Nmax_v = aci_res.get("Nmax", _Nmax) if isinstance(aci_res, dict) else getattr(aci_res, "Nmax", _Nmax)
-            except:
-                _Nmax_v = abs(_BN) * 2
-            _aci_na3 = None
-            try:
-                from rc_column.aci_checker import aci_neutral_axis_at_N
-                _alpha3 = math.degrees(math.atan2(_BM2, _BM3)) if abs(_BM2)+abs(_BM3) > 1e-9 else 0.0
-                _aci_na3 = aci_neutral_axis_at_N(sec, conc, steel, _BN, _alpha3, tied=tied)
-            except Exception:
-                _aci_na3 = None
-            draw_compression_zone_ax(ax3, sec, N_kN=_BN, M2_kNm=_BM2, M3_kNm=_BM3,
-                                     Nmax_kN=_Nmax_v, title="Vùng nén tại điểm B",
-                                     na_info=_aci_na3)
-            fig3.tight_layout()
             return (fig1, fig2, fig3)
         except Exception as e:
             print(f"[ACI] Lỗi tạo fig detail: {e}")
