@@ -369,12 +369,45 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         Vs = d.get("Vs_kN", 0.0) or 0.0
         phi_Vn = d.get("phi_Vn_kN", 0.0) or 0.0
         ok = bool(d.get("ok", False))
-        return _mk(f"Phương {label} (Vu = {_f(abs(Q), 1)} kN)",
+        # Lấy thông tin b, d, Av từ inp/sec (giống TCVN)
+        _dnum = "2" if "V2" in label else "3"
+        _cx = getattr(sec, "cx", 0) or 0
+        _cy = getattr(sec, "cy", 0) or 0
+        _cover = getattr(inp, "cover", 40) or 40
+        # b, d theo phương
+        if _dnum == "2":
+            _b = _cy  # b = t2
+            _d_eff = _cx - _cover - _sw_dia - 12
+            _mdia = getattr(inp, "swm2_dia", 0) or 0
+            _ms = getattr(inp, "swm2_spacing", 0) or 0
+            _mlegs = getattr(inp, "swm2_legs", 0) or 0
+        else:
+            _b = _cx  # b = t3
+            _d_eff = _cy - _cover - _sw_dia - 12
+            _mdia = getattr(inp, "swm3_dia", 0) or 0
+            _ms = getattr(inp, "swm3_spacing", 0) or 0
+            _mlegs = getattr(inp, "swm3_legs", 0) or 0
+        # Tính Av (bao + giữa)
+        _Av_outer = _sw_legs * math.pi * (_sw_dia ** 2) / 4
+        _Av_mid = _mlegs * math.pi * (_mdia ** 2) / 4 if _mdia > 0 else 0.0
+        _Av_tot = _Av_outer + _Av_mid
+        if _Av_mid > 0:
+            _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f} + {_mlegs}φ{_mdia:.0f} a{_ms:.0f}"
+        else:
+            _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        _mark = "✓" if ok else "✗"
+        _lines = [
+            f"Vu = {_f(abs(Q), 1)} kN",
+            f"b = {_b:.0f} mm, d = {_d_eff:.0f} mm",
+            f"Av = {_sw_txt} = {_Av_tot:.0f} mm²",
+            f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]×bw×d = {_f(Vc, 1)} kN",
+            f"Vs = Av×fyt×d/s = {_f(Vs, 1)} kN",
+            f"φVn = 0.75×(Vc+Vs) = {_f(phi_Vn, 1)} kN",
+            f"{_mark} So sánh: Vu = {_f(abs(Q), 1)} kN {'≤' if abs(Q) <= phi_Vn else '>'} φVn = {_f(phi_Vn, 1)} kN",
+        ]
+        return _mk(f"Kiểm tra chịu cắt phương {_dnum}",
                     "ACI 22.5.5.1",
-                    [f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]×bw×d = {_f(Vc, 1)} kN",
-                     f"Vs = Av×fyt×d/s = {_f(Vs, 1)} kN",
-                     f"φVn = 0.75×(Vc+Vs) = {_f(phi_Vn, 1)} kN",
-                     f"Vu = {_f(abs(Q), 1)} kN ≤ φVn = {_f(phi_Vn, 1)} kN"],
+                    _lines,
                     "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
     _ok2 = bool(_d2.get("ok", False)) if _d2 else True
     _ok3 = bool(_d3.get("ok", False)) if _d3 else True
