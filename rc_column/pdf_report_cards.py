@@ -249,12 +249,31 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     _cnt2 = _Ctr2(getattr(r, "dia", 0) for r in sec.rebars)
     _bar_str2 = " + ".join(f"{_cnt2[d]:.0f}d{d:.0f}"
                            for d in sorted(_cnt2, reverse=True))
-    # Sơ đồ mặt cắt căn giữa
+    # Hình vùng nén (giống app) thay cho mặt cắt trơn
     try:
-        from .pdf_export import section_image as _si
-        _sec_png2 = _si(sec, width_in=2.8, show_stats=False)
+        import math as _m2
+        from .pdf_export import compression_zone_image as _czi
+        _tBN = getattr(res, "BN", 0) or 0
+        _tBx = getattr(res, "Bx", 0) or 0
+        _tBy = getattr(res, "By", 0) or 0
+        _t_na = None
+        try:
+            from .interaction import FiberSection, neutral_axis_at_N
+            _t_fs = FiberSection(sec)
+            _t_alpha = 0.0
+            if abs(_tBx) + abs(_tBy) > 1e-9:
+                _t_alpha = _m2.degrees(_m2.atan2(_tBx, _tBy))
+            _t_na = neutral_axis_at_N(_t_fs, _tBN, _t_alpha,
+                                      getattr(inp, "concrete_model", "3line"))
+        except Exception:
+            _t_na = None
+        _sec_png2 = _czi(sec, _tBN, _tBx, _tBy, na_info=_t_na, width_in=2.8)
     except Exception:
-        _sec_png2 = None
+        try:
+            from .pdf_export import section_image as _si
+            _sec_png2 = _si(sec, width_in=2.8, show_stats=False)
+        except Exception:
+            _sec_png2 = None
     if _sec_png2:
         _simg2 = Image(io.BytesIO(_sec_png2), width=65*mm, height=65*mm)
         _simg2.hAlign = "CENTER"
