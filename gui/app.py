@@ -1604,6 +1604,11 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             return e.get()
         def bv(v):
             return v.get()
+        # DEBUG: in giá trị dia khi save
+        try:
+            print(f"[DEBUG SAVE] en_dia.get() = '{self.en_dia.get()}'")
+        except Exception as ex:
+            print(f"[DEBUG SAVE] lỗi đọc en_dia: {ex}")
         return {
             "version": 1,
             # Tên cấu kiện
