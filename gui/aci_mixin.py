@@ -824,15 +824,16 @@ class AciMixin:
                  font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
     def _render_aci_report(self, sections):
-        """Hiển thị thuyết minh ACI trong tab Chi tiết tính toán (dùng chung renderer TCVN)."""
+        """Hiển thị thuyết minh ACI trong tab Chi tiết tính toán.
+        Plot lại biểu đồ từ data tính toán chung (không dùng fig của result tab)."""
         # Reset trạng thái 3D của result tab để tránh ảnh hưởng
         self._aci_is_3d = False
         self._aci_nm_view_angle = None
         for w in self._calc_inner.winfo_children():
             w.destroy()
         from rc_column.report_widgets import render_report_sections
-        _figs = (getattr(self, "_aci_nm_fig", None),
-                 getattr(self, "_aci_m2m3_fig", None))
+        # Tạo fig mới từ data tính toán (đúng nguyên tắc: tính 1 lần, vẽ nhiều nơi)
+        _figs = self._create_aci_detail_figs()
         render_report_sections(self._calc_inner, sections, chart_figs=_figs)
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(scrollregion=self._calc_canvas.bbox("all"))
@@ -841,6 +842,37 @@ class AciMixin:
             self._calc_canvas.yview_moveto(0)
         except Exception:
             pass
+
+    def _create_aci_detail_figs(self):
+        """Tạo 2 fig biểu đồ cho tab Chi tiết từ data tính toán chung."""
+        try:
+            from matplotlib.figure import Figure
+            from rc_column.aci_chart_draw import draw_aci_nm_alpha_ax, draw_aci_m2m3_ax
+            sec = getattr(self, "_aci_sec", None)
+            inp = getattr(self, "_aci_inp", None)
+            aci_res = getattr(self, "_aci_res", None)
+            conc = getattr(self, "_aci_conc", None)
+            steel = getattr(self, "_aci_steel", None)
+            tied = getattr(self, "_aci_tied", True)
+            if not all([sec, inp, aci_res, conc, steel]):
+                return (None, None)
+            mm = getattr(self, "_aci_mm", None) or {}
+            Mc2 = mm.get("Mc2", inp.Mx)
+            Mc3 = mm.get("Mc3", inp.My)
+            # Fig N-Mα
+            fig1 = Figure(figsize=(5.2, 3.9), dpi=100)
+            ax1 = fig1.add_subplot(111)
+            draw_aci_nm_alpha_ax(ax1, sec, conc, steel, aci_res, inp.N, Mc2, Mc3, tied=tied)
+            fig1.tight_layout()
+            # Fig M2-M3
+            fig2 = Figure(figsize=(5.2, 3.9), dpi=100)
+            ax2 = fig2.add_subplot(111)
+            draw_aci_m2m3_ax(ax2, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
+            fig2.tight_layout()
+            return (fig1, fig2)
+        except Exception as e:
+            print(f"[ACI] Lỗi tạo fig detail: {e}")
+            return (None, None)
 
     def _draw_3d_aci(self):
         """Vẽ biểu đồ tương tác 3D cho ACI."""
