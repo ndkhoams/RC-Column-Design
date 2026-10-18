@@ -991,3 +991,138 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                             title="Kết quả kiểm tra cột BTCT")
     doc.build(story)
     return filepath
+
+
+def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
+                             Nmax_kN: float = None, title: str = None):
+    """Vẽ vùng nén của tiết diện tại trạng thái giới hạn.
+    
+    Phương pháp đơn giản hóa: dựa trên hướng mô men tổng hợp (alpha)
+    và mức độ nén (N/Nmax) để ước lượng vùng nén.
+    
+    - N_kN, M2_kNm, M3_kNm: nội lực tại điểm giới hạn B
+    - Nmax_kN: khả năng chịu nén đúng tâm (để tính tỷ số N/Nmax)
+    """
+    import math
+    import matplotlib.patches as mpatches
+    from matplotlib.patches import Polygon as MplPolygon
+    import numpy as np
+    
+    # Vẽ tiết diện nền (không có thép để rõ vùng nén)
+    cx, cy = sec.cx, sec.cy
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_axisbelow(True)
+    ax.grid(True, color="#E8EDF3", linewidth=0.7)
+    
+    # Vẽ khung tiết diện
+    if sec.kind == "rect":
+        ax.add_patch(mpatches.Rectangle(
+            (-cx/2, -cy/2), cx, cy, fill=True, facecolor="#F4F7FB",
+            edgecolor="black", lw=2.0, zorder=2))
+        # Tạo polygon của tiết diện để cắt vùng nén
+        sec_poly = [(-cx/2, -cy/2), (cx/2, -cy/2), (cx/2, cy/2), (-cx/2, cy/2)]
+    elif sec.kind == "poly" and getattr(sec, "poly_verts", None):
+        for verts in sec.poly_verts:
+            ax.add_patch(MplPolygon(verts, closed=True, fill=True,
+                                    facecolor="#F4F7FB", edgecolor="black",
+                                    lw=2.0, zorder=2))
+        sec_poly = sec.poly_verts[0] if sec.poly_verts else []
+    else:  # circle
+        ax.add_patch(mpatches.Circle(
+            (0, 0), cx/2, fill=True, facecolor="#F4F7FB",
+            edgecolor="black", lw=2.0, zorder=2))
+        # Tạo polygon xấp xỉ hình tròn
+        _th = np.linspace(0, 2*np.pi, 64)
+        sec_poly = [(cx/2*np.cos(t), cx/2*np.sin(t)) for t in _th]
+    
+    # Tính hướng mô men tổng hợp
+    M_res = math.hypot(M2_kNm, M3_kNm)
+    if M_res < 1e-9:
+        # Nén đúng tâm: toàn bộ tiết diện chịu nén
+        _alpha = 0.0
+        _n_ratio = 1.0
+    else:
+        # alpha: góc từ trục M3 (giống ETABS)
+        _alpha = math.atan2(M2_kNm, M3_kNm)
+        _n_ratio = abs(N_kN) / Nmax_kN if Nmax_kN and Nmax_kN > 1e-9 else 0.5
+        _n_ratio = min(1.0, max(0.0, _n_ratio))
+    
+    # Ước lượng chiều cao vùng nén (đơn giản hóa)
+    # N/Nmax càng lớn -> vùng nén càng lớn
+    # M càng lớn so với N -> vùng nén càng nhỏ
+    if M_res < 1e-9:
+        _c_ratio = 1.0  # Toàn bộ chịu nén
+    else:
+        # Tỷ số nén/uốn: N/(N + M/h)
+        _h_eq = max(cx, cy)
+        _m_equiv = M_res * 1000.0 / (_h_eq / 2.0)  # Quy đổi M thành lực tương đương (kN)
+        _c_ratio = abs(N_kN) / (abs(N_kN) + _m_equiv) if (abs(N_kN) + _m_equiv) > 1e-9 else 0.5
+        _c_ratio = 0.3 + 0.7 * _c_ratio  # Giới hạn 0.3 - 1.0
+    
+    # Vẽ vùng nén: nửa tiết diện phía chịu nén
+    # Hướng nén: ngược với hướng mô men (vùng nén ở phía mô men gây nén)
+    # Với M3 dương (gây nén ở phía +y?), vùng nén ở phía có tọa độ dương theo hướng alpha
+    
+    # Đơn giản: vẽ một hình chữ nhật/polygon bao phủ phần nén
+    # Tính theo hướng alpha
+    _dx = math.sin(_alpha)  # Hướng M2
+    _dy = math.cos(_alpha)  # Hướng M3
+    
+    # Tạo vùng nén bằng cách cắt tiết diện theo đường thẳng vuông góc với alpha
+    # Đường cắt cách tâm một khoảng d = (0.5 - _c_ratio) * kích thước
+    _size = max(cx, cy)
+    _offset = (0.5 - _c_ratio) * _size
+    
+    # Vẽ vùng nén (màu xanh nhạt)
+    if sec.kind == "rect":
+        # Tính 4 góc của vùng nén
+        # Vùng nén là phần tiết diện ở phía (_dx, _dy)
+        _hw, _hh = cx/2, cy/2
+        # Đơn giản: vẽ hình chữ nhật con
+        if abs(_dx) > abs(_dy):
+            # Nén theo phương M2 (ngang)
+            if _dx > 0:
+                _x0 = -_hw + (1-_c_ratio)*cx
+                _w = _c_ratio*cx
+            else:
+                _x0 = -_hw
+                _w = _c_ratio*cx
+            ax.add_patch(mpatches.Rectangle(
+                (_x0, -_hh), _w, cy, fill=True, facecolor="#BFDBFE",
+                edgecolor="#2563EB", lw=1.5, zorder=3, alpha=0.7))
+        else:
+            # Nén theo phương M3 (đứng)
+            if _dy > 0:
+                _y0 = -_hh + (1-_c_ratio)*cy
+                _h = _c_ratio*cy
+            else:
+                _y0 = -_hh
+                _h = _c_ratio*cy
+            ax.add_patch(mpatches.Rectangle(
+                (-_hw, _y0), cx, _h, fill=True, facecolor="#BFDBFE",
+                edgecolor="#2563EB", lw=1.5, zorder=3, alpha=0.7))
+    
+    # Vẽ thép (chấm đỏ)
+    for r in sec.rebars:
+        ax.plot(r.x, r.y, 'o', color='#DC2626', markersize=4, zorder=5,
+                markeredgecolor='white', markeredgewidth=0.5)
+    
+    # Trục tọa độ
+    ax.axhline(0, color='#9CA3AF', linewidth=0.8, zorder=1)
+    ax.axvline(0, color='#9CA3AF', linewidth=0.8, zorder=1)
+    
+    # Tiêu đề
+    if title:
+        ax.set_title(title, fontsize=10, fontweight='bold', pad=8)
+    
+    # Chú thích
+    ax.text(0.02, 0.98, f'Vùng nén (ước lượng)',
+            transform=ax.transAxes, fontsize=8, color='#1E40AF',
+            va='top', ha='left',
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='#DBEAFE', alpha=0.8))
+    
+    ax.set_xlim(-cx/2*1.3, cx/2*1.3)
+    ax.set_ylim(-cy/2*1.3, cy/2*1.3)
+    ax.set_xlabel('Trục 2 (mm)', fontsize=8)
+    ax.set_ylabel('Trục 3 (mm)', fontsize=8)
+
