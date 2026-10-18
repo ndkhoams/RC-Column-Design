@@ -855,7 +855,7 @@ class AciMixin:
             pass
 
     def _create_aci_detail_figs(self):
-        """Tạo 3 fig biểu đồ cho tab Chi tiết từ data tính toán chung (thêm vùng nén)."""
+        """Tạo 2 fig biểu đồ cho tab Chi tiết từ data tính toán chung."""
         try:
             import math
             from matplotlib.figure import Figure
@@ -882,7 +882,7 @@ class AciMixin:
             ax2 = fig2.add_subplot(111)
             draw_aci_m2m3_ax(ax2, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
             fig2.tight_layout()
-            return (fig1, fig2, fig3)
+            return (fig1, fig2)
         except Exception as e:
             print(f"[ACI] Lỗi tạo fig detail: {e}")
             return (None, None, None)
