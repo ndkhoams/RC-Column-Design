@@ -423,6 +423,14 @@ class Ec2Mixin:
             (f"◆ B (điểm giới hạn):  N = {_BN:+.1f} kN,  Mα,u = {_Mb:.1f} kN×m  (M2u = {_Bx:.1f}, M3u = {_By:.1f})", "#EA580C"),
         ]
 
+        # Đường trung hòa chính xác từ fiber model EC2
+        _ec2_na_info = None
+        try:
+            from rc_column.ec2_checker import ec2_neutral_axis_at_N
+            _ec2_na_info = ec2_neutral_axis_at_N(
+                sec, conc, steel, _BN, alpha_deg)
+        except Exception:
+            _ec2_na_info = None
         config = {
             "std_title": "(EC2 EN 1992-1-1)",
             "param_rows": param_rows,
@@ -430,7 +438,8 @@ class Ec2Mixin:
             "section": sec,
             "section_cards": section_cards,
             "comp_zone": {"N": _BN, "M2": _Bx, "M3": _By,
-                          "Nmax": abs(_BN)*2},
+                          "Nmax": abs(_BN)*2,
+                          "na_info": _ec2_na_info},
             "draw_nm": _draw_nm,
             "draw_m2m3": _draw_m2m3,
             "nm_title": "Biểu đồ tương tác N-Mα",
@@ -879,8 +888,17 @@ class Ec2Mixin:
             _BM2 = _lam * inp.Mx
             _BM3 = _lam * inp.My
             _Nmax = abs(_BN) * 2
+            _ec2_na3 = None
+            try:
+                import math as _m3
+                from rc_column.ec2_checker import ec2_neutral_axis_at_N
+                _alpha3 = _m3.degrees(_m3.atan2(_BM2, _BM3)) if abs(_BM2)+abs(_BM3) > 1e-9 else 0.0
+                _ec2_na3 = ec2_neutral_axis_at_N(sec, conc, steel, _BN, _alpha3)
+            except Exception:
+                _ec2_na3 = None
             draw_compression_zone_ax(ax3, sec, N_kN=_BN, M2_kNm=_BM2, M3_kNm=_BM3,
-                                     Nmax_kN=_Nmax, title="Vùng nén tại điểm B")
+                                     Nmax_kN=_Nmax, title="Vùng nén tại điểm B",
+                                     na_info=_ec2_na3)
             fig3.tight_layout()
             return (fig1, fig2, fig3)
         except Exception as e:
