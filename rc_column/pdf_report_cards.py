@@ -461,11 +461,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     alpha = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
         if Ma > 1e-9 else 0.0
     S.append(KeepTogether(_two(P, st,
-        _mk( "Mô men uốn xiên tổng hợp Mα", "",
+        _mk( "Góc tác dụng mô men uốn tổng hợp α", "Góc uốn xiên",
+              [f"α = arctan(M₃* / M₂*)",
+               f"= arctan({_f(abs(res.My_star), 2)} / {_f(abs(res.Mx_star), 2)})",
+               f"= {_f(alpha, 2)} độ (°)"]),
+        _mk( "Mô men uốn xiên tổng hợp Mα", "Véc-tơ tổng hợp",
               [f"Mα = √((M₂*)² + (M₃*)²)",
                f"= √({_f(abs(res.Mx_star), 2)}² + {_f(abs(res.My_star), 2)}²)",
-               f"= {_f(Ma, 2)} kN·m"]),
-        _mk( "", "", [""]))))
+               f"= {_f(Ma, 2)} kN·m"]))))
 
     # ================= MỤC 6 =================
     S.append(_sec_head(P, st, 6,
