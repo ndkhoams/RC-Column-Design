@@ -396,7 +396,7 @@ class Ec2Mixin:
         _By = ec2_res.get("By", 0)
         _Mb = math.hypot(_Bx, _By)
         notes = [
-            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) — EC2 (EN 1992-1-1)", "#059669"),
+            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°)", "#059669"),
             (f"● A (điểm tải){_combo_txt}:  N = {inp.N:+.1f} kN,  Mα = {Ma:.1f} kN×m  (MEd2 = {_M2m:.1f}, MEd3 = {_M3m:.1f})", "#2563EB"),
             (f"◆ B (điểm giới hạn):  N = {_BN:+.1f} kN,  Mα,u = {_Mb:.1f} kN×m  (M2u = {_Bx:.1f}, M3u = {_By:.1f})", "#EA580C"),
         ]
