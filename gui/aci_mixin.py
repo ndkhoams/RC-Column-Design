@@ -424,7 +424,7 @@ class AciMixin:
         self._update_ck()
 
     def _on_aci_angle_unified(self, sel):
-        """Xử lý chọn góc xem từ unified renderer - vẽ lại toàn bộ tab."""
+        """Xử lý chọn góc xem - chỉ vẽ lại biểu đồ N-M (mượt như TCVN)."""
         try:
             if sel == "3D":
                 self._draw_3d_aci()
@@ -434,11 +434,15 @@ class AciMixin:
                 self._aci_nm_view_angle = None
             else:
                 self._aci_nm_view_angle = float(sel.replace("°", ""))
-            # Vẽ lại toàn bộ tab với góc mới
-            self._show_aci_summary()
-            # Khôi phục lựa chọn combobox
-            if hasattr(self, '_nm_angle_cb'):
-                self._nm_angle_cb.set(sel)
+            # Chỉ vẽ lại axes N-M, không render lại toàn tab
+            ax = getattr(self, "_nm_ax", None)
+            canvas = getattr(self, "_nm_canvas", None)
+            draw_fn = getattr(self, "_nm_draw_fn", None)
+            if ax is not None and draw_fn is not None:
+                ax.clear()
+                draw_fn(ax)
+                if canvas:
+                    canvas.draw()
         except Exception as e:
             print(f"[ACI] Lỗi đổi góc xem: {e}")
 
