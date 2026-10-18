@@ -291,17 +291,17 @@ class AciMixin:
         if not HAS_MPL:
             return
         import math
-        # TRIỆT ĐỂ: Hủy và tạo lại _sum_inner để tránh mọi trùng lặp
+        # TRIỆT ĐỂ: Hủy và tạo lại _sum_inner
         try:
-            _parent = self._sum_inner.master
+            _canvas = self._sum_inner.master
             self._sum_inner.destroy()
             import tkinter as tk
             from tkinter import ttk
-            self._sum_inner = ttk.Frame(_parent)
-            self._sum_inner.pack(fill=tk.BOTH, expand=True)
-        except Exception as _e:
-            print(f"[ACI] recreate _sum_inner lỗi: {_e}")
-            # Fallback: xóa thông thường
+            self._sum_inner = ttk.Frame(_canvas)
+            _canvas.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
+            self._sum_inner.bind("<Configure>", lambda e: _canvas.configure(scrollregion=_canvas.bbox("all")))
+        except Exception as _e2:
+            print(f"recreate _sum_inner lỗi: {_e2}")
             for w in self._sum_inner.winfo_children():
                 w.destroy()
         sec = self._aci_sec
