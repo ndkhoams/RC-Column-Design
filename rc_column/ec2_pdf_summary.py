@@ -446,7 +446,7 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
             pass
         _sec_png = _pdf_exp.compression_zone_image(sec, _BN, _Bx, _By,
                                                    na_info=_na)
-        right_flow.append(_centered_img(_sec_png, 52))
+        right_flow.append(_centered_img(_sec_png, 66))
         right_flow.append(Spacer(1, 2))
         # 2 biểu đồ EC2 (có tiêu đề)
         _pngs = _ec2_charts_png(sec, conc, steel, ec2_res, inp)
