@@ -890,7 +890,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             sec, getattr(res, "BN", inp.N),
             getattr(res, "Bx", 0), getattr(res, "By", 0),
             na_info=_cz_na, width_in=2.2, dpi=200)
-        right_flow.append(_centered_img(_sec_png, 52))
+        right_flow.append(_centered_img(_sec_png, 66))
         right_flow.append(Spacer(1, 2))
         # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
         _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
