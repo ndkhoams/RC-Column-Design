@@ -617,7 +617,7 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     alen = max(cx, cy) * 0.62
     # Mũi tên trục t2 (xanh lá, ngang), t3 (xanh dương, đứng) - vẽ trên cùng
     # Đặt giới hạn trục để mũi tên không bị cắt
-    _lim = alen * 1.25
+    _lim = max(cx, cy) * 0.85
     ax.set_xlim(-_lim, _lim)
     ax.set_ylim(-_lim, _lim)
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
