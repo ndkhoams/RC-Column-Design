@@ -183,9 +183,9 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                         _hh = 65
                         _buf.seek(0)
                     _simg = Image(_buf, width=65*mm, height=_hh*mm)
-                        _simg.hAlign = "CENTER"
-                        S.append(_simg)
-                        S.append(Spacer(1, 4*mm))
+                    _simg.hAlign = "CENTER"
+                    S.append(_simg)
+                    S.append(Spacer(1, 4*mm))
                 except Exception:
                     pass
         cards = _s.get("cards", [])
