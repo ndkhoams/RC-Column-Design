@@ -1059,48 +1059,60 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         _c_ratio = abs(N_kN) / (abs(N_kN) + _m_equiv) if (abs(N_kN) + _m_equiv) > 1e-9 else 0.5
         _c_ratio = 0.3 + 0.7 * _c_ratio  # Giới hạn 0.3 - 1.0
     
-    # Vẽ vùng nén: nửa tiết diện phía chịu nén
-    # Hướng nén: ngược với hướng mô men (vùng nén ở phía mô men gây nén)
-    # Với M3 dương (gây nén ở phía +y?), vùng nén ở phía có tọa độ dương theo hướng alpha
-    
-    # Đơn giản: vẽ một hình chữ nhật/polygon bao phủ phần nén
-    # Tính theo hướng alpha
+    # Vẽ vùng nén: cắt tiết diện bởi đường thẳng vuông góc với hướng mô men
+    # Hướng mô men tổng hợp: (_dx, _dy) = (sin(alpha), cos(alpha))
+    # Vùng nén nằm ở phía NGƯỢC với hướng mô men (vì mô men gây kéo ở phía đó)
+    # Thực tế: với M2, M3 dương, vùng nén ở góc phần tư thứ 3 (-x, -y)
     _dx = math.sin(_alpha)  # Hướng M2
     _dy = math.cos(_alpha)  # Hướng M3
     
-    # Tạo vùng nén bằng cách cắt tiết diện theo đường thẳng vuông góc với alpha
-    # Đường cắt cách tâm một khoảng d = (0.5 - _c_ratio) * kích thước
-    _size = max(cx, cy)
-    _offset = (0.5 - _c_ratio) * _size
-    
-    # Vẽ vùng nén (màu xanh nhạt)
+    # Vẽ vùng nén (màu xanh nhạt) - xử lý uốn xiên bằng polygon cắt xiên
     if sec.kind == "rect":
-        # Tính 4 góc của vùng nén
-        # Vùng nén là phần tiết diện ở phía (_dx, _dy)
         _hw, _hh = cx/2, cy/2
-        # Đơn giản: vẽ hình chữ nhật con
-        if abs(_dx) > abs(_dy):
-            # Nén theo phương M2 (ngang)
-            if _dx > 0:
-                _x0 = -_hw + (1-_c_ratio)*cx
-                _w = _c_ratio*cx
-            else:
-                _x0 = -_hw
-                _w = _c_ratio*cx
-            ax.add_patch(mpatches.Rectangle(
-                (_x0, -_hh), _w, cy, fill=True, facecolor="#BFDBFE",
-                edgecolor="#2563EB", lw=1.5, zorder=3, alpha=0.7))
-        else:
-            # Nén theo phương M3 (đứng)
-            if _dy > 0:
-                _y0 = -_hh + (1-_c_ratio)*cy
-                _h = _c_ratio*cy
-            else:
-                _y0 = -_hh
-                _h = _c_ratio*cy
-            ax.add_patch(mpatches.Rectangle(
-                (-_hw, _y0), cx, _h, fill=True, facecolor="#BFDBFE",
-                edgecolor="#2563EB", lw=1.5, zorder=3, alpha=0.7))
+        # 4 đỉnh tiết diện
+        _corners = [(-_hw, -_hh), (_hw, -_hh), (_hw, _hh), (-_hw, _hh)]
+        # Đường trung hòa: vuông góc với (_dx, _dy), cách tâm một khoảng
+        # Khoảng cách từ tâm đến đường trung hòa: d = (0.5 - _c_ratio) * đường chéo
+        _diag = math.hypot(cx, cy)
+        _d = (0.5 - _c_ratio) * _diag * 0.7
+        # Vector pháp tuyến của đường trung hòa (hướng về phía nén)
+        # Vùng nén ở phía (-_dx, -_dy) vì mô men dương gây kéo ở (+_dx, +_dy)
+        _nx, _ny = -_dx, -_dy
+        # Điểm trên đường trung hòa: tâm + d * (hướng nén)
+        _px, _py = _d * _nx, _d * _ny
+        # Tìm giao điểm của đường thẳng với biên tiết diện và tạo polygon vùng nén
+        # Đơn giản: lấy các đỉnh có (x*_nx + y*_ny) >= (_px*_nx + _py*_ny) là vùng nén
+        _threshold = _px * _nx + _py * _ny
+        _comp_corners = []
+        for (_cx, _cy) in _corners:
+            if _cx * _nx + _cy * _ny >= _threshold - 1e-9:
+                _comp_corners.append((_cx, _cy))
+        # Tìm giao điểm của đường trung hòa với các cạnh
+        _edges = [(_corners[i], _corners[(i+1)%4]) for i in range(4)]
+        _intersects = []
+        for (_x1, _y1), (_x2, _y2) in _edges:
+            _v1 = _x1*_nx + _y1*_ny - _threshold
+            _v2 = _x2*_nx + _y2*_ny - _threshold
+            if _v1 * _v2 < 0:  # Cắt nhau
+                _t = abs(_v1) / (abs(_v1) + abs(_v2))
+                _ix = _x1 + _t*(_x2-_x1)
+                _iy = _y1 + _t*(_y2-_y1)
+                _intersects.append((_ix, _iy))
+        # Tạo polygon vùng nén: các đỉnh nén + giao điểm, sắp xếp theo góc
+        _poly_pts = _comp_corners + _intersects
+        if len(_poly_pts) >= 3:
+            # Sắp xếp theo góc quanh trọng tâm
+            _gcx = sum(p[0] for p in _poly_pts)/len(_poly_pts)
+            _gcy = sum(p[1] for p in _poly_pts)/len(_poly_pts)
+            _poly_pts.sort(key=lambda p: math.atan2(p[1]-_gcy, p[0]-_gcx))
+            ax.add_patch(MplPolygon(_poly_pts, closed=True, fill=True,
+                                    facecolor="#BFDBFE", edgecolor="#2563EB",
+                                    lw=1.5, zorder=3, alpha=0.7))
+            # Vẽ đường trung hòa (nét đứt đỏ)
+            if len(_intersects) == 2:
+                _ixs = [_intersects[0][0], _intersects[1][0]]
+                _iys = [_intersects[0][1], _intersects[1][1]]
+                ax.plot(_ixs, _iys, '--', color='#DC2626', linewidth=1.5, zorder=4)
     
     # Vẽ thép (chấm đỏ)
     for r in sec.rebars:
