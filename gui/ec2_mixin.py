@@ -304,16 +304,17 @@ class Ec2Mixin:
         Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
         if not HAS_MPL:
             return
-        # TRIỆT ĐỂ: Hủy và tạo lại _sum_inner (giống ACI đã fix)
+        # TRIỆT ĐỂ: Hủy và tạo lại _sum_inner
         try:
-            _parent_ec2 = self._sum_inner.master
+            _cv_ec2 = self._sum_inner.master
             self._sum_inner.destroy()
             import tkinter as tk
             from tkinter import ttk
-            self._sum_inner = ttk.Frame(_parent_ec2)
-            self._sum_inner.pack(fill=tk.BOTH, expand=True)
+            self._sum_inner = ttk.Frame(_cv_ec2)
+            _cv_ec2.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
+            self._sum_inner.bind("<Configure>", lambda e: _cv_ec2.configure(scrollregion=_cv_ec2.bbox("all")))
         except Exception as _e_ec2:
-            print(f"[EC2] recreate _sum_inner lỗi: {_e_ec2}")
+            print(f"[EC2] recreate lỗi: {_e_ec2}")
         # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
         try:
             self._sum_inner.update_idletasks()
