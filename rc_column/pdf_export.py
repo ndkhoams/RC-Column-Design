@@ -87,17 +87,23 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
             markeredgecolor="white", markersize=max(4.0, dia * 0.22 * dot_scale),
             label=f"d{dia:.0f}"))
     # Trục t2/t3 vượt ra khỏi đường bao để thấy text
-    alen = max(cx, cy) * 0.75
-    # Mũi tên trục t2 (xanh lá), t3 (xanh dương) - vẽ trên cùng
+    alen = max(cx, cy) * 0.62
+    # Mũi tên trục t2 (xanh lá, ngang), t3 (xanh dương, đứng) - vẽ trên cùng
+    # Đặt giới hạn trục để mũi tên không bị cắt
+    _lim = alen * 1.25
+    ax.set_xlim(-_lim, _lim)
+    ax.set_ylim(-_lim, _lim)
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
-                arrowprops=dict(arrowstyle="->", color="#16A34A", lw=2.0),
+                arrowprops=dict(arrowstyle="->", color="#16A34A", lw=2.0,
+                                shrinkA=0, shrinkB=0),
                 zorder=6)
     ax.annotate("", xy=(0, alen), xytext=(0, 0),
-                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0),
+                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0,
+                                shrinkA=0, shrinkB=0),
                 zorder=6)
-    ax.text(alen * 1.05, 0, "t2", fontsize=10, color="#15803D",
+    ax.text(alen * 1.02, 0, "t2", fontsize=10, color="#15803D",
             weight="bold", va="center", ha="left", zorder=6)
-    ax.text(0, alen * 1.05, "t3", fontsize=10, color="#1D4ED8",
+    ax.text(0, alen * 1.02, "t3", fontsize=10, color="#1D4ED8",
             weight="bold", va="bottom", ha="center", zorder=6)
     # Legend thép: căn giữa-trên, ngay trên đỉnh axes (cao hơn nhãn t3)
     if legend_handles:
@@ -548,24 +554,31 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
                    s=dot_s, c=color, zorder=5,
                    edgecolors="white", linewidths=0.8)
     
-    alen = max(cx, cy) * 0.75
-    # Mũi tên trục t2 (xanh lá), t3 (xanh dương) - vẽ trên cùng
+    alen = max(cx, cy) * 0.62
+    # Mũi tên trục t2 (xanh lá, ngang), t3 (xanh dương, đứng) - vẽ trên cùng
+    # Đặt giới hạn trục để mũi tên không bị cắt
+    _lim = alen * 1.25
+    ax.set_xlim(-_lim, _lim)
+    ax.set_ylim(-_lim, _lim)
     ax.annotate("", xy=(alen, 0), xytext=(0, 0),
-                arrowprops=dict(arrowstyle="->", color="#16A34A", lw=2.0),
+                arrowprops=dict(arrowstyle="->", color="#16A34A", lw=2.0,
+                                shrinkA=0, shrinkB=0),
                 zorder=6)
     ax.annotate("", xy=(0, alen), xytext=(0, 0),
-                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0),
+                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0,
+                                shrinkA=0, shrinkB=0),
                 zorder=6)
-    ax.text(alen * 1.05, 0, "t2", fontsize=10, color="#15803D",
+    ax.text(alen * 1.02, 0, "t2", fontsize=10, color="#15803D",
             weight="bold", va="center", ha="left", zorder=6)
-    ax.text(0, alen * 1.05, "t3", fontsize=10, color="#1D4ED8",
+    ax.text(0, alen * 1.02, "t3", fontsize=10, color="#1D4ED8",
             weight="bold", va="bottom", ha="center", zorder=6)
     
     # Không set title bên trong (đã có tiêu đề card bên ngoài)
     # Nhãn trục thành kích thước t2/t3
     if sec.kind == "rect":
-        ax.set_xlabel(f"t2 = {cx:.0f} mm", fontsize=9, weight="bold")
-        ax.set_ylabel(f"t3 = {cy:.0f} mm", fontsize=9, weight="bold")
+        # Cạnh t2 là đứng (cy), cạnh t3 là ngang (cx) theo quy ước app
+        ax.set_xlabel(f"t3 = {cx:.0f} mm", fontsize=9, weight="bold")
+        ax.set_ylabel(f"t2 = {cy:.0f} mm", fontsize=9, weight="bold")
     elif sec.kind == "circle":
         ax.set_xlabel(f"D = {cx:.0f} mm", fontsize=9, weight="bold")
         ax.set_ylabel(f"D = {cx:.0f} mm", fontsize=9, weight="bold")
