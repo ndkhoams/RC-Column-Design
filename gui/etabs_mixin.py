@@ -618,8 +618,10 @@ class EtabsMixin:
                 _she = _full_e.get("shear") or {}
                 if isinstance(_she.get("dir2"), dict):
                     _she["dir2"]["combo_info"] = _qi(_fq2)
+                    print(f"[ETABS-EC2] merged combo_info dir2: {_qi(_fq2)}")
                 if isinstance(_she.get("dir3"), dict):
                     _she["dir3"]["combo_info"] = _qi(_fq3)
+                    print(f"[ETABS-EC2] merged combo_info dir3: {_qi(_fq3)}")
         except Exception as _exq:
             print(f"[ETABS-EC2] merge combo_info cắt lỗi: {_exq}")
 
