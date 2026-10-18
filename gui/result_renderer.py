@@ -63,7 +63,7 @@ def render_result_tab(app, config):
     app._sum_inner.rowconfigure(1, weight=1)
 
     # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
-    f_tl = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB",
+    f_tl = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
                     highlightthickness=1, takefocus=0)
     f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
     tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
@@ -92,7 +92,7 @@ def render_result_tab(app, config):
                      bg="white").pack(pady=2)
 
     # ===== Ô trên-trái: bảng thông số =====
-    f_tr = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB",
+    f_tr = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
                     highlightthickness=1, takefocus=0)
     f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
     ttk.Label(f_tr, text=f"BẢNG THÔNG SỐ TÍNH TOÁN {config['std_title']}",
@@ -131,7 +131,7 @@ def render_result_tab(app, config):
     tree.pack(fill=tk.X, expand=False, padx=2, pady=2)
 
     # ===== Ô dưới-trái: biểu đồ N-Mα =====
-    f_bl = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB",
+    f_bl = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
                     highlightthickness=1, takefocus=0)
     f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
     hdr = ttk.Frame(f_bl)
@@ -172,7 +172,7 @@ def render_result_tab(app, config):
     # (Notes sẽ đặt ở frame full-width bên dưới)
 
     # ===== Ô dưới-phải: biểu đồ M2-M3 =====
-    f_br = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB",
+    f_br = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
                     highlightthickness=1, takefocus=0)
     f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
     hdr2 = ttk.Frame(f_br)
