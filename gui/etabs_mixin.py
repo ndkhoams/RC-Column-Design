@@ -771,8 +771,12 @@ class EtabsMixin:
         self._pdf_inp, self._pdf_res = inp_w, res_w
         self._pdf_batch = batch
         self._pdf_case = case_info
-        # Dùng shear_cols từ _tcvn_calculate_full (tính 1 lần), không dùng shear_info thiếu
-        self._pdf_shear = _full_w.get("shear_cols")
+        # Dùng shear_cols từ _tcvn_calculate_full + merge combo/vị trí từ shear_info
+        _sc = _full_w.get("shear_cols") or {}
+        if isinstance(shear_info, dict):
+            _sc["_q2_info"] = shear_info.get("q2")
+            _sc["_q3_info"] = shear_info.get("q3")
+        self._pdf_shear = _sc
         # cập nhật cả tab Tóm tắt + biểu đồ cho tổ hợp nguy hiểm nhất
         self._show_summary(sec_w, inp_w, res_w,
                            prefix=f"Tổ hợp {worst_f.case}@{worst_f.station:.2f}m: ")
