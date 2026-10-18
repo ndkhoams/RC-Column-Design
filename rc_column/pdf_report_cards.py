@@ -552,8 +552,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
 
 
     # ================= MỤC 7 =================
-    from reportlab.platypus import PageBreak as _PB
-    S.append(_PB())
+    # (Bỏ PageBreak cưỡng bức - để tránh trang trắng)
     S.append(_sec_head(P, st, 7, "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
                        "TCVN 5574:2018 Mục 10.3.4 & 8.1.3"))
     def _full_card(title, ref, lines, result=""):
