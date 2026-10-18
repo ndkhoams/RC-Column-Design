@@ -534,7 +534,7 @@ class AciMixin:
         ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (ACI 318-19)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
-        tree = ttk.Treeview(parent, columns=cols, show="headings", height=15,
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
                             style="Param.Treeview")
         _pst = ttk.Style()
         _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
@@ -606,7 +606,7 @@ class AciMixin:
                     values=("D/C", "Tỷ số sử dụng khả năng chịu lực",
                             f"{aci_res['dc']:.3f} (FS = {fs_txt})  {ok_txt}"),
                     tags=("dc",))
-        tree.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+        tree.pack(fill=tk.X, expand=False, padx=2, pady=2)
 
     def _build_aci_nm_header(self, parent, inp):
         """Header trên biểu đồ N-Mα (ACI)."""
