@@ -143,6 +143,19 @@ def render_result_tab(app, config):
     if config.get("nm_alpha_text"):
         tk.Label(left, text=f"  {config['nm_alpha_text']}  ",
                  font=("", 8, "bold"), fg="#065F46", bg="#D1FAE5").pack(side=tk.LEFT, padx=6)
+    # Combobox chọn góc xem (nếu có callback)
+    on_angle = config.get("on_nm_angle_change")
+    if on_angle:
+        right = ttk.Frame(hdr)
+        right.pack(side=tk.RIGHT)
+        tk.Label(right, text="Góc xem:", font=("", 8), bg="white").pack(side=tk.LEFT)
+        _vals = ["α (góc tải)", "3D"] + [f"{d}°" for d in range(0, 361, 15)]
+        _cb = ttk.Combobox(right, values=_vals, width=11, state="readonly", font=("", 9))
+        _cb.set("α (góc tải)")
+        _cb.pack(side=tk.LEFT, padx=(4, 0))
+        _cb.bind("<<ComboboxSelected>>", lambda e: on_angle(_cb.get()))
+        # Lưu ref để dùng sau
+        app._nm_angle_cb = _cb
 
     fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
     ax_nm = fig_nm.add_subplot(111)
