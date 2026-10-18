@@ -1,6 +1,8 @@
 """Các method tính toán và hiển thị theo ACI 318-19."""
 
 
+
+import tkinter as tk
 class AciMixin:
     """Các method tính toán và hiển thị theo ACI 318-19."""
 
