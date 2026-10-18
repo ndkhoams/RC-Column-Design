@@ -125,11 +125,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                    st["note"]))
 
     for _s in sections:
-        # Mục 7 luôn sang trang mới (không để tiêu đề ở cuối trang)
-        # (Bỏ PageBreak mục 4: gây trắng trang 2)
-        if _s["num"] == 7:
-            from reportlab.platypus import PageBreak as _PB7
-            S.append(_PB7())
+        # (Bỏ PageBreak mục 7: gây trang trắng thừa)
         S.append(_sec_head(P, st, _s["num"], _s["title"],
                            _s.get("ref", "")))
         # Mục 2: sơ đồ mặt cắt TRƯỚC (như TCVN)
