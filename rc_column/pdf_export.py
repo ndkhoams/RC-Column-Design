@@ -604,11 +604,11 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white", markersize=max(4.0, dia * 0.22),
             label=f"D{dia:.0f}"))
-    # Legend thép: phía dưới tiết diện, ngoài khung để không đè hình
+    # Legend thép: bên phải khung
     if legend_handles:
-        leg = ax.legend(handles=legend_handles, loc="upper center",
-                        bbox_to_anchor=(0.5, -0.08),
-                        ncol=len(legend_handles),
+        leg = ax.legend(handles=legend_handles, loc="center left",
+                        bbox_to_anchor=(1.02, 0.5),
+                        ncol=1,
                         frameon=True, fontsize=9,
                         facecolor="white", edgecolor="#D1D5DB")
         for txt in leg.get_texts():
