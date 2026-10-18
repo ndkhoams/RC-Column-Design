@@ -178,8 +178,6 @@ def render_result_tab(app, config):
     # ===== Bảng cắt (nếu có) =====
     shear_builder = config.get("shear_builder")
     if shear_builder:
-        import tkinter as tk
-        from tkinter import ttk
         f_sw = ttk.Frame(app._sum_inner, style="Card.TLabelframe")
         f_sw.grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
         shear_builder(f_sw)
