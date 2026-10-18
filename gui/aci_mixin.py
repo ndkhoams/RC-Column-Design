@@ -285,15 +285,12 @@ class AciMixin:
         self._update_ck()
 
     def _show_aci_summary(self):
-        """Tab Kết quả tính toán cho ACI: layout 2x2 giống TCVN.
-        Hàng trên: [mặt cắt + thẻ TK | bảng thông số] /
-        Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
+        """Tab Kết quả tính toán cho ACI - dùng unified renderer."""
         if not HAS_MPL:
             return
-        import math
-        # Xóa toàn bộ nội dung cũ trong _sum_inner (y hệt TCVN)
-        for w in self._sum_inner.winfo_children():
-            w.destroy()
+        from gui.result_renderer import render_result_tab
+        from rc_column.aci_chart_draw import draw_aci_nm_alpha_ax, draw_aci_m2m3_ax
+
         sec = self._aci_sec
         inp = self._aci_inp
         aci_res = self._aci_res
@@ -301,117 +298,50 @@ class AciMixin:
         steel = self._aci_steel
         tied = self._aci_tied
         mm_res = getattr(self, "_aci_mm", None)
-        from rc_column.aci_chart_draw import (draw_aci_nm_alpha_ax,
-                                              draw_aci_m2m3_ax)
-        from rc_column.pdf_export import draw_section_ax
-        from matplotlib.figure import Figure
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-        def _new_fig(parent, figsize):
-            fig = Figure(figsize=figsize, dpi=100)
-            cv = FigureCanvasTkAgg(fig, master=parent)
-            _w = cv.get_tk_widget()
-            try:
-                # takefocus=0 ngăn canvas chiếm focus (đủ để cuộn chuột
-                # hoạt động); KHÔNG chặn ButtonPress/Release để biểu đồ
-                # 3D xoay được bằng kéo chuột
-                _w.configure(highlightthickness=0, takefocus=0,
-                             highlightbackground="white",
-                             highlightcolor="white", borderwidth=0)
-            except Exception:
-                pass
-            _w.pack(fill=tk.BOTH, expand=True)
-            return fig, cv
+        # Lấy rows thông số
+        param_rows, dc_row = self._get_aci_param_rows(inp, aci_res, mm_res)
 
-        # Xóa nội dung cũ
-        for w in self._sum_inner.winfo_children():
-            w.destroy()
-        self._sum_inner.columnconfigure(0, weight=1)
-        self._sum_inner.columnconfigure(1, weight=1)
-        self._sum_inner.rowconfigure(0, weight=0)
-        self._sum_inner.rowconfigure(1, weight=1)
+        # Section cards
+        vals = self._section_card_values(sec)
+        section_cards = {"n": vals["n"], "as": vals["as"], "ab": vals["ab"], "mu": vals["mu"]}
 
-        # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
-        f_tl = tk.Frame(self._sum_inner, bg="white",
-                        highlightbackground="#D1D5DB", highlightthickness=1)
-        f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-        tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
-                 font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
-        self.ck_var = tk.StringVar(value="")
-        # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
-        fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
-        a1 = fig_sec.add_subplot(111)
-        draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
-        fig_sec.tight_layout()
-        cv_sec.draw()
-        self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
-        # Thẻ thống kê ACI: hàng vật liệu + hàng số liệu thép
-        self._build_aci_section_cards(f_tl, sec, conc, steel, tied)
+        # Hàm vẽ N-M
+        def _draw_nm(ax):
+            _mm = getattr(self, "_aci_mm", None) or {}
+            _Mc2 = _mm.get("Mc2", inp.Mx)
+            _Mc3 = _mm.get("Mc3", inp.My)
+            draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res, inp.N, _Mc2, _Mc3, tied=tied)
 
-        # ===== Ô trên-trái: bảng thông số tính toán ACI =====
-        f_tr = tk.Frame(self._sum_inner, bg="white",
-                        highlightbackground="#D1D5DB", highlightthickness=1)
-        f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_aci_param_table(f_tr, inp, aci_res, mm_res)
+        # Hàm vẽ M2-M3
+        def _draw_m2m3(ax):
+            draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
 
-        # ===== Ô dưới-trái: header + biểu đồ N-Mα (ACI) =====
-        f_bl = ttk.Frame(self._sum_inner)
-        f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_aci_nm_header(f_bl, inp)
-        fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
-        self._aci_nm_fig = fig_nm
-        a3 = fig_nm.add_subplot(111)
-        _mm = getattr(self, "_aci_mm", None) or {}
-        _Mc2 = _mm.get("Mc2", inp.Mx)
-        _Mc3 = _mm.get("Mc3", inp.My)
-        draw_aci_nm_alpha_ax(a3, sec, conc, steel, aci_res,
-                             inp.N, _Mc2, _Mc3, tied=tied)
-        fig_nm.tight_layout()
-        fig_nm.subplots_adjust(bottom=0.30)
-        cv_nm.draw()
-        # Lưu tham chiếu để vẽ lại khi đổi góc xem
-        self._aci_nm_ax_ref = a3
-        self._aci_nm_cv_ref = cv_nm
+        # Notes
+        import math
+        alpha_deg = aci_res.get("alpha_deg", 0)
+        notes = [
+            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) — ACI 318-19   D/C = {aci_res['dc']:.3f} → {'ĐẠT' if aci_res['ok'] else 'KHÔNG ĐẠT'}", "#059669"),
+        ]
 
-        # ===== Ô dưới-phải: header + biểu đồ M2-M3 (ACI) =====
-        f_br = ttk.Frame(self._sum_inner)
-        f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
-        self._build_aci_m2m3_header(f_br, inp)
-        fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
-        self._aci_m2m3_fig = fig_mm
-        a4 = fig_mm.add_subplot(111)
-        draw_aci_m2m3_ax(a4, sec, conc, steel, aci_res,
-                         inp.N, inp.Mx, inp.My, tied=tied)
-        fig_mm.tight_layout()
-        fig_mm.subplots_adjust(bottom=0.30)
-        cv_mm.draw()
-
-        # ===== Hàng 3 full-width: chi tiết điểm A/B + D/C =====
-        f_notes = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
-        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
-                     padx=4, pady=(4, 12))
-        self._build_aci_notes(f_notes, inp, aci_res)
-        self._sum_inner.rowconfigure(2, weight=0)
-
-        # ===== Hàng 4 full-width: bảng kiểm tra cắt ACI =====
-        f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
-        f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
-                  padx=4, pady=4)
-        _full = getattr(self, '_aci_full', {}) or {}
-        self._build_aci_shear_summary(f_sw, inp, sec, conc, steel, _full)
-        self._sum_inner.rowconfigure(3, weight=0)
-
-        # Gắn lại cuộn chuột cho các widget mới
-        self._bind_wheel(self._sum_inner, self._sum_canvas)
-        def _to_top():
-            try:
-                self._sum_inner.update_idletasks()
-                self._sum_canvas.configure(
-                    scrollregion=self._sum_canvas.bbox("all"))
-                self._sum_canvas.yview_moveto(0)
-            except Exception:
-                pass
-        self._sum_canvas.after_idle(_to_top)
+        config = {
+            "std_title": "(ACI 318-19)",
+            "param_rows": param_rows,
+            "dc_row": dc_row,
+            "section": sec,
+            "section_cards": section_cards,
+            "draw_nm": _draw_nm,
+            "draw_m2m3": _draw_m2m3,
+            "nm_title": "Biểu đồ tương tác N-Mα",
+            "nm_alpha_text": f"α = {alpha_deg:.1f}°",
+            "m2m3_title": "Mặt cắt M2-M3",
+            "m2m3_n_text": f"N = {inp.N:+.1f} kN",
+            "notes_nm": notes,
+            "shear_config": None,  # Tạm thời, sẽ bổ sung sau
+        }
+        render_result_tab(self, config)
+        # Lưu ref cho các chức năng khác
+        self._update_ck()
 
     def _build_aci_section_cards(self, parent, sec, conc, steel, tied):
         """6 thẻ thống kê ACI: hàng vật liệu (f'c, fy, đai) + hàng thép."""
