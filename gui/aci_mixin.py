@@ -284,6 +284,53 @@ class AciMixin:
         self._pdf_inp, self._pdf_res = inp, None  # đánh dấu ACI mode
         self._update_ck()
 
+    def _get_aci_param_rows(self, inp, aci_res, mm_res):
+        """Trả về rows data cho bảng thông số ACI."""
+        import math
+        alpha_deg = (aci_res["alpha_deg"] if isinstance(aci_res, dict) and "alpha_deg" in aci_res
+                     else math.degrees(math.atan2(inp.Mx, inp.My)) if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
+        Ma = (aci_res["Malpha"] if isinstance(aci_res, dict) and "Malpha" in aci_res
+              else math.hypot(inp.Mx, inp.My))
+        delta_txt = "—"
+        if mm_res:
+            try:
+                d2 = mm_res.get("delta2", 1.0)
+                d3 = mm_res.get("delta3", 1.0)
+                delta_txt = f"δ2={d2:.3f}, δ3={d3:.3f}"
+            except Exception:
+                pass
+        rows = [
+            ("N", "Lực dọc tính toán", f"{inp.N:+.1f} kN"),
+            ("M2", "Mô men phương 2", f"{inp.Mx:.1f} kN×m"),
+            ("M3", "Mô men phương 3", f"{inp.My:.1f} kN×m"),
+            ("α", "Góc tác dụng mô men", f"{alpha_deg:.1f} °"),
+            ("Mα", "Mô men tổng hợp", f"{Ma:.1f} kN×m"),
+            ("e2", "Độ lệch tâm phương 2 (M2/N)",
+             f"{abs(inp.Mx/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
+            ("e3", "Độ lệch tâm phương 3 (M3/N)",
+             f"{abs(inp.My/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
+            ("φ", "Hệ số sức kháng (ACI 21.2.2)", f"{aci_res['phi']:.2f}"),
+            ("εt", "Biến dạng thép chịu kéo xa nhất", f"{aci_res.get('eps_t', 0):.5f}"),
+            ("β1", "Hệ số khối ứng suất chữ nhật", f"{aci_res.get('beta1', 0.85):.2f}"),
+            ("δns", "Hệ số phóng đại mô men (ACI 6.6.4)", delta_txt),
+            ("M2*", "Mô men tính toán phương 2 (đã phóng đại)",
+             f"{mm_res.get('Mc2', aci_res.get('M2_mag', inp.Mx)) if mm_res else aci_res.get('M2_mag', inp.Mx):.1f} kN×m"),
+            ("M3*", "Mô men tính toán phương 3 (đã phóng đại)",
+             f"{mm_res.get('Mc3', aci_res.get('M3_mag', inp.My)) if mm_res else aci_res.get('M3_mag', inp.My):.1f} kN×m"),
+            ("NB", "Lực dọc tại điểm giới hạn B (trên tia tải)", f"{aci_res.get('BN', 0):+.1f} kN"),
+            ("φPn,max", "Nén đúng tâm lớn nhất (ACI 22.4.2)", f"{aci_res.get('N_cap', 0):.1f} kN"),
+        ]
+        ok = aci_res["ok"]
+        _fs = aci_res.get("fs", 0)
+        _dc = aci_res.get("dc", 0)
+        if not _fs and _dc and _dc > 1e-9:
+            _fs = 1.0 / _dc
+        fs_txt = (f"{_fs:.2f}" if math.isfinite(_fs) else "∞")
+        ok_txt = "ĐẠT" if ok else "KHÔNG ĐẠT"
+        dc_row = ("D/C", "Tỷ số sử dụng khả năng chịu lực",
+                  f"{aci_res['dc']:.3f} (FS = {fs_txt})  {ok_txt}", ok)
+        return rows, dc_row
+
     def _show_aci_summary(self):
         """Tab Kết quả tính toán cho ACI - dùng unified renderer."""
         if not HAS_MPL:
