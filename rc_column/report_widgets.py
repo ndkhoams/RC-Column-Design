@@ -598,6 +598,18 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
     for Q, b_w, h0, dnum in ((inp.Q2, sec.cy, h0_2, "2"),
                              (inp.Q3, sec.cx, h0_3, "3")):
         Asw = Asw_1 * stir_in.legs
+        # Cộng đai giữa (khớp với _tcvn_calculate_full)
+        try:
+            if dnum == "2":
+                _mdia = getattr(inp, "swm2_dia", 0)
+                _mlegs = getattr(inp, "swm2_legs", 0)
+            else:
+                _mdia = getattr(inp, "swm3_dia", 0)
+                _mlegs = getattr(inp, "swm3_legs", 0)
+            if _mdia and _mlegs:
+                Asw += _mlegs * _m.pi * float(_mdia) ** 2 / 4
+        except:
+            pass
         h0u = max(h0, 1)
         sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
                          stir_in.spacing, direction=dnum)
