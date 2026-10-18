@@ -819,6 +819,33 @@ class Ec2Mixin:
                       f"(M2u = {ec2_res['Bx']:.1f}, M3u = {ec2_res['By']:.1f})",
                  font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
+    def _create_ec2_detail_figs(self):
+        """Tạo 2 fig biểu đồ cho tab Chi tiết từ data tính toán chung."""
+        try:
+            from matplotlib.figure import Figure
+            from rc_column.ec2_chart_draw import draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax
+            sec = getattr(self, "_ec2_sec", None)
+            inp = getattr(self, "_ec2_inp", None)
+            ec2_res = getattr(self, "_ec2_res", None)
+            conc = getattr(self, "_ec2_conc", None)
+            steel = getattr(self, "_ec2_steel", None)
+            if not all([sec, inp, ec2_res, conc, steel]):
+                return (None, None)
+            M2m = ec2_res.get("M2_mag", inp.Mx)
+            M3m = ec2_res.get("M3_mag", inp.My)
+            fig1 = Figure(figsize=(5.2, 3.9), dpi=100)
+            ax1 = fig1.add_subplot(111)
+            draw_ec2_nm_alpha_ax(ax1, sec, conc, steel, ec2_res, inp.N, M2m, M3m)
+            fig1.tight_layout()
+            fig2 = Figure(figsize=(5.2, 3.9), dpi=100)
+            ax2 = fig2.add_subplot(111)
+            draw_ec2_m2m3_ax(ax2, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
+            fig2.tight_layout()
+            return (fig1, fig2)
+        except Exception as e:
+            print(f"[EC2] Lỗi tạo fig detail: {e}")
+            return (None, None)
+
     def _render_ec2_report(self, sections):
         """Hiển thị thuyết minh EC2 trong tab Chi tiết tính toán (dùng chung renderer TCVN)."""
         for w in self._calc_inner.winfo_children():
