@@ -456,7 +456,8 @@ class AciMixin:
                 _qinfo = f" {_combo}" if _combo else ""
                 mark = "✓" if ok else "✗"
                 lines = [
-                    f"Vu = {Vu:.1f} kN{_qinfo}; b = {b:.0f} mm, d = {d:.0f} mm",
+                    f"Vu = {Vu:.1f} kN{_qinfo}",
+                    f"b = {b:.0f} mm, d = {d:.0f} mm",
                     f"Av = {sw_txt} = {Av:.0f} mm²",
                     f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d (ACI 22.5.5)",
                     f"  = {Vc:.1f} kN",
