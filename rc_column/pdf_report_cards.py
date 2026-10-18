@@ -590,10 +590,19 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     S.extend(_full_card("Cấu tạo cốt đai (10.3.4)", "", chk_lines))
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
     if shear_info:
-        q2i, q3i = shear_info["q2"], shear_info["q3"]
-        S.extend(_full_card("Lực cắt tính toán", "",
-                       [f"Q2 = {_f(q2i['Q'], 1)} kN {_full_case(q2i)}",
-                        f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case(q3i)}"]))
+        # Hỗ trợ cả 2 cấu trúc: {"q2","q3"} (cũ) và {"2","3"} (shear_cols từ _tcvn_calculate_full)
+        if "q2" in shear_info and "q3" in shear_info:
+            q2i, q3i = shear_info["q2"], shear_info["q3"]
+            S.extend(_full_card("Lực cắt tính toán", "",
+                           [f"Q2 = {_f(q2i['Q'], 1)} kN {_full_case(q2i)}",
+                            f"Q3 = {_f(q3i['Q'], 1)} kN {_full_case(q3i)}"]))
+        elif "2" in shear_info and "3" in shear_info:
+            # shear_cols: lấy Q từ precalc
+            _q2 = shear_info["2"].get("Q", inp.Q2)
+            _q3 = shear_info["3"].get("Q", inp.Q3)
+            S.extend(_full_card("Lực cắt tính toán", "",
+                           [f"Q2 = {_f(_q2, 1)} kN",
+                            f"Q3 = {_f(_q3, 1)} kN"]))
     Rb = conc.Rb
     Rbt = conc.Rbt
     Rsw = sw_grade.Rsw * inp.gamma_s
@@ -609,33 +618,42 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     for Q, b_w, h0, dnum in ((inp.Q2, sec.cy, h0_2, "2"),
                              (inp.Q3, sec.cx, h0_3, "3")):
         if _has_pre:
-            # Dùng kết quả đã tính - KHÔNG gọi check_shear
+            # Dùng kết quả đã tính từ _tcvn_calculate_full - KHÔNG tính lại
             _pc = _pre.get(dnum, {})
             sh = _pc.get("sh")
+            Q = _pc.get("Q", Q)
+            b_w = _pc.get("b", b_w)
+            h0u = _pc.get("h0", h0)
+            Asw = _pc.get("Asw", 0)
+            qsw = _pc.get("qsw", 0)
+            sw_txt = _pc.get("sw_txt", "")
+            s_eff = _pc.get("s_eff", stir_in.spacing)
             if sh is None:
                 # Fallback: tính lại (không nên xảy ra)
-                Asw = Asw_1 * stir_in.legs
-                h0u = max(h0, 1)
+                h0u = max(h0u, 1)
                 sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
-                                 stir_in.spacing, direction=dnum)
+                                 s_eff, direction=dnum)
         else:
             Asw = Asw_1 * stir_in.legs
             h0u = max(h0, 1)
             sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
                              stir_in.spacing, direction=dnum)
+            qsw = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
+            sw_txt = f"{stir_in.legs}×φ{stir_in.dia:.0f}"
+            s_eff = stir_in.spacing
         m1 = "✓" if sh.ok1 else "✗"
         m2 = "✓" if sh.ok2 else "✗"
-        qsw = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
+        # qsw đã lấy từ precalc (không tính lại)
         Qb_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         cards7.append(_mk( f"Kiểm tra chịu cắt phương {dnum}", "",
             [f"Q = {_f(Q, 1)} kN; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
-             f"Asw = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²",
+             f"Asw = {sw_txt} = {Asw:.0f} mm²",
              f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
              f"  = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
              f"= {_f(sh.Qcap1, 1)} kN",
              f"{m2} ĐK2 (vết nứt xiên): Q ≤ Qb + Qsw",
-             f"  qsw = {_f(Rsw, 0)}×{Asw:.0f}/{stir_in.spacing:.0f} "
+             f"  qsw = {_f(Rsw, 0)}×{Asw:.0f}/{s_eff:.0f} "
              f"= {_f(qsw, 1)} N/mm",
              f"  Qb = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²/"
              f"{sh.C_opt:.0f}/1000 = {_f(sh.Qb_opt, 1)} kN",
