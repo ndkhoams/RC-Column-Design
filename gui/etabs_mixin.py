@@ -441,8 +441,9 @@ class EtabsMixin:
         t0 = time.time()
         from collections import defaultdict
         _L_manual = self._f(self.en_Lx, 0.0)
-        # Tách tổ hợp TX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns
+        # Tách tổ hợp TX_* (tải thường xuyên): không kiểm tra, dùng tính beta_dns và phi_ef
         _dns_map = {}  # (story, column, station, base_case) -> N_dns
+        _tx_moment_map = {}  # (story, column, station, base_case) -> (M2, M3) cho phi_ef EC2
         _forces_check = []
         for _f in self.etabs_forces:
             _cn = _f.case.strip()
@@ -451,6 +452,7 @@ class EtabsMixin:
                 _key = (_f.story.strip(), _f.column.strip(),
                         round(_f.station, 3), _base)
                 _dns_map[_key] = _f.N
+                _tx_moment_map[_key] = (_f.Mx, _f.My)  # Mx=M2, My=M3 cho phi_ef
             else:
                 _forces_check.append(_f)
         if _dns_map:
@@ -580,6 +582,40 @@ class EtabsMixin:
             inp_w.Q2, inp_w.Q3 = f_q2.Q2, f_q3.Q3
         except Exception:
             pass
+        # phi_ef EC2: tính từ tổ hợp TX_* (nếu có) theo EC2 5.8.4
+        # phi_ef = phi_inf_t0 * M_TX / M_Ed
+        try:
+            _phi_inf = self._f(self.en_ec2_phi, 2.0)
+            _case_base = worst_f.case.strip()
+            # Bỏ hậu tố Step Type max/min nếu có
+            for _suf in ("max", "min"):
+                if _case_base.lower().endswith(_suf):
+                    _case_base = _case_base[:-len(_suf)]
+                    break
+            _key_tx = (worst_f.story.strip(), worst_f.column.strip(),
+                       round(worst_f.station, 3), _case_base)
+            _tx_m = _tx_moment_map.get(_key_tx)
+            if _tx_m is not None:
+                _m2_tx, _m3_tx = _tx_m
+                # dir2: M2, dir3: M3
+                _m2_ed = abs(worst_f.Mx)
+                _m3_ed = abs(worst_f.My)
+                _phi_ef2 = _phi_inf * abs(_m2_tx) / _m2_ed if _m2_ed > 1e-9 else 1.21
+                _phi_ef3 = _phi_inf * abs(_m3_tx) / _m3_ed if _m3_ed > 1e-9 else 1.21
+                # Giới hạn phi_ef không âm
+                _phi_ef2 = max(0.0, _phi_ef2)
+                _phi_ef3 = max(0.0, _phi_ef3)
+                inp_w.phi_ef2 = _phi_ef2
+                inp_w.phi_ef3 = _phi_ef3
+                print(f"[EC2] phi_ef: dùng TX_* M2={_m2_tx:.1f}, M3={_m3_tx:.1f} cho {worst_f.case}, phi_ef2={_phi_ef2:.3f}, phi_ef3={_phi_ef3:.3f}")
+            else:
+                inp_w.phi_ef2 = 1.21
+                inp_w.phi_ef3 = 1.21
+                print(f"[EC2] phi_ef: không tìm thấy TX_* cho {worst_f.case}, dùng mặc định 1.21")
+        except Exception as _eph:
+            inp_w.phi_ef2 = 1.21
+            inp_w.phi_ef3 = 1.21
+            print(f"[EC2] phi_ef lỗi: {_eph}")
         # Gọi _check_ec2 với inp_w (nó tự vẽ charts + report + lưu PDF data)
         # nhưng cần giữ case_info cho thuyết minh
         self._pdf_case = {"case": worst_f.case, "station": worst_f.station,
