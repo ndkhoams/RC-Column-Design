@@ -299,6 +299,14 @@ class AciMixin:
             from tkinter import ttk
             self._sum_inner = ttk.Frame(_canvas)
             _canvas.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
+            # Ép frame rộng bằng canvas
+            try:
+                _canvas.update_idletasks()
+                _w = _canvas.winfo_width()
+                if _w > 1:
+                    _canvas.itemconfig(1, width=_w)
+            except:
+                pass
             self._sum_inner.bind("<Configure>", lambda e: _canvas.configure(scrollregion=_canvas.bbox("all")))
         except Exception as _e2:
             print(f"recreate _sum_inner lỗi: {_e2}")
