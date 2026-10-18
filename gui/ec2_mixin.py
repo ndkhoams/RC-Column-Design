@@ -848,12 +848,15 @@ class Ec2Mixin:
             ax2 = fig2.add_subplot(111)
             draw_ec2_m2m3_ax(ax2, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
             fig2.tight_layout()
-            # Fig vùng nén
+            # Fig vùng nén - dùng dấu của điểm A (cùng hướng với B trên tia O-A-B)
             fig3 = Figure(figsize=(5.2, 3.9), dpi=100)
             ax3 = fig3.add_subplot(111)
             _BN = ec2_res.get("BN", inp.N) if isinstance(ec2_res, dict) else inp.N
-            _BM2 = ec2_res.get("Bx", M2m) if isinstance(ec2_res, dict) else M2m
-            _BM3 = ec2_res.get("By", M3m) if isinstance(ec2_res, dict) else M3m
+            # Điểm B cùng hướng với A: dùng dấu của inp.Mx, inp.My
+            _dc = ec2_res.get("dc", 1.0) if isinstance(ec2_res, dict) else 1.0
+            _lam = 1.0 / _dc if _dc > 1e-9 else 1.0
+            _BM2 = _lam * inp.Mx
+            _BM3 = _lam * inp.My
             _Nmax = abs(_BN) * 2
             draw_compression_zone_ax(ax3, sec, N_kN=_BN, M2_kNm=_BM2, M3_kNm=_BM3,
                                      Nmax_kN=_Nmax, title="Vùng nén tại điểm B")
