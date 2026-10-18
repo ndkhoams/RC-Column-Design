@@ -647,7 +647,12 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         ax.set_ylabel("Trục 3 (mm)", fontsize=7)
     ax.tick_params(labelsize=7)
 
-
+    # Đơn giản hóa cho PDF: bỏ box, số quanh box; chỉ giữ mặt cắt, mũi tên, tên trục, kích thước, ghi chú thép
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                        sec_img_path=None, shear_info=None):
     """Xuất PDF Kết quả tính toán TCVN 5574:2018 (1 trang A4).
