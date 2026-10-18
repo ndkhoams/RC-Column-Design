@@ -150,13 +150,13 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 import matplotlib
                 matplotlib.use("Agg")
                 import matplotlib.pyplot as _plt
-                _fig = _plt.Figure(figsize=(3.5, 3.5), dpi=200)
+                _fig = _plt.Figure(figsize=(3.5, 3.5), dpi=300)
                 _ax = _fig.add_subplot(111)
                 _dcz(_ax, sec, _BN, _Bx, _By,
                      Nmax_kN=abs(_BN)*2 if _BN else None,
                      na_info=_na)
                 _buf = _io.BytesIO()
-                _fig.savefig(_buf, format="png", dpi=200,
+                _fig.savefig(_buf, format="png", dpi=300,
                              bbox_inches="tight", facecolor="white")
                 _plt.close(_fig)
                 _buf.seek(0)
