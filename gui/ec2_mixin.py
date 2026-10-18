@@ -3,6 +3,16 @@
 
 
 import tkinter as tk
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+import math
+from rc_column.checker import ColumnInput, build_section, check_column
+from rc_column.report import generate_report, generate_report_sections
+from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
+from rc_column.sections import clear_spacing, bar_area
+from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
+from rc_column.lang import T
 class Ec2Mixin:
     """Các method tính toán và hiển thị theo EC2 (EN 1992-1-1)."""
 
