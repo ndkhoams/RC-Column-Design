@@ -298,132 +298,118 @@ class Ec2Mixin:
         self._pdf_inp, self._pdf_res = inp, None  # đánh dấu EC2 mode
         self._update_ck()
 
+    def _get_ec2_param_rows(self, inp, ec2_res, slend):
+        """Trả về rows data cho bảng thông số EC2."""
+        import math
+        M2m = ec2_res.get("M2_mag", inp.Mx)
+        M3m = ec2_res.get("M3_mag", inp.My)
+        alpha_deg = (ec2_res["alpha_deg"] if isinstance(ec2_res, dict) and "alpha_deg" in ec2_res
+                     else math.degrees(math.atan2(M2m, M3m)) if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
+        Ma = math.hypot(M2m, M3m)
+        def _sl(lbl):
+            try:
+                d = (slend or {}).get(lbl, {}) or {}
+                lam, lim = d.get("lambda_sl", 0.0), d.get("lambda_lim", 0.0)
+                man = "mảnh" if d.get("slender") else "không mảnh"
+                lim_txt = f"{lim:.1f}" if math.isfinite(lim) else "∞"
+                return f"λ = {lam:.1f}, λlim = {lim_txt} ({man})"
+            except Exception:
+                return "—"
+        conc = self._ec2_conc
+        rows = [
+            ("NEd", "Lực dọc thiết kế", f"{inp.N:+.1f} kN"),
+            ("MEd2", "Mô men thiết kế phương 2 (gồm bậc 2)", f"{M2m:.1f} kN×m"),
+            ("MEd3", "Mô men thiết kế phương 3 (gồm bậc 2)", f"{M3m:.1f} kN×m"),
+            ("α", "Góc tác dụng mô men", f"{alpha_deg:.1f} °"),
+            ("Mα", "Mô men tổng hợp", f"{Ma:.1f} kN×m"),
+            ("fck", "Cường độ nén đặc trưng", f"{conc.fck:g} MPa"),
+            ("fcd", "Cường độ nén tính toán (αcc×fck/γc)", f"{conc.fcd:.2f} MPa"),
+            ("Ecm", "Mô đun đàn hồi cát tuyến", f"{conc.Ecm:.0f} MPa"),
+            ("λ2", "Độ mảnh phương 2 (EC2 5.8.3)", _sl("dir2")),
+            ("λ3", "Độ mảnh phương 3 (EC2 5.8.3)", _sl("dir3")),
+            ("e2", "Độ lệch tâm phương 2 (MEd2/NEd)",
+             f"{abs(M2m/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
+            ("e3", "Độ lệch tâm phương 3 (MEd3/NEd)",
+             f"{abs(M3m/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
+            ("M2_0", "Mô men bậc 1 phương 2", f"{inp.Mx:.1f} kN×m"),
+            ("M3_0", "Mô men bậc 1 phương 3", f"{inp.My:.1f} kN×m"),
+            ("N_Rd,max", "Nén đúng tâm lớn nhất", f"{ec2_res.get('N_Rd_max', 0):.1f} kN"),
+        ]
+        ok = ec2_res["ok"]
+        fs_txt = (f"{ec2_res['fs']:.2f}" if math.isfinite(ec2_res.get("fs", 0)) else "∞")
+        ok_txt = "ĐẠT" if ok else "KHÔNG ĐẠT"
+        dc_row = ("D/C", "Tỷ số sử dụng khả năng chịu lực",
+                  f"{ec2_res['dc']:.3f} (FS = {fs_txt})  {ok_txt}", ok)
+        return rows, dc_row, alpha_deg, Ma
+
     def _show_ec2_summary(self):
-        """Tab Kết quả tính toán cho EC2: layout 2x2 giống TCVN/ACI.
-        Hàng trên: [mặt cắt + thẻ TK | bảng thông số] /
-        Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
+        """Tab Kết quả tính toán cho EC2 - dùng unified renderer."""
         if not HAS_MPL:
             return
-        import math
-        # Xóa toàn bộ nội dung cũ trong _sum_inner (y hệt TCVN)
-        for w in self._sum_inner.winfo_children():
-            w.destroy()
+        from gui.result_renderer import render_result_tab
+        from rc_column.ec2_chart_draw import draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax
+
         sec = self._ec2_sec
         inp = self._ec2_inp
         ec2_res = self._ec2_res
         conc = self._ec2_conc
         steel = self._ec2_steel
         slend = getattr(self, "_ec2_slend", None)
-        from rc_column.ec2_chart_draw import (draw_ec2_nm_alpha_ax,
-                                              draw_ec2_m2m3_ax)
-        from rc_column.pdf_export import draw_section_ax
-        from matplotlib.figure import Figure
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-        def _new_fig(parent, figsize):
-            fig = Figure(figsize=figsize, dpi=100)
-            cv = FigureCanvasTkAgg(fig, master=parent)
-            _w = cv.get_tk_widget()
-            try:
-                # takefocus=0 ngăn canvas chiếm focus (đủ để cuộn chuột
-                # hoạt động); KHÔNG chặn ButtonPress/Release để biểu đồ
-                # 3D xoay được bằng kéo chuột
-                _w.configure(highlightthickness=0, takefocus=0,
-                             highlightbackground="white",
-                             highlightcolor="white", borderwidth=0)
-            except Exception:
-                pass
-            _w.pack(fill=tk.BOTH, expand=True)
-            return fig, cv
+        param_rows, dc_row, alpha_deg, Ma = self._get_ec2_param_rows(inp, ec2_res, slend)
 
-        # Xóa nội dung cũ
-        for w in self._sum_inner.winfo_children():
-            w.destroy()
-        self._sum_inner.columnconfigure(0, weight=1)
-        self._sum_inner.columnconfigure(1, weight=1)
-        self._sum_inner.rowconfigure(0, weight=0)
-        self._sum_inner.rowconfigure(1, weight=1)
+        vals = self._section_card_values(sec)
+        section_cards = {"n": vals["n"], "as": vals["as"], "ab": vals["ab"], "mu": vals["mu"]}
 
-        # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
-        f_tl = tk.Frame(self._sum_inner, bg="white",
-                        highlightbackground="#D1D5DB", highlightthickness=1)
-        f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-        tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
-                 font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
-        self.ck_var = tk.StringVar(value="")
-        # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
-        fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
-        a1 = fig_sec.add_subplot(111)
-        draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
-        fig_sec.tight_layout()
-        cv_sec.draw()
-        self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
-        # Thẻ thống kê EC2: hàng vật liệu + hàng số liệu thép
-        self._build_ec2_section_cards(f_tl, sec, conc, steel)
+        def _draw_nm(ax):
+            draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res, inp.N,
+                                 ec2_res.get("M2_mag", inp.Mx), ec2_res.get("M3_mag", inp.My))
 
-        # ===== Ô trên-trái: bảng thông số tính toán EC2 =====
-        f_tr = tk.Frame(self._sum_inner, bg="white",
-                        highlightbackground="#D1D5DB", highlightthickness=1)
-        f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_ec2_param_table(f_tr, inp, ec2_res, slend)
+        def _draw_m2m3(ax):
+            draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
 
-        # ===== Ô dưới-trái: header + biểu đồ N-Mα (EC2) =====
-        f_bl = ttk.Frame(self._sum_inner)
-        f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_ec2_nm_header(f_bl, inp)
-        fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
-        self._ec2_nm_fig = fig_nm
-        a3 = fig_nm.add_subplot(111)
-        draw_ec2_nm_alpha_ax(a3, sec, conc, steel, ec2_res,
-                             inp.N, ec2_res.get("M2_mag", inp.Mx),
-                             ec2_res.get("M3_mag", inp.My))
-        fig_nm.tight_layout()
-        fig_nm.subplots_adjust(bottom=0.30)
-        cv_nm.draw()
-        # Lưu tham chiếu để vẽ lại khi đổi góc xem
-        self._ec2_nm_ax_ref = a3
-        self._ec2_nm_cv_ref = cv_nm
+        import math
+        _ok = ec2_res['ok']
+        _okt = "ĐẠT" if _ok else "KHÔNG ĐẠT"
+        _okc = "#059669" if _ok else "#DC2626"
+        _case = getattr(self, "_pdf_case", None) or {}
+        _parts = []
+        if _case.get("story"): _parts.append(str(_case.get("story")))
+        if _case.get("column"): _parts.append(str(_case.get("column")))
+        if _case.get("case"):
+            _st = _case.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{_case.get('case')}{_st_txt}")
+        _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
+        _M2m = ec2_res.get("M2_mag", inp.Mx)
+        _M3m = ec2_res.get("M3_mag", inp.My)
+        _BN = ec2_res.get("BN", 0)
+        _Bx = ec2_res.get("Bx", 0)
+        _By = ec2_res.get("By", 0)
+        _Mb = math.hypot(_Bx, _By)
+        notes = [
+            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) — EC2 (EN 1992-1-1)   D/C = {ec2_res['dc']:.3f} → {_okt}", _okc),
+            (f"● A (điểm tải){_combo_txt}:  N = {inp.N:+.1f} kN,  Mα = {Ma:.1f} kN×m  (MEd2 = {_M2m:.1f}, MEd3 = {_M3m:.1f})", "#2563EB"),
+            (f"◆ B (điểm giới hạn):  N = {_BN:+.1f} kN,  Mα,u = {_Mb:.1f} kN×m  (M2u = {_Bx:.1f}, M3u = {_By:.1f})", "#EA580C"),
+        ]
 
-        # ===== Ô dưới-phải: header + biểu đồ M2-M3 (EC2) =====
-        f_br = ttk.Frame(self._sum_inner)
-        f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
-        self._build_ec2_m2m3_header(f_br, inp)
-        fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
-        self._ec2_m2m3_fig = fig_mm
-        a4 = fig_mm.add_subplot(111)
-        draw_ec2_m2m3_ax(a4, sec, conc, steel, ec2_res,
-                         inp.N, ec2_res.get("M2_mag", inp.Mx),
-                         ec2_res.get("M3_mag", inp.My))
-        fig_mm.tight_layout()
-        fig_mm.subplots_adjust(bottom=0.30)
-        cv_mm.draw()
-
-        # ===== Hàng 3 full-width: chi tiết điểm A/B + D/C =====
-        f_notes = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
-        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
-                     padx=4, pady=(4, 12))
-        self._build_ec2_notes(f_notes, inp, ec2_res)
-        self._sum_inner.rowconfigure(2, weight=0)
-
-        # ===== Hàng 4 full-width: bảng kiểm tra cắt EC2 =====
-        f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
-        f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
-                  padx=4, pady=4)
-        _efull = getattr(self, '_ec2_full', {}) or {}
-        self._build_ec2_shear_summary(f_sw, inp, sec, conc, steel, _efull)
-        self._sum_inner.rowconfigure(3, weight=0)
-
-        # Gắn lại cuộn chuột cho các widget mới
-        self._bind_wheel(self._sum_inner, self._sum_canvas)
-        def _to_top():
-            try:
-                self._sum_inner.update_idletasks()
-                self._sum_canvas.configure(
-                    scrollregion=self._sum_canvas.bbox("all"))
-                self._sum_canvas.yview_moveto(0)
-            except Exception:
-                pass
-        self.after(50, _to_top)
+        config = {
+            "std_title": "(EC2 EN 1992-1-1)",
+            "param_rows": param_rows,
+            "dc_row": dc_row,
+            "section": sec,
+            "section_cards": section_cards,
+            "draw_nm": _draw_nm,
+            "draw_m2m3": _draw_m2m3,
+            "nm_title": "Biểu đồ tương tác N-Mα",
+            "nm_alpha_text": f"α = {alpha_deg:.1f}°",
+            "m2m3_title": "Mặt cắt M2-M3",
+            "m2m3_n_text": f"N = {inp.N:+.1f} kN",
+            "notes_nm": notes,
+            "shear_builder": lambda parent: self._build_ec2_shear_summary(
+                parent, inp, sec, conc, steel, getattr(self, '_ec2_full', {}) or {}),
+        }
+        render_result_tab(self, config)
         self._update_ck()
 
     def _build_ec2_section_cards(self, parent, sec, conc, steel):
