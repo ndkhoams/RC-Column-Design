@@ -1769,8 +1769,10 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         """Ghi dữ liệu ra file JSON. Trả về True nếu thành công."""
         import json
         try:
+            _data = self._collect_data()
+            print(f"[DEBUG SAVE] Ghi file: {path}, dia={_data.get('dia')}")
             with open(path, "w", encoding="utf-8") as f:
-                json.dump(self._collect_data(), f, ensure_ascii=False,
+                json.dump(_data, f, ensure_ascii=False,
                           indent=2)
             self.current_save_path = path
             return True
