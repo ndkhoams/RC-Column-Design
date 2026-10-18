@@ -823,6 +823,9 @@ class AciMixin:
 
     def _render_aci_report(self, sections):
         """Hiển thị thuyết minh ACI trong tab Chi tiết tính toán (dùng chung renderer TCVN)."""
+        # Reset trạng thái 3D của result tab để tránh ảnh hưởng
+        self._aci_is_3d = False
+        self._aci_nm_view_angle = None
         for w in self._calc_inner.winfo_children():
             w.destroy()
         from rc_column.report_widgets import render_report_sections
