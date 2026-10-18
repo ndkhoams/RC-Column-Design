@@ -546,6 +546,7 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         groups.setdefault((r.layer, r.dia), []).append(r)
     dias_l1 = sorted(set(d for (ly, d) in groups if ly == 1), reverse=True)
     dia_color = {d: DIA_COLORS[i % len(DIA_COLORS)] for i, d in enumerate(dias_l1)}
+    legend_handles = []
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
@@ -553,6 +554,18 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
                    s=dot_s, c=color, zorder=5,
                    edgecolors="white", linewidths=0.8)
+        legend_handles.append(Line2D(
+            [0], [0], marker="o", color="none", markerfacecolor=color,
+            markeredgecolor="white", markersize=max(4.0, dia * 0.22),
+            label=f"D{dia:.0f}"))
+    # Legend thép: phía trên, ngoài hình
+    if legend_handles:
+        leg = ax.legend(handles=legend_handles, loc="upper center",
+                        bbox_to_anchor=(0.5, 1.18),
+                        ncol=len(legend_handles),
+                        frameon=False, fontsize=9)
+        for txt in leg.get_texts():
+            txt.set_fontweight("bold")
     
     alen = max(cx, cy) * 0.62
     # Mũi tên trục t2 (xanh lá, ngang), t3 (xanh dương, đứng) - vẽ trên cùng
