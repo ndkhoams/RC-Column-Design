@@ -396,8 +396,9 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         else:
             _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f}"
         _mark = "✓" if ok else "✗"
+        _ci = d.get("combo_info", "") or ""
         _lines = [
-            f"Vu = {_f(abs(Q), 1)} kN",
+            f"Vu = {_f(abs(Q), 1)} kN" + (f" {_ci}" if _ci else ""),
             f"b = {_b:.0f} mm, d = {_d_eff:.0f} mm",
             f"Av = {_sw_txt} = {_Av_tot:.0f} mm²",
             f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]×bw×d = {_f(Vc, 1)} kN",
