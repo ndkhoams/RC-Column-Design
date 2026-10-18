@@ -416,13 +416,24 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
 
     right_flow = []
     try:
-        # Mặt cắt (dùng hàm TCVN vì giống nhau)
+        # Hình vùng nén (giống app) thay cho mặt cắt trơn
         import sys as _sys
         _pdf_exp = _sys.modules.get("rc_column.pdf_export")
         if _pdf_exp is None:
             from rc_column import pdf_export as _pdf_exp
-        _sec_png = _pdf_exp.section_image(sec, width_in=2.2, dpi=300,
-                                          show_stats=False)
+        _aBN = (aci_res or {}).get("BN", 0) or 0
+        _aBx = (aci_res or {}).get("Bx", 0) or 0
+        _aBy = (aci_res or {}).get("By", 0) or 0
+        _a_na = None
+        try:
+            from rc_column.aci_checker import aci_neutral_axis_at_N
+            _a_alpha = _m.degrees(_m.atan2(_aBx, _aBy)) if (abs(_aBx)+abs(_aBy)) > 1e-9 else 0.0
+            _a_na = aci_neutral_axis_at_N(sec, conc, steel, _aBN, _a_alpha, tied=tied)
+        except Exception:
+            _a_na = None
+        _sec_png = _pdf_exp.compression_zone_image(sec, _aBN, _aBx, _aBy,
+                                                   na_info=_a_na,
+                                                   width_in=2.2, dpi=300)
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))
         # 2 biểu đồ ACI (có tiêu đề)
