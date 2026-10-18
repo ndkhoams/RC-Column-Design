@@ -293,6 +293,8 @@ class AciMixin:
         import math
         # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
         try:
+            # Xử lý pending events trước để đảm bảo widget cũ đã được tạo xong
+            self._sum_inner.update_idletasks()
             for w in list(self._sum_inner.winfo_children()):
                 try:
                     w.grid_forget()
