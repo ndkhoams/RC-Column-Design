@@ -407,12 +407,19 @@ class AciMixin:
             "m2m3_title": "Mặt cắt M2-M3",
             "m2m3_n_text": f"N = {inp.N:+.1f} kN",
             "notes_nm": notes,
+            "on_nm_angle_change": lambda sel: self._on_aci_angle_unified(sel),
             "shear_builder": lambda parent: self._build_aci_shear_summary(
                 parent, inp, sec, conc, steel, getattr(self, '_aci_full', {}) or {}),
         }
         render_result_tab(self, config)
         # Lưu ref cho các chức năng khác
         self._update_ck()
+
+    def _on_aci_angle_unified(self, sel):
+        """Xử lý chọn góc xem từ unified renderer."""
+        # Tạm thời: chỉ log, sẽ implement đầy đủ sau
+        print(f"[ACI] Chọn góc xem: {sel}")
+        # TODO: Vẽ lại biểu đồ tại góc sel
 
     def _build_aci_section_cards(self, parent, sec, conc, steel, tied):
         """6 thẻ thống kê ACI: hàng vật liệu (f'c, fy, đai) + hàng thép."""
