@@ -1,5 +1,24 @@
 """Các method tính toán và hiển thị theo TCVN 5574:2018."""
 
+import tkinter as tk
+from tkinter import ttk, messagebox
+import math
+try:
+    import matplotlib
+    matplotlib.use("TkAgg")
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from matplotlib.figure import Figure
+    import matplotlib.patches as mpatches
+    HAS_MPL = True
+except Exception:
+    HAS_MPL = False
+from rc_column.checker import ColumnInput, build_section, check_column
+from rc_column.report import generate_report, generate_report_sections
+from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
+from rc_column.sections import clear_spacing, bar_area
+from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
+from rc_column.lang import T
+
 
 class TcvnMixin:
     """Các method tính toán và hiển thị theo TCVN 5574:2018."""
