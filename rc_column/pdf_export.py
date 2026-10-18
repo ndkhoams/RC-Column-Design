@@ -198,7 +198,7 @@ def section_image(sec, width_in=3.2, dpi=300, small=False,
 
 
 def compression_zone_image(sec, N_kN: float, M2_kNm: float, M3_kNm: float,
-                           na_info=None, width_in=3.5, dpi=200) -> bytes:
+                           na_info=None, width_in=3.5, dpi=300) -> bytes:
     """Vẽ hình vùng nén (giống app) trả về PNG bytes."""
     import matplotlib
     matplotlib.use("Agg")
