@@ -304,23 +304,21 @@ class Ec2Mixin:
         Hàng dưới: [biểu đồ N-Mα | biểu đồ M2-M3]."""
         if not HAS_MPL:
             return
-        # Xóa và tạo lại _sum_inner đúng cách (như TCVN)
+        # Tạo lại _sum_inner: dùng lại window item có sẵn trên canvas
         try:
             import tkinter as tk
             from tkinter import ttk
             _cv = self._sum_inner.master
-            # Xóa TẤT CẢ window items cũ trên canvas (tránh tích lũy)
-            for _item in _cv.find_all():
-                try:
-                    _cv.delete(_item)
-                except:
-                    pass
             try:
                 self._sum_inner.destroy()
             except:
                 pass
             self._sum_inner = ttk.Frame(_cv)
-            _cv.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
+            # Dùng lại item 1 (đã có bind _sum_width trong app.py)
+            try:
+                _cv.itemconfig(1, window=self._sum_inner)
+            except:
+                _cv.create_window((0, 0), window=self._sum_inner, anchor=tk.NW)
             self._sum_inner.bind("<Configure>", lambda e: _cv.configure(scrollregion=_cv.bbox("all")))
         except Exception as _ex:
             print(f"recreate lỗi: {_ex}")
