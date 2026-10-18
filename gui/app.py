@@ -2377,8 +2377,22 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             _tBx = getattr(res, "Bx", 0)
             _tBy = getattr(res, "By", 0)
             _tNmax = getattr(res, "Nmax", abs(_tBN)*2) if hasattr(res, "Nmax") else abs(_tBN)*2
+            # Đường trung hòa chính xác từ fiber model TCVN
+            _t_na = None
+            try:
+                from rc_column.interaction import FiberSection, neutral_axis_at_N
+                _t_fs = FiberSection(sec)
+                _t_alpha = getattr(res, "alpha_deg", 0) if hasattr(res, "alpha_deg") else 0
+                # tính alpha từ Bx, By nếu chưa có
+                import math as _m
+                if abs(_tBx) + abs(_tBy) > 1e-9:
+                    _t_alpha = _m.degrees(_m.atan2(_tBx, _tBy))
+                _t_na = neutral_axis_at_N(_t_fs, _tBN, _t_alpha,
+                                          getattr(inp, "concrete_model", "3line"))
+            except Exception:
+                _t_na = None
             draw_compression_zone_ax(a1, sec, N_kN=_tBN, M2_kNm=_tBx, M3_kNm=_tBy,
-                                     Nmax_kN=_tNmax)
+                                     Nmax_kN=_tNmax, na_info=_t_na)
         except Exception:
             draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
         fig_sec.tight_layout()
