@@ -452,691 +452,112 @@ def _segs_to_flowables(segs, P, st_body, st_h, st_ref, st_dc,
             out.append(P("✗ KHÔNG ĐẠT — D/C > 1.000", st_badge_ng))
         elif "title" in tags:
             continue
-        else:
-            buf_lines.append(_math_sub(t.replace("\n", "<br/>")))
-    flush()
-    return out
-
-
-def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
-               shear_info=None):
-    """Xuất thuyết minh ra file PDF (bố cục giống trong phần mềm).
-    batch_rows: list (force, result) cho mục 8 (tùy chọn).
-    case_info: dict {case, station, N, M2, M3} cho tổ hợp tính toán.
-    shear_info: dict {q2: {...}, q3: {...}} cho lực cắt."""
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib.colors import HexColor
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Image, Table, TableStyle, KeepTogether)
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
-
-    font_path = _find_font()
-    bold_path = _find_font_bold()
-    if not font_path:
-        raise RuntimeError("Không tìm thấy font hỗ trợ tiếng Việt.")
-    pdfmetrics.registerFont(TTFont("VN", font_path))
-    pdfmetrics.registerFont(TTFont("VN-Bold", bold_path or font_path))
-
-    sec = __import__("rc_column.checker", fromlist=["build_section"]).build_section(inp)
-
-    SLATE = HexColor("#0f172a")
-    GRAY = HexColor("#64748b")
-    GREEN_BG = HexColor("#d1fae5")
-    GREEN_TX = HexColor("#065f46")
-    RED_BG = HexColor("#fee2e2")
-    RED_TX = HexColor("#991b1b")
-    DC_GREEN = HexColor("#059669")
-
-    st_title = ParagraphStyle("title", fontName="VN-Bold", fontSize=14,
-                              textColor=SLATE, alignment=TA_CENTER, spaceAfter=4)
-    st_sub = ParagraphStyle("sub", fontName="VN", fontSize=9,
-                            textColor=GRAY, alignment=TA_CENTER, spaceAfter=8)
-    st_h = ParagraphStyle("h", fontName="VN-Bold", fontSize=11,
-                          textColor=SLATE, spaceBefore=6, spaceAfter=1)
-    st_ref = ParagraphStyle("ref", fontName="VN", fontSize=8,
-                            textColor=GRAY, spaceAfter=6)
-    st_body = ParagraphStyle("body", fontName="VN", fontSize=9.5,
-                             textColor=SLATE, leading=14, spaceAfter=1,
-                             alignment=TA_JUSTIFY)
-    st_cap = ParagraphStyle("cap", fontName="VN", fontSize=8,
-                            textColor=GRAY, alignment=TA_CENTER, spaceBefore=4)
-    st_dc = ParagraphStyle("dc", fontName="VN-Bold", fontSize=10,
-                           leading=14, textColor=DC_GREEN, alignment=TA_CENTER,
-                           spaceBefore=8, spaceAfter=6)
-    st_badge_ok = ParagraphStyle("bok", fontName="VN-Bold", fontSize=10,
-                                 textColor=GREEN_TX, backColor=GREEN_BG,
-                                 alignment=TA_CENTER, borderPadding=6,
-                                 spaceBefore=6)
-    st_badge_ng = ParagraphStyle("bng", fontName="VN-Bold", fontSize=10,
-                                 textColor=RED_TX, backColor=RED_BG,
-                                 alignment=TA_CENTER, borderPadding=8,
-                                 spaceBefore=8)
-
-    doc = SimpleDocTemplate(filepath, pagesize=A4,
-                            leftMargin=15*mm, rightMargin=15*mm,
-                            topMargin=12*mm, bottomMargin=12*mm)
-    S: list = []
-    P = Paragraph
-    cvt = lambda segs: _segs_to_flowables(
-        segs, P, st_body, st_h, st_ref, st_dc, st_badge_ok, st_badge_ng)
-
-    S.append(P("THUYẾT MINH TÍNH TOÁN KIỂM TRA CỘT BTCT", st_title))
-    S.append(P("Tiêu chuẩn: TCVN 5574:2018 — Mô hình biến dạng phi tuyến "
-               "(Điều 8.1.2.7)", st_sub))
-
-    from .report import generate_report_sections
-    sections = generate_report_sections(inp, res, batch_rows=batch_rows,
-                                        case_info=case_info,
-                                        shear_info=shear_info)
-
-    # Ảnh cho mục 2 (cột phải) và mục 6 (2 biểu đồ lớn full-width)
-    img_side = {}
-    try:
-        _w = 50*mm
-        _h = _w * (sec.cy / sec.cx) if sec.cx > 0 else _w
-        img_side[2] = Image(io.BytesIO(section_image(sec, small=True)),
-                            width=_w, height=_h)
-    except Exception:
-        pass
-    img_m6 = []
-    try:
-        from .pdf_export import m2m3_image  # noqa
-        # N-M full (trái) như tab Tóm tắt, M2-M3 (phải)
-        png_nm = interaction_image(sec, inp, res, width_in=4.0)
-        png_m2m3 = m2m3_image(sec, inp, res, width_in=4.0)
-        # Giữ tỉ lệ gốc: đọc kích thước PNG rồi tính height theo width
-        from PIL import Image as _PIL
-        def _img_keep_ratio(png_bytes, w_mm):
-            _pil = _PIL.open(io.BytesIO(png_bytes))
-            _pw, _ph = _pil.size
-            _h = w_mm * _ph / _pw if _pw > 0 else w_mm * 0.75
-            return Image(io.BytesIO(png_bytes), width=w_mm*mm, height=_h*mm)
-        img_m6 = [_img_keep_ratio(png_nm, 85),
-                  _img_keep_ratio(png_m2m3, 85)]
-    except Exception:
-        pass
-    captions = {2: "Hình 1. Mặt cắt cột và bố trí cốt thép"}
-
-    # Gộp text mục 2+3 để hiển thị chung với ảnh bên phải
-    flows_2 = cvt(sections[2]["segs"]) if 2 in sections else []
-    flows_3 = cvt(sections[3]["segs"]) if 3 in sections else []
-    flows_23 = flows_2 + flows_3
-
-    for num in sorted(sections.keys()):
-        info = sections[num]
-        flows = cvt(info["segs"])
-        if num == 2 and img_side.get(2) is not None:
-            # Mục 2+3: text 2 mục bên trái, hình mặt cắt bên phải
-            right_col = [img_side[2], P(captions[2], st_cap)]
-            tbl = Table([[flows_23, right_col]],
-                        colWidths=[108*mm, 68*mm])
-            tbl.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-                ("LEFTPADDING", (0, 0), (0, 0), 0),
-                ("RIGHTPADDING", (1, 0), (1, 0), 0),
-            ]))
-            S.append(KeepTogether(tbl))
-            S.append(Spacer(1, 1))
-        elif num == 3:
-            # Đã gộp vào mục 2, bỏ qua
-            continue
-        elif num == 6 and img_m6:
-            from reportlab.platypus import PageBreak
-            S.append(PageBreak())
-            # Mục 6: text full-width, 2 biểu đồ cạnh nhau
-            # (M2-M3 trái, N-M nửa phải có đường nội lực)
-            S.extend(flows)
-            S.append(Spacer(1, 4))
-            tbl6 = Table([[
-                [img_m6[0], P("Biểu đồ N-M (góc α)", st_cap)],
-                [img_m6[1], P("Biểu đồ M2-M3 (tại N)", st_cap)],
-            ]], colWidths=[88*mm, 88*mm])
-            tbl6.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ]))
-            S.append(tbl6)
-            S.append(P("Hình 2. Biểu đồ M2-M3 và N-M (góc α)", st_cap))
-            S.append(Spacer(1, 6))
-        elif num == 7 and batch_rows:
-            # Mục 7: Table có lưới thật
-            from reportlab.platypus import PageBreak
-            S.append(PageBreak())
-            S.append(P("7. BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", st_h))
-            S.append(P("Tất cả tổ hợp", st_ref))
-            S.append(Spacer(1, 6))
-            hdr = ["Tổ hợp", "N (kN)", "M2 (kN×m)", "M3 (kN×m)", "D/C", "KQ"]
-            data = [hdr]
-            for f, r in batch_rows:
-                dc = r["dc"]
-                ok = "ĐẠT" if dc <= 1 else "KHÔNG ĐẠT"
-                data.append([f"{f.case}@{f.station:.2f}", f"{f.N:.0f}",
-                             f"{f.Mx:.0f}", f"{f.My:.0f}",
-                             f"{dc:.3f}", ok])
-            t7 = Table(data, colWidths=[32*mm, 22*mm, 24*mm, 24*mm,
-                                        20*mm, 28*mm])
-            t7.setStyle(TableStyle([
-                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#000000")),
-                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#e2e8f0")),
-                ("FONTNAME", (0, 0), (-1, 0), "VN-Bold"),
-                ("FONTNAME", (0, 1), (-1, -1), "VN"),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ]))
-            S.append(t7)
-            S.append(Spacer(1, 6))
-        else:
-            S.extend(flows)
-
-    doc.build(S)
-    return filepath
-
-def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
-                       sec_img_path=None, shear_info=None):
-    """Xuất PDF Kết quả tính toán theo mẫu Excel MAU_TMTT (1 trang A4).
-
-    Layout 2 cột: trái = các bảng thông số, phải = hình mặt cắt + 2 biểu đồ.
-    Dưới cùng: bảng kiểm tra thép đai full-width.
-    """
-    import math as _m
-    import io as _io
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib.colors import HexColor
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Image, Table, TableStyle)
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
-    from collections import Counter
-    import os as _os
-
-    # Font
-    FN, FNB = "Helvetica", "Helvetica-Bold"
-    try:
-        pdfmetrics.registerFont(TTFont("DejaVu", _find_font()))
-        FN = "DejaVu"
-    except Exception:
-        pass
-    try:
-        pdfmetrics.registerFont(TTFont("DejaVuB", _find_font_bold()))
-        FNB = "DejaVuB"
-    except Exception:
-        pass
-
-    # Styles — khớp mẫu Excel
-    st_title = ParagraphStyle("t", fontName=FNB, fontSize=14,
-                              alignment=TA_CENTER, spaceAfter=8)
-    st_sec = ParagraphStyle("sec", fontName=FNB, fontSize=9,
-                            spaceBefore=5, spaceAfter=1,
-                            textColor=HexColor("#111111"),
-                            borderPadding=(0, 0, 2))
-    st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
-    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
-    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
-                             alignment=TA_CENTER)
-    st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
-
-    st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
-    st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
-    st_val_b = ParagraphStyle("val_b", parent=st_cell_b, alignment=TA_LEFT)
-    st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
-    def _sec_table(title, rows):
-        """Bảng 2 cột kiểu Excel: tiêu đề section + các dòng xen kẽ màu."""
-        data = [[Paragraph(f"<b>{title}</b>", st_sec_title)]]
-        for lbl, val in rows:
-            _vs = str(val)
-            # Nếu giá trị có thẻ <b>, dùng style in đậm trực tiếp (tránh lỗi font <b>)
-            if "<b>" in _vs:
-                _vs_clean = _vs.replace("<b>", "").replace("</b>", "")
-                data.append([Paragraph(lbl, st_lbl),
-                             Paragraph(_vs_clean, st_val_b)])
-            else:
-                data.append([Paragraph(lbl, st_lbl),
-                             Paragraph(_vs, st_val)])
-        # colWidths: nhãn 60mm (2 phần), giá trị 30mm (1 phần)
-        t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
-        style = [
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-            # Gạch dưới tiêu đề section
-            ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
-        ]
-        # Xen kẽ màu nền (trắng / xám nhạt) từ dòng 1
-        for i in range(1, len(data)):
-            if i % 2 == 0:
-                style.append(("BACKGROUND", (0, i), (-1, i),
-                              HexColor("#F2F2F2")))
-        t.setStyle(TableStyle(style))
-        return t
-
-    def _img_from_bytes(png_bytes, w_mm):
-        """Tạo Image ReportLab từ PNG bytes, giữ tỉ lệ gốc."""
-        buf = _io.BytesIO(png_bytes)
-        try:
-            from PIL import Image as _PIL
-            _pil = _PIL.open(buf)
-            _pw, _ph = _pil.size
-            buf.seek(0)
-            h_mm = w_mm * _ph / _pw if _pw > 0 else w_mm
-        except Exception:
-            h_mm = w_mm
-        return Image(buf, width=w_mm * mm, height=h_mm * mm)
-
-    # ===== Chuẩn bị dữ liệu =====
-    from .materials import CONCRETE_GRADES, STEEL_GRADES
-    _cg = CONCRETE_GRADES.get(inp.concrete_grade)
-    _sg = STEEL_GRADES.get(inp.steel_grade)
-    _swg = STEEL_GRADES.get(inp.sw_steel_grade)
-
-    _ck_name = ""
-    try:
-        _fn = getattr(inp, "_filename", "") or ""
-        if _fn:
-            _ck_name = _os.path.splitext(_os.path.basename(_fn))[0].upper()
-    except Exception:
-        pass
-    if not _ck_name and case_info:
-        _ck_name = str(case_info.get("name", "")).upper()
-
-    _t3 = getattr(sec, "cx", inp.cx)
-    _t2 = getattr(sec, "cy", inp.cy)
-    _cnt = Counter(r.dia for r in sec.rebars)
-    _parts = [f"{_cnt[d]}-d{d:.0f}" for d in sorted(_cnt, reverse=True)]
-    _mu = getattr(sec, "reinforcement_ratio", 0) or 0
-
-    _story_txt, _label_txt, _combo_txt = "—", "—", "—"
-    if case_info:
-        _story_txt = str(case_info.get("story", "—"))
-        _label_txt = str(case_info.get("label", case_info.get("column", "—")))
-        _combo_txt = str(case_info.get("case", case_info.get("combo", "—")))
-    _vpos = f"[{_story_txt}]-[{_label_txt}]" if _story_txt != "—" else "—"
-
-    _alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) \
-        if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
-    _ok_txt = "<b>ĐẠT</b>" if res.ok else "<b>KHÔNG ĐẠT</b>"
-
-    # ===== Cột trái: các bảng =====
-    left_flow = []
-
-    # THÔNG TIN CHUNG
-    left_flow.append(_sec_table("THÔNG TIN CHUNG", [
-        ("Tiêu chuẩn", "TCVN 5574:2018"),
-        ("Tên cấu kiện", _ck_name or "—"),
-    ]))
-
-    # VẬT LIỆU
-    _mat_rows = []
-    if _cg:
-        _mat_rows += [
-            ("Bê tông", inp.concrete_grade),
-            ("Cường độ chịu nén, R<sub>b</sub>", f"{_cg.Rb:.0f} MPa"),
-            ("Mô đun đàn hồi, E<sub>b</sub>", f"{_cg.Eb:.0f} MPa"),
-        ]
-    if _sg:
-        _mat_rows += [
-            ("Cốt thép dọc", inp.steel_grade),
-            ("Cường độ chịu kéo, R<sub>s</sub>", f"{_sg.Rs:.0f} MPa"),
-            ("Mô đun đàn hồi, E<sub>s</sub>", f"{_sg.Es:.0f} MPa"),
-        ]
-    if _swg:
-        _mat_rows += [
-            ("Cốt thép đai", inp.sw_steel_grade),
-            ("Cường độ chịu cắt, R<sub>sw</sub>", f"{_swg.Rsw:.0f} MPa"),
-            ("Mô đun đàn hồi, E<sub>s</sub>", f"{_swg.Es:.0f} MPa"),
-        ]
-    left_flow.append(_sec_table("VẬT LIỆU", _mat_rows))
-
-    # TIẾT DIỆN
-    left_flow.append(_sec_table("TIẾT DIỆN", [
-        ("Chiều rộng, t3", f"{_t3:.0f} mm"),
-        ("Chiều cao, t2", f"{_t2:.0f} mm"),
-        ("Lớp bê tông bảo vệ, c", f"{inp.cover:.0f} mm"),
-    ]))
-
-    # BỐ TRÍ CỐT THÉP
-    left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP", [
-        ("Cốt thép dọc", " + ".join(_parts)),
-        ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
-    ]))
-
-    # NỘI LỰC TÍNH TOÁN (bỏ V2, V3 theo yêu cầu)
-    left_flow.append(_sec_table("NỘI LỰC THIẾT KẾ", [
-        ("Vị trí cột", _vpos),
-        ("Tổ hợp tính toán", _combo_txt),
-        ("Lực dọc, N", f"{res.N:.1f} kN"),
-        ("Momen quanh trục 2, M2", f"{res.Mx:.1f} kNm"),
-        ("Momen quanh trục 3, M3", f"{res.My:.1f} kNm"),
-    ]))
-
-    # KẾT QUẢ TÍNH TOÁN (thêm điểm B để lấp khoảng trống)
-    _Mb = _m.hypot(res.Bx, res.By)
-    _Ma = _m.hypot(res.Mx_star, res.My_star)
-    left_flow.append(_sec_table("KẾT QUẢ TÍNH TOÁN", [
-        ("Góc tác dụng mômen, α", f"{_alpha:.1f}°"),
-        ("Điểm tải trọng A", ""),
-        ("Lực dọc, N", f"{res.N:.1f} kN"),
-        ("Mômen tính toán, M2*", f"{res.Mx_star:.1f} kNm"),
-        ("Mômen tính toán, M3*", f"{res.My_star:.1f} kNm"),
-        ("Mômen tổng, Mα", f"{_Ma:.1f} kNm"),
-        ("Điểm giới hạn B", ""),
-        ("Lực dọc, Nu", f"{res.BN:.1f} kN"),
-        ("Mômen, M2u", f"{res.Bx:.1f} kNm"),
-        ("Mômen, M3u", f"{res.By:.1f} kNm"),
-        ("Mômen tổng, Mα,u", f"{_Mb:.1f} kNm"),
-        ("Tỉ số sử dụng khả năng chịu lực, D/C", f"{res.dc:.3f}"),
-        ("Hệ số an toàn, FS", f"{res.fs:.2f}"),
-        ("Kết luận", _ok_txt),
-    ]))
-
-    # ===== Cột phải: hình mặt cắt + 2 biểu đồ (căn giữa) =====
-    def _centered_img(png_bytes, w_mm):
-        """Bọc Image trong Table 1 ô căn giữa theo chiều ngang."""
-        _im = _img_from_bytes(png_bytes, w_mm)
-        _t = Table([[_im]], colWidths=[90 * mm], hAlign="CENTER")
-        _t.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        return _t
-
-    st_chart_title = ParagraphStyle("ct", parent=st_cell_b, alignment=TA_CENTER,
-                                      fontSize=8, spaceBefore=2, spaceAfter=2)
-    right_flow = []
-    try:
-        # Hình mặt cắt
-        _sec_png = section_image(sec, width_in=2.2, dpi=300, small=False,
-                                 show_stats=False)
-        right_flow.append(_centered_img(_sec_png, 52))
-        right_flow.append(Spacer(1, 2))
-        # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
-        _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=300,
-                                    small=True, right_half=True)
-        right_flow.append(Paragraph(
-            f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
-            st_chart_title))
-        right_flow.append(_centered_img(_nm_png, 66))
-        right_flow.append(Spacer(1, 2))
-        # Biểu đồ M2-M3 (có tiêu đề như app)
-        _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=300)
-        if isinstance(_m2m3_png, bytes):
-            right_flow.append(Paragraph(
-                f"<b>Mặt cắt M2-M3</b> (N = {res.N:+.1f} kN)",
-                st_chart_title))
-            right_flow.append(_centered_img(_m2m3_png, 66))
-    except Exception as e:
-        right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
-
-    # ===== Bảng 2 cột chính =====
-    # Tỉ lệ 2:1:3 — nhãn 60mm, giá trị 30mm, hình 90mm
-    main_data = [[left_flow, right_flow]]
-    t_main = Table(main_data, colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
-    t_main.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (0, 0), "TOP"),
-        ("VALIGN", (1, 0), (1, 0), "BOTTOM"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
-
-    story = []
-    story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
-    story.append(t_main)
-    story.append(Spacer(1, 4))
-
-    # ===== KIỂM TRA THÉP ĐAI (full width, giữ ở trang 1) =====
-    # Dùng KeepTogether để không bị tách trang
-    from reportlab.platypus import KeepTogether
-    _sw_story = []
-    try:
-        from .stirrup import StirrupInput
-        stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
-                               legs=inp.sw_legs)
-        _sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
-                   f"a{stir_in.spacing:.0f}")
-        # DÙNG shear_cols từ _tcvn_calculate_full - KHÔNG TÍNH LẠI (nguyên tắc "tính 1 lần")
-        _pre = shear_info if isinstance(shear_info, dict) else {}
-        if "2" in _pre and "3" in _pre:
-            # shear_cols structure
-            _r2 = _pre["2"]
-            _r3 = _pre["3"]
-            # Đảm bảo có đầy đủ keys
-            for _r in (_r2, _r3):
-                if "sh" not in _r:
-                    raise ValueError("Thiếu kết quả cắt precalc - vi phạm nguyên tắc 'tính 1 lần'")
-        else:
-            raise ValueError("Thiếu shear_cols từ _tcvn_calculate_full - vi phạm nguyên tắc 'tính 1 lần'")
-        _sw_data = [
-            [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
-             Paragraph("<b>Phương V2</b>", st_hdr),
-             Paragraph("<b>Phương V3</b>", st_hdr)],
-        ]
-        _sw_rows = [
-            ("Thép đai bố trí", _r2.get("sw_txt", _sw_txt), _r3.get("sw_txt", _sw_txt)),
-            ("Lực cắt tính toán, Q",
-             f"{_r2['Q']:.1f} kN", f"{_r3['Q']:.1f} kN"),
-            ("Kích thước tiết diện, b × h<sub>0</sub>",
-             f"{_r2['b']:.0f} × {_r2['h0']:.0f} mm",
-             f"{_r3['b']:.0f} × {_r3['h0']:.0f} mm"),
-            ("A<sub>sw</sub> = n × φ",
-             f"{_r2['Asw']:.0f} mm²", f"{_r3['Asw']:.0f} mm²"),
-            ("q<sub>sw</sub> = R<sub>sw</sub> × A<sub>sw</sub>/s",
-             f"{_r2['qsw']:.1f} N/mm", f"{_r3['qsw']:.1f} N/mm"),
-            ("Độ bền trên dải nén xiên Q ≤ 0.3×R<sub>b</sub>×b×h<sub>0</sub>",
-             f"{_r2['sh'].Qcap1:.1f} kN", f"{_r3['sh'].Qcap1:.1f} kN"),
-            ("Q<sub>b</sub> = 1.5×R<sub>bt</sub>×b×h<sub>0</sub><sup>2</sup>/C",
-             f"{_r2['sh'].Qb_opt:.1f} kN", f"{_r3['sh'].Qb_opt:.1f} kN"),
-            ("Q<sub>sw</sub> = 0.75×q<sub>sw</sub>×C",
-             f"{_r2['sh'].Qsw_opt:.1f} kN", f"{_r3['sh'].Qsw_opt:.1f} kN"),
-            ("Chiều dài hình chiếu của vết nứt xiên C",
-             f"{_r2['sh'].C_opt:.0f} mm", f"{_r3['sh'].C_opt:.0f} mm"),
-            ("Độ bền trên vết nứt xiên Q ≤ [Q] = Q<sub>b</sub> + Q<sub>sw</sub>",
-             f"{_r2['sh'].Qcap2:.1f} kN", f"{_r3['sh'].Qcap2:.1f} kN"),
-            ("Kết luận",
-             "<b>ĐẠT</b>" if _r2['sh'].ok else "<b>KHÔNG ĐẠT</b>",
-             "<b>ĐẠT</b>" if _r3['sh'].ok else "<b>KHÔNG ĐẠT</b>"),
-        ]
-        for a, b, c in _sw_rows:
-            _sw_data.append([Paragraph(a, st_lbl),
-                             Paragraph(b, st_cell_b if "Kết luận" in a else st_cell),
-                             Paragraph(c, st_cell_b if "Kết luận" in a else st_cell)])
-        # Căn giữa các cột giá trị
-        for i in range(1, len(_sw_data)):
-            for j in (1, 2):
-                _sw_data[i][j].style.alignment = TA_CENTER
-        t_sw = Table(_sw_data, colWidths=[90 * mm, 45 * mm, 45 * mm],
-                     hAlign="LEFT")
-        _sw_style = [
-            # Không kẻ GRID — thể hiện như bảng thông tin (xen kẽ màu)
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-            ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
-        ]
-        for i in range(1, len(_sw_data)):
-            if i % 2 == 0:
-                _sw_style.append(("BACKGROUND", (0, i), (-1, i),
-                                  HexColor("#F2F2F2")))
-        t_sw.setStyle(TableStyle(_sw_style))
-        _sw_story.append(t_sw)
-    except Exception as e:
-        _sw_story.append(Paragraph(f"Không tính được thép đai: {e}", st_cell))
-    # Giữ toàn bộ bảng thép đai trên cùng 1 trang
-    # Dùng KeepTogether với table trực tiếp (không qua list trung gian) để tránh lệch lề
-    if len(_sw_story) == 1 and isinstance(_sw_story[0], Table):
-        story.append(KeepTogether(_sw_story[0]))
-    else:
-        story.append(KeepTogether(_sw_story))
-
-    doc = SimpleDocTemplate(filepath, pagesize=A4,
-                            leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=10 * mm, bottomMargin=10 * mm,
-                            title="Kết quả kiểm tra cột BTCT")
-    doc.build(story)
-    return filepath
-
-
 def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
                              Nmax_kN: float = None, title: str = None):
-    """Vẽ vùng nén của tiết diện tại trạng thái giới hạn.
-    
-    Phương pháp đơn giản hóa: dựa trên hướng mô men tổng hợp (alpha)
-    và mức độ nén (N/Nmax) để ước lượng vùng nén.
-    
-    - N_kN, M2_kNm, M3_kNm: nội lực tại điểm giới hạn B
-    - Nmax_kN: khả năng chịu nén đúng tâm (để tính tỷ số N/Nmax)
-    """
+    """Vẽ mặt cắt kiểu VietconSoft (giống tab Kết quả) + tô vùng nén."""
     import math
     import matplotlib.patches as mpatches
     from matplotlib.patches import Polygon as MplPolygon
+    from matplotlib.lines import Line2D
     import numpy as np
     
-    # Vẽ tiết diện nền (không có thép để rõ vùng nén)
-    cx, cy = sec.cx, sec.cy
     ax.set_aspect('equal', adjustable='box')
+    cx, cy = sec.cx, sec.cy
+    DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
+                  "#BE123C", "#CA8A04", "#0F766E", "#4D7C0F"]
+    L2_COLOR = "#F59E0B"
+    
     ax.set_axisbelow(True)
     ax.grid(True, color="#E8EDF3", linewidth=0.7)
     
-    # Vẽ khung tiết diện
+    sec_poly = []
     if sec.kind == "rect":
         ax.add_patch(mpatches.Rectangle(
             (-cx/2, -cy/2), cx, cy, fill=True, facecolor="#F4F7FB",
             edgecolor="black", lw=2.0, zorder=2))
-        # Tạo polygon của tiết diện để cắt vùng nén
         sec_poly = [(-cx/2, -cy/2), (cx/2, -cy/2), (cx/2, cy/2), (-cx/2, cy/2)]
     elif sec.kind == "poly" and getattr(sec, "poly_verts", None):
         for verts in sec.poly_verts:
             ax.add_patch(MplPolygon(verts, closed=True, fill=True,
                                     facecolor="#F4F7FB", edgecolor="black",
                                     lw=2.0, zorder=2))
-        sec_poly = sec.poly_verts[0] if sec.poly_verts else []
-    else:  # circle
+        sec_poly = list(sec.poly_verts[0]) if sec.poly_verts else []
+    else:
         ax.add_patch(mpatches.Circle(
             (0, 0), cx/2, fill=True, facecolor="#F4F7FB",
             edgecolor="black", lw=2.0, zorder=2))
-        # Tạo polygon xấp xỉ hình tròn
         _th = np.linspace(0, 2*np.pi, 64)
         sec_poly = [(cx/2*np.cos(t), cx/2*np.sin(t)) for t in _th]
     
-    # Tính hướng mô men tổng hợp
-    M_res = math.hypot(M2_kNm, M3_kNm)
-    if M_res < 1e-9:
-        # Nén đúng tâm: toàn bộ tiết diện chịu nén
-        _alpha = 0.0
-        _n_ratio = 1.0
+    _Mstar = math.hypot(M2_kNm, M3_kNm)
+    _alpha = math.atan2(M2_kNm, M3_kNm) if _Mstar > 1e-9 else 0.0
+    _dx = math.sin(_alpha)
+    _dy = math.cos(_alpha)
+    if Nmax_kN and Nmax_kN > 1e-9:
+        _c_ratio = min(1.0, max(0.0, abs(N_kN) / Nmax_kN))
     else:
-        # alpha: góc từ trục M3 (giống ETABS)
-        _alpha = math.atan2(M2_kNm, M3_kNm)
-        _n_ratio = abs(N_kN) / Nmax_kN if Nmax_kN and Nmax_kN > 1e-9 else 0.5
-        _n_ratio = min(1.0, max(0.0, _n_ratio))
+        _c_ratio = 0.5
+    _m_factor = min(1.0, _Mstar / 2000.0) if _Mstar > 0 else 0
+    _c_ratio = _c_ratio * (1 - 0.3*_m_factor) + 0.15*_m_factor
     
-    # Ước lượng chiều cao vùng nén (đơn giản hóa)
-    # N/Nmax càng lớn -> vùng nén càng lớn
-    # M càng lớn so với N -> vùng nén càng nhỏ
-    if M_res < 1e-9:
-        _c_ratio = 1.0  # Toàn bộ chịu nén
-    else:
-        # Tỷ số nén/uốn: N/(N + M/h)
-        _h_eq = max(cx, cy)
-        _m_equiv = M_res * 1000.0 / (_h_eq / 2.0)  # Quy đổi M thành lực tương đương (kN)
-        _c_ratio = abs(N_kN) / (abs(N_kN) + _m_equiv) if (abs(N_kN) + _m_equiv) > 1e-9 else 0.5
-        _c_ratio = 0.3 + 0.7 * _c_ratio  # Giới hạn 0.3 - 1.0
-    
-    # Vẽ vùng nén: cắt tiết diện bởi đường thẳng vuông góc với hướng mô men
-    # Hướng mô men tổng hợp: (_dx, _dy) = (sin(alpha), cos(alpha))
-    # Vùng nén nằm ở phía NGƯỢC với hướng mô men (vì mô men gây kéo ở phía đó)
-    # Thực tế: với M2, M3 dương, vùng nén ở góc phần tư thứ 3 (-x, -y)
-    _dx = math.sin(_alpha)  # Hướng M2
-    _dy = math.cos(_alpha)  # Hướng M3
-    
-    # Vẽ vùng nén (màu xanh nhạt) - xử lý uốn xiên bằng polygon cắt xiên
-    # Dùng sec_poly chung cho cả rect/circle/poly
     if sec_poly and len(sec_poly) >= 3:
         _corners = list(sec_poly)
-        # Đường trung hòa: vuông góc với (_dx, _dy), cách tâm một khoảng
-        # Khoảng cách từ tâm đến đường trung hòa: d = (0.5 - _c_ratio) * đường chéo
-        # Tính kích thước đặc trưng từ bounds của polygon (đúng cho cả 3 loại)
         _xs = [p[0] for p in _corners]
         _ys = [p[1] for p in _corners]
         _diag = math.hypot(max(_xs)-min(_xs), max(_ys)-min(_ys))
         _d = (0.5 - _c_ratio) * _diag * 0.7
-        # Vector pháp tuyến của đường trung hòa (hướng về phía nén)
-        # Vùng nén ở phía (-_dx, -_dy) vì mô men dương gây kéo ở (+_dx, +_dy)
         _nx, _ny = -_dx, -_dy
-        # Điểm trên đường trung hòa: tâm + d * (hướng nén)
         _px, _py = _d * _nx, _d * _ny
-        # Tìm giao điểm của đường thẳng với biên tiết diện và tạo polygon vùng nén
-        # Đơn giản: lấy các đỉnh có (x*_nx + y*_ny) >= (_px*_nx + _py*_ny) là vùng nén
         _threshold = _px * _nx + _py * _ny
-        _comp_corners = []
-        for (_cx, _cy) in _corners:
-            if _cx * _nx + _cy * _ny >= _threshold - 1e-9:
-                _comp_corners.append((_cx, _cy))
-        # Tìm giao điểm của đường trung hòa với các cạnh
-        _edges = [(_corners[i], _corners[(i+1)%4]) for i in range(4)]
+        _comp_corners = [(_cx, _cy) for (_cx, _cy) in _corners
+                         if _cx * _nx + _cy * _ny >= _threshold - 1e-9]
+        _edges = [(_corners[i], _corners[(i+1)%len(_corners)]) for i in range(len(_corners))]
         _intersects = []
         for (_x1, _y1), (_x2, _y2) in _edges:
             _v1 = _x1*_nx + _y1*_ny - _threshold
             _v2 = _x2*_nx + _y2*_ny - _threshold
-            if _v1 * _v2 < 0:  # Cắt nhau
+            if _v1 * _v2 < 0:
                 _t = abs(_v1) / (abs(_v1) + abs(_v2))
-                _ix = _x1 + _t*(_x2-_x1)
-                _iy = _y1 + _t*(_y2-_y1)
-                _intersects.append((_ix, _iy))
-        # Tạo polygon vùng nén: các đỉnh nén + giao điểm, sắp xếp theo góc
+                _intersects.append((_x1 + _t*(_x2-_x1), _y1 + _t*(_y2-_y1)))
         _poly_pts = _comp_corners + _intersects
         if len(_poly_pts) >= 3:
-            # Sắp xếp theo góc quanh trọng tâm
             _gcx = sum(p[0] for p in _poly_pts)/len(_poly_pts)
             _gcy = sum(p[1] for p in _poly_pts)/len(_poly_pts)
             _poly_pts.sort(key=lambda p: math.atan2(p[1]-_gcy, p[0]-_gcx))
             ax.add_patch(MplPolygon(_poly_pts, closed=True, fill=True,
                                     facecolor="#BFDBFE", edgecolor="#2563EB",
                                     lw=1.5, zorder=3, alpha=0.7))
-            # Vẽ đường trung hòa (nét đứt đỏ)
             if len(_intersects) == 2:
-                _ixs = [_intersects[0][0], _intersects[1][0]]
-                _iys = [_intersects[0][1], _intersects[1][1]]
-                ax.plot(_ixs, _iys, '--', color='#DC2626', linewidth=1.5, zorder=4)
+                ax.plot([_intersects[0][0], _intersects[1][0]],
+                        [_intersects[0][1], _intersects[1][1]],
+                        '--', color='#DC2626', linewidth=1.5, zorder=4)
     
-    # Vẽ thép (chấm đỏ)
+    groups = {}
     for r in sec.rebars:
-        ax.plot(r.x, r.y, 'o', color='#DC2626', markersize=4, zorder=5,
-                markeredgecolor='white', markeredgewidth=0.5)
+        groups.setdefault((r.layer, r.dia), []).append(r)
+    dias_l1 = sorted(set(d for (ly, d) in groups if ly == 1), reverse=True)
+    dia_color = {d: DIA_COLORS[i % len(DIA_COLORS)] for i, d in enumerate(dias_l1)}
+    for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
+        pts = groups[(layer, dia)]
+        color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
+        dot_s = (max(4.0, dia * 0.22)) ** 2
+        ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
+                   s=dot_s, c=color, zorder=5,
+                   edgecolors="white", linewidths=0.8)
     
-    # Trục tọa độ
-    ax.axhline(0, color='#9CA3AF', linewidth=0.8, zorder=1)
-    ax.axvline(0, color='#9CA3AF', linewidth=0.8, zorder=1)
+    alen = max(cx, cy) * 0.62
+    ax.annotate("", xy=(alen, 0), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="#16A34A", lw=1.6))
+    ax.annotate("", xy=(0, alen), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=1.6))
+    ax.text(alen * 1.08, 0, "t2", fontsize=9, color="#15803D",
+            weight="bold", va="center", ha="left")
+    ax.text(0, alen * 1.08, "t3", fontsize=9, color="#1D4ED8",
+            weight="bold", va="bottom", ha="center")
     
-    # Tiêu đề
     if title:
-        ax.set_title(title, fontsize=10, fontweight='bold', pad=8)
-    
-    # Chú thích
-    ax.text(0.02, 0.98, f'Vùng nén (ước lượng)',
-            transform=ax.transAxes, fontsize=8, color='#1E40AF',
-            va='top', ha='left',
-            bbox=dict(boxstyle='round,pad=0.3', facecolor='#DBEAFE', alpha=0.8))
-    
-    ax.set_xlim(-cx/2*1.3, cx/2*1.3)
-    ax.set_ylim(-cy/2*1.3, cy/2*1.3)
-    ax.set_xlabel('Trục 2 (mm)', fontsize=8)
-    ax.set_ylabel('Trục 3 (mm)', fontsize=8)
+        ax.set_title(title, fontsize=10, weight="bold", pad=8)
+    ax.set_xlabel("Trục 2 (mm)", fontsize=8)
+    ax.set_ylabel("Trục 3 (mm)", fontsize=8)
+    ax.tick_params(labelsize=7)
 
