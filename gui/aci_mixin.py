@@ -418,8 +418,9 @@ class AciMixin:
         _card(row1, "Hàm lượng μ", vals["mu"])
 
     def _build_aci_shear_summary(self, parent, inp, sec, conc, steel, full_res=None):
-        """Bảng kiểm tra khả năng chịu cắt ACI: Phương V2 | Phương V3.
+        """2 card kiểm tra khả năng chịu cắt ACI: Phương V2 | Phương V3 (giống TCVN).
         CHỈ hiển thị từ full_res (đã tính bởi _aci_calculate_full), KHÔNG tính lại."""
+        from rc_column.report_widgets import _param_card, _grid2
         # Lấy kết quả đã tính sẵn từ _aci_calculate_full - KHÔNG tính lại
         _fr = full_res or {}
         _sh2 = _fr.get("shear2") or {}
@@ -428,65 +429,38 @@ class AciMixin:
         _d2 = _disp.get("2") or {}
         _d3 = _disp.get("3") or {}
         try:
-            cols = {}
-            # Đọc trực tiếp từ kết quả đã tính, không gọi aci_shear_check
+            grid = _grid2(parent)
+            row = 0
             for lbl, sh, dp in (("2", _sh2, _d2), ("3", _sh3, _d3)):
-                cols[lbl] = dict(
-                    Vu=dp.get("Vu", 0),
-                    b=dp.get("b", 0),
-                    d=dp.get("d", 0),
-                    Av=dp.get("Av", 0),
-                    Vc=sh.get("Vc_kN", 0),
-                    Vs=sh.get("Vs_kN", 0),
-                    phiVn=sh.get("phi_Vn_kN", 0),
-                    ok=sh.get("ok", False),
-                    sw_txt=dp.get("sw_txt", ""),
-                )
-
-            tf = tk.Frame(parent, bg="white")
-            tf.pack(fill=tk.X, padx=8, pady=6)
-            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT", "Phương V2", "Phương V3"]
-            for j, h in enumerate(headers):
-                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
-                         fg="#111827", borderwidth=0,
-                         highlightthickness=0,
-                         anchor="w" if j == 0 else "center",
-                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
-                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
-            rows = [
-                ("Thép đai bố trí",
-                 cols['2']['sw_txt'], cols['3']['sw_txt']),
-                ("Lực cắt tính toán, Vu",
-                 f"{cols['2']['Vu']:.1f} kN", f"{cols['3']['Vu']:.1f} kN"),
-                ("Kích thước tiết diện, b × d",
-                 f"{cols['2']['b']:.0f} × {cols['2']['d']:.0f} mm",
-                 f"{cols['3']['b']:.0f} × {cols['3']['d']:.0f} mm"),
-                ("Av = n × φ",
-                 f"{cols['2']['Av']:.0f} mm²", f"{cols['3']['Av']:.0f} mm²"),
-                ("Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d (ACI 22.5.5)",
-                 f"{cols['2']['Vc']:.1f} kN", f"{cols['3']['Vc']:.1f} kN"),
-                ("Vs = Av·fyt·d/s (ACI 22.5.8)",
-                 f"{cols['2']['Vs']:.1f} kN", f"{cols['3']['Vs']:.1f} kN"),
-                ("φVn = φ·(Vc+Vs) ≤ φ·(Vc+0.66√f'c·bw·d)",
-                 f"{cols['2']['phiVn']:.1f} kN", f"{cols['3']['phiVn']:.1f} kN"),
-                ("Kết luận",
-                 "ĐẠT" if cols['2']['ok'] else "KHÔNG ĐẠT",
-                 "ĐẠT" if cols['3']['ok'] else "KHÔNG ĐẠT"),
-            ]
-            for i, (a, b, c) in enumerate(rows):
-                bg = "#F9FAFB" if i % 2 else "white"
-                is_kl = (a == "Kết luận")
-                for j, t in enumerate((a, b, c)):
-                    fw = ("", 9)  # nội dung bảng không in đậm
-                    fg = "#1F2937"
-                    if is_kl and j > 0:
-                        fg = "#065F46" if t == "ĐẠT" else "#991B1B"
-                        fw = ("", 9, "bold")  # kết quả in đậm
-                    tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
-                             borderwidth=0, highlightthickness=0,
-                             padx=6, pady=6, anchor="w" if j == 0
-                             else "center").grid(row=i + 1, column=j,
-                                                 sticky="nsew")
+                Vu = dp.get("Vu", 0)
+                b = dp.get("b", 0)
+                d = dp.get("d", 0)
+                Av = dp.get("Av", 0)
+                Vc = sh.get("Vc_kN", 0)
+                Vs = sh.get("Vs_kN", 0)
+                phiVn = sh.get("phi_Vn_kN", 0)
+                ok = sh.get("ok", False)
+                sw_txt = dp.get("sw_txt", "")
+                # Combo info nếu có trong full_res
+                _combo = dp.get("combo_info", "") or sh.get("combo_info", "")
+                _qinfo = f" {_combo}" if _combo else ""
+                mark = "✓" if ok else "✗"
+                lines = [
+                    f"Vu = {Vu:.1f} kN{_qinfo}; b = {b:.0f} mm, d = {d:.0f} mm",
+                    f"Av = {sw_txt} = {Av:.0f} mm²",
+                    f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d (ACI 22.5.5)",
+                    f"  = {Vc:.1f} kN",
+                    f"Vs = Av·fyt·d/s (ACI 22.5.8)",
+                    f"  = {Vs:.1f} kN",
+                    f"φVn = φ·(Vc+Vs) ≤ φ·(Vc+0.66√f'c·bw·d)",
+                    f"  = {phiVn:.1f} kN",
+                    f"{mark} So sánh: Vu = {Vu:.1f} kN "
+                    f"{'≤' if Vu <= phiVn else '>'} φVn = {phiVn:.1f} kN",
+                ]
+                c = _param_card(grid, f"Kiểm tra chịu cắt phương {lbl}",
+                                "ACI 318-19 §22.5", lines,
+                                "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
+                c.grid(row=row, column=int(lbl) - 2, sticky="nsew", padx=4, pady=4)
         except Exception as e:
             tk.Label(parent, text=f"Không tính được chịu cắt: {e}",
                      fg="#991B1B", bg="white").pack(padx=8, pady=4)
