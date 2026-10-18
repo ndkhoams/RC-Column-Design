@@ -299,3 +299,106 @@ class BiaxialCapacity:
             "ok": util <= 1.0,
             "N_max": Nmax,
         }
+
+
+def neutral_axis_at_N(fs, N_target_kN: float, theta_deg: float,
+                      model: str = "3line", n_points: int = 96):
+    """Tìm đường trung hòa chính xác từ fiber model tại (N_target, hướng theta).
+    
+    Dùng cùng logic xây dựng đường cong như uniaxial_curve_fs, nhưng giữ lại
+    tham số biến dạng để trích xuất vị trí đường trung hòa.
+    
+    Quy ước góc kiểu ETABS: theta đo từ trục M3.
+    
+    Trả về dict:
+    - 'yp_na': tọa độ yp (hệ xoay) của đường trung hòa; None nếu không có (nén/kéo đều)
+    - 'theta_deg', 'ct', 'st': góc và cos/sin góc xoay (yp = -x*st + y*ct)
+    - 'y_top', 'y_bot': biên trên/dưới của tiết diện trong hệ xoay
+    - 'eps0', 'kx_p': tham số mặt phẳng biến dạng tại trạng thái tìm được
+    - 'found': True nếu tìm được trạng thái khớp N_target
+    """
+    import math
+    import numpy as np
+    from rc_column.materials import EPS_B2, EPS_S2
+
+    th = math.radians(90.0 - theta_deg)
+    ct, st = math.cos(th), math.sin(th)
+    yp_f = -fs.fx * st + fs.fy * ct
+    yp_r = -fs.rx * st + fs.ry * ct if fs.ra.size else np.array([])
+
+    h = float(np.max(yp_f) - np.min(yp_f)) if yp_f.size else 0.0
+    if h <= 0:
+        return {'found': False, 'yp_na': None, 'theta_deg': theta_deg,
+                'ct': ct, 'st': st, 'y_top': 0, 'y_bot': 0,
+                'eps0': 0, 'kx_p': 0}
+    y_top = float(np.max(yp_f))
+    y_bot = float(np.min(yp_f))
+    eps_cu = EPS_B2
+
+    def state_at_eps_bot(eps_bot):
+        """Trả về (eps0, kx_p, N_kN) tại eps_bot cho trước."""
+        kx_p = (eps_cu - eps_bot) / h
+        eps0 = eps_cu - kx_p * y_top
+        # kiểm tra biến dạng thép
+        if yp_r.size:
+            er = eps0 + kx_p * yp_r
+            if np.any(np.abs(er) > EPS_S2 + 1e-9):
+                return None
+        ef = eps0 + kx_p * yp_f
+        sf = fs.concrete_stress(ef, model)
+        Nf = np.sum(sf * fs.fa)
+        if fs.ra.size:
+            er = eps0 + kx_p * yp_r
+            sr = fs.steel_stress(er)
+            Nr = np.sum(sr * fs.ra)
+        else:
+            Nr = 0.0
+        return (eps0, kx_p, (Nf + Nr) / 1000.0)
+
+    N_target = float(N_target_kN)
+    eps_s_max = min(0.9 * EPS_S2, 10.0 * fs.eps_y)
+    # Quét eps_bot từ eps_cu (nén đều) về -eps_s_max (kéo)
+    # N giảm đơn điệu theo eps_bot -> dùng nội suy
+    prev = None
+    best = None
+    for i in range(n_points + 1):
+        frac = i / n_points
+        f2 = frac ** 0.8 if i > 0 else 0.0
+        eps_bot = eps_cu - f2 * (eps_cu + eps_s_max)
+        cur = state_at_eps_bot(eps_bot)
+        if cur is None:
+            continue
+        _, _, _N = cur
+        if prev is not None:
+            _p_eps0, _p_kx, _pN = prev
+            # kiểm tra N_target nằm giữa _pN và _N
+            if (_pN - N_target) * (_N - N_target) <= 0 and abs(_pN - _N) > 1e-12:
+                t = (N_target - _N) / (_pN - _N)
+                _eps0 = cur[0] + t * (prev[0] - cur[0])
+                _kx = cur[1] + t * (prev[1] - cur[1])
+                best = (_eps0, _kx)
+                break
+        # lưu trạng thái gần nhất
+        if best is None or abs(_N - N_target) < abs(best[2] - N_target):
+            best = (cur[0], cur[1], _N)
+        prev = cur
+
+    if best is None:
+        return {'found': False, 'yp_na': None, 'theta_deg': theta_deg,
+                'ct': ct, 'st': st, 'y_top': y_top, 'y_bot': y_bot,
+                'eps0': 0, 'kx_p': 0}
+    if len(best) == 3:
+        # chỉ có trạng thái gần nhất, không nội suy được
+        _eps0, _kx, _ = best
+    else:
+        _eps0, _kx = best
+
+    # Đường trung hòa: eps = 0 -> yp_na = -eps0/kx_p
+    if abs(_kx) < 1e-12:
+        yp_na = None  # biến dạng đều, không có đường trung hòa
+    else:
+        yp_na = -_eps0 / _kx
+
+    return {'found': True, 'yp_na': yp_na, 'theta_deg': theta_deg,
+            'ct': ct, 'st': st, 'y_top': y_top, 'y_bot': y_bot,
+            'eps0': _eps0, 'kx_p': _kx}
