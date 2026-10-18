@@ -637,8 +637,12 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     # Nhãn trục thành kích thước t2/t3
     if sec.kind == "rect":
         # Cạnh t2 là đứng (cy), cạnh t3 là ngang (cx) theo quy ước app
-        ax.set_xlabel(f"t3 = {cx:.0f} mm", fontsize=7, weight="bold")
-        ax.set_ylabel(f"t2 = {cy:.0f} mm", fontsize=7, weight="bold")
+        # Đặt sát mép mặt cắt (dùng text thay vì xlabel/ylabel)
+        ax.text(0, -cy/2 - max(cx,cy)*0.04, f"t3 = {cx:.0f} mm",
+                fontsize=7, weight="bold", ha="center", va="top")
+        ax.text(-cx/2 - max(cx,cy)*0.04, 0, f"t2 = {cy:.0f} mm",
+                fontsize=7, weight="bold", ha="right", va="center",
+                rotation=90)
     elif sec.kind == "circle":
         ax.set_xlabel(f"D = {cx:.0f} mm", fontsize=7, weight="bold")
         ax.set_ylabel(f"D = {cx:.0f} mm", fontsize=7, weight="bold")
