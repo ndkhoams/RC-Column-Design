@@ -150,10 +150,14 @@ def render_result_tab(app, config):
     fig_nm.tight_layout()
     cv_nm.draw()
 
-    # Ghi chú dưới biểu đồ N-M
-    for text, color in config.get("notes_nm", []):
-        tk.Label(f_bl, text=text, font=("TkFixedFont", 9), fg=color,
-                 bg="white", wraplength=600, justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
+    # Ghi chú dưới biểu đồ N-M (trong khung viền như TCVN)
+    notes = config.get("notes_nm", [])
+    if notes:
+        box = tk.Frame(f_bl, bg="white", highlightbackground="#E5E7EB", highlightthickness=1)
+        box.pack(fill=tk.X, padx=4, pady=4)
+        for text, color in notes:
+            tk.Label(box, text=text, font=("TkFixedFont", 9), fg=color,
+                     bg="white", wraplength=600, justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
 
     # ===== Ô dưới-phải: biểu đồ M2-M3 =====
     f_br = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB",
