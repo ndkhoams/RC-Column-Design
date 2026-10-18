@@ -491,8 +491,7 @@ class AciMixin:
                          padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             def _vu_txt(c):
-                ci = c.get("combo_info", "")
-                return f"{c['Vu']:.1f} kN" + (f" {ci}" if ci else "")
+                return f"{c['Vu']:.1f} kN"
             rows = [
                 ("Thép đai bố trí",
                  cols['2']['sw_txt'], cols['3']['sw_txt']),
