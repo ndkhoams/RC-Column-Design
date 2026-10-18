@@ -275,7 +275,17 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         except Exception:
             _sec_png2 = None
     if _sec_png2:
-        _simg2 = Image(io.BytesIO(_sec_png2), width=65*mm, height=65*mm)
+        _buf = io.BytesIO(_sec_png2)
+        try:
+            from PIL import Image as _PIL
+            _pil = _PIL.open(_buf)
+            _pw, _ph = _pil.size
+            _buf.seek(0)
+            _hh = 65 * _ph / _pw if _pw > 0 else 65
+        except Exception:
+            _hh = 65
+            _buf.seek(0)
+        _simg2 = Image(_buf, width=65*mm, height=_hh*mm)
         _simg2.hAlign = "CENTER"
         S.append(_simg2)
         S.append(Spacer(1, 4*mm))
