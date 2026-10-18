@@ -2165,8 +2165,8 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             "m2m3_n_text": f"N = {res.N:+.1f} kN",
             "notes_nm": notes,
             "on_nm_angle_change": lambda sel: self._on_tcvn_angle_unified(sel),
-            # Shear: dùng method cũ nếu có, tạm thời None
-            "shear_builder": None,
+            "shear_builder": lambda parent: self._build_stirrup_summary(
+                parent, inp, res, getattr(self, '_tcvn_full', {}) or {}),
         }
         render_result_tab(self, config)
         self._update_ck()
@@ -2372,12 +2372,15 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
 
         # ===== Ô trên-trái: bảng thông số tính toán =====
         f_tr = tk.Frame(self._sum_inner, bg="white",
-                        highlightbackground="#D1D5DB", highlightthickness=1)
+                        highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
+                        highlightthickness=1, takefocus=0)
         f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self._build_param_table(f_tr, inp, res)
 
         # ===== Ô dưới-trái: header + biểu đồ N-M =====
-        f_bl = ttk.Frame(self._sum_inner)
+        f_bl = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
+                        highlightthickness=1, takefocus=0)
         f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
         self._build_nm_header(f_bl, res)
         fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
@@ -2394,7 +2397,9 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             ax, view_angle_deg=va)
 
         # ===== Ô dưới-phải: header + biểu đồ M2-M3 =====
-        f_br = ttk.Frame(self._sum_inner)
+        f_br = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
+                        highlightthickness=1, takefocus=0)
         f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self._build_m2m3_header(f_br, res)
         fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
