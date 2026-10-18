@@ -436,24 +436,23 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
 
     right_flow = []
     try:
-        # Hình vùng nén (giống app) thay cho mặt cắt trơn
+        # Vùng nén (giống app)
         import sys as _sys
         _pdf_exp = _sys.modules.get("rc_column.pdf_export")
         if _pdf_exp is None:
             from rc_column import pdf_export as _pdf_exp
-        _eBN = (ec2_res or {}).get("BN", 0) or 0
-        _eBx = (ec2_res or {}).get("Bx", 0) or 0
-        _eBy = (ec2_res or {}).get("By", 0) or 0
-        _e_na = None
+        _BN = (ec2_res.get("BN", 0) or 0) if isinstance(ec2_res, dict) else 0
+        _Bx = (ec2_res.get("Bx", 0) or 0) if isinstance(ec2_res, dict) else 0
+        _By = (ec2_res.get("By", 0) or 0) if isinstance(ec2_res, dict) else 0
+        _alpha = _m.degrees(_m.atan2(_Bx, _By)) if (abs(_Bx)+abs(_By)) > 1e-9 else 0.0
+        _na = None
         try:
-            from rc_column.ec2_checker import ec2_neutral_axis_at_N
-            _e_alpha = _m.degrees(_m.atan2(_eBx, _eBy)) if (abs(_eBx)+abs(_eBy)) > 1e-9 else 0.0
-            _e_na = ec2_neutral_axis_at_N(sec, conc, steel, _eBN, _e_alpha)
+            from .ec2_checker import ec2_neutral_axis_at_N as _nafn
+            _na = _nafn(sec, conc, steel, _BN, _alpha)
         except Exception:
-            _e_na = None
-        _sec_png = _pdf_exp.compression_zone_image(sec, _eBN, _eBx, _eBy,
-                                                   na_info=_e_na,
-                                                   width_in=2.2, dpi=300)
+            pass
+        _sec_png = _pdf_exp.compression_zone_image(sec, _BN, _Bx, _By,
+                                                   na_info=_na)
         right_flow.append(_centered_img(_sec_png, 52))
         right_flow.append(Spacer(1, 2))
         # 2 biểu đồ EC2 (có tiêu đề)
