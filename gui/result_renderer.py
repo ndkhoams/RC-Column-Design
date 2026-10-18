@@ -80,7 +80,6 @@ def render_result_tab(app, config):
                                  Nmax_kN=_cz.get("Nmax"),
                                  na_info=_cz.get("na_info"))
     else:
-        # Live preview: dùng chung hàm với show_compression=False để style giống hệt
         draw_compression_zone_ax(a1, config["section"],
                                  N_kN=0, M2_kNm=0, M3_kNm=0,
                                  show_compression=False)
