@@ -2361,17 +2361,26 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         self._sum_inner.rowconfigure(0, weight=0)
         self._sum_inner.rowconfigure(1, weight=1)
 
-        # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
+        # ===== Ô trên-phải: vùng nén tiết diện + thẻ thống kê =====
         f_tl = tk.Frame(self._sum_inner, bg="white", highlightbackground="#D1D5DB",
                         highlightthickness=1)
         f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-        tk.Label(f_tl, text="SƠ ĐỒ MẶT CẮT TIẾT DIỆN CỘT",
+        tk.Label(f_tl, text="VÙNG NÉN TIẾT DIỆN",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
         a1 = fig_sec.add_subplot(111)
-        draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
+        from rc_column.pdf_export import draw_compression_zone_ax
+        try:
+            _tBN = getattr(res, "BN", inp.N)
+            _tBx = getattr(res, "Bx", 0)
+            _tBy = getattr(res, "By", 0)
+            _tNmax = getattr(res, "Nmax", abs(_tBN)*2) if hasattr(res, "Nmax") else abs(_tBN)*2
+            draw_compression_zone_ax(a1, sec, N_kN=_tBN, M2_kNm=_tBx, M3_kNm=_tBy,
+                                     Nmax_kN=_tNmax)
+        except Exception:
+            draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
         fig_sec.tight_layout()
         cv_sec.draw()
         self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
