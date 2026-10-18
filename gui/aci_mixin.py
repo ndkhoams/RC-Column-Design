@@ -293,18 +293,22 @@ class AciMixin:
         import math
         # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
         try:
-            for w in self._sum_inner.winfo_children():
+            for w in list(self._sum_inner.winfo_children()):
                 try:
+                    w.grid_forget()
+                    w.pack_forget()
                     w.destroy()
                 except:
                     pass
+            self._sum_inner.update_idletasks()
             # Reset grid
             for i in range(10):
                 try:
-                    self._sum_inner.columnconfigure(i, weight=0)
-                    self._sum_inner.rowconfigure(i, weight=0)
+                    self._sum_inner.columnconfigure(i, weight=0, minsize=0)
+                    self._sum_inner.rowconfigure(i, weight=0, minsize=0)
                 except:
                     pass
+            self._sum_inner.update_idletasks()
         except:
             pass
         sec = self._aci_sec
