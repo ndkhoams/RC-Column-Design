@@ -13,6 +13,7 @@ try:
     HAS_MPL = True
 except Exception:
     HAS_MPL = False
+
 from tkinter import ttk, messagebox
 import math
 from rc_column.checker import ColumnInput, build_section, check_column
@@ -624,6 +625,8 @@ class EtabsMixin:
                     pass  # đã merge
                 # Đồng bộ self._ec2_shear để Detail tab dùng
                 self._ec2_shear = _she
+                print(f"[DEBUG-EC2] _she keys: {list(_she.keys())}")
+                print(f"[DEBUG-EC2] dir2 combo: {_she.get('dir2', {}).get('combo_info', 'MISSING')}")
         except Exception as _exq:
             print(f"[ETABS-EC2] merge combo_info cắt lỗi: {_exq}")
 
