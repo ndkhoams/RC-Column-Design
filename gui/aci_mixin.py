@@ -291,9 +291,19 @@ class AciMixin:
         if not HAS_MPL:
             return
         import math
-        # Xóa toàn bộ nội dung cũ trong _sum_inner (giống TCVN)
-        for w in self._sum_inner.winfo_children():
-            w.destroy()
+        # TRIỆT ĐỂ: Hủy và tạo lại _sum_inner để tránh mọi trùng lặp
+        try:
+            _parent = self._sum_inner.master
+            self._sum_inner.destroy()
+            import tkinter as tk
+            from tkinter import ttk
+            self._sum_inner = ttk.Frame(_parent)
+            self._sum_inner.pack(fill=tk.BOTH, expand=True)
+        except Exception as _e:
+            print(f"[ACI] recreate _sum_inner lỗi: {_e}")
+            # Fallback: xóa thông thường
+            for w in self._sum_inner.winfo_children():
+                w.destroy()
         sec = self._aci_sec
         inp = self._aci_inp
         aci_res = self._aci_res
