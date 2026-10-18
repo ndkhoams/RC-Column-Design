@@ -2250,7 +2250,7 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         # Grid 2x2 trong _sum_inner
         self._sum_inner.columnconfigure(0, weight=1)
         self._sum_inner.columnconfigure(1, weight=1)
-        self._sum_inner.rowconfigure(0, weight=1)
+        self._sum_inner.rowconfigure(0, weight=0)
         self._sum_inner.rowconfigure(1, weight=1)
 
         # ===== Ô trên-phải: sơ đồ mặt cắt + thẻ thống kê =====
