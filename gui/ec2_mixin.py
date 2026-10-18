@@ -148,6 +148,19 @@ class Ec2Mixin:
         try:
             ec2_res = check_column_ec2(sec, conc, steel, N_kN=N,
                                        M2_kNm=MEd2, M3_kNm=MEd3)
+            # Sửa dấu Bx, By theo hướng của M2, M3 gốc (vì MEd đã bị abs())
+            try:
+                _s2 = 1.0 if M2 >= 0 else -1.0
+                _s3 = 1.0 if M3 >= 0 else -1.0
+                # MEd2, MEd3 là trị tuyệt đối, cần nhân với dấu gốc
+                # Bx, By từ check_column_ec2 đang dương, sửa lại dấu
+                if isinstance(ec2_res, dict):
+                    _bx = abs(ec2_res.get("Bx", 0)) * _s2
+                    _by = abs(ec2_res.get("By", 0)) * _s3
+                    ec2_res["Bx"] = _bx
+                    ec2_res["By"] = _by
+            except:
+                pass
             res.update(ec2_res)
             res["M2_mag"] = MEd2
             res["M3_mag"] = MEd3
