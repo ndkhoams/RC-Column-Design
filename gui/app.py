@@ -2089,7 +2089,12 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
 
 
     def _redraw(self):
-        """Tab Kết quả tính toán cho TCVN - dùng unified renderer (thống nhất với ACI/EC2)."""
+        """Tab Kết quả tính toán cho TCVN - dùng bản gốc (ổn định).
+        ACI/EC2 dùng unified renderer. Sẽ migrate TCVN sau khi ổn định."""
+        return self._redraw_old()
+
+    def _redraw_new_unified(self):
+        """[WIP] Bản dùng unified renderer - đang lỗi, chưa dùng."""
         if not HAS_MPL or self._last_sec is None:
             return
         from gui.result_renderer import render_result_tab
