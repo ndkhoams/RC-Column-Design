@@ -364,11 +364,34 @@ class AciMixin:
         def _draw_m2m3(ax):
             draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
 
-        # Notes
+        # Notes đầy đủ như TCVN
         import math
         alpha_deg = aci_res.get("alpha_deg", 0)
+        _ok = aci_res['ok']
+        _okt = "ĐẠT" if _ok else "KHÔNG ĐẠT"
+        _okc = "#059669" if _ok else "#DC2626"
+        # Thông tin combo/vị trí
+        _case = getattr(self, "_pdf_case", None) or {}
+        _parts = []
+        if _case.get("story"): _parts.append(str(_case.get("story")))
+        if _case.get("column"): _parts.append(str(_case.get("column")))
+        if _case.get("case"):
+            _st = _case.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{_case.get('case')}{_st_txt}")
+        _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
+        _mm = getattr(self, "_aci_mm", None) or {}
+        _Mc2 = _mm.get("Mc2", inp.Mx)
+        _Mc3 = _mm.get("Mc3", inp.My)
+        _Ma = math.hypot(_Mc2, _Mc3)
+        _BN = aci_res.get("BN", 0)
+        _Bx = aci_res.get("Bx", 0)
+        _By = aci_res.get("By", 0)
+        _Mb = math.hypot(_Bx, _By)
         notes = [
-            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) — ACI 318-19   D/C = {aci_res['dc']:.3f} → {'ĐẠT' if aci_res['ok'] else 'KHÔNG ĐẠT'}", "#059669"),
+            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) — ACI 318-19   D/C = {aci_res['dc']:.3f} → {_okt}", _okc),
+            (f"● A (điểm tải){_combo_txt}:  N = {inp.N:+.1f} kN,  Mα = {_Ma:.1f} kN×m  (M2 = {_Mc2:.1f}, M3 = {_Mc3:.1f})", "#2563EB"),
+            (f"◆ B (điểm giới hạn):  N = {_BN:+.1f} kN,  Mα,u = {_Mb:.1f} kN×m  (M2u = {_Bx:.1f}, M3u = {_By:.1f})", "#EA580C"),
         ]
 
         config = {
@@ -384,7 +407,8 @@ class AciMixin:
             "m2m3_title": "Mặt cắt M2-M3",
             "m2m3_n_text": f"N = {inp.N:+.1f} kN",
             "notes_nm": notes,
-            "shear_config": None,  # Tạm thời, sẽ bổ sung sau
+            "shear_builder": lambda parent: self._build_aci_shear_summary(
+                parent, inp, sec, conc, steel, getattr(self, '_aci_full', {}) or {}),
         }
         render_result_tab(self, config)
         # Lưu ref cho các chức năng khác
