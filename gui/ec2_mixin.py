@@ -502,8 +502,7 @@ class Ec2Mixin:
                          padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
                 tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
             def _ved_txt(cc):
-                ci = cc.get("combo_info", "")
-                return f"{cc['VEd']:.1f} kN" + (f" {ci}" if ci else "")
+                return f"{cc['VEd']:.1f} kN"
             def _asws_txt(v):
                 if v is None or (isinstance(v, float) and (v != v or v == float("inf"))):
                     return "—"
