@@ -426,23 +426,35 @@ class AciMixin:
     def _on_aci_angle_unified(self, sel):
         """Xử lý chọn góc xem - chỉ vẽ lại biểu đồ N-M (mượt như TCVN)."""
         try:
+            _is_3d = getattr(self, "_aci_is_3d", False)
             if sel == "3D":
+                if _is_3d:
+                    return  # Đã ở 3D, không tạo thêm
                 self._draw_3d_aci()
+                self._aci_is_3d = True
                 return
-            # Lưu góc được chọn
+            # Chọn góc 2D
             if sel.startswith("α"):
                 self._aci_nm_view_angle = None
             else:
                 self._aci_nm_view_angle = float(sel.replace("°", ""))
-            # Chỉ vẽ lại axes N-M, không render lại toàn tab
-            ax = getattr(self, "_nm_ax", None)
-            canvas = getattr(self, "_nm_canvas", None)
-            draw_fn = getattr(self, "_nm_draw_fn", None)
-            if ax is not None and draw_fn is not None:
-                ax.clear()
-                draw_fn(ax)
-                if canvas:
-                    canvas.draw()
+            if _is_3d:
+                # Đang ở 3D, cần render lại toàn tab để về 2D
+                self._aci_is_3d = False
+                self._show_aci_summary()
+                # Khôi phục lựa chọn combobox
+                if hasattr(self, '_nm_angle_cb'):
+                    self._nm_angle_cb.set(sel)
+            else:
+                # Đang ở 2D, chỉ vẽ lại axes (mượt)
+                ax = getattr(self, "_nm_ax", None)
+                canvas = getattr(self, "_nm_canvas", None)
+                draw_fn = getattr(self, "_nm_draw_fn", None)
+                if ax is not None and draw_fn is not None:
+                    ax.clear()
+                    draw_fn(ax)
+                    if canvas:
+                        canvas.draw()
         except Exception as e:
             print(f"[ACI] Lỗi đổi góc xem: {e}")
 
