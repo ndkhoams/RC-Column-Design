@@ -569,3 +569,121 @@ def check_column_aci(sec: Section, conc: ACIConcrete, steel: ACISteel,
             "Bx": r["Bx"], "By": r["By"], "BN": r["BN"],
             "Nn": Nn_b, "Mn": Mn_nom, "eps_t": r["eps_t"],
             "N_cap": cap.N_cap, "Po_nom": cap.Po_nom}
+
+
+def aci_neutral_axis_at_N(sec, conc, steel, N_target_kN: float,
+                          theta_deg: float, tied: bool = True,
+                          n_points: int = 96):
+    """Tìm đường trung hòa chính xác từ fiber model ACI tại (N_target, hướng theta).
+    
+    Dùng cùng logic xây dựng đường cong như aci_interaction_curve.
+    Quy ước góc kiểu ETABS: theta đo từ trục M3.
+    
+    Trả về dict giống neutral_axis_at_N của TCVN:
+    - 'yp_na', 'theta_deg', 'ct', 'st', 'y_top', 'y_bot', 'eps0', 'kx_p', 'found'
+    """
+    import math
+    import numpy as np
+    from rc_column.aci_materials import phi_factor
+
+    th = math.radians(90.0 - theta_deg)
+    ct, st = math.cos(th), math.sin(th)
+    fx = np.array([f.x for f in sec.fibers], dtype=float)
+    fy = np.array([f.y for f in sec.fibers], dtype=float)
+    fa = np.array([f.area for f in sec.fibers], dtype=float)
+    rx = np.array([r.x for r in sec.rebars], dtype=float)
+    ry = np.array([r.y for r in sec.rebars], dtype=float)
+    ra = np.array([r.area for r in sec.rebars], dtype=float)
+
+    if not fx.size:
+        return {'found': False, 'yp_na': None, 'theta_deg': theta_deg,
+                'ct': ct, 'st': st, 'y_top': 0, 'y_bot': 0,
+                'eps0': 0, 'kx_p': 0}
+
+    yp_f = -fx * st + fy * ct
+    yp_r = -rx * st + ry * ct if ra.size else np.array([])
+    y_top = float(np.max(yp_f))
+    y_bot = float(np.min(yp_f))
+    h = y_top - y_bot
+    if h <= 0:
+        return {'found': False, 'yp_na': None, 'theta_deg': theta_deg,
+                'ct': ct, 'st': st, 'y_top': y_top, 'y_bot': y_bot,
+                'eps0': 0, 'kx_p': 0}
+
+    eps_cu = conc.eps_cu
+    b1 = conc.beta1
+    f_block = conc.f_block
+    eps_y = steel.eps_y
+
+    def N_design_at_eps_bot(eps_bot):
+        """Trả về (eps0, kx_p, N_design_kN) tại eps_bot."""
+        kx_p = (eps_cu - eps_bot) / h
+        eps0 = eps_cu - kx_p * y_top
+        eps_top = eps0 + kx_p * y_top
+        if abs(kx_p) < 1e-12:
+            if eps_top >= 0:
+                sf = np.full_like(yp_f, f_block)
+                a_blk = h
+            else:
+                sf = np.zeros_like(yp_f)
+                a_blk = 0.0
+            er = np.full_like(yp_r, eps_top) if yp_r.size else yp_r
+        else:
+            if eps_top <= 0:
+                sf = np.zeros_like(yp_f)
+                a_blk = 0.0
+            else:
+                c = eps_top / kx_p
+                a_blk = b1 * c
+                dist = y_top - yp_f
+                in_block = dist <= a_blk + 1e-9
+                sf = np.where(in_block, f_block, 0.0)
+            er = eps0 + kx_p * yp_r if yp_r.size else yp_r
+        Nf = float(np.sum(sf * fa))
+        if ra.size:
+            sr = np.array([_aci_steel_stress(e, steel) for e in er])
+            if yp_r.size and a_blk > 0.0:
+                dist_r = y_top - yp_r
+                in_blk_r = dist_r <= a_blk + 1e-9
+                sr = np.where(in_blk_r & (sr > 0.0), sr - f_block, sr)
+            eps_t = float(np.max(-er)) if er.size else 0.0
+            Nr = float(np.sum(sr * ra))
+        else:
+            Nr = 0.0
+            eps_t = 0.0
+        N_nom = (Nf + Nr) / 1000.0
+        phi = phi_factor(max(eps_t, 0.0), eps_y, tied)
+        return (eps0, kx_p, N_nom * phi)
+
+    N_target = float(N_target_kN)
+    eps_s_max = max(0.01, 10.0 * eps_y)
+    prev = None
+    best = None
+    for i in range(n_points + 1):
+        frac = i / n_points
+        f2 = frac ** 0.8 if i > 0 else 0.0
+        eps_bot = eps_cu - f2 * (eps_cu + eps_s_max)
+        cur = N_design_at_eps_bot(eps_bot)
+        _N = cur[2]
+        if prev is not None:
+            _pN = prev[2]
+            if (_pN - N_target) * (_N - N_target) <= 0 and abs(_pN - _N) > 1e-12:
+                t = (N_target - _N) / (_pN - _N)
+                _eps0 = cur[0] + t * (prev[0] - cur[0])
+                _kx = cur[1] + t * (prev[1] - cur[1])
+                best = (_eps0, _kx)
+                break
+        if best is None or (len(best) == 3 and abs(_N - N_target) < abs(best[2] - N_target)):
+            best = (cur[0], cur[1], _N)
+        prev = cur
+
+    if best is None:
+        return {'found': False, 'yp_na': None, 'theta_deg': theta_deg,
+                'ct': ct, 'st': st, 'y_top': y_top, 'y_bot': y_bot,
+                'eps0': 0, 'kx_p': 0}
+    _eps0, _kx = best[0], best[1]
+    yp_na = -_eps0 / _kx if abs(_kx) > 1e-12 else None
+
+    return {'found': True, 'yp_na': yp_na, 'theta_deg': theta_deg,
+            'ct': ct, 'st': st, 'y_top': y_top, 'y_bot': y_bot,
+            'eps0': _eps0, 'kx_p': _kx}
