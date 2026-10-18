@@ -298,15 +298,8 @@ class TcvnMixin:
         r1 = tk.Frame(box, bg="white")
         r1.pack(fill=tk.X, pady=1, padx=4)
         tk.Label(r1, text=f"\u25cf \u0110\u01b0\u1eddng bao ki\u1ec3m tra: "
-                          f"N-M\u03b1 (\u03b1 = {alpha_deg:.1f}\u00b0)",
+                          f"N-M\u03b1 (\u03b1 = {alpha_deg:.1f}\u00b0) \u2014 TCVN 5574:2018",
                  font=mono, fg="#059669", bg="white").pack(side=tk.LEFT)
-        okc = "#059669" if res.ok else "#DC2626"
-        okt = "\u0110\u1ea0T" if res.ok else "KH\u00d4NG \u0110\u1ea0T"
-        bgc = "#D1FAE5" if res.ok else "#FEE2E2"
-        fgc = "#065F46" if res.ok else "#991B1B"
-        tk.Label(r1, text=f"  D/C = OA / OB = {res.dc:.3f} \u2192 {okt}  ",
-                 font=("", 10, "bold"), fg=fgc,
-                 bg=bgc).pack(side=tk.LEFT, padx=6)
         # Thêm combo@vị trí
         _case = getattr(self, "_pdf_case", None) or {}
         _parts = []
