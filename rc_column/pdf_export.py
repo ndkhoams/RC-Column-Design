@@ -252,7 +252,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
             weight="bold", va="center", zorder=7)
     ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
             weight="bold", va="center", zorder=7)
-    ax.set_xlabel("Mα (kN·m)", fontsize=10, fontweight="bold")
+    ax.set_xlabel("Mα (kN×m)", fontsize=10, fontweight="bold")
     ax.set_ylabel("N (kN)", fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
     # Bỏ textbox α trong hình (đã có trên tiêu đề) — theo yêu cầu user 2026-10-16
@@ -316,8 +316,8 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
             weight="bold", va="center", zorder=7)
     ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
-    ax.set_xlabel("M2 (kN·m)", fontsize=10, fontweight="bold")
-    ax.set_ylabel("M3 (kN·m)", fontsize=10, fontweight="bold")
+    ax.set_xlabel("M2 (kN×m)", fontsize=10, fontweight="bold")
+    ax.set_ylabel("M3 (kN×m)", fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
     from matplotlib.lines import Line2D as _L2D2
     _leg2 = [
@@ -365,8 +365,8 @@ def surface_3d_image(sec, inp, res, width_in=4.0, dpi=200) -> bytes:
                     edgecolor="none")
     ax.scatter([res.Mx_star], [res.My_star], [res.N], c="red", s=60,
                label="Điểm tải A")
-    ax.set_xlabel("M2 (kN·m)")
-    ax.set_ylabel("M3 (kN·m)")
+    ax.set_xlabel("M2 (kN×m)")
+    ax.set_ylabel("M3 (kN×m)")
     ax.set_zlabel("N (kN)")
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
@@ -398,7 +398,7 @@ def interaction_images(sec, inp, res, width_in=3.4, dpi=300,
                 label="Tia tải O-A-B")
         ax.scatter([lim[1]], [lim[0]], c="orange", s=80, zorder=5,
                    label="Điểm giới hạn B")
-        ax.set_xlabel("M (kN·m)")
+        ax.set_xlabel("M (kN×m)")
         ax.set_ylabel("N (kN)")
         ax.set_title(f"Biểu đồ tương tác {lab}", fontsize=11)
         ax.legend(fontsize=9)
@@ -610,7 +610,7 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
             S.append(P("7. BẢNG TỔNG HỢP KẾT QUẢ KIỂM TRA", st_h))
             S.append(P("Tất cả tổ hợp", st_ref))
             S.append(Spacer(1, 6))
-            hdr = ["Tổ hợp", "N (kN)", "M2 (kN·m)", "M3 (kN·m)", "D/C", "KQ"]
+            hdr = ["Tổ hợp", "N (kN)", "M2 (kN×m)", "M3 (kN×m)", "D/C", "KQ"]
             data = [hdr]
             for f, r in batch_rows:
                 dc = r["dc"]
