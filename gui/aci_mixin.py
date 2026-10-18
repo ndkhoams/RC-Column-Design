@@ -145,17 +145,43 @@ class AciMixin:
             # V2: b=t2(750), d theo t3(500); V3: b=t3(500), d theo t2(750) - khớp hiển thị
             d2_s = sec.cx - cover - sw_dia - 12
             d3_s = sec.cy - cover - sw_dia - 12
-            Av = sw_legs * math.pi * (sw_dia**2) / 4
+            # Av bao ngoài
+            Av_outer = sw_legs * math.pi * (sw_dia**2) / 4
+            sw_txt_base = f"{sw_legs:.0f}φ{sw_dia:.0f} a{sw_s:.0f}"
+            # Tính cho từng phương (đai giữa có thể khác nhau)
+            def _av_params(mdia, ms, mlegs):
+                """Trả về (Av_total, s_eq, sw_txt) với đai giữa."""
+                Av_tot = Av_outer
+                # Av/s tương đương = Σ(Av,i/si)
+                av_s = Av_outer / sw_s if sw_s > 0 else 0.0
+                txt = sw_txt_base
+                try:
+                    md = float(mdia or 0); ss = float(ms or 0); ml = int(mlegs or 0)
+                    if md > 0 and ss > 0 and ml > 0:
+                        Av_mid = ml * math.pi * (md**2) / 4
+                        Av_tot += Av_mid
+                        av_s += Av_mid / ss
+                        txt += f" + {ml:.0f}φ{md:.0f} a{ss:.0f}"
+                except Exception:
+                    pass
+                s_eq = Av_tot / av_s if av_s > 0 else sw_s
+                return Av_tot, s_eq, txt
+            Av2, s2_eq, txt2 = _av_params(getattr(inp, 'swm2_dia', 0),
+                                          getattr(inp, 'swm2_spacing', 0),
+                                          getattr(inp, 'swm2_legs', 0))
+            Av3, s3_eq, txt3 = _av_params(getattr(inp, 'swm3_dia', 0),
+                                          getattr(inp, 'swm3_spacing', 0),
+                                          getattr(inp, 'swm3_legs', 0))
             try:
                 sh2 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
                                      Nu_kN=N, Vu_kN=abs(Q2),
-                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=sw_s, d_mm=d2_s)
+                                     Av_mm2=Av2, fyt_MPa=fyt, s_mm=s2_eq, d_mm=d2_s)
             except Exception:
                 sh2 = {}
             try:
                 sh3 = aci_shear_check(Acv_mm2=Acv, Ag_mm2=Acv, fc_MPa=fc,
                                      Nu_kN=N, Vu_kN=abs(Q3),
-                                     Av_mm2=Av, fyt_MPa=fyt, s_mm=sw_s, d_mm=d3_s)
+                                     Av_mm2=Av3, fyt_MPa=fyt, s_mm=s3_eq, d_mm=d3_s)
             except Exception:
                 sh3 = {}
             res["shear2"] = sh2 or {}
@@ -163,8 +189,8 @@ class AciMixin:
             res["shear"] = {"dir2": sh2 or {}, "dir3": sh3 or {}}
             # Lưu thêm thông số hiển thị (để tab/PDF không phải tính lại)
             res["shear_disp"] = {
-                "2": {"b": sec.cx, "d": d2_s, "Av": Av, "Vu": abs(Q2), "sw_txt": f"{sw_legs}φ{sw_dia} a{sw_s}"},
-                "3": {"b": sec.cy, "d": d3_s, "Av": Av, "Vu": abs(Q3), "sw_txt": f"{sw_legs}φ{sw_dia} a{sw_s}"},
+                "2": {"b": sec.cx, "d": d2_s, "Av": Av2, "Vu": abs(Q2), "sw_txt": txt2},
+                "3": {"b": sec.cy, "d": d3_s, "Av": Av3, "Vu": abs(Q3), "sw_txt": txt3},
             }
         except Exception:
             res["shear2"] = {}
@@ -428,9 +454,8 @@ class AciMixin:
         _card(row1, "Hàm lượng μ", vals["mu"])
 
     def _build_aci_shear_summary(self, parent, inp, sec, conc, steel, full_res=None):
-        """2 card kiểm tra khả năng chịu cắt ACI: Phương V2 | Phương V3 (giống TCVN).
+        """Bảng kiểm tra khả năng chịu cắt ACI: Phương V2 | Phương V3.
         CHỈ hiển thị từ full_res (đã tính bởi _aci_calculate_full), KHÔNG tính lại."""
-        from rc_column.report_widgets import _param_card, _grid2
         # Lấy kết quả đã tính sẵn từ _aci_calculate_full - KHÔNG tính lại
         _fr = full_res or {}
         _sh2 = _fr.get("shear2") or {}
@@ -439,42 +464,73 @@ class AciMixin:
         _d2 = _disp.get("2") or {}
         _d3 = _disp.get("3") or {}
         try:
-            grid = _grid2(parent)
-            row = 0
+            cols = {}
+            # Đọc trực tiếp từ kết quả đã tính, không gọi aci_shear_check
             for lbl, sh, dp in (("2", _sh2, _d2), ("3", _sh3, _d3)):
-                Vu = dp.get("Vu", 0)
-                b = dp.get("b", 0)
-                d = dp.get("d", 0)
-                Av = dp.get("Av", 0)
-                Vc = sh.get("Vc_kN", 0)
-                Vs = sh.get("Vs_kN", 0)
-                phiVn = sh.get("phi_Vn_kN", 0)
-                ok = sh.get("ok", False)
-                sw_txt = dp.get("sw_txt", "")
-                # Combo info nếu có trong full_res
-                _combo = dp.get("combo_info", "") or sh.get("combo_info", "")
-                _qinfo = f" {_combo}" if _combo else ""
-                mark = "✓" if ok else "✗"
-                lines = [
-                    f"Vu = {Vu:.1f} kN{_qinfo}",
-                    f"b = {b:.0f} mm, d = {d:.0f} mm",
-                    f"Av = {sw_txt} = {Av:.0f} mm²",
-                    f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]·bw·d (ACI 22.5.5)",
-                    f"  = {Vc:.1f} kN",
-                    f"Vs = Av·fyt·d/s (ACI 22.5.8)",
-                    f"  = {Vs:.1f} kN",
-                    f"φVn = φ·(Vc+Vs) ≤ φ·(Vc+0.66√f'c·bw·d)",
-                    f"  = {phiVn:.1f} kN",
-                    f"{mark} So sánh: Vu = {Vu:.1f} kN "
-                    f"{'≤' if Vu <= phiVn else '>'} φVn = {phiVn:.1f} kN",
-                ]
-                c = _param_card(grid, f"Kiểm tra chịu cắt phương {lbl}",
-                                "ACI 318-19 §22.5", lines,
-                                "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
-                c.grid(row=row, column=int(lbl) - 2, sticky="nsew", padx=4, pady=4)
+                cols[lbl] = dict(
+                    Vu=dp.get("Vu", 0),
+                    b=dp.get("b", 0),
+                    d=dp.get("d", 0),
+                    Av=dp.get("Av", 0),
+                    Vc=sh.get("Vc_kN", 0),
+                    Vs=sh.get("Vs_kN", 0),
+                    phiVn=sh.get("phi_Vn_kN", 0),
+                    ok=sh.get("ok", False),
+                    sw_txt=dp.get("sw_txt", ""),
+                    combo_info=dp.get("combo_info", "") or sh.get("combo_info", ""),
+                )
+
+            tf = tk.Frame(parent, bg="white")
+            tf.pack(fill=tk.X, padx=8, pady=6)
+            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT", "Phương V2", "Phương V3"]
+            for j, h in enumerate(headers):
+                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
+                         fg="#111827", borderwidth=0,
+                         highlightthickness=0,
+                         anchor="w" if j == 0 else "center",
+                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
+                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
+            def _vu_txt(c):
+                ci = c.get("combo_info", "")
+                return f"{c['Vu']:.1f} kN" + (f" {ci}" if ci else "")
+            rows = [
+                ("Thép đai bố trí",
+                 cols['2']['sw_txt'], cols['3']['sw_txt']),
+                ("Lực cắt tính toán, Vu",
+                 _vu_txt(cols['2']), _vu_txt(cols['3'])),
+                ("Kích thước tiết diện, b × d",
+                 f"{cols['2']['b']:.0f} × {cols['2']['d']:.0f} mm",
+                 f"{cols['3']['b']:.0f} × {cols['3']['d']:.0f} mm"),
+                ("Av = n × φ",
+                 f"{cols['2']['Av']:.0f} mm²", f"{cols['3']['Av']:.0f} mm²"),
+                ("Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]×bw×d (ACI 22.5.5)",
+                 f"{cols['2']['Vc']:.1f} kN", f"{cols['3']['Vc']:.1f} kN"),
+                ("Vs = Av×fyt×d/s (ACI 22.5.8)",
+                 f"{cols['2']['Vs']:.1f} kN", f"{cols['3']['Vs']:.1f} kN"),
+                ("φVn = φ×(Vc+Vs) ≤ φ×(Vc+0.66√f'c×bw×d)",
+                 f"{cols['2']['phiVn']:.1f} kN", f"{cols['3']['phiVn']:.1f} kN"),
+                ("Kết luận",
+                 "ĐẠT" if cols['2']['ok'] else "KHÔNG ĐẠT",
+                 "ĐẠT" if cols['3']['ok'] else "KHÔNG ĐẠT"),
+            ]
+            for i, (a, b, cc) in enumerate(rows):
+                bg = "#F9FAFB" if i % 2 else "white"
+                is_kl = (a == "Kết luận")
+                for j, t in enumerate((a, b, cc)):
+                    fw = ("", 9)  # nội dung bảng không in đậm
+                    fg = "#1F2937"
+                    if is_kl and j > 0:
+                        fg = "#065F46" if t == "ĐẠT" else "#991B1B"
+                        fw = ("", 9, "bold")  # kết quả in đậm
+                    tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
+                             borderwidth=0, highlightthickness=0,
+                             padx=6, pady=6, anchor="w" if j == 0
+                             else "center").grid(row=i + 1, column=j,
+                                                 sticky="nsew")
         except Exception as e:
             tk.Label(parent, text=f"Không tính được chịu cắt: {e}",
                      fg="#991B1B", bg="white").pack(padx=8, pady=4)
+
 
     def _build_aci_param_table(self, parent, inp, aci_res, mm_res):
         """Bảng thông số tính toán ACI (Treeview 3 cột)."""
@@ -512,13 +568,13 @@ class AciMixin:
             ("N", "Lực dọc tính toán",
              f"{inp.N:+.1f} kN"),
             ("M2", "Mô men phương 2",
-             f"{inp.Mx:.1f} kN·m"),
+             f"{inp.Mx:.1f} kN×m"),
             ("M3", "Mô men phương 3",
-             f"{inp.My:.1f} kN·m"),
+             f"{inp.My:.1f} kN×m"),
             ("α", "Góc tác dụng mô men",
              f"{alpha_deg:.1f} °"),
             ("Mα", "Mô men tổng hợp",
-             f"{Ma:.1f} kN·m"),
+             f"{Ma:.1f} kN×m"),
             ("e2", "Độ lệch tâm phương 2 (M2/N)",
              f"{abs(inp.Mx/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
             ("e3", "Độ lệch tâm phương 3 (M3/N)",
@@ -532,9 +588,9 @@ class AciMixin:
             ("δns", "Hệ số phóng đại mô men (ACI 6.6.4)",
              delta_txt),
             ("M2*", "Mô men tính toán phương 2 (đã phóng đại)",
-             f"{mm_res.get('Mc2', aci_res.get('M2_mag', inp.Mx)) if mm_res else aci_res.get('M2_mag', inp.Mx):.1f} kN·m"),
+             f"{mm_res.get('Mc2', aci_res.get('M2_mag', inp.Mx)) if mm_res else aci_res.get('M2_mag', inp.Mx):.1f} kN×m"),
             ("M3*", "Mô men tính toán phương 3 (đã phóng đại)",
-             f"{mm_res.get('Mc3', aci_res.get('M3_mag', inp.My)) if mm_res else aci_res.get('M3_mag', inp.My):.1f} kN·m"),
+             f"{mm_res.get('Mc3', aci_res.get('M3_mag', inp.My)) if mm_res else aci_res.get('M3_mag', inp.My):.1f} kN×m"),
             ("NB", "Lực dọc tại điểm giới hạn B (trên tia tải)",
              f"{aci_res.get('BN', 0):+.1f} kN"),
             ("φPn,max", "Nén đúng tâm lớn nhất (ACI 22.4.2)",
@@ -687,12 +743,12 @@ class AciMixin:
         tk.Label(box, bg="white",
                  text=f"● A (điểm tải){_combo_txt}:  "
                       f"N = {inp.N:+.1f} kN,  "
-                      f"Mα = {Ma:.1f} kN·m  "
+                      f"Mα = {Ma:.1f} kN×m  "
                       f"(M2 = {inp.Mx:.1f}, M3 = {inp.My:.1f})",
                  font=mono, fg="#2563EB").pack(anchor="w", pady=1)
         tk.Label(box, bg="white",
                  text=f"◆ B (điểm giới hạn):  "
-                      f"N = {aci_res['BN']:+.1f} kN,  Mα,u = {Mb:.1f} kN·m  "
+                      f"N = {aci_res['BN']:+.1f} kN,  Mα,u = {Mb:.1f} kN×m  "
                       f"(M2u = {aci_res['Bx']:.1f}, M3u = {aci_res['By']:.1f})",
                  font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
@@ -774,8 +830,8 @@ class AciMixin:
                                color='red', s=50, label='Điểm tải A')
                     ax.legend()
                 # (bỏ title theo yêu cầu)
-            ax.set_xlabel('M2 (kN·m)')
-            ax.set_ylabel('M3 (kN·m)')
+            ax.set_xlabel('M2 (kN×m)')
+            ax.set_ylabel('M3 (kN×m)')
             ax.set_zlabel('N (kN)')
             fig.tight_layout()
             self._aci_nm_cv_ref.draw()
