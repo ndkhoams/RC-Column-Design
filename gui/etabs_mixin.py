@@ -332,6 +332,25 @@ class EtabsMixin:
                 tied=tied, fyt=_fytw, fc=_fcw)
             # Lưu full result
             self._aci_full = _full_w
+            # Merge combo info cho cắt (giống TCVN): ACI dùng Q của worst combo
+            try:
+                _qp = []
+                if getattr(worst_f, "story", ""):
+                    _qp.append(str(worst_f.story))
+                if getattr(worst_f, "column", ""):
+                    _qp.append(str(worst_f.column))
+                _qp.append(f"{worst_f.case}@{worst_f.station:.2f}")
+                _qinfo = "[" + ", ".join(_qp) + "]"
+                _shd = _full_w.get("shear_disp") or {}
+                for _k in ("2", "3"):
+                    if isinstance(_shd.get(_k), dict):
+                        _shd[_k]["combo_info"] = _qinfo
+                _sh = _full_w.get("shear") or {}
+                for _k in ("dir2", "dir3"):
+                    if isinstance(_sh.get(_k), dict):
+                        _sh[_k]["combo_info"] = _qinfo
+            except Exception as _exq:
+                print(f"[ETABS-ACI] merge combo_info cắt lỗi: {_exq}")
             # Tương thích ngược
             self._aci_sec = _secw
             self._aci_conc = conc
@@ -580,6 +599,29 @@ class EtabsMixin:
                 self._fill_etabs_table(rows)
         except Exception as _exu:
             print(f"[ETABS-EC2] cập nhật worst_r lỗi: {_exu}")
+        # Merge combo info cho cắt (giống TCVN): EC2 dùng Q từ combo max |Q|
+        try:
+            _full_e = getattr(self, "_ec2_full", None)
+            if _full_e is not None:
+                _fq2 = max(self.etabs_forces, key=lambda f: abs(f.Q2))
+                _fq3 = max(self.etabs_forces, key=lambda f: abs(f.Q3))
+
+                def _qi(_f):
+                    _p = []
+                    if getattr(_f, "story", ""):
+                        _p.append(str(_f.story))
+                    if getattr(_f, "column", ""):
+                        _p.append(str(_f.column))
+                    _p.append(f"{_f.case}@{_f.station:.2f}")
+                    return "[" + ", ".join(_p) + "]"
+
+                _she = _full_e.get("shear") or {}
+                if isinstance(_she.get("dir2"), dict):
+                    _she["dir2"]["combo_info"] = _qi(_fq2)
+                if isinstance(_she.get("dir3"), dict):
+                    _she["dir3"]["combo_info"] = _qi(_fq3)
+        except Exception as _exq:
+            print(f"[ETABS-EC2] merge combo_info cắt lỗi: {_exq}")
 
     def on_check_etabs(self):
         if not self.etabs_forces:
