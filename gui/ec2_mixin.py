@@ -826,17 +826,18 @@ class Ec2Mixin:
                  font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
     def _create_ec2_detail_figs(self):
-        """Tạo 2 fig biểu đồ cho tab Chi tiết từ data tính toán chung."""
+        """Tạo 3 fig biểu đồ cho tab Chi tiết từ data tính toán chung (thêm vùng nén)."""
         try:
             from matplotlib.figure import Figure
             from rc_column.ec2_chart_draw import draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax
+            from rc_column.pdf_export import draw_compression_zone_ax
             sec = getattr(self, "_ec2_sec", None)
             inp = getattr(self, "_ec2_inp", None)
             ec2_res = getattr(self, "_ec2_res", None)
             conc = getattr(self, "_ec2_conc", None)
             steel = getattr(self, "_ec2_steel", None)
             if not all([sec, inp, ec2_res, conc, steel]):
-                return (None, None)
+                return (None, None, None)
             M2m = ec2_res.get("M2_mag", inp.Mx)
             M3m = ec2_res.get("M3_mag", inp.My)
             fig1 = Figure(figsize=(5.2, 3.9), dpi=100)
@@ -847,10 +848,20 @@ class Ec2Mixin:
             ax2 = fig2.add_subplot(111)
             draw_ec2_m2m3_ax(ax2, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
             fig2.tight_layout()
-            return (fig1, fig2)
+            # Fig vùng nén
+            fig3 = Figure(figsize=(5.2, 3.9), dpi=100)
+            ax3 = fig3.add_subplot(111)
+            _BN = ec2_res.get("BN", inp.N) if isinstance(ec2_res, dict) else inp.N
+            _BM2 = ec2_res.get("Bx", M2m) if isinstance(ec2_res, dict) else M2m
+            _BM3 = ec2_res.get("By", M3m) if isinstance(ec2_res, dict) else M3m
+            _Nmax = abs(_BN) * 2
+            draw_compression_zone_ax(ax3, sec, N_kN=_BN, M2_kNm=_BM2, M3_kNm=_BM3,
+                                     Nmax_kN=_Nmax, title="Vùng nén tại điểm B")
+            fig3.tight_layout()
+            return (fig1, fig2, fig3)
         except Exception as e:
             print(f"[EC2] Lỗi tạo fig detail: {e}")
-            return (None, None)
+            return (None, None, None)
 
     def _render_ec2_report(self, sections):
         """Hiển thị thuyết minh EC2 trong tab Chi tiết tính toán (dùng chung renderer TCVN)."""
