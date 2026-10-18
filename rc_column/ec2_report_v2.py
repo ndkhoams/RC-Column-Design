@@ -249,8 +249,9 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                  f"✓ Bước đai (9.5.3(3)): yêu cầu ≤ min(20×{_dia_max:.0f}, min(b,h), 400) = {min(20*_dia_max, min(cx, cy), 400):.0f} mm, chọn {_sw_s:.0f} mm"],
                 "")
     def _sh_card(d: Dict[str, Any], VEd: float, lbl: str):
+        _dnum = "2" if "V2" in lbl else "3"
         if not d:
-            return _mk(f"Phương {lbl}", "", ["—"], "")
+            return _mk(f"Kiểm tra chịu cắt phương {_dnum}", "", ["—"], "")
         VRd_c = d.get("VRd_c_kN", 0.0) or 0.0
         VRd_max = d.get("VRd_max_kN", 0.0) or 0.0
         VRd_s = d.get("VRd_s_kN", 0.0) or 0.0
@@ -262,17 +263,39 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         scp = d.get("sigma_cp", 0.0) or 0.0
         z_mm = d.get("z_mm", 0.0) or 0.0
         asw_req = d.get("Asw_s_req", 0.0) or 0.0
+        # Thông tin đai (bao + giữa) từ inp
+        _sw_dia = getattr(inp, "sw_dia", 10) or 10
+        _sw_s = getattr(inp, "sw_spacing", 200) or 200
+        _sw_legs = getattr(inp, "sw_legs", 2) or 2
+        if _dnum == "2":
+            _mdia = getattr(inp, "swm2_dia", 0) or 0
+            _ms = getattr(inp, "swm2_spacing", 0) or 0
+            _mlegs = getattr(inp, "swm2_legs", 0) or 0
+        else:
+            _mdia = getattr(inp, "swm3_dia", 0) or 0
+            _ms = getattr(inp, "swm3_spacing", 0) or 0
+            _mlegs = getattr(inp, "swm3_legs", 0) or 0
+        _Asw_outer = _sw_legs * math.pi * (_sw_dia ** 2) / 4
+        _Asw_mid = _mlegs * math.pi * (_mdia ** 2) / 4 if _mdia > 0 else 0.0
+        _Asw_tot = _Asw_outer + _Asw_mid
+        if _Asw_mid > 0:
+            _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f} + {_mlegs}φ{_mdia:.0f} a{_ms:.0f}"
+        else:
+            _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        _mark = "✓" if ok else "✗"
         _lines = [f"VEd = {_f(VEd, 1)} kN",
-                  f"VRd,c = [CRd,c·k·(100·ρl·fck)^(1/3) + k1·σcp]·bw·d",
+                  f"bw = {bw:.0f} mm, d = {deff:.0f} mm",
+                  f"Asw = {_sw_txt} = {_Asw_tot:.0f} mm²",
+                  f"VRd,c = [CRd,c×k×(100×ρl×fck)^(1/3) + k1×σcp]×bw×d",
                   f"= [0.12×{_f(k, 2)}×(100×{_f(rho, 4)}×{_f(fck, 0)})^(1/3) + 0.15×{_f(scp, 2)}]×{_f(bw, 0)}×{_f(deff, 0)}/1000",
                   f"= {_f(VRd_c, 1)} kN",
-                  f"VRd,max = αcw·bw·z·ν1·fcd/(cotθ+tanθ) = {_f(VRd_max, 1)} kN",
-                  f"VRd,s = (Asw/s)·z·fywd·cotθ (θ=45°) = {_f(VRd_s, 1)} kN",
-                  f"Asw/s yêu cầu = VEd/(z·fywd·cotθ) = {_f(asw_req, 3)} mm²/mm"]
+                  f"VRd,max = αcw×bw×z×ν1×fcd/(cotθ+tanθ) = {_f(VRd_max, 1)} kN",
+                  f"VRd,s = (Asw/s)×z×fywd×cotθ (θ=45°) = {_f(VRd_s, 1)} kN",
+                  f"Asw/s yêu cầu = VEd/(z×fywd×cotθ) = {_f(asw_req, 3)} mm²/mm"]
         _VRd = max(VRd_c, VRd_s)
         _lines.append(f"→ VRd = max(VRd,c, VRd,s) = {_f(_VRd, 1)} kN")
-        _lines.append(f"VEd = {_f(VEd, 1)} {'≤' if VEd <= _VRd else '>'} VRd = {_f(_VRd, 1)} kN")
-        return _mk(f"Phương {lbl} (VEd = {_f(VEd, 1)} kN)", "EC2 6.2",
+        _lines.append(f"{_mark} So sánh: VEd = {_f(VEd, 1)} kN {'≤' if VEd <= _VRd else '>'} VRd = {_f(_VRd, 1)} kN")
+        return _mk(f"Kiểm tra chịu cắt phương {_dnum}", "EC2 6.2",
                     _lines,
                     "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
 
