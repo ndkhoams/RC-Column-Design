@@ -159,18 +159,43 @@ class Ec2Mixin:
             res.update({"dc": float("nan"), "ok": False, "error": str(ex)})
 
         # 5. Cắt mỗi phương (EC2 6.2)
+        # Asw/s = Σ(Asw,i/si) cho đai bao + đai giữa (nếu khác spacing)
         try:
             sw_dia = getattr(inp, "sw_dia", 8.0) or 8.0
             sw_s = getattr(inp, "sw_spacing", 200.0) or 200.0
             sw_legs = getattr(inp, "sw_legs", 2) or 2
-            Asw = sw_legs * bar_area(sw_dia)
-            Asw_s = Asw / sw_s if sw_s > 0 else 0.0
+            Asw_outer = sw_legs * bar_area(sw_dia)
+            Asw_s_outer = Asw_outer / sw_s if sw_s > 0 else 0.0
+            sw_txt_base = f"{sw_legs:.0f}φ{sw_dia:.0f} a{sw_s:.0f}"
+            def _asw_params(mdia, ms, mlegs):
+                """Trả về (Asw_total, Asw_s_total, sw_txt)."""
+                Atot = Asw_outer
+                a_s = Asw_s_outer
+                txt = sw_txt_base
+                try:
+                    md = float(mdia or 0); ss = float(ms or 0); ml = int(mlegs or 0)
+                    if md > 0 and ss > 0 and ml > 0:
+                        Am = ml * bar_area(md)
+                        Atot += Am
+                        a_s += Am / ss
+                        txt += f" + {ml:.0f}φ{md:.0f} a{ss:.0f}"
+                except Exception:
+                    pass
+                return Atot, a_s, txt
+            # dir2 dùng đai giữa t2, dir3 dùng đai giữa t3
+            Asw2, Asw_s2, txt2 = _asw_params(getattr(inp, "swm2_dia", 0),
+                                             getattr(inp, "swm2_spacing", 0),
+                                             getattr(inp, "swm2_legs", 0))
+            Asw3, Asw_s3, txt3 = _asw_params(getattr(inp, "swm3_dia", 0),
+                                             getattr(inp, "swm3_spacing", 0),
+                                             getattr(inp, "swm3_legs", 0))
             fyd_sw = fyk_sw / 1.15
             dia_max = max((r.dia for r in sec.rebars), default=20.0)
             Asl = As / 2.0
             shear = {}
-            for Vu, lbl, bw, h_dim in ((abs(Q2), "dir2", cy, cx),
-                                       (abs(Q3), "dir3", cx, cy)):
+            for Vu, lbl, bw, h_dim, Asw_s, Atot, txt in (
+                    (abs(Q2), "dir2", cy, cx, Asw_s2, Asw2, txt2),
+                    (abs(Q3), "dir3", cx, cy, Asw_s3, Asw3, txt3)):
                 d = h_dim - inp.cover - sw_dia - dia_max / 2.0
                 shear[lbl] = ec2_shear_check(
                     bw_mm=bw, d_mm=max(d, 0.5 * h_dim), Ac_mm2=Ac,
@@ -180,6 +205,8 @@ class Ec2Mixin:
                 shear[lbl]["bw"] = bw
                 shear[lbl]["d"] = d
                 shear[lbl]["VEd"] = Vu
+                shear[lbl]["Asw"] = Atot
+                shear[lbl]["sw_txt"] = txt
             res["shear2"] = shear.get("dir2", {})
             res["shear3"] = shear.get("dir3", {})
             res["shear"] = shear
@@ -439,61 +466,88 @@ class Ec2Mixin:
         _card(row1, "Hàm lượng μ", vals["mu"])
 
     def _build_ec2_shear_summary(self, parent, inp, sec, conc, steel, full_res=None):
-        """2 card kiểm tra khả năng chịu cắt EC2: Phương V2 | Phương V3 (giống TCVN).
+        """Bảng kiểm tra khả năng chịu cắt EC2: Phương V2 | Phương V3.
         CHỈ hiển thị từ full_res (đã tính bởi _ec2_calculate_full), KHÔNG tính lại."""
-        from rc_column.report_widgets import _param_card, _grid2
         try:
             # Ưu tiên full_res, fallback về _ec2_shear (tương thích cũ)
             _fr = full_res or {}
             shear = _fr.get("shear") or getattr(self, "_ec2_shear", None) or {}
-            try:
-                sw_dia = float(getattr(inp, "sw_dia", 8) or 8)
-                sw_s = float(getattr(inp, "sw_spacing", 200) or 200)
-                sw_legs = int(getattr(inp, "sw_legs", 2) or 2)
-            except Exception:
-                sw_dia, sw_s, sw_legs = 8.0, 200.0, 2
-            sw_txt = f"{sw_legs:.0f}φ{sw_dia:.0f} a{sw_s:.0f}"
-            grid = _grid2(parent)
-            row = 0
-            for lbl, qv in (("2", abs(inp.Q2)), ("3", abs(inp.Q3))):
-                sr = shear.get("dir2" if lbl == "2" else "dir3", {}) or {}
-                Vu = qv
-                bw = sr.get("bw", 0.0)
-                d = sr.get("d", 0.0)
-                VRdc = sr.get("VRd_c_kN", 0.0)
-                VRdmax = sr.get("VRd_max_kN", 0.0)
-                VRds = sr.get("VRd_s_kN", 0.0)
-                VRd = sr.get("VRd_kN", 0.0)
-                Asws = sr.get("Asw_s_req", 0.0)
-                ok = bool(sr.get("ok", False))
-                # Combo info nếu có trong full_res
+            cols = {}
+            for lbl, key in (("2", "dir2"), ("3", "dir3")):
+                sr = shear.get(key, {}) or {}
                 _combo = sr.get("combo_info", "")
-                _qinfo = f" {_combo}" if _combo else ""
-                mark = "✓" if ok else "✗"
-                _asws_txt = ("—" if Asws is None or (isinstance(Asws, float)
-                             and (Asws != Asws or Asws == float("inf")))
-                             else f"{Asws:.3f} mm²/mm")
-                lines = [
-                    f"VEd = {Vu:.1f} kN{_qinfo}",
-                    f"bw = {bw:.0f} mm, d = {d:.0f} mm",
-                    f"Thép đai: {sw_txt}",
-                    f"VRd,c = [CRd,c·k·(100ρl·fck)⅓ + k1·σcp]·bw·d",
-                    f"  = {VRdc:.1f} kN",
-                    f"VRd,max = αcw·bw·z·ν1·fcd/(cotθ+tanθ)",
-                    f"  = {VRdmax:.1f} kN",
-                    f"VRd,s = (Asw/s)·z·fywd·cotθ (θ=45°)",
-                    f"  = {VRds:.1f} kN",
-                    f"Asw/s yêu cầu = VEd/(z·fywd·cotθ) = {_asws_txt}",
-                    f"{mark} So sánh: VEd = {Vu:.1f} kN "
-                    f"{'≤' if Vu <= VRd else '>'} VRd = {VRd:.1f} kN",
-                ]
-                c = _param_card(grid, f"Kiểm tra chịu cắt phương {lbl}",
-                                "EN 1992-1-1 §6.2", lines,
-                                "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
-                c.grid(row=row, column=int(lbl) - 2, sticky="nsew", padx=4, pady=4)
+                cols[lbl] = dict(
+                    VEd=sr.get("VEd", 0.0),
+                    bw=sr.get("bw", 0.0),
+                    d=sr.get("d", 0.0),
+                    Asw=sr.get("Asw", 0.0),
+                    sw_txt=sr.get("sw_txt", ""),
+                    VRdc=sr.get("VRd_c_kN", 0.0),
+                    VRdmax=sr.get("VRd_max_kN", 0.0),
+                    VRds=sr.get("VRd_s_kN", 0.0),
+                    VRd=sr.get("VRd_kN", 0.0),
+                    Asws=sr.get("Asw_s_req", 0.0),
+                    ok=bool(sr.get("ok", False)),
+                    combo_info=_combo,
+                )
+
+            tf = tk.Frame(parent, bg="white")
+            tf.pack(fill=tk.X, padx=8, pady=6)
+            headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT", "Phương V2", "Phương V3"]
+            for j, h in enumerate(headers):
+                tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
+                         fg="#111827", borderwidth=0,
+                         highlightthickness=0,
+                         anchor="w" if j == 0 else "center",
+                         padx=6, pady=7).grid(row=0, column=j, sticky="nsew")
+                tf.columnconfigure(j, weight=2 if j == 0 else 1, uniform="sw")
+            def _ved_txt(cc):
+                ci = cc.get("combo_info", "")
+                return f"{cc['VEd']:.1f} kN" + (f" {ci}" if ci else "")
+            def _asws_txt(v):
+                if v is None or (isinstance(v, float) and (v != v or v == float("inf"))):
+                    return "—"
+                return f"{v:.3f} mm²/mm"
+            rows = [
+                ("Thép đai bố trí",
+                 cols['2']['sw_txt'], cols['3']['sw_txt']),
+                ("Lực cắt tính toán, VEd",
+                 _ved_txt(cols['2']), _ved_txt(cols['3'])),
+                ("Kích thước tiết diện, bw × d",
+                 f"{cols['2']['bw']:.0f} × {cols['2']['d']:.0f} mm",
+                 f"{cols['3']['bw']:.0f} × {cols['3']['d']:.0f} mm"),
+                ("Asw = n × φ",
+                 f"{cols['2']['Asw']:.0f} mm²", f"{cols['3']['Asw']:.0f} mm²"),
+                ("VRd,c = [CRd,c×k×(100ρl×fck)⅓ + k1×σcp]×bw×d",
+                 f"{cols['2']['VRdc']:.1f} kN", f"{cols['3']['VRdc']:.1f} kN"),
+                ("VRd,max = αcw×bw×z×ν1×fcd/(cotθ+tanθ)",
+                 f"{cols['2']['VRdmax']:.1f} kN", f"{cols['3']['VRdmax']:.1f} kN"),
+                ("VRd,s = (Asw/s)×z×fywd×cotθ (θ=45°)",
+                 f"{cols['2']['VRds']:.1f} kN", f"{cols['3']['VRds']:.1f} kN"),
+                ("Asw/s yêu cầu",
+                 _asws_txt(cols['2']['Asws']), _asws_txt(cols['3']['Asws'])),
+                ("Kết luận",
+                 "ĐẠT" if cols['2']['ok'] else "KHÔNG ĐẠT",
+                 "ĐẠT" if cols['3']['ok'] else "KHÔNG ĐẠT"),
+            ]
+            for i, (a, b, cc) in enumerate(rows):
+                bg = "#F9FAFB" if i % 2 else "white"
+                is_kl = (a == "Kết luận")
+                for j, t in enumerate((a, b, cc)):
+                    fw = ("", 9)
+                    fg = "#1F2937"
+                    if is_kl and j > 0:
+                        fg = "#065F46" if t == "ĐẠT" else "#991B1B"
+                        fw = ("", 9, "bold")
+                    tk.Label(tf, text=t, font=fw, bg=bg, fg=fg,
+                             borderwidth=0, highlightthickness=0,
+                             padx=6, pady=6, anchor="w" if j == 0
+                             else "center").grid(row=i + 1, column=j,
+                                                 sticky="nsew")
         except Exception as e:
             tk.Label(parent, text=f"Không tính được chịu cắt: {e}",
                      fg="#991B1B", bg="white").pack(padx=8, pady=4)
+
 
     def _build_ec2_param_table(self, parent, inp, ec2_res, slend):
         """Bảng thông số tính toán EC2 (Treeview 3 cột)."""
@@ -539,16 +593,16 @@ class Ec2Mixin:
             ("NEd", "Lực dọc thiết kế",
              f"{inp.N:+.1f} kN"),
             ("MEd2", "Mô men thiết kế phương 2 (gồm bậc 2)",
-             f"{M2m:.1f} kN·m"),
+             f"{M2m:.1f} kN×m"),
             ("MEd3", "Mô men thiết kế phương 3 (gồm bậc 2)",
-             f"{M3m:.1f} kN·m"),
+             f"{M3m:.1f} kN×m"),
             ("α", "Góc tác dụng mô men",
              f"{alpha_deg:.1f} °"),
             ("Mα", "Mô men tổng hợp",
-             f"{Ma:.1f} kN·m"),
+             f"{Ma:.1f} kN×m"),
             ("fck", "Cường độ nén đặc trưng",
              f"{conc.fck:g} MPa"),
-            ("fcd", "Cường độ nén tính toán (αcc·fck/γc)",
+            ("fcd", "Cường độ nén tính toán (αcc×fck/γc)",
              f"{conc.fcd:.2f} MPa"),
             ("Ecm", "Mô đun đàn hồi cát tuyến",
              f"{conc.Ecm:.0f} MPa"),
@@ -561,9 +615,9 @@ class Ec2Mixin:
             ("e3", "Độ lệch tâm phương 3 (MEd3/NEd)",
              f"{abs(M3m/inp.N*1000):.1f} mm" if abs(inp.N) > 1e-9 else "—"),
             ("M2_0", "Mô men bậc 1 phương 2",
-             f"{inp.Mx:.1f} kN·m"),
+             f"{inp.Mx:.1f} kN×m"),
             ("M3_0", "Mô men bậc 1 phương 3",
-             f"{inp.My:.1f} kN·m"),
+             f"{inp.My:.1f} kN×m"),
             ("N_Rd,max", "Nén đúng tâm lớn nhất",
              f"{ec2_res.get('N_Rd_max', 0):.1f} kN"),
         ]
@@ -710,12 +764,12 @@ class Ec2Mixin:
         tk.Label(box, bg="white",
                  text=f"● A (điểm tải){_combo_txt}:  "
                       f"N = {inp.N:+.1f} kN,  "
-                      f"Mα = {Ma:.1f} kN·m  "
+                      f"Mα = {Ma:.1f} kN×m  "
                       f"(MEd2 = {M2m:.1f}, MEd3 = {M3m:.1f})",
                  font=mono, fg="#2563EB").pack(anchor="w", pady=1)
         tk.Label(box, bg="white",
                  text=f"◆ B (điểm giới hạn):  "
-                      f"N = {ec2_res['BN']:+.1f} kN,  Mα,u = {Mb:.1f} kN·m  "
+                      f"N = {ec2_res['BN']:+.1f} kN,  Mα,u = {Mb:.1f} kN×m  "
                       f"(M2u = {ec2_res['Bx']:.1f}, M3u = {ec2_res['By']:.1f})",
                  font=mono, fg="#EA580C").pack(anchor="w", pady=1)
 
@@ -795,8 +849,8 @@ class Ec2Mixin:
                                color='red', s=50, label='Điểm tải A')
                     ax.legend()
                 # (bỏ title theo yêu cầu)
-            ax.set_xlabel('M2 (kN·m)')
-            ax.set_ylabel('M3 (kN·m)')
+            ax.set_xlabel('M2 (kN×m)')
+            ax.set_ylabel('M3 (kN×m)')
             ax.set_zlabel('N (kN)')
             fig.tight_layout()
             self._ec2_nm_cv_ref.draw()
