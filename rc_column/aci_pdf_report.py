@@ -132,20 +132,42 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
             S.append(_PB36())
         S.append(_sec_head(P, st, _s["num"], _s["title"],
                            _s.get("ref", "")))
-        # Mục 2: sơ đồ mặt cắt TRƯỚC (như TCVN)
+        # Mục 2: hình VÙNG NÉN (giống app) thay cho mặt cắt trơn
         if _s["num"] == 2 and sec is not None:
             try:
-                from .pdf_export import section_image as _si
-                import io as _io
-                _sec_png = _si(sec, width_in=2.8, show_stats=False)
+                import math as _m2
+                from .pdf_export import compression_zone_image as _czi
+                _aBN = aci_res.get("BN", 0) or 0
+                _aBx = aci_res.get("Bx", 0) or 0
+                _aBy = aci_res.get("By", 0) or 0
+                _a_na = None
+                try:
+                    from .aci_checker import aci_neutral_axis_at_N
+                    _a_alpha = _m2.degrees(_m2.atan2(_aBx, _aBy)) if (abs(_aBx)+abs(_aBy)) > 1e-9 else 0.0
+                    _a_na = aci_neutral_axis_at_N(sec, conc, steel, _aBN, _a_alpha, tied=tied)
+                except Exception:
+                    _a_na = None
+                _sec_png = _czi(sec, _aBN, _aBx, _aBy, na_info=_a_na, width_in=2.8)
                 if _sec_png:
+                    import io as _io
                     from reportlab.platypus import Image as _Img
                     _simg = _Img(_io.BytesIO(_sec_png), width=65*mm, height=65*mm)
                     _simg.hAlign = "CENTER"
                     S.append(_simg)
                     S.append(Spacer(1, 4*mm))
             except Exception:
-                pass
+                try:
+                    from .pdf_export import section_image as _si
+                    import io as _io2
+                    _sec_png = _si(sec, width_in=2.8, show_stats=False)
+                    if _sec_png:
+                        from reportlab.platypus import Image as _Img2
+                        _simg = _Img2(_io2.BytesIO(_sec_png), width=65*mm, height=65*mm)
+                        _simg.hAlign = "CENTER"
+                        S.append(_simg)
+                        S.append(Spacer(1, 4*mm))
+                except Exception:
+                    pass
         cards = _s.get("cards", [])
         # Xử lý card [FULL]: render full-width, bỏ marker
         _filtered = []
