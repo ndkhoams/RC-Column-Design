@@ -150,14 +150,7 @@ def render_result_tab(app, config):
     fig_nm.tight_layout()
     cv_nm.draw()
 
-    # Ghi chú dưới biểu đồ N-M (trong khung viền như TCVN)
-    notes = config.get("notes_nm", [])
-    if notes:
-        box = tk.Frame(f_bl, bg="white", highlightbackground="#E5E7EB", highlightthickness=1)
-        box.pack(fill=tk.X, padx=4, pady=4)
-        for text, color in notes:
-            tk.Label(box, text=text, font=("TkFixedFont", 9), fg=color,
-                     bg="white", wraplength=600, justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
+    # (Notes sẽ đặt ở frame full-width bên dưới)
 
     # ===== Ô dưới-phải: biểu đồ M2-M3 =====
     f_br = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB",
@@ -179,13 +172,25 @@ def render_result_tab(app, config):
     fig_mm.tight_layout()
     cv_mm.draw()
 
+    # ===== Ghi chú A/B (full-width dưới cả 2 biểu đồ) =====
+    notes = config.get("notes_nm", [])
+    if notes:
+        f_notes = ttk.Frame(app._sum_inner, style="Card.TLabelframe")
+        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=(4, 4))
+        box = tk.Frame(f_notes, bg="white", highlightbackground="#E5E7EB", highlightthickness=1)
+        box.pack(fill=tk.X, padx=4, pady=4)
+        for text, color in notes:
+            tk.Label(box, text=text, font=("TkFixedFont", 9), fg=color,
+                     bg="white", wraplength=1200, justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
+        app._sum_inner.rowconfigure(2, weight=0)
+
     # ===== Bảng cắt (nếu có) =====
     shear_builder = config.get("shear_builder")
     if shear_builder:
         f_sw = ttk.Frame(app._sum_inner, style="Card.TLabelframe")
-        f_sw.grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
+        f_sw.grid(row=3, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
         shear_builder(f_sw)
-        app._sum_inner.rowconfigure(2, weight=0)
+        app._sum_inner.rowconfigure(3, weight=0)
 
     # Cập nhật scroll
     app._sum_inner.update_idletasks()
