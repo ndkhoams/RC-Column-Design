@@ -638,7 +638,7 @@ def export_pdf(inp, res, filepath: str, batch_rows=None, case_info=None,
     return filepath
 
 def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
-                       sec_img_path=None):
+                       sec_img_path=None, shear_info=None):
     """Xuất PDF Kết quả tính toán theo mẫu Excel MAU_TMTT (1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình mặt cắt + 2 biểu đồ.
