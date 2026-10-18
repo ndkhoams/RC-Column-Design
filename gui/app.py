@@ -4475,8 +4475,16 @@ class App(tk.Tk):
             w.destroy()
         # Mục 1-7: widget kiểu Vietcon
         # (tab Chi tiết tự vẽ mới biểu đồ bằng hàm chung chart_draw)
+        # Lấy shear_cols từ _tcvn_full (đã tính 1 lần) - KHÔNG tính lại
+        _shear_cols = None
+        try:
+            _tf = getattr(self, "_tcvn_full", None)
+            if _tf and isinstance(_tf, dict):
+                _shear_cols = _tf.get("shear_cols")
+        except:
+            pass
         body = build_calc_widgets(self._calc_inner, inp, res, case_info,
-                                  shear_info)
+                                  shear_info, _shear_cols)
         body.pack(fill=tk.BOTH, expand=True)
         # Cập nhật scroll
         self._calc_inner.update_idletasks()
