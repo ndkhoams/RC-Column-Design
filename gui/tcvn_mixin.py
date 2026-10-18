@@ -193,7 +193,7 @@ class TcvnMixin:
         ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (TCVN 5574:2018)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
-        tree = ttk.Treeview(parent, columns=cols, show="headings", height=15,
+        tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
                             style="Param.Treeview")
         _pst = ttk.Style()
         _pst.configure("Param.Treeview.Heading", font=("", 9, "bold"),
@@ -252,7 +252,7 @@ class TcvnMixin:
                     values=("D/C", "T\u1ef7 s\u1ed1 s\u1eed d\u1ee5ng kh\u1ea3 n\u0103ng ch\u1ecbu l\u1ef1c",
                             f"{res.dc:.3f} (FS = {res.fs:.2f})  {ok_txt}"),
                     tags=("dc",))
-        tree.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+        tree.pack(fill=tk.X, expand=False, padx=2, pady=2)
 
     def _build_nm_notes(self, parent, inp, res):
         """3 d\u00f2ng ch\u00fa th\u00edch d\u01b0\u1edbi bi\u1ec3u \u0111\u1ed3 N-M."""
