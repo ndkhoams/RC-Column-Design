@@ -474,7 +474,8 @@ class Ec2Mixin:
                              and (Asws != Asws or Asws == float("inf")))
                              else f"{Asws:.3f} mm²/mm")
                 lines = [
-                    f"VEd = {Vu:.1f} kN{_qinfo}; bw = {bw:.0f} mm, d = {d:.0f} mm",
+                    f"VEd = {Vu:.1f} kN{_qinfo}",
+                    f"bw = {bw:.0f} mm, d = {d:.0f} mm",
                     f"Thép đai: {sw_txt}",
                     f"VRd,c = [CRd,c·k·(100ρl·fck)⅓ + k1·σcp]·bw·d",
                     f"  = {VRdc:.1f} kN",
