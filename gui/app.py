@@ -1625,7 +1625,7 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             # 2. Tiết diện
             "kind": self.cb_kind.get(),
             "cx": ev(self.en_cx), "cy": ev(self.en_cy),
-            "dia": ev(self.en_dia),
+            "dia": ev(self.en_dia) or "600",
             "cover": self.sp_cover.get(),
             # 3. Cốt thép dọc (kiểu VietconSoft)
             "corner_dia": self.cb_corner_dia.get(),
@@ -1708,7 +1708,7 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             self._toggle_code()
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
-            se(self.en_dia, d.get("dia", "600"))
+            se(self.en_dia, d.get("dia", "600") or "600")
             se(self.sp_cover, d.get("cover", "30"))
             # Cốt thép dọc kiểu mới (fallback về field cũ nếu file cũ)
             se(self.cb_corner_dia, d.get("corner_dia", d.get("dia", "20")))
