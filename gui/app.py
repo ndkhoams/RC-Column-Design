@@ -910,6 +910,13 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
                   self.cb_l2_t2d, self.cb_l2_t3d, self.cb_l2_side,
                   self.cb_l2_dia, self.cb_bundle_pos, self.cb_cdia):
             w.bind("<<ComboboxSelected>>", lambda e: self._refresh_rebar())
+        # Diameter là Entry: thêm KeyRelease/FocusOut để live update
+        for w in (self.cb_corner_dia, self.cb_e2d, self.cb_e3d):
+            try:
+                w.bind("<KeyRelease>", lambda e: self._refresh_rebar())
+                w.bind("<FocusOut>", lambda e: self._refresh_rebar())
+            except Exception:
+                pass
         self._toggle_two_layer()
         self._set_l2mode("perimeter")
         self._refresh_rebar_panel()
@@ -1310,9 +1317,10 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         if ax1 is None:
             return
         try:
-            from rc_column.pdf_export import draw_section_ax
+            from rc_column.pdf_export import draw_compression_zone_ax
             ax1.clear()
-            draw_section_ax(ax1, sec, show_stats=False, dot_scale=1.5)
+            draw_compression_zone_ax(ax1, sec, N_kN=0, M2_kNm=0, M3_kNm=0,
+                                     show_compression=False)
             self._sec_fig.tight_layout()
             self._sec_canvas.draw_idle()
             # Cập nhật text các thẻ thống kê
