@@ -796,7 +796,8 @@ class AciMixin:
             from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
             # Tạo figure/canvas mới hoàn toàn để tránh canvas bị lock
             try:
-                _old = getattr(self, '_aci_nm_cv_ref', None)
+                # Dùng ref từ unified renderer (fallback về ref cũ)
+                _old = getattr(self, '_nm_canvas', None) or getattr(self, '_aci_nm_cv_ref', None)
                 _par = _old.get_tk_widget().master if _old else None
                 if _old:
                     _old.get_tk_widget().destroy()
