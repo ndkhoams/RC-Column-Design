@@ -1,6 +1,8 @@
 """Các method tính toán và hiển thị theo EC2 (EN 1992-1-1)."""
 
 
+
+import tkinter as tk
 class Ec2Mixin:
     """Các method tính toán và hiển thị theo EC2 (EN 1992-1-1)."""
 
