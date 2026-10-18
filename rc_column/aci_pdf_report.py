@@ -151,7 +151,17 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 if _sec_png:
                     import io as _io
                     from reportlab.platypus import Image as _Img
-                    _simg = _Img(_io.BytesIO(_sec_png), width=65*mm, height=65*mm)
+                    _buf = _io.BytesIO(_sec_png)
+                    try:
+                        from PIL import Image as _PIL
+                        _pil = _PIL.open(_buf)
+                        _pw, _ph = _pil.size
+                        _buf.seek(0)
+                        _hh = 65 * _ph / _pw if _pw > 0 else 65
+                    except Exception:
+                        _hh = 65
+                        _buf.seek(0)
+                    _simg = _Img(_buf, width=65*mm, height=_hh*mm)
                     _simg.hAlign = "CENTER"
                     S.append(_simg)
                     S.append(Spacer(1, 4*mm))
@@ -162,7 +172,17 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                     _sec_png = _si(sec, width_in=2.8, show_stats=False)
                     if _sec_png:
                         from reportlab.platypus import Image as _Img2
-                        _simg = _Img2(_io2.BytesIO(_sec_png), width=65*mm, height=65*mm)
+                        _buf = io.BytesIO(_sec_png)
+                    try:
+                        from PIL import Image as _PIL
+                        _pil = _PIL.open(_buf)
+                        _pw, _ph = _pil.size
+                        _buf.seek(0)
+                        _hh = 65 * _ph / _pw if _pw > 0 else 65
+                    except Exception:
+                        _hh = 65
+                        _buf.seek(0)
+                    _simg = Image(_buf, width=65*mm, height=_hh*mm)
                         _simg.hAlign = "CENTER"
                         S.append(_simg)
                         S.append(Spacer(1, 4*mm))
