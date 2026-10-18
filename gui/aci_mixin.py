@@ -353,11 +353,19 @@ class AciMixin:
         vals = self._section_card_values(sec)
         section_cards = {"n": vals["n"], "as": vals["as"], "ab": vals["ab"], "mu": vals["mu"]}
 
-        # Hàm vẽ N-M
+        # Hàm vẽ N-M (dùng góc đã chọn nếu có)
         def _draw_nm(ax):
             _mm = getattr(self, "_aci_mm", None) or {}
             _Mc2 = _mm.get("Mc2", inp.Mx)
             _Mc3 = _mm.get("Mc3", inp.My)
+            # Nếu user chọn góc cụ thể, tính lại M2/M3 tại góc đó
+            _view_angle = getattr(self, "_aci_nm_view_angle", None)
+            if _view_angle is not None:
+                import math
+                _Ma = math.hypot(_Mc2, _Mc3)
+                _rad = math.radians(_view_angle)
+                _Mc2 = _Ma * math.sin(_rad)
+                _Mc3 = _Ma * math.cos(_rad)
             draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res, inp.N, _Mc2, _Mc3, tied=tied)
 
         # Hàm vẽ M2-M3
@@ -416,10 +424,23 @@ class AciMixin:
         self._update_ck()
 
     def _on_aci_angle_unified(self, sel):
-        """Xử lý chọn góc xem từ unified renderer."""
-        # Tạm thời: chỉ log, sẽ implement đầy đủ sau
-        print(f"[ACI] Chọn góc xem: {sel}")
-        # TODO: Vẽ lại biểu đồ tại góc sel
+        """Xử lý chọn góc xem từ unified renderer - vẽ lại toàn bộ tab."""
+        try:
+            if sel == "3D":
+                self._draw_3d_aci()
+                return
+            # Lưu góc được chọn
+            if sel.startswith("α"):
+                self._aci_nm_view_angle = None
+            else:
+                self._aci_nm_view_angle = float(sel.replace("°", ""))
+            # Vẽ lại toàn bộ tab với góc mới
+            self._show_aci_summary()
+            # Khôi phục lựa chọn combobox
+            if hasattr(self, '_nm_angle_cb'):
+                self._nm_angle_cb.set(sel)
+        except Exception as e:
+            print(f"[ACI] Lỗi đổi góc xem: {e}")
 
     def _build_aci_section_cards(self, parent, sec, conc, steel, tied):
         """6 thẻ thống kê ACI: hàng vật liệu (f'c, fy, đai) + hàng thép."""
