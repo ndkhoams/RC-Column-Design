@@ -146,7 +146,8 @@ def setup_section_preview(app):
         except Exception:
             pass
     # Combobox: bind khi chọn giá trị
-    for _a in ["cb_cdia", "cb_sec_type", "cb_l2_t2d", "cb_l2_t3d"]:
+    for _a in ["cb_cdia", "cb_sec_type", "cb_l2_t2d", "cb_l2_t3d",
+               "cb_corner_dia", "cb_e2d", "cb_e3d"]:
         _w = getattr(app, _a, None)
         if _w is None:
             continue
