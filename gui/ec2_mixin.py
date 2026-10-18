@@ -306,6 +306,7 @@ class Ec2Mixin:
             return
         # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
         try:
+            self._sum_inner.update_idletasks()
             for w in list(self._sum_inner.winfo_children()):
                 try:
                     w.grid_forget()
