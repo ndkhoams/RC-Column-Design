@@ -187,6 +187,36 @@ class TcvnMixin:
         _card(row1, "H\u00e0m l\u01b0\u1ee3ng \u03bc", "mu")
         return varmap
 
+    def _get_tcvn_param_rows(self, inp, res):
+        """Trả về rows data cho bảng thông số TCVN."""
+        import math
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+            if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
+        Ma = math.hypot(res.Mx_star, res.My_star)
+        rows = [
+            ("N", "Lực dọc tính toán", f"{res.N:+.1f} kN"),
+            ("M2", "Mô men ban đầu phương 2", f"{res.Mx:.1f} kN×m"),
+            ("M3", "Mô men ban đầu phương 3", f"{res.My:.1f} kN×m"),
+            ("e02", "Độ lệch tâm ban đầu phương 2", f"{res.e0x:.1f} mm"),
+            ("e03", "Độ lệch tâm ban đầu phương 3", f"{res.e0y:.1f} mm"),
+            ("λ2", "Độ mảnh cột phương 2", f"{res.lambda_x:.1f}"),
+            ("λ3", "Độ mảnh cột phương 3", f"{res.lambda_y:.1f}"),
+            ("Ncr,2", "Lực tới hạn Euler phương 2", f"{res.Ncrx:.1f} kN"),
+            ("Ncr,3", "Lực tới hạn Euler phương 3", f"{res.Ncry:.1f} kN"),
+            ("α", "Góc tác dụng mô men", f"{alpha_deg:.1f} °"),
+            ("η2", "Hệ số uốn dọc phương 2", f"{res.etax:.3f}"),
+            ("η3", "Hệ số uốn dọc phương 3", f"{res.etay:.3f}"),
+            ("M2*", "Mô men tính toán phương 2", f"{res.Mx_star:.1f} kN×m"),
+            ("M3*", "Mô men tính toán phương 3", f"{res.My_star:.1f} kN×m"),
+            ("Mα", "Mô men tổng theo phương kiểm tra", f"{Ma:.1f} kN×m"),
+        ]
+        ok = res.ok
+        fs_txt = f"{res.fs:.2f}" if math.isfinite(res.fs) else "∞"
+        ok_txt = "ĐẠT" if ok else "KHÔNG ĐẠT"
+        dc_row = ("D/C", "Tỷ số sử dụng khả năng chịu lực",
+                  f"{res.dc:.3f} (FS = {fs_txt})  {ok_txt}", ok)
+        return rows, dc_row, alpha_deg, Ma
+
     def _build_param_table(self, parent, inp, res):
         """B\u1ea3ng th\u00f4ng s\u1ed1 t\u00ednh to\u00e1n (Treeview 3 c\u1ed9t)."""
         import math
