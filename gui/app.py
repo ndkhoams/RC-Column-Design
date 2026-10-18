@@ -1604,11 +1604,6 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             return e.get()
         def bv(v):
             return v.get()
-        # DEBUG: in giá trị dia khi save
-        try:
-            print(f"[DEBUG SAVE] en_dia.get() = '{self.en_dia.get()}'")
-        except Exception as ex:
-            print(f"[DEBUG SAVE] lỗi đọc en_dia: {ex}")
         return {
             "version": 1,
             # Tên cấu kiện
@@ -1649,8 +1644,6 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
             # tròn
             "cdia": self.cb_cdia.get(), "cnbars": self.sp_cnbars.get(),
             "ccover": self.sp_ccover.get(),
-            # tương thích cũ
-            "dia": self.cb_corner_dia.get(),
             "nx": str(int(float(self.sp_e3n.get() or 0)) + 2),
             "ny": str(int(float(self.sp_e2n.get() or 0)) + 2),
             # đai
@@ -1769,10 +1762,8 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         """Ghi dữ liệu ra file JSON. Trả về True nếu thành công."""
         import json
         try:
-            _data = self._collect_data()
-            print(f"[DEBUG SAVE] Ghi file: {path}, dia={_data.get('dia')}")
             with open(path, "w", encoding="utf-8") as f:
-                json.dump(_data, f, ensure_ascii=False,
+                json.dump(self._collect_data(), f, ensure_ascii=False,
                           indent=2)
             self.current_save_path = path
             return True
