@@ -2365,7 +2365,7 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         f_tl = tk.Frame(self._sum_inner, bg="white", highlightbackground="#D1D5DB",
                         highlightthickness=1)
         f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-        tk.Label(f_tl, text="VÙNG NÉN TIẾT DIỆN",
+        tk.Label(f_tl, text="MẶT CẮT TIẾT DIỆN",
                  font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
         self.ck_var = tk.StringVar(value="")
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
