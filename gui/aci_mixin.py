@@ -408,6 +408,8 @@ class AciMixin:
             "dc_row": dc_row,
             "section": sec,
             "section_cards": section_cards,
+            "comp_zone": {"N": _BN, "M2": _Bx, "M3": _By,
+                          "Nmax": aci_res.get("phiPn_max", abs(_BN)*2)},
             "draw_nm": _draw_nm,
             "draw_m2m3": _draw_m2m3,
             "nm_title": "Biểu đồ tương tác N-Mα",
