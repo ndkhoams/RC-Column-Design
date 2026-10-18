@@ -558,9 +558,12 @@ def _build_sec6(g, inp: ColumnInput, res: CheckResult, sec,
              font=("", 10, "bold"), fg=fg, bg=bg).pack(anchor="w", pady=(4, 0))
 
 
-def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
-    """Mục 7: Kiểm tra cốt thép đai — dạng card khớp style mục 1-6."""
-    from .stirrup import StirrupInput, check_stirrup, check_shear
+def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None, shear_cols=None):
+    """Mục 7: Kiểm tra cốt thép đai — dạng card khớp style mục 1-6.
+    
+    NGUYÊN TẮC: Lấy kết quả cắt từ shear_cols (đã tính 1 lần trong _tcvn_calculate_full),
+    KHÔNG tự tính lại ở đây."""
+    from .stirrup import StirrupInput, check_stirrup
     from .materials import STEEL_GRADES
     import math as _m
     _section_header(g, 7, "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
@@ -595,38 +598,35 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
     h0_3 = sec.cy - inp.cover - stir_in.dia - inp.bar_dia / 2
     shear_ok = True
     row = 2
-    for Q, b_w, h0, dnum in ((inp.Q2, sec.cy, h0_2, "2"),
-                             (inp.Q3, sec.cx, h0_3, "3")):
-        Asw = Asw_1 * stir_in.legs
-        # Cộng đai giữa (khớp với _tcvn_calculate_full)
-        try:
-            if dnum == "2":
-                _mdia = getattr(inp, "swm2_dia", 0)
-                _mlegs = getattr(inp, "swm2_legs", 0)
-            else:
-                _mdia = getattr(inp, "swm3_dia", 0)
-                _mlegs = getattr(inp, "swm3_legs", 0)
-            if _mdia and _mlegs:
-                Asw += _mlegs * _m.pi * float(_mdia) ** 2 / 4
-        except:
-            pass
-        h0u = max(h0, 1)
-        sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
-                         stir_in.spacing, direction=dnum)
+    # DÙNG KẾT QUẢ TỪ _tcvn_calculate_full - KHÔNG TÍNH LẠI
+    for dnum in ("2", "3"):
+        if shear_cols and dnum in shear_cols:
+            _sc = shear_cols[dnum]
+            Q = _sc["Q"]
+            b_w = _sc["b"]
+            h0u = _sc["h0"]
+            Asw = _sc["Asw"]
+            qsw = _sc["qsw"]
+            sh = _sc["sh"]
+            sw_txt = _sc.get("sw_txt", "")
+            s_eff = _sc.get("s_eff", stir_in.spacing)
+        else:
+            # KHÔNG có shear_cols: báo lỗi, không tự tính
+            raise ValueError(f"Thiếu shear_cols cho phương {dnum} - vi phạm nguyên tắc 'tính 1 lần'")
         m1 = "✓" if sh.ok1 else "✗"
         m2 = "✓" if sh.ok2 else "✗"
-        qsw = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
+        # qsw đã lấy từ shear_cols (không tính lại)
         Qb_lim_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         lines = [
             f"Q = {_f(Q, 1)} kN; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
-            f"Asw = {stir_in.legs}×φ{stir_in.dia:.0f} = {Asw:.0f} mm²",
+            f"Asw = {sw_txt} = {Asw:.0f} mm²",
             f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
             f"  = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
             f"= {_f(sh.Qcap1, 1)} kN",
             f"{m2} ĐK2 (vết nứt xiên): Q ≤ Qb + Qsw",
             f"  qsw = Rsw×Asw/s = {_f(Rsw, 0)}×{Asw:.0f}/"
-            f"{stir_in.spacing:.0f} = {_f(qsw, 1)} N/mm",
+            f"{s_eff:.0f} = {_f(qsw, 1)} N/mm",
             f"  Qb = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²/"
             f"{sh.C_opt:.0f}/1000 = {_f(sh.Qb_opt, 1)} kN",
             f"  (Qb ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN)",
@@ -646,7 +646,7 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None):
 
 
 def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
-                       case_info=None, shear_info=None,
+                       case_info=None, shear_info=None, shear_cols=None,
                        chart_pngs=None, chart_figs=None) -> tk.Frame:
     """Dựng toàn bộ thuyết minh mục 1-7 kiểu Vietcon vào parent.
 
@@ -664,7 +664,7 @@ def build_calc_widgets(parent, inp: ColumnInput, res: CheckResult,
     _build_sec4(body, inp, res, sec, case_info)
     _build_sec5(body, inp, res, sec)
     _build_sec6(body, inp, res, sec, chart_pngs, chart_figs)
-    _build_sec7(body, inp, res, sec, shear_info)
+    _build_sec7(body, inp, res, sec, shear_info, shear_cols)
     # Spacer hút khoảng trống xuống đáy (fix Canvas Win)
     tk.Frame(body, bg=WHITE).pack(fill=tk.BOTH, expand=True)
     return outer

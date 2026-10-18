@@ -578,7 +578,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         ]))
         return [_t, Spacer(1, 4*mm)]
 
-    from .stirrup import StirrupInput, check_stirrup, check_shear
+    from .stirrup import StirrupInput, check_stirrup
     stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
                            legs=inp.sw_legs)
     stir_res = check_stirrup(sec, stir_in, inp.concrete_grade)
@@ -629,18 +629,11 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             sw_txt = _pc.get("sw_txt", "")
             s_eff = _pc.get("s_eff", stir_in.spacing)
             if sh is None:
-                # Fallback: tính lại (không nên xảy ra)
-                h0u = max(h0u, 1)
-                sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
-                                 s_eff, direction=dnum)
+                # KHÔNG có precalc: báo lỗi, không tự tính
+                raise ValueError(f"Thiếu kết quả cắt precalc cho phương {dnum} - vi phạm nguyên tắc 'tính 1 lần'")
         else:
-            Asw = Asw_1 * stir_in.legs
-            h0u = max(h0, 1)
-            sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
-                             stir_in.spacing, direction=dnum)
-            qsw = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
-            sw_txt = f"{stir_in.legs}×φ{stir_in.dia:.0f}"
-            s_eff = stir_in.spacing
+            # KHÔNG có shear_cols: báo lỗi, không tự tính
+            raise ValueError("Thiếu shear_cols từ _tcvn_calculate_full - vi phạm nguyên tắc 'tính 1 lần'")
         m1 = "✓" if sh.ok1 else "✗"
         m2 = "✓" if sh.ok2 else "✗"
         # qsw đã lấy từ precalc (không tính lại)
