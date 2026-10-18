@@ -194,7 +194,8 @@ def render_result_tab(app, config):
     if notes:
         f_notes = ttk.Frame(app._sum_inner, style="Card.TLabelframe")
         f_notes.grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=(4, 4))
-        box = tk.Frame(f_notes, bg="white", highlightbackground="#E5E7EB", highlightthickness=1)
+        box = tk.Frame(f_notes, bg="white", highlightbackground="#E5E7EB",
+                       highlightthickness=1, takefocus=0)
         box.pack(fill=tk.X, padx=4, pady=4)
         for text, color in notes:
             tk.Label(box, text=text, font=("TkFixedFont", 9), fg=color,
