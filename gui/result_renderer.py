@@ -77,7 +77,8 @@ def render_result_tab(app, config):
                                  N_kN=_cz.get("N", 0),
                                  M2_kNm=_cz.get("M2", 0),
                                  M3_kNm=_cz.get("M3", 0),
-                                 Nmax_kN=_cz.get("Nmax"))
+                                 Nmax_kN=_cz.get("Nmax"),
+                                 na_info=_cz.get("na_info"))
     else:
         from rc_column.pdf_export import draw_section_ax
         draw_section_ax(a1, config["section"], show_stats=False, dot_scale=1.5)
