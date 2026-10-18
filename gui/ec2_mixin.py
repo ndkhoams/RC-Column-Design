@@ -307,6 +307,11 @@ class Ec2Mixin:
         # Xóa triệt để widget cũ (tránh trùng lặp khi chuyển tiêu chuẩn)
         try:
             self._sum_inner.update_idletasks()
+            try:
+                import matplotlib.pyplot as plt
+                plt.close('all')
+            except:
+                pass
             for w in list(self._sum_inner.winfo_children()):
                 try:
                     w.grid_forget()
