@@ -267,7 +267,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                                       getattr(inp, "concrete_model", "3line"))
         except Exception:
             _t_na = None
-        _sec_png2 = _czi(sec, _tBN, _tBx, _tBy, na_info=_t_na, width_in=2.8)
+        _sec_png2 = _czi(sec, _tBN, _tBx, _tBy, na_info=_t_na, width_in=3.5)
     except Exception:
         try:
             from .pdf_export import section_image as _si
