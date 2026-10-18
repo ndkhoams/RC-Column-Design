@@ -1,6 +1,8 @@
 """Các method xuất PDF (tóm tắt và chi tiết)."""
 
 
+
+import tkinter as tk
 class PdfMixin:
     """Các method xuất PDF (tóm tắt và chi tiết)."""
 
