@@ -18,6 +18,13 @@ except Exception:
 
 
 def render_result_tab(app, config):
+    # Style combobox không highlight khi focus
+    try:
+        _st = ttk.Style()
+        _st.configure("NoFocus.TCombobox", focuscolor="white", selectbackground="white")
+        _st.map("NoFocus.TCombobox", focuscolor=[("focus", "white")])
+    except Exception:
+        pass
     """Render tab Kết quả tính toán với layout thống nhất.
 
     config: dict với các khóa:
@@ -150,9 +157,15 @@ def render_result_tab(app, config):
         right.pack(side=tk.RIGHT)
         tk.Label(right, text="Góc xem:", font=("", 8), bg="white").pack(side=tk.LEFT)
         _vals = ["α (góc tải)", "3D"] + [f"{d}°" for d in range(0, 361, 15)]
-        _cb = ttk.Combobox(right, values=_vals, width=11, state="readonly", font=("", 9))
+        _cb = ttk.Combobox(right, values=_vals, width=11, state="readonly", font=("", 9),
+                            takefocus=0)
         _cb.set("α (góc tải)")
         _cb.pack(side=tk.LEFT, padx=(4, 0))
+        # Bỏ viền highlight khi focus
+        try:
+            _cb.configure(style="NoFocus.TCombobox")
+        except Exception:
+            pass
         _cb.bind("<<ComboboxSelected>>", lambda e: on_angle(_cb.get()))
         # Lưu ref để dùng sau
         app._nm_angle_cb = _cb
