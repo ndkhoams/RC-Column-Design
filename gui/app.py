@@ -2089,6 +2089,102 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
 
 
     def _redraw(self):
+        """Tab Kết quả tính toán cho TCVN - dùng unified renderer (thống nhất với ACI/EC2)."""
+        if not HAS_MPL or self._last_sec is None:
+            return
+        from gui.result_renderer import render_result_tab
+        from rc_column.pdf_export import draw_section_ax
+        from rc_column.chart_draw import draw_nm_alpha_ax, draw_m2m3_ax
+        import math
+
+        sec, inp, res = self._last_sec, self._last_inp, self._last_res
+
+        # Lấy rows thông số
+        param_rows, dc_row, alpha_deg, Ma = self._get_tcvn_param_rows(inp, res)
+
+        # Section cards
+        vals = self._section_card_values(sec)
+        section_cards = {"n": vals["n"], "as": vals["as"], "ab": vals["ab"], "mu": vals["mu"]}
+
+        # Hàm vẽ N-M (dùng góc đã chọn nếu có)
+        def _draw_nm(ax):
+            _view_angle = getattr(self, "_tcvn_nm_view_angle", None)
+            _Mx_star = res.Mx_star
+            _My_star = res.My_star
+            if _view_angle is not None:
+                _Ma = math.hypot(_Mx_star, _My_star)
+                _rad = math.radians(_view_angle)
+                _Mx_star = _Ma * math.sin(_rad)
+                _My_star = _Ma * math.cos(_rad)
+            draw_nm_alpha_ax(ax, sec, inp, res, _Mx_star, _My_star)
+
+        # Hàm vẽ M2-M3
+        def _draw_m2m3(ax):
+            draw_m2m3_ax(ax, sec, inp, res)
+
+        # Notes
+        _ok = res.ok
+        _okt = "ĐẠT" if _ok else "KHÔNG ĐẠT"
+        _okc = "#059669" if _ok else "#DC2626"
+        _case = getattr(self, "_pdf_case", None) or {}
+        _parts = []
+        if _case.get("story"): _parts.append(str(_case.get("story")))
+        if _case.get("column"): _parts.append(str(_case.get("column")))
+        if _case.get("case"):
+            _st = _case.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{_case.get('case')}{_st_txt}")
+        _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
+        # Lấy thông tin B từ res
+        _BN = getattr(res, 'BN', 0)
+        _Bx = getattr(res, 'Bx', 0)
+        _By = getattr(res, 'By', 0)
+        _Mb = math.hypot(_Bx, _By)
+        notes = [
+            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) — TCVN 5574:2018   D/C = {res.dc:.3f} → {_okt}", _okc),
+            (f"● A (điểm tải){_combo_txt}:  N = {res.N:+.1f} kN,  Mα = {Ma:.1f} kN×m  (M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", "#2563EB"),
+            (f"◆ B (điểm giới hạn):  N = {_BN:+.1f} kN,  Mα,u = {_Mb:.1f} kN×m  (M2u = {_Bx:.1f}, M3u = {_By:.1f})", "#EA580C"),
+        ]
+
+        config = {
+            "std_title": "(TCVN 5574:2018)",
+            "param_rows": param_rows,
+            "dc_row": dc_row,
+            "section": sec,
+            "section_cards": section_cards,
+            "draw_nm": _draw_nm,
+            "draw_m2m3": _draw_m2m3,
+            "nm_title": "Biểu đồ tương tác N-Mα",
+            "nm_alpha_text": f"α = {alpha_deg:.1f}°",
+            "m2m3_title": "Mặt cắt M2-M3",
+            "m2m3_n_text": f"N = {res.N:+.1f} kN",
+            "notes_nm": notes,
+            "on_nm_angle_change": lambda sel: self._on_tcvn_angle_unified(sel),
+            # Shear: dùng method cũ nếu có, tạm thời None
+            "shear_builder": None,
+        }
+        render_result_tab(self, config)
+        self._update_ck()
+
+    def _on_tcvn_angle_unified(self, sel):
+        """Xử lý chọn góc xem TCVN - chỉ vẽ lại biểu đồ N-M."""
+        try:
+            if sel.startswith("α"):
+                self._tcvn_nm_view_angle = None
+            else:
+                self._tcvn_nm_view_angle = float(sel.replace("°", ""))
+            ax = getattr(self, "_nm_ax", None)
+            canvas = getattr(self, "_nm_canvas", None)
+            draw_fn = getattr(self, "_nm_draw_fn", None)
+            if ax is not None and draw_fn is not None:
+                ax.clear()
+                draw_fn(ax)
+                if canvas:
+                    canvas.draw()
+        except Exception as e:
+            print(f"[TCVN] Lỗi đổi góc xem: {e}")
+
+    def _redraw_old(self):
         """Layout 2x2: [mặt cắt + thẻ TK | bảng thông số] /
         [N-M + chú thích | header + M2-M3]."""
         if not HAS_MPL or self._last_sec is None:
