@@ -735,9 +735,11 @@ def render_report_sections(parent, sections, chart_figs=None):
                 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
                 chart_frame = tk.Frame(parent, bg=WHITE)
                 chart_frame.pack(fill=tk.X, padx=8, pady=8)
-                chart_frame.columnconfigure(0, weight=1)
-                chart_frame.columnconfigure(1, weight=1)
-                _titles = ("Biểu đồ tương tác N-Mα", "Biểu đồ tương tác M2-M3")
+                _nfig = len([f for f in chart_figs if f is not None])
+                for _ci in range(max(_nfig, 2)):
+                    chart_frame.columnconfigure(_ci, weight=1)
+                _titles = ("Biểu đồ tương tác N-Mα", "Biểu đồ tương tác M2-M3",
+                           "Vùng nén tiết diện")
                 for col, fig in enumerate(chart_figs):
                     if fig is not None:
                         # Frame có viền giống TCVN, với tiêu đề căn giữa phía trên
