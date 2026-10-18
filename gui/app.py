@@ -538,12 +538,16 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
                 parent.columnconfigure(_c, weight=1, uniform="mat")
         def _mat_row(parent, r, llab, lwid, rlab, rwid):
             # Mỗi cặp nhãn-ô nhập đặt cạnh nhau: [nhãn][nhập][nhãn][nhập]
+            # Bỏ qua widget None (cho hàng chỉ có 1 cặp)
             ttk.Label(parent, text=llab, style="Muted.TLabel").grid(
                 row=r, column=0, sticky=tk.W, padx=(4, 8), pady=5)
-            lwid.grid(row=r, column=1, sticky=tk.EW, padx=4, pady=5)
-            ttk.Label(parent, text=rlab, style="Muted.TLabel").grid(
-                row=r, column=2, sticky=tk.W, padx=(4, 8), pady=5)
-            rwid.grid(row=r, column=3, sticky=tk.EW, padx=4, pady=5)
+            if lwid is not None:
+                lwid.grid(row=r, column=1, sticky=tk.EW, padx=4, pady=5)
+            if rlab:
+                ttk.Label(parent, text=rlab, style="Muted.TLabel").grid(
+                    row=r, column=2, sticky=tk.W, padx=(4, 8), pady=5)
+            if rwid is not None:
+                rwid.grid(row=r, column=3, sticky=tk.EW, padx=4, pady=5)
         # Khung TCVN (hiện mặc định)
         self.frm_tcvn = ttk.Frame(f)
         self.frm_tcvn.grid(row=0, column=0, sticky=tk.NSEW)
