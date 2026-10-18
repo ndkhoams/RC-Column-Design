@@ -625,8 +625,21 @@ class EtabsMixin:
                     pass  # đã merge
                 # Đồng bộ self._ec2_shear để Detail tab dùng
                 self._ec2_shear = _she
-                print(f"[DEBUG-EC2] _she keys: {list(_she.keys())}")
-                print(f"[DEBUG-EC2] dir2 combo: {_she.get('dir2', {}).get('combo_info', 'MISSING')}")
+                # Render lại Detail tab với combo info mới
+                try:
+                    from rc_column.ec2_report_v2 import generate_ec2_report_sections_v2
+                    _inp2 = getattr(self, "_ec2_inp", None)
+                    _res2 = getattr(self, "_ec2_full", {}).get("res", {})
+                    _dm2 = getattr(self, "_ec2_full", {}).get("dm", {})
+                    _conc2 = getattr(self, "_ec2_conc", None)
+                    _steel2 = getattr(self, "_ec2_steel", None)
+                    _sec2 = getattr(self, "_ec2_sec", None)
+                    if _inp2 and _conc2:
+                        _sections2 = generate_ec2_report_sections_v2(
+                            _inp2, _res2, _dm2, _she, _conc2, _steel2, _sec2)
+                        self._render_ec2_report(_sections2)
+                except Exception as _re:
+                    print(f"[ETABS-EC2] re-render Detail lỗi: {_re}")
         except Exception as _exq:
             print(f"[ETABS-EC2] merge combo_info cắt lỗi: {_exq}")
 
