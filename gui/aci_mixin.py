@@ -295,6 +295,12 @@ class AciMixin:
         try:
             # Xử lý pending events trước để đảm bảo widget cũ đã được tạo xong
             self._sum_inner.update_idletasks()
+            # Đóng tất cả figure matplotlib cũ (tránh trùng lặp)
+            try:
+                import matplotlib.pyplot as plt
+                plt.close('all')
+            except:
+                pass
             for w in list(self._sum_inner.winfo_children()):
                 try:
                     w.grid_forget()
