@@ -623,7 +623,8 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None, she
         Qb_lim_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         lines = [
-            f"Q = {_f(Q, 1)} kN{(_q2_info if dnum=='2' else _q3_info)}; b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
+            f"Q = {_f(Q, 1)} kN{(_q2_info if dnum=='2' else _q3_info)}",
+            f"b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
             f"Asw = {sw_txt} = {Asw:.0f} mm²",
             f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
             f"  = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
