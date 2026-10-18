@@ -319,7 +319,8 @@ def ec2_slenderness_params(NEd_kN: float, M01_kNm: float, M02_kNm: float,
                            l0_mm: float, i_mm: float,
                            Ac_mm2: float, As_mm2: float,
                            fcd_MPa: float, fyd_MPa: float,
-                           unbraced: bool = False) -> dict:
+                           unbraced: bool = False,
+                           phi_ef: float = 1.21) -> dict:
     """Các thông số độ mảnh (EC2 5.8.3).
 
     M01, M02: mô men bậc 1 ở 2 đầu (đã cộng sai lệch thi công),
@@ -330,7 +331,7 @@ def ec2_slenderness_params(NEd_kN: float, M01_kNm: float, M02_kNm: float,
     n = (NEd_kN * 1000.0) / (Ac_mm2 * fcd_MPa) if Ac_mm2 * fcd_MPa > 0 else 0.0
     omega = (As_mm2 * fyd_MPa) / (Ac_mm2 * fcd_MPa) \
         if Ac_mm2 * fcd_MPa > 0 else 0.0
-    A = 1.0 / (1.0 + 0.2 * PHI_EF)
+    A = 1.0 / (1.0 + 0.2 * phi_ef)
     B = math.sqrt(1.0 + 2.0 * omega)
     a1 = abs(M01_kNm)
     a2 = abs(M02_kNm)
@@ -359,7 +360,8 @@ def ec2_second_order_stiffness(NEd_kN: float, M01_kNm: float, M02_kNm: float,
                                Is_mm4: float, Es_MPa: float,
                                fck_MPa: float, n_rel: float,
                                lambda_sl: float,
-                               const_moment: bool = True) -> dict:
+                               const_moment: bool = True,
+                               phi_ef: float = 1.21) -> dict:
     """Hiệu ứng bậc 2 bằng phương pháp độ cứng danh nghĩa (EC2 5.8.7).
 
     MEd = M0Ed·factor; M0Ed = 0.6·M02 + 0.4·M01 ≥ 0.4·M02
@@ -389,7 +391,7 @@ def ec2_second_order_stiffness(NEd_kN: float, M01_kNm: float, M02_kNm: float,
     Ecd = Ecm_MPa / GAMMA_CE
     k1 = math.sqrt(max(fck_MPa, 0.0) / 20.0)
     k2 = min(n_rel * lambda_sl / 170.0, 0.20)
-    Kc = k1 * k2 / (1.0 + PHI_EF)
+    Kc = k1 * k2 / (1.0 + phi_ef)
     Ks = 1.0
     EI = Kc * Ecd * Ic_mm4 + Ks * Es_MPa * Is_mm4  # N.mm²
 
@@ -419,7 +421,8 @@ def ec2_second_order_curvature(NEd_kN: float, M01_kNm: float, M02_kNm: float,
                                l0_mm: float, fck_MPa: float,
                                eps_yd: float, d_mm: float,
                                n_rel: float, nu: float, n_bal: float,
-                               lambda_sl: float, c_curv: float = 10.0) -> dict:
+                               lambda_sl: float, c_curv: float = 10.0,
+                               phi_ef: float = 1.21) -> dict:
     """Hiệu ứng bậc 2 bằng phương pháp độ cong danh nghĩa (EC2 5.8.8).
 
     MEd = M0Ed + M2; M2 = NEd·e2; e2 = (1/r)·l0²/c (c = 10).
@@ -449,7 +452,7 @@ def ec2_second_order_curvature(NEd_kN: float, M01_kNm: float, M02_kNm: float,
         Kr = (nu - n_rel) / denom
     Kr = max(0.0, min(1.0, Kr))
     beta = 0.35 + fck_MPa / 200.0 - lambda_sl / 150.0
-    Kphi = max(1.0, 1.0 + beta * PHI_EF)
+    Kphi = max(1.0, 1.0 + beta * phi_ef)
     r_inv = Kr * Kphi * r0_inv  # 1/mm
     e2_mm = r_inv * l0_mm ** 2 / c_curv
     M2 = NEd_kN * e2_mm / 1000.0  # kN.m
@@ -470,7 +473,8 @@ def ec2_design_moment(NEd_kN: float, M_top_kNm: float, M_bot_kNm: float,
                       method: str = "stiffness",
                       d_mm: float = 0.0, eps_yd: float = 0.0,
                       n_bal: float = 0.0,
-                      const_moment: bool = True) -> dict:
+                      const_moment: bool = True,
+                      phi_ef: float = 1.21) -> dict:
     """Mô men thiết kế một phương theo EC2 (đã gồm sai lệch, emin, bậc 2).
 
     - NEd > 0 (nén): cộng mô men do sai lệch thi công M_imp = NEd·ei
@@ -515,7 +519,7 @@ def ec2_design_moment(NEd_kN: float, M_top_kNm: float, M_bot_kNm: float,
     # 3. Độ mảnh
     sl = ec2_slenderness_params(NEd_kN, M01, M02, l0_mm, i_mm,
                                 Ac_mm2, As_mm2, fcd_MPa, fyd_MPa,
-                                unbraced=unbraced)
+                                unbraced=unbraced, phi_ef=phi_ef)
     out.update({
         "tension": False,
         "theta_i": imp["theta_i"], "alpha_h": imp["alpha_h"],
