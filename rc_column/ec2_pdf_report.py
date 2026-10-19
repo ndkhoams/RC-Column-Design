@@ -87,7 +87,7 @@ def _img_keep_aspect(png_bytes, w_mm=80):
 
 def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                          filepath, chart_pngs=None, case_info=None, tied=None,
-                         sec=None):
+                         sec=None, show_compression: bool = True):
     """Xuất PDF thuyết minh EC2 (EN 1992-1-1) kiểu card giống hệt app.
 
     inp: ColumnInput. ec2_res/slend_res/shear_res: dict kết quả EC2.
@@ -147,7 +147,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                     _na = _nafn(sec, conc, steel, _BN, _alpha)
                 except Exception:
                     pass
-                _sec_png = _czi(sec, _BN, _Bx, _By, na_info=_na)
+                _sec_png = _czi(sec, _BN, _Bx, _By, na_info=_na,
+                                  show_compression=show_compression)
                 _buf = _io.BytesIO(_sec_png)
                 from reportlab.platypus import Image as _Img
                 try:
