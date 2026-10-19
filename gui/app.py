@@ -1311,6 +1311,31 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         # Live update sơ đồ mặt cắt + bảng tổng hợp (nếu đã có figure)
         self._live_update_section(sec, inp)
 
+    def _redraw_tcvn_section(self):
+        """Vẽ lại hình mặt cắt TCVN theo checkbox 'Hiển thị vùng nén'."""
+        try:
+            a1 = getattr(self, "_sec_ax", None)
+            data = getattr(self, "_tcvn_sec_data", None)
+            if a1 is None or data is None:
+                return
+            from rc_column.pdf_export import draw_compression_zone_ax
+            sec, _tBN, _tBx, _tBy, _tNmax, _t_na = data
+            a1.clear()
+            _sc = bool(self._show_compression.get())
+            draw_compression_zone_ax(a1, sec, N_kN=_tBN, M2_kNm=_tBx, M3_kNm=_tBy,
+                                     Nmax_kN=_tNmax, na_info=_t_na,
+                                     show_compression=_sc)
+            try:
+                self._sec_fig.tight_layout()
+            except Exception:
+                pass
+            try:
+                self._sec_canvas.draw()
+            except Exception:
+                pass
+        except Exception:
+            pass
+
     def _live_update_section(self, sec, inp):
         """Vẽ lại sơ đồ mặt cắt + thẻ thống kê khi đổi nhập liệu."""
         ax1 = getattr(self, "_sec_ax", None)
@@ -2373,8 +2398,16 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
         f_tl = tk.Frame(self._sum_inner, bg="white", highlightbackground="#D1D5DB",
                         highlightthickness=1)
         f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-        tk.Label(f_tl, text="MẶT CẮT TIẾT DIỆN",
-                 font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
+        if getattr(self, "_show_compression", None) is None:
+            self._show_compression = tk.BooleanVar(value=True)
+        _hdr = tk.Frame(f_tl, bg="white")
+        _hdr.pack(fill=tk.X, pady=(2, 2))
+        tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
+                 font=("", 11, "bold"), bg="white").pack(side=tk.LEFT, padx=(4, 0))
+        tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
+                       font=("", 8), fg="#374151",
+                       variable=self._show_compression,
+                       command=lambda: self._redraw_tcvn_section()).pack(side=tk.RIGHT, padx=(0, 4))
         self.ck_var = tk.StringVar(value="")
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
@@ -2399,8 +2432,12 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
                                           getattr(inp, "concrete_model", "3line"))
             except Exception:
                 _t_na = None
+            _sc_tcvn = bool(self._show_compression.get())
             draw_compression_zone_ax(a1, sec, N_kN=_tBN, M2_kNm=_tBx, M3_kNm=_tBy,
-                                     Nmax_kN=_tNmax, na_info=_t_na)
+                                     Nmax_kN=_tNmax, na_info=_t_na,
+                                     show_compression=_sc_tcvn)
+            # Lưu data để checkbox vẽ lại
+            self._tcvn_sec_data = (sec, _tBN, _tBx, _tBy, _tNmax, _t_na)
         except Exception:
             draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
         fig_sec.tight_layout()
