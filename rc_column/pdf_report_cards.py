@@ -184,7 +184,7 @@ def _sec_head(P, st, num, title, ref=""):
 
 def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                      batch_rows=None, case_info=None, shear_info=None,
-                     chart_pngs=None):
+                     chart_pngs=None, show_compression: bool = True):
     """Xuất PDF thuyết minh với layout card giống hệt app."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -268,7 +268,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                                       getattr(inp, "concrete_model", "3line"))
         except Exception:
             _t_na = None
-        _sec_png2 = _czi(sec, _tBN, _tBx, _tBy, na_info=_t_na, width_in=3.5)
+        _sec_png2 = _czi(sec, _tBN, _tBx, _tBy, na_info=_t_na, width_in=3.5,
+                           show_compression=show_compression)
     except Exception:
         try:
             from .pdf_export import section_image as _si
