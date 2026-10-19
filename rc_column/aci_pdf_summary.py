@@ -212,7 +212,7 @@ def _extract_shear_q(shear_info):
 
 def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                            case_info=None, mm_res=None, sec_img_path=None, chart_pngs=None,
-                           shear_info=None):
+                           shear_info=None, show_compression: bool = True):
     """Xuất PDF Kết quả tính toán theo mẫu Excel (ACI 318-19, 1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình mặt cắt + 2 biểu đồ.
@@ -434,7 +434,8 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         except Exception:
             pass
         _sec_png = _pdf_exp.compression_zone_image(sec, _BN, _Bx, _By,
-                                                   na_info=_na)
+                                                   na_info=_na,
+                                                   show_compression=show_compression)
         right_flow.append(_centered_img(_sec_png, 66))
         right_flow.append(Spacer(1, 2))
         # 2 biểu đồ ACI (có tiêu đề)
