@@ -198,7 +198,8 @@ def section_image(sec, width_in=3.2, dpi=300, small=False,
 
 
 def compression_zone_image(sec, N_kN: float, M2_kNm: float, M3_kNm: float,
-                           na_info=None, width_in=3.5, dpi=300) -> bytes:
+                           na_info=None, width_in=3.5, dpi=300,
+                           show_compression: bool = True) -> bytes:
     """Vẽ hình vùng nén (giống app) trả về PNG bytes."""
     import matplotlib
     matplotlib.use("Agg")
@@ -212,7 +213,8 @@ def compression_zone_image(sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     ax = fig.add_subplot(111)
     draw_compression_zone_ax(ax, sec, N_kN, M2_kNm, M3_kNm,
                              Nmax_kN=abs(N_kN)*2 if N_kN else None,
-                             na_info=na_info)
+                             na_info=na_info,
+                             show_compression=show_compression)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight",
                 facecolor="white", pad_inches=0.15)
@@ -662,7 +664,8 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     ax.set_yticks([])
     ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
-                       sec_img_path=None, shear_info=None):
+                       sec_img_path=None, shear_info=None,
+                       show_compression: bool = True):
     """Xuất PDF Kết quả tính toán TCVN 5574:2018 (1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình vùng nén + 2 biểu đồ.
@@ -904,7 +907,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         _sec_png = compression_zone_image(
             sec, getattr(res, "BN", inp.N),
             getattr(res, "Bx", 0), getattr(res, "By", 0),
-            na_info=_cz_na)
+            na_info=_cz_na, show_compression=show_compression)
         right_flow.append(_centered_img(_sec_png, 66))
         right_flow.append(Spacer(1, 2))
         # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
