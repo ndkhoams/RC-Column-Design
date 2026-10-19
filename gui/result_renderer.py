@@ -235,3 +235,8 @@ def render_result_tab(app, config):
         app._sum_canvas.configure(scrollregion=app._sum_canvas.bbox("all"))
     except:
         pass
+    # Re-bind wheel cho widget mới (sau khi xóa/vẽ lại)
+    try:
+        app._bind_wheel(app._sum_inner, app._sum_canvas)
+    except:
+        pass
