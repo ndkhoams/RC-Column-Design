@@ -88,7 +88,7 @@ def _img_keep_aspect(png_bytes, w_mm=80):
 
 def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                          tied, filepath, chart_pngs=None, case_info=None,
-                         sec=None):
+                         sec=None, show_compression: bool = True):
     """Xuất PDF thuyết minh ACI 318-19 kiểu card giống hệt app.
 
     inp: ColumnInput. aci_res/mm_res/shear_res: dict kết quả ACI.
@@ -147,7 +147,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                     _a_na = aci_neutral_axis_at_N(sec, conc, steel, _aBN, _a_alpha, tied=tied)
                 except Exception:
                     _a_na = None
-                _sec_png = _czi(sec, _aBN, _aBx, _aBy, na_info=_a_na, width_in=3.5)
+                _sec_png = _czi(sec, _aBN, _aBx, _aBy, na_info=_a_na, width_in=3.5,
+                                  show_compression=show_compression)
                 if _sec_png:
                     import io as _io
                     from reportlab.platypus import Image as _Img
