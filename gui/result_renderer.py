@@ -17,6 +17,51 @@ except Exception:
     HAS_MPL = False
 
 
+def redraw_section_figure(app):
+    """Vẽ lại hình mặt cắt theo trạng thái checkbox 'Hiển thị vùng nén'."""
+    try:
+        from rc_column.pdf_export import draw_compression_zone_ax
+        a1 = getattr(app, "_sec_ax", None)
+        cfg = getattr(app, "_sec_config", None)
+        if a1 is None or cfg is None:
+            return
+        a1.clear()
+        _cz = cfg.get("comp_zone")
+        if _cz:
+            _sc = True
+            try:
+                _v = getattr(app, "_show_compression", None)
+                if _v is not None:
+                    _sc = bool(_v.get())
+            except Exception:
+                pass
+            draw_compression_zone_ax(a1, cfg["section"],
+                                     N_kN=_cz.get("N", 0),
+                                     M2_kNm=_cz.get("M2", 0),
+                                     M3_kNm=_cz.get("M3", 0),
+                                     Nmax_kN=_cz.get("Nmax"),
+                                     na_info=_cz.get("na_info"),
+                                     show_compression=_sc)
+        else:
+            draw_compression_zone_ax(a1, cfg["section"],
+                                     N_kN=0, M2_kNm=0, M3_kNm=0,
+                                     show_compression=False)
+        _fig = getattr(app, "_sec_fig", None)
+        if _fig is not None:
+            try:
+                _fig.tight_layout()
+            except Exception:
+                pass
+        _cv = getattr(app, "_sec_cv", None)
+        if _cv is not None:
+            try:
+                _cv.draw()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def render_result_tab(app, config):
     """Render tab Kết quả tính toán với layout thống nhất.
 
@@ -43,6 +88,10 @@ def render_result_tab(app, config):
     for w in app._sum_inner.winfo_children():
         w.destroy()
 
+    if getattr(app, "_show_compression", None) is None:
+        app._show_compression = tk.BooleanVar(value=True)
+    app._sec_config = config
+
     def _new_fig(parent, figsize):
         fig = Figure(figsize=figsize, dpi=100)
         cv = FigureCanvasTkAgg(fig, master=parent)
@@ -66,8 +115,14 @@ def render_result_tab(app, config):
     f_tl = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
                     highlightthickness=1, takefocus=0)
     f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
-    tk.Label(f_tl, text="MẶT CẮT TIẾT DIỆN",
-             font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
+    _hdr = tk.Frame(f_tl, bg="white")
+    _hdr.pack(fill=tk.X, pady=(2, 2))
+    tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
+             font=("", 11, "bold"), bg="white").pack(side=tk.LEFT, padx=(4, 0))
+    tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
+                   font=("", 8), fg="#374151",
+                   variable=app._show_compression,
+                   command=lambda: redraw_section_figure(app)).pack(side=tk.RIGHT, padx=(0, 4))
     fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
     a1 = fig_sec.add_subplot(111)
     from rc_column.pdf_export import draw_compression_zone_ax
@@ -78,7 +133,8 @@ def render_result_tab(app, config):
                                  M2_kNm=_cz.get("M2", 0),
                                  M3_kNm=_cz.get("M3", 0),
                                  Nmax_kN=_cz.get("Nmax"),
-                                 na_info=_cz.get("na_info"))
+                                 na_info=_cz.get("na_info"),
+                                 show_compression=bool(app._show_compression.get()))
     else:
         draw_compression_zone_ax(a1, config["section"],
                                  N_kN=0, M2_kNm=0, M3_kNm=0,
