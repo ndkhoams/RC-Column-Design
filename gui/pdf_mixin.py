@@ -24,6 +24,15 @@ from rc_column.sections import clear_spacing, bar_area
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
 from rc_column.lang import T
 class PdfMixin:
+    def _pdf_show_compression(self) -> bool:
+        """Đọc trạng thái checkbox 'Hiển thị vùng nén' (mặc định True)."""
+        try:
+            _v = getattr(self, "_show_compression", None)
+            if _v is not None:
+                return bool(_v.get())
+        except Exception:
+            pass
+        return True
     """Các method xuất PDF (tóm tắt và chi tiết)."""
 
     def _export_pdf(self):
@@ -125,7 +134,8 @@ class PdfMixin:
                                                      None),
                                    sec_img_path=_sec_png,
                                    shear_info=getattr(self, "_pdf_shear",
-                                                      None))
+                                                      None),
+                                   show_compression=self._pdf_show_compression())
             else:
                 from rc_column.pdf_report_cards import export_pdf_cards
                 # Gán tên cấu kiện từ textbox để hiển thị ở đầu PDF
@@ -137,7 +147,8 @@ class PdfMixin:
                            batch_rows=getattr(self, "_pdf_batch", None),
                            case_info=getattr(self, "_pdf_case", None),
                            shear_info=getattr(self, "_pdf_shear", None),
-                           chart_pngs=_get_chart_pngs())
+                           chart_pngs=_get_chart_pngs(),
+                           show_compression=self._pdf_show_compression())
             _show_success(path)
         except Exception as e:
             from tkinter import messagebox
@@ -182,7 +193,8 @@ class PdfMixin:
                     case_info=getattr(self, "_pdf_case", None),
                     chart_pngs=pngs,
                     shear_info=getattr(self, "_aci_shear", None),
-                    mm_res=getattr(self, "_aci_mm", None))
+                    mm_res=getattr(self, "_aci_mm", None),
+                    show_compression=self._pdf_show_compression())
             else:
                 from rc_column.aci_pdf_report import export_aci_pdf_cards
                 export_aci_pdf_cards(
@@ -191,7 +203,8 @@ class PdfMixin:
                     self._aci_conc, self._aci_steel,
                     self._aci_tied, path, chart_pngs=pngs,
                     case_info=getattr(self, "_pdf_case", None),
-                    sec=self._aci_sec)
+                    sec=self._aci_sec,
+                    show_compression=self._pdf_show_compression())
             _show_success(path)
         except Exception as ex:
             from tkinter import messagebox
@@ -242,7 +255,8 @@ class PdfMixin:
                     chart_pngs=pngs,
                     shear_info=getattr(self, "_ec2_shear", None),
                     slend_res=getattr(self, "_ec2_slend", None),
-                    fyk_sw=_fyk_sw)
+                    fyk_sw=_fyk_sw,
+                    show_compression=self._pdf_show_compression())
             else:
                 from rc_column.ec2_pdf_report import export_ec2_pdf_cards
                 export_ec2_pdf_cards(
@@ -250,7 +264,8 @@ class PdfMixin:
                     self._ec2_shear, self._ec2_conc, self._ec2_steel,
                     path, chart_pngs=pngs,
                     case_info=getattr(self, "_pdf_case", None),
-                    sec=self._ec2_sec)
+                    sec=self._ec2_sec,
+                    show_compression=self._pdf_show_compression())
             _show_success(path)
         except Exception as ex:
             from tkinter import messagebox
@@ -297,7 +312,8 @@ class PdfMixin:
                        batch_rows=getattr(self, "_pdf_batch", None),
                        case_info=getattr(self, "_pdf_case", None),
                        shear_info=getattr(self, "_pdf_shear", None),
-                       chart_pngs=_cp)
+                       chart_pngs=_cp,
+                       show_compression=self._pdf_show_compression())
             self._show_pdf_success(path)
         except Exception as ex:
             messagebox.showerror("Lỗi xuất PDF", str(ex))
