@@ -189,7 +189,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Image, Table, TableStyle, KeepTogether)
+                                    Image, Table, TableStyle, KeepTogether,
+                                    PageBreak)
     from reportlab.lib.colors import HexColor
 
     st = _get_styles()
