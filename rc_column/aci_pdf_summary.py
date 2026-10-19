@@ -327,12 +327,14 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     _parts = [f"{_cnt[d]}-d{d:.0f}" for d in sorted(_cnt, reverse=True)]
     _mu = getattr(sec, "reinforcement_ratio", 0) or 0
 
-    _story_txt, _label_txt, _combo_txt = "—", "—", "—"
+    _story_txt, _label_txt, _combo_txt, _station_txt = "—", "—", "—", "—"
     if case_info:
         _story_txt = str(case_info.get("story", "—"))
         _label_txt = str(case_info.get("label", case_info.get("column", "—")))
         _combo_txt = str(case_info.get("case", case_info.get("combo", "—")))
-    _vpos = f"[{_story_txt}]-[{_label_txt}]" if _story_txt != "—" else "—"
+        _st = case_info.get("station", "—")
+        _station_txt = f"{_st:.2f}" if isinstance(_st, (int, float)) else str(_st)
+    _vpos = f"[{_story_txt}]-[{_label_txt}]-[{_station_txt}]" if _story_txt != "—" else "—"
 
     _alpha = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
         if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
