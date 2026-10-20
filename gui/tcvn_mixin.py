@@ -957,11 +957,12 @@ class TcvnMixin:
         _hdr = tk.Frame(f_tl, bg="white")
         _hdr.pack(fill=tk.X, pady=(2, 2))
         tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
-                 font=("", 11, "bold"), bg="white").pack(side=tk.LEFT, padx=(4, 0))
+                 font=("", 11, "bold"), bg="white").pack(side=tk.TOP, fill=tk.X)
         tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
                        font=("", 8), fg="#374151",
                        variable=self._show_compression,
-                       command=lambda: self._redraw_tcvn_section()).pack(side=tk.RIGHT, padx=(0, 4))
+                       command=lambda: self._redraw_tcvn_section()).place(
+                           relx=1.0, rely=0.5, anchor="e", x=-4)
         self.ck_var = tk.StringVar(value="")
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
