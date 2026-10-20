@@ -17,7 +17,7 @@ except Exception:
 from tkinter import ttk, messagebox
 import math
 from rc_column.checker import ColumnInput, build_section, check_column
-from rc_column.report import generate_report, generate_report_sections
+from rc_column.report import generate_report_sections
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
 from rc_column.sections import clear_spacing, bar_area
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
@@ -266,8 +266,6 @@ class EtabsMixin:
                 _dns_map[_key] = _f.N
             else:
                 _forces_check.append(_f)
-        if _dns_map:
-            print(f"[ACI] Tìm thấy {len(_dns_map)} tổ hợp TX_*")
         _groups = defaultdict(list)
         for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
@@ -405,7 +403,7 @@ class EtabsMixin:
                     if isinstance(_sh.get(_k), dict):
                         _sh[_k]["combo_info"] = _qinfo
             except Exception as _exq:
-                print(f"[ETABS-ACI] merge combo_info cắt lỗi: {_exq}")
+                pass
             # Tương thích ngược
             self._aci_sec = _secw
             self._aci_conc = conc
@@ -424,7 +422,7 @@ class EtabsMixin:
             worst_r = _full_w
             rows[0] = (worst_f, worst_r)
         except Exception as _exw:
-            print(f"[ETABS] tính full worst case lỗi: {_exw}")
+            pass
         try:
                     self._pdf_case = {"story": worst_f.story, "column": worst_f.column,
                               "case": worst_f.case, "station": worst_f.station,
@@ -446,7 +444,7 @@ class EtabsMixin:
         try:
             self._show_aci_summary()
         except Exception as _ex:
-            print(f"[ETABS] _show_aci_summary lỗi: {_ex}")
+            pass
         # Render tab Chi tiết cho worst case - CHỈ ĐỌC từ _aci_full (không tính lại)
         try:
             from rc_column.aci_report_v2 import generate_aci_report_sections_v2
@@ -471,7 +469,7 @@ class EtabsMixin:
                 self._aci_tied, _fyt)
             self._render_aci_report(_secs)
         except Exception as _ex2:
-            print(f"[ETABS] render chi tiết lỗi: {_ex2}")
+            pass
 
     def _check_ec2_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
@@ -509,8 +507,6 @@ class EtabsMixin:
                 _tx_moment_map[_key] = (_f.Mx, _f.My)  # Mx=M2, My=M3 cho phi_ef
             else:
                 _forces_check.append(_f)
-        if _dns_map:
-            print(f"[EC2] Tìm thấy {len(_dns_map)} tổ hợp TX_* (tính beta_dns)")
         _groups = defaultdict(list)
         for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
@@ -666,15 +662,12 @@ class EtabsMixin:
                 _phi_ef3 = max(0.0, _phi_ef3)
                 inp_w.phi_ef2 = _phi_ef2
                 inp_w.phi_ef3 = _phi_ef3
-                print(f"[EC2] phi_ef: dùng TX_* M2={_m2_tx:.1f}, M3={_m3_tx:.1f} cho {worst_f.case}, phi_ef2={_phi_ef2:.3f}, phi_ef3={_phi_ef3:.3f}")
             else:
                 inp_w.phi_ef2 = 1.21
                 inp_w.phi_ef3 = 1.21
-                print(f"[EC2] phi_ef: không tìm thấy TX_* cho {worst_f.case}, dùng mặc định 1.21")
         except Exception as _eph:
             inp_w.phi_ef2 = 1.21
             inp_w.phi_ef3 = 1.21
-            print(f"[EC2] phi_ef lỗi: {_eph}")
         # Gọi _check_ec2 với inp_w (nó tự vẽ charts + report + lưu PDF data)
         # nhưng cần giữ case_info cho thuyết minh
         self._pdf_case = {"case": worst_f.case, "station": worst_f.station,
@@ -694,7 +687,7 @@ class EtabsMixin:
                 # Cập nhật lại bảng với D/C từ full calc
                 self._fill_etabs_table(rows)
         except Exception as _exu:
-            print(f"[ETABS-EC2] cập nhật worst_r lỗi: {_exu}")
+            pass
         # Merge combo info cho cắt (giống TCVN): EC2 dùng Q từ combo max |Q|
         try:
             _full_e = getattr(self, "_ec2_full", None)
@@ -735,9 +728,9 @@ class EtabsMixin:
                             _inp2, _res2, _dm2, _she, _conc2, _steel2, _sec2)
                         self._render_ec2_report(_sections2)
                 except Exception as _re:
-                    print(f"[ETABS-EC2] re-render Detail lỗi: {_re}")
+                    pass
         except Exception as _exq:
-            print(f"[ETABS-EC2] merge combo_info cắt lỗi: {_exq}")
+            pass
 
     def on_check_etabs(self):
         if not self.etabs_forces:
@@ -778,8 +771,6 @@ class EtabsMixin:
                 _tx_moment_map[_key] = (_f.Mx, _f.My)  # Mx=M2, My=M3 cho phi_L
             else:
                 _forces_check.append(_f)
-        if _dns_map:
-            print(f"[TCVN] Tìm thấy {len(_dns_map)} tổ hợp TX_* (tính beta_dns)")
         _groups = defaultdict(list)
         for _f in _forces_check:
             _groups[(_f.story, _f.column)].append(_f)
@@ -796,8 +787,25 @@ class EtabsMixin:
             _inp_g.Lx = _Lx_grp
             _inp_g.Ly = _Ly_grp
             _bc = BatchChecker(_inp_g, n_angles=12)
+            from rc_column.stability import LongTermLoads as _LongTermLoads
             for _f in _flist:
-                _r = _bc.check_one(_f.N, _f.Mx, _f.My, _inp_g.long_term)
+                # phi_L của TỪNG tổ hợp: dùng mô men TX_* tại đúng vị trí
+                # (nhất quán với tính full của tổ hợp nguy hiểm nhất ở dưới);
+                # không có TX_* tại vị trí thì giữ long_term từ collect()
+                _lt_f = _inp_g.long_term
+                _cb = _f.case.strip()
+                for _sf in ("max", "min"):
+                    if _cb.lower().endswith(_sf):
+                        _cb = _cb[:-len(_sf)].strip()
+                        break
+                _tx_mf = _tx_moment_map.get(
+                    (_f.story.strip(), _f.column.strip(),
+                     round(_f.station, 3), _cb))
+                if _tx_mf is not None:
+                    _lt_f = _LongTermLoads(
+                        has_data=True, N_lt=0.0,
+                        Mx_lt=_tx_mf[0], My_lt=_tx_mf[1])
+                _r = _bc.check_one(_f.N, _f.Mx, _f.My, _lt_f)
                 rows.append((_f, _r))
         # sắp xếp theo D/C giảm dần (nguy hiểm nhất lên đầu)
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
@@ -813,7 +821,6 @@ class EtabsMixin:
         # highlight dòng nguy hiểm nhất (dòng đầu sau sắp xếp)
         self._fill_etabs_table(rows)
         if not _forces_check:
-            from tkinter import messagebox
             messagebox.showinfo("ETABS", "Chỉ có tổ hợp TX_*, không có tổ hợp nào để kiểm tra.")
             return
         worst_f, worst_r = rows[0]
@@ -870,12 +877,11 @@ class EtabsMixin:
                 inp_w.long_term = LongTermLoads(
                     has_data=True, N_lt=0.0,  # N không dùng cho phi_L (chỉ dùng M)
                     Mx_lt=_m2_lt, My_lt=_m3_lt)
-                print(f"[TCVN] phi_L: dùng TX_* M2={_m2_lt:.1f}, M3={_m3_lt:.1f} cho {_cn_w}")
             else:
                 # Không có TX_*: giữ nguyên long_term từ collect() (mặc định 2.0)
-                print(f"[TCVN] phi_L: không tìm thấy TX_* cho {_cn_w}, dùng mặc định")
+                pass
         except Exception as _epl:
-            print(f"[TCVN] phi_L lỗi: {_epl}")
+            pass
         # L cho worst (riêng từng phương): ưu tiên ô nhập tay,
         # nếu trống thì dùng station max của nhóm worst
         _Lxw_man = self._f(self.en_Lx, 0.0)
