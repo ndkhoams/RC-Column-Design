@@ -188,9 +188,11 @@ class AciMixin:
             res["shear3"] = sh3 or {}
             res["shear"] = {"dir2": sh2 or {}, "dir3": sh3 or {}}
             # Lưu thêm thông số hiển thị (để tab/PDF không phải tính lại)
+            # b theo quy ước chung như TCVN/EC2: phương 2 -> b = cy (t2),
+            # phương 3 -> b = cx (t3); d lấy theo cạnh còn lại.
             res["shear_disp"] = {
-                "2": {"b": sec.cx, "d": d2_s, "Av": Av2, "Vu": abs(Q2), "sw_txt": txt2},
-                "3": {"b": sec.cy, "d": d3_s, "Av": Av3, "Vu": abs(Q3), "sw_txt": txt3},
+                "2": {"b": sec.cy, "d": d2_s, "Av": Av2, "Vu": abs(Q2), "sw_txt": txt2},
+                "3": {"b": sec.cx, "d": d3_s, "Av": Av3, "Vu": abs(Q3), "sw_txt": txt3},
             }
         except Exception:
             res["shear2"] = {}
