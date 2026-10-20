@@ -40,39 +40,6 @@ RED_BG = "#FEE2E2"
 _DOT_COLORS = ["#2563EB", "#059669", "#D97706", "#7C3AED", "#DB2777", "#0891B2"]
 
 
-def _find_ec2_font():
-    """Tìm font DejaVu Sans: ưu tiên helper của pdf_export, fallback qua
-    matplotlib.font_manager (cho môi trường hệ thống đặt mpl-data ở
-    /usr/share)."""
-    try:
-        from .pdf_export import _find_font
-        p = _find_font()
-        if p:
-            return p
-    except Exception:
-        pass
-    try:
-        import matplotlib.font_manager as fm
-        return fm.findfont("DejaVu Sans")
-    except Exception:
-        return None
-
-
-def _find_ec2_font_bold():
-    try:
-        from .pdf_export import _find_font_bold
-        p = _find_font_bold()
-        if p:
-            return p
-    except Exception:
-        pass
-    try:
-        import matplotlib.font_manager as fm
-        return fm.findfont("DejaVu Sans", weight="bold")
-    except Exception:
-        return None
-
-
 def _img_keep_aspect(png_bytes, w_mm=80):
     """Tạo Image giữ tỉ lệ gốc bằng PIL."""
     from reportlab.platypus import Image

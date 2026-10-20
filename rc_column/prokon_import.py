@@ -63,11 +63,6 @@ def _fields(line: str) -> List[str]:
     return [p.strip() for p in s.split("|")]
 
 
-def _is_dashes(line: str) -> bool:
-    s = line.strip()
-    return bool(s) and set(s) <= set("- ")
-
-
 # ---------------------------------------------------------------------------
 # Các block
 # ---------------------------------------------------------------------------

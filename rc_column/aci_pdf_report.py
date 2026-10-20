@@ -1,6 +1,6 @@
 """Xuất PDF thuyết minh kiểm tra cột theo ACI 318-19.
 
-Render các section từ aci_report.generate_aci_report_sections thành
+Render các section từ aci_report_v2.generate_aci_report_sections_v2 thành
 PDF A4 dọc với card style giống hệt bản TCVN (pdf_report_cards.py).
 
 Không phụ thuộc GUI/matplotlib trực tiếp.

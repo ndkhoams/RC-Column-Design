@@ -102,19 +102,6 @@ def phi_L(N: float, Mx: float, My: float, lt: LongTermLoads) -> float:
     return min(2.0, max(1.0, 1.0 + r))
 
 
-def magnified_moment(M: float, N: float, L0: float, EI: float) -> float:
-    """Mô men kể đến uốn dọc (khuếch đại): M* = M / (1 - N/Ncr).
-
-    N (kN), L0 (m), EI (kN·m²). Ncr = pi²·EI / L0².
-    """
-    if EI <= 0 or L0 <= 0:
-        return M
-    Ncr = math.pi ** 2 * EI / (L0 ** 2)
-    if abs(N) >= 0.9 * Ncr:
-        return M * 10.0  # mất ổn định
-    return M / (1.0 - abs(N) / Ncr)
-
-
 # ---------------------------------------------------------------------------
 # Độ lệch tâm & hiệu ứng uốn dọc (TCVN 5574:2018 Mục 8.1.2)
 # ---------------------------------------------------------------------------
