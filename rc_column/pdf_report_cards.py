@@ -198,6 +198,9 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     sec = build_section(inp)
     conc = sec.concrete
     steel = sec.steel
+    # Grade thép ĐAI (dùng cho card vật liệu đai ở mục 1 và mục cắt)
+    _sw_grade = STEEL_GRADES.get(getattr(inp, "sw_steel_grade", "CB400-V"),
+                                 STEEL_GRADES["CB400-V"])
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=10*mm, rightMargin=10*mm,
@@ -229,8 +232,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                f"Es = {steel.Es:,.0f} MPa"])))
     S.extend(_two(P, st,
         _mk( f"Cốt thép đai ({getattr(inp, 'sw_steel_grade', 'CB400-V')})", "Bảng 13",
-              [f"Rsw = {_f(steel.grade.Rsw * inp.gamma_s, 1)} MPa",
-               f"Es = {steel.Es:,.0f} MPa"]),
+              [f"Rsw = {_f(_sw_grade.Rsw * inp.gamma_s, 1)} MPa",
+               f"Es = {_sw_grade.Es:,.0f} MPa"]),
         _mk( "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
               [f"αe = Es / Eb = {steel.Es:,.0f} / {conc.Eb:,.0f}",
                f"= {_f(res.alpha_e)} -"])))
