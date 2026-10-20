@@ -352,11 +352,16 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _sw_s = getattr(inp, "sw_spacing", 100) or 100
     _sw_legs = getattr(inp, "sw_legs", 2) or 2
     _dia_max = max((getattr(r, "dia", 0) for r in getattr(sec, "rebars", [])), default=25)
+    # Dấu ✓/✗ tính từ điều kiện thật (không hard-code)
+    _dia_req = max(0.25 * _dia_max, 10)
+    _s_lim = min(16 * _dia_max, 48 * _sw_dia, min(cx, cy))
+    _mk_d = "✓" if _sw_dia >= _dia_req - 1e-9 else "✗"
+    _mk_s = "✓" if _sw_s <= _s_lim + 1e-9 else "✗"
     _cfg_card = _mk("Cấu tạo cốt đai (25.7.2)",
                 "ACI 25.7.2",
-                [f"✓ Đường kính đai (25.7.2.2): yêu cầu ≥ max(0.25×{_dia_max:.0f}, 10) = {max(0.25*_dia_max, 10):.1f} mm, chọn φ{_sw_dia:.0f}",
-                 f"✓ Bước đai (25.7.2.1): yêu cầu ≤ min(16×{_dia_max:.0f}, 48×{_sw_dia:.0f}, min(b,h)) = {min(16*_dia_max, 48*_sw_dia, min(cx, cy)):.0f} mm, chọn {_sw_s:.0f} mm",
-                 f"✓ Số nhánh đai: {_sw_legs} nhánh"],
+                [f"{_mk_d} Đường kính đai (25.7.2.2): yêu cầu ≥ max(0.25×{_dia_max:.0f}, 10) = {_dia_req:.1f} mm, chọn φ{_sw_dia:.0f}",
+                 f"{_mk_s} Bước đai (25.7.2.1): yêu cầu ≤ min(16×{_dia_max:.0f}, 48×{_sw_dia:.0f}, min(b,h)) = {_s_lim:.0f} mm, chọn {_sw_s:.0f} mm",
+                 f"Số nhánh đai: {_sw_legs} nhánh"],
                 "")
     _sh = shear_res or {}
     _d2 = _sh.get("dir2", {}) if isinstance(_sh.get("dir2"), dict) else {}
