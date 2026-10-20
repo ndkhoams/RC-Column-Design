@@ -463,12 +463,25 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             # Nếu không có precalc, để trống (không tính lại)
         _d2 = _t3 - inp.cover - _sw_dia - 12
         _d3 = _t2 - inp.cover - _sw_dia - 12
+        _b2, _b3 = _t2, _t3
+        # Ưu tiên thông số hiển thị đã tính 1 lần (shear_disp của
+        # _aci_calculate_full) để PDF khớp tab tuyệt đối, không dựng lại ở đây
+        _disp = aci_res.get("shear_disp") if isinstance(aci_res, dict) else None
+        if isinstance(_disp, dict) and "2" in _disp and "3" in _disp:
+            _b2 = _disp["2"].get("b", _b2)
+            _d2 = _disp["2"].get("d", _d2)
+            _Av2 = _disp["2"].get("Av", _Av2)
+            _sw_txt2 = _disp["2"].get("sw_txt", _sw_txt2)
+            _b3 = _disp["3"].get("b", _b3)
+            _d3 = _disp["3"].get("d", _d3)
+            _Av3 = _disp["3"].get("Av", _Av3)
+            _sw_txt3 = _disp["3"].get("sw_txt", _sw_txt3)
         _sw_lines = [
             ("Thép đai bố trí", _sw_txt2, _sw_txt3),
             ("Lực cắt tính toán, Vu",
              f"{abs(_q2):.1f} kN", f"{abs(_q3):.1f} kN"),
             ("Kích thước tiết diện, b × d",
-             f"{_t2:.0f} × {_d2:.0f} mm", f"{_t3:.0f} × {_d3:.0f} mm"),
+             f"{_b2:.0f} × {_d2:.0f} mm", f"{_b3:.0f} × {_d3:.0f} mm"),
             ("Av = n × φ",
              f"{_Av2:.0f} mm²", f"{_Av3:.0f} mm²"),
             ("Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]×bw×d (ACI 22.5.5)",

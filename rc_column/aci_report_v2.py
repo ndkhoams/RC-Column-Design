@@ -400,6 +400,17 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
             _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f} + {_mlegs}φ{_mdia:.0f} a{_ms:.0f}"
         else:
             _sw_txt = f"{_sw_legs}φ{_sw_dia:.0f} a{_sw_s:.0f}"
+        # Ưu tiên thông số hiển thị đã tính 1 lần (shear_disp của
+        # _aci_calculate_full) để khớp tab tuyệt đối
+        try:
+            _dp = (aci_res.get("shear_disp") or {}).get(_dnum, {})
+            if _dp:
+                _b = _dp.get("b", _b)
+                _d_eff = _dp.get("d", _d_eff)
+                _Av_tot = _dp.get("Av", _Av_tot)
+                _sw_txt = _dp.get("sw_txt", _sw_txt)
+        except Exception:
+            pass
         _mark = "✓" if ok else "✗"
         _ci = d.get("combo_info", "") or ""
         _lines = [
