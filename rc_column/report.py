@@ -60,8 +60,6 @@ class ReportBuilder:
             txt += f"  {result}"
         self.add(txt + "\n", "card")
 
-    def build(self) -> List[Seg]:
-        return self.segs
 
     def build_sections(self) -> dict:
         return self.sections
@@ -290,11 +288,6 @@ def _build_report(inp: ColumnInput, res: CheckResult,
 
 
 
-def generate_report(inp: ColumnInput, res: CheckResult) -> List[Seg]:
-    """Trả về list segments phẳng (dùng cho PDF, text thuần)."""
-    return _build_report(inp, res).build()
-
-
 def generate_report_sections(inp: ColumnInput, res: CheckResult,
                              batch_rows=None, case_info=None,
                              shear_info=None) -> dict:
@@ -335,8 +328,3 @@ def _build_section7(b: "ReportBuilder", batch_rows):
         b.add(fmt_row(row), "mono")
         b.add(line("-"), "mono")
     b.nl()
-
-
-def generate_report_text(inp: ColumnInput, res: CheckResult) -> str:
-    """Tương thích ngược: trả về text thuần."""
-    return "".join(t for t, _ in generate_report(inp, res))
