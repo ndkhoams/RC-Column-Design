@@ -57,6 +57,157 @@ class DxfMixin:
         except Exception:
             pass
 
+    def on_import_prokon(self):
+        """Import toàn bộ từ file Prokon General Column (.C13).
+
+        Nạp: tiêu chuẩn (EC2/ACI) + vật liệu, tiết diện bất kỳ (đa giác
+        + vị trí thép thật, đi đúng đường như import DXF), chiều dài +
+        điều kiện biên, và nội lực (mỗi load case -> 2 dòng đầu
+        dưới/trên trong bảng ETABS ở mục 5).
+        Ánh xạ trục: Prokon Mx -> M3 của app, Prokon My -> M2 của app.
+        """
+        from tkinter import filedialog, messagebox
+        path = filedialog.askopenfilename(
+            title="Chọn file Prokon General Column (.C13)",
+            filetypes=[("Prokon", "*.C13"), ("All", "*.*")])
+        if not path:
+            return
+        try:
+            from rc_column.prokon_import import parse_prokon_c13
+            data = parse_prokon_c13(path)
+        except Exception as ex:
+            messagebox.showerror("Lỗi đọc Prokon", str(ex))
+            return
+        code = data["design_code"]
+        if code not in ("EC2", "ACI"):
+            messagebox.showerror(
+                "Import Prokon",
+                f"Chưa hỗ trợ design code: {data['design_code_text']}")
+            return
+        warnings = list(data["warnings"])
+        # --- Dựng tiết diện polygon (giống hệt đường import DXF) ---
+        try:
+            from rc_column.dxf_import import DxfSection, build_polygon_section
+            from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
+                                             ConcreteMaterial, SteelMaterial)
+            dxf = DxfSection(outlines=[list(data["polygon"])],
+                             rebars=list(data["rebars"]),
+                             warnings=warnings)
+            conc = ConcreteMaterial(
+                CONCRETE_GRADES[self.cb_conc.get()], 1.0)
+            steel = SteelMaterial(STEEL_GRADES[self.cb_steel.get()], 1.0)
+            sec = build_polygon_section(dxf, conc, steel, fiber_step=10.0)
+        except Exception as ex:
+            messagebox.showerror("Lỗi dựng tiết diện Prokon", str(ex))
+            return
+        # Preview & xác nhận (dùng chung dialog với DXF)
+        if not self._preview_dxf_section(sec, dxf, path):
+            return
+        # --- 1) Tiêu chuẩn + vật liệu ---
+        if code == "EC2":
+            self.cb_code.set("EC2 (EN 1992-1-1)")
+            self._toggle_code()
+            from rc_column.ec2_materials import EC2_CONCRETE_GRADES
+            _fck = data["fck"]
+            _name = next(
+                (k for k, v in EC2_CONCRETE_GRADES.items()
+                 if abs(v - _fck) < 1e-6), None)
+            if _name is None:
+                _name = min(EC2_CONCRETE_GRADES,
+                            key=lambda k: abs(EC2_CONCRETE_GRADES[k] - _fck))
+                warnings.append(
+                    f"fck={_fck:g} MPa không có lớp bê tông EC2 khớp — "
+                    f"dùng tạm {_name}.")
+            self.cb_ec2_conc.set(_name)
+            for _en in (self.en_ec2_fyk, self.en_ec2_fyt):
+                _en.delete(0, tk.END)
+                _en.insert(0, f"{data['fy']:g}")
+        else:  # ACI
+            self.cb_code.set("ACI 318-19")
+            self._toggle_code()
+            for _en, _val in ((self.en_fc, data["fck"]),
+                              (self.en_fy, data["fy"]),
+                              (self.en_fyt, data["fy"])):
+                _en.delete(0, tk.END)
+                _en.insert(0, f"{_val:g}")
+        # --- 2) Tiết diện ---
+        self._dxf_section = sec
+        self._dxf_path = path
+        self.cb_kind.set("Tiết diện bất kỳ (DXF)")
+        _fname = path.replace("\\", "/").split("/")[-1]
+        self.dxf_info.set(
+            f"Đã import Prokon: {_fname} — "
+            f"Ag={sec.gross_area:.0f} mm², {len(sec.rebars)} thép, "
+            f"As={sec.steel_area:.0f} mm²")
+        # --- 3) Tên cấu kiện ---
+        if data["title"]:
+            self.member_var.set(data["title"])
+        # --- 4) Chiều dài + điều kiện biên (cả 2 phương = L0) ---
+        for _en in (self.en_Lx, self.en_Ly):
+            _en.delete(0, tk.END)
+            _en.insert(0, f"{data['L0']:g}")
+        _end_map = {"fully fixed": "Ngàm cứng", "fixed": "Ngàm cứng",
+                    "pinned": "Khớp", "hinged": "Khớp",
+                    "partially fixed": "Ngàm nửa cứng",
+                    "partial": "Ngàm nửa cứng", "free": "Tự do"}
+
+        def _bc(txt, which):
+            name = _end_map.get(str(txt).strip().lower())
+            if name is None:
+                warnings.append(
+                    f"Điều kiện biên {which} của Prokon ('{txt}') chưa rõ "
+                    "— dùng tạm 'Ngàm cứng'.")
+                name = "Ngàm cứng"
+            return name
+        _bc_top = _bc(data["end_top"], "đầu trên")
+        _bc_bot = _bc(data["end_bottom"], "đầu dưới")
+        self.cb_tx.set(_bc_top)
+        self.cb_ty.set(_bc_top)
+        self.cb_bx.set(_bc_bot)
+        self.cb_by.set(_bc_bot)
+        try:
+            self._auto_psi()
+        except Exception:
+            pass
+        if data.get("beta") is not None:
+            warnings.append(
+                f"Hệ số chiều dài hiệu dụng của Prokon β={data['beta']:g}; "
+                "app tự tính ψ/L0 từ chiều dài + điều kiện biên nên kết "
+                "quả độ mảnh có thể lệch Prokon.")
+        # --- 5) Nội lực -> bảng ETABS (mỗi case: Bottom + Top) ---
+        from rc_column.etabs_import import EtabsForce
+        forces = []
+        for ld in data["loads"]:
+            forces.append(EtabsForce(
+                story=data["title"], column=data["label"],
+                case=ld["name"], case_type="Combination",
+                station=0.0, N=ld["P"],
+                Mx=ld["My_bottom"], My=ld["Mx_bottom"],
+                Q2=0.0, Q3=0.0))
+            forces.append(EtabsForce(
+                story=data["title"], column=data["label"],
+                case=ld["name"], case_type="Combination",
+                station=data["L0"], N=ld["P"],
+                Mx=ld["My_top"], My=ld["Mx_top"],
+                Q2=0.0, Q3=0.0))
+        self.etabs_forces = forces
+        self.etabs_file = path
+        self.var_load_mode.set("etabs")
+        self._toggle_load_mode()
+        self._fill_etabs_table([(f, None) for f in forces])
+        self.etabs_info.set(
+            f"Đã import Prokon: {len(sec.rebars)} thanh thép, "
+            f"{len(data['loads'])} tổ hợp ({code}) — "
+            f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
+        self._refresh_rebar_panel()
+        try:
+            self._refresh_rebar()
+        except Exception:
+            pass
+        if warnings:
+            messagebox.showwarning("Cảnh báo import Prokon",
+                                   "\n".join(warnings))
+
     def on_export_dxf(self):
         """Xuất tiết diện đang có ra file DXF (để sửa trong AutoCAD)."""
         from tkinter import filedialog, messagebox
