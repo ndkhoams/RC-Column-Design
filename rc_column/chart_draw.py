@@ -12,10 +12,17 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
     BLUE_DASH = "#3B82F6"
     alpha_deg = math.degrees(
         math.atan2(res.Mx_star, res.My_star))  # quy ước ETABS: đo từ trục M3
-    cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
-    m_pos = [p[1] for p in cv]
-    n_pos = [p[0] for p in cv]
-    m_neg = [-p[1] for p in cv]
+    # Từ 2026-10-21: đường cong N-Mα = capacity EXACT tại các mức N
+    # (cùng nguồn với D/C), không còn đường cong đơn trục construction
+    _cap = BiaxialCapacity(sec, model=inp.concrete_model)
+    _eng = _cap._exact
+    m_pos, n_pos = [], []
+    _n_lv = 64
+    for _i in range(_n_lv):
+        _N = _eng.N_max + (_eng.N_min - _eng.N_max) * _i / (_n_lv - 1)
+        n_pos.append(float(_N))
+        m_pos.append(_cap.moment_capacity(float(_N), alpha_deg))
+    m_neg = [-m for m in m_pos]
     ax.plot(m_pos, n_pos, color=GREEN, linewidth=2.2, zorder=3)
     ax.plot(m_neg, n_pos, color=GREEN, linewidth=2.2, zorder=3)
     # Fill nhạt vùng trong
