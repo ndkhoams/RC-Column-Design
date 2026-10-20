@@ -43,47 +43,9 @@ class TcvnMixin:
         sec = build_section(inp)
 
         # Tính cắt 1 lần ở đây (để tab/PDF chỉ hiển thị, không tính lại)
-        from rc_column.stirrup import StirrupInput, check_stirrup, check_shear
-        from rc_column.sections import bar_area
-        from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES, ConcreteMaterial
-        _shear_cols = {}
-        try:
-            _stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing, legs=inp.sw_legs)
-            _conc_mat = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade], inp.gamma_b)
-            _swg = STEEL_GRADES.get(inp.sw_steel_grade)
-            _sr = check_stirrup(sec, _stir_in, inp.cover)
-            for _Q, _lbl, _b_w, _h_dim, _mdia, _ms, _mlegs in (
-                    (inp.Q2, "2", inp.cy, inp.cx, inp.swm2_dia, inp.swm2_spacing, inp.swm2_legs),
-                    (inp.Q3, "3", inp.cx, inp.cy, inp.swm3_dia, inp.swm3_spacing, inp.swm3_legs)):
-                _h0 = _h_dim - inp.cover - inp.sw_dia - 12
-                # Đai bao ngoài
-                _Asw_outer = _stir_in.legs * bar_area(_stir_in.dia)
-                _s_outer = _stir_in.spacing
-                _Rsw = _swg.Rsw if _swg else 0
-                # qsw = Σ(Rsw×Asw,i/si) theo TCVN 5574:2018 (8.1.3)
-                _qsw = _Rsw * _Asw_outer / _s_outer if _s_outer > 0 else 0
-                _Asw = _Asw_outer
-                _sw_txt = f"{_stir_in.legs:.0f}φ{_stir_in.dia:.0f} a{_stir_in.spacing:.0f}"
-                # Cộng đai giữa (nếu có) - tính đúng theo spacing riêng
-                if _mdia and _ms:
-                    try:
-                        _mdia_f = float(_mdia)
-                        _ms_f = float(_ms)
-                        _mlegs_i = int(_mlegs)
-                        if _mdia_f > 0 and _ms_f > 0 and _mlegs_i > 0:
-                            _Asw_mid = _mlegs_i * bar_area(_mdia_f)
-                            _Asw += _Asw_mid
-                            _qsw += _Rsw * _Asw_mid / _ms_f
-                            _sw_txt += f" + {_mlegs_i}φ{_mdia_f:.0f} a{_ms_f:.0f}"
-                    except: pass
-                # Bước đai tương đương để check_shear tính đúng qsw
-                _s_eff = _Rsw * _Asw / _qsw if _qsw > 0 else _s_outer
-                _sh = check_shear(_Q, _b_w, max(_h0, 1), _conc_mat.Rb, _conc_mat.Rbt,
-                                 _Asw, _Rsw, _s_eff)
-                _shear_cols[_lbl] = dict(Q=_Q, b=_b_w, h0=_h0, Asw=_Asw, qsw=_qsw,
-                                        sh=_sh, sw_txt=_sw_txt, s_eff=_s_eff)
-        except Exception:
-            pass
+        # Nguồn duy nhất: rc_column.stirrup.compute_shear_cols
+        from rc_column.stirrup import compute_shear_cols
+        _shear_cols = compute_shear_cols(inp, sec)
 
         # Tính alpha 1 lần từ M* (dùng chung)
         import math as _math
@@ -380,31 +342,13 @@ class TcvnMixin:
             # Dùng kết quả có sẵn - KHÔNG tính lại (nguyên tắc "tính 1 lần")
             cols = _cols
         else:
-            # Fallback: tính lại nếu không có precalc (giữ để không vỡ UI)
-            from rc_column.stirrup import (StirrupInput, check_stirrup, check_shear)
-            from rc_column.sections import bar_area
-            from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES, ConcreteMaterial)
+            # Fallback: tính bằng ĐÚNG hàm dùng chung compute_shear_cols
+            # (nguồn duy nhất — không viết công thức riêng ở đây)
+            from rc_column.stirrup import compute_shear_cols
             try:
-                stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing, legs=inp.sw_legs)
-                conc = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade], inp.gamma_b)
-                swg = STEEL_GRADES.get(inp.sw_steel_grade)
-                sr = check_stirrup(self._last_sec, stir_in, inp.cover)
-                cols = {}
-                for Q, lbl, b_w, h_dim, mdia, ms, mlegs in (
-                        (inp.Q2, "2", inp.cy, inp.cx, inp.swm2_dia, inp.swm2_spacing, inp.swm2_legs),
-                        (inp.Q3, "3", inp.cx, inp.cy, inp.swm3_dia, inp.swm3_spacing, inp.swm3_legs)):
-                    h0 = h_dim - inp.cover - inp.sw_dia - 12
-                    Asw = stir_in.legs * bar_area(stir_in.dia)
-                    s_eff = stir_in.spacing
-                    sw_txt = f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} a{stir_in.spacing:.0f}"
-                    if mlegs and mlegs > 0:
-                        try:
-                            Asw += mlegs * bar_area(float(mdia))
-                        except:
-                            pass
-                    sh = check_shear(Q, b_w, max(h0, 1), conc.Rb, conc.Rbt, Asw, swg.Rsw, s_eff)
-                    qsw = swg.Rsw * Asw / s_eff if s_eff > 0 else 0
-                    cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh, sw_txt=sw_txt, s_eff=s_eff)
+                cols = compute_shear_cols(inp, self._last_sec)
+                if not cols:
+                    raise ValueError("compute_shear_cols trả về rỗng")
             except Exception as ex:
                 # Nếu lỗi, hiển thị thông báo
                 import tkinter as tk
