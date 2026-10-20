@@ -18,7 +18,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import math
 from rc_column.checker import ColumnInput, build_section, check_column
-from rc_column.report import generate_report, generate_report_sections
+from rc_column.report import generate_report_sections
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
 from rc_column.sections import clear_spacing, bar_area
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
@@ -204,7 +204,6 @@ class AciMixin:
         from rc_column.aci_materials import ACIConcrete, ACISteel
         from rc_column.aci_checker import (check_column_aci, moment_magnification,
                                           aci_shear_check)
-        from rc_column.aci_report import generate_aci_report_sections
         try:
             fc = float(self.en_fc.get().replace(",", "."))
             fy = float(self.en_fy.get().replace(",", "."))
@@ -217,14 +216,46 @@ class AciMixin:
         steel = ACISteel(fy=fy)
         sec = build_section(inp)
         # TÍNH 1 LẦN: gọi hàm tính đầy đủ (không tính lại ở nơi khác)
-        # Tính beta_dns từ TX_* nếu có
+        # Tính beta_dns từ TX_* tại ĐÚNG vị trí của tổ hợp đang xét
+        # (nhất quán đường batch: map (story, column, station, tổ hợp gốc)).
+        # Tổ hợp nhập tay không có story/station/tên: định danh bằng bộ nội
+        # lực (N, M2, M3) khớp với 1 dòng trong bảng ETABS; không khớp được
+        # thì dùng mặc định 0.6 như batch khi thiếu TX_* tại vị trí.
         _beta = 0.6
         _beta_src = ""
         try:
-            _tx_ns = [f.N for f in getattr(self, 'etabs_forces', [])
-                        if f.case.strip().startswith("TX_")]
-            if _tx_ns and inp.N > 1e-9:
-                _n_sus = max(_tx_ns)
+            _forces = getattr(self, 'etabs_forces', []) or []
+            _dns_map = {}
+            for _f in _forces:
+                _cn = _f.case.strip()
+                if _cn.startswith("TX_"):
+                    _key = (_f.story.strip(), _f.column.strip(),
+                            round(_f.station, 3), _cn[3:])
+                    _dns_map[_key] = _f.N
+            _n_sus = None
+            if _dns_map and inp.N > 1e-9:
+                _mres = math.hypot(inp.Mx, inp.My)
+                _best = None
+                _best_d = None
+                for _f in _forces:
+                    if _f.case.strip().startswith("TX_"):
+                        continue
+                    _d = (abs(_f.N - inp.N) / max(abs(inp.N), 1.0)
+                          + abs(math.hypot(_f.Mx, _f.My) - _mres)
+                          / max(_mres, 1.0))
+                    if _best_d is None or _d < _best_d:
+                        _best_d = _d
+                        _best = _f
+                if _best is not None and _best_d <= 0.02:
+                    _cb = _best.case.strip()
+                    for _sf in ("max", "min"):
+                        if _cb.lower().endswith(_sf):
+                            _cb = _cb[:-len(_sf)].strip()
+                            break
+                    _key = (_best.story.strip(), _best.column.strip(),
+                            round(_best.station, 3), _cb)
+                    _n_sus = _dns_map.get(_key)
+            if _n_sus is not None:
                 _beta = max(0.0, min(1.0, _n_sus / inp.N))
                 _beta_src = f"TX_ ({_n_sus:.0f}/{inp.N:.0f})"
         except Exception:
@@ -466,7 +497,7 @@ class AciMixin:
                     if canvas:
                         canvas.draw()
         except Exception as e:
-            print(f"[ACI] Lỗi đổi góc xem: {e}")
+            pass
 
     def _restore_2d_aci(self):
         """Khôi phục biểu đồ 2D sau khi xem 3D - chỉ tạo lại khung chart."""
@@ -506,7 +537,6 @@ class AciMixin:
             self._nm_ax = ax
             self._nm_canvas = cv
         except Exception as e:
-            print(f"[ACI] Lỗi khôi phục 2D: {e}")
             self._show_aci_summary()
 
     def _build_aci_section_cards(self, parent, sec, conc, steel, tied):
@@ -884,7 +914,6 @@ class AciMixin:
             fig2.tight_layout()
             return (fig1, fig2)
         except Exception as e:
-            print(f"[ACI] Lỗi tạo fig detail: {e}")
             return (None, None, None)
 
     def _draw_3d_aci(self):
@@ -957,7 +986,6 @@ class AciMixin:
             self._aci_nm_cv_ref.draw()
             self._aci_nm_ax_ref = None
         except Exception as ex:
-            print(f"Lỗi vẽ 3D ACI: {ex}")
             import traceback
             traceback.print_exc()
 
