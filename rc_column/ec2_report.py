@@ -172,9 +172,11 @@ def generate_ec2_report_sections(inp, ec2_res: Dict[str, Any],
         if VEd > VRd_c and math.isfinite(asw_req):
             lines.append(f"VRd,s = {_f(VRd_s, 1)} kN, "
                          f"Asw/s yêu cầu = {_f(asw_req, 3)} mm²/mm")
-        cmp = "≤" if VEd <= max(VRd_c, VRd_s) else ">"
+        # Dấu so sánh phải dùng cùng VRd khống chế của checker (VRd_kN)
+        _VRd = d.get("VRd_kN", 0) or 0
+        cmp = "≤" if VEd <= _VRd else ">"
         lines.append(f"VEd = {_f(VEd, 1)} kN {cmp} VRd = "
-                     f"{_f(d.get('VRd_kN', 0) or 0, 1)} kN")
+                     f"{_f(_VRd, 1)} kN")
         if d.get("reason"):
             lines.append(d["reason"])
         return _mk(f"Phương {lbl}", "EC2 6.2", lines,

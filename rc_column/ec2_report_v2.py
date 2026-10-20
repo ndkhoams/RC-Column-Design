@@ -243,10 +243,15 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     _sw_dia = getattr(inp, "sw_dia", 10) or 10
     _sw_s = getattr(inp, "sw_spacing", 100) or 100
     _dia_max = max((getattr(r, "dia", 0) for r in getattr(sec, "rebars", [])), default=25)
+    # Dấu ✓/✗ tính từ điều kiện thật (không hard-code)
+    _dia_req_e = max(6, 0.25 * _dia_max)
+    _s_lim_e = min(20 * _dia_max, min(cx, cy), 400)
+    _mk_de = "✓" if _sw_dia >= _dia_req_e - 1e-9 else "✗"
+    _mk_se = "✓" if _sw_s <= _s_lim_e + 1e-9 else "✗"
     _cfg_card = _mk("Cấu tạo cốt đai (9.5.3)",
                 "EC2 9.5.3",
-                [f"✓ Đường kính đai (9.5.3(1)): yêu cầu ≥ max(6, 0.25×{_dia_max:.0f}) = {max(6, 0.25*_dia_max):.1f} mm, chọn φ{_sw_dia:.0f}",
-                 f"✓ Bước đai (9.5.3(3)): yêu cầu ≤ min(20×{_dia_max:.0f}, min(b,h), 400) = {min(20*_dia_max, min(cx, cy), 400):.0f} mm, chọn {_sw_s:.0f} mm"],
+                [f"{_mk_de} Đường kính đai (9.5.3(1)): yêu cầu ≥ max(6, 0.25×{_dia_max:.0f}) = {_dia_req_e:.1f} mm, chọn φ{_sw_dia:.0f}",
+                 f"{_mk_se} Bước đai (9.5.3(3)): yêu cầu ≤ min(20×{_dia_max:.0f}, min(b,h), 400) = {_s_lim_e:.0f} mm, chọn {_sw_s:.0f} mm"],
                 "")
     def _sh_card(d: Dict[str, Any], VEd: float, lbl: str):
         _dnum = "2" if "V2" in lbl else "3"
@@ -293,8 +298,10 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                   f"VRd,max = αcw×bw×z×ν1×fcd/(cotθ+tanθ) = {_f(VRd_max, 1)} kN",
                   f"VRd,s = (Asw/s)×z×fywd×cotθ (θ=45°) = {_f(VRd_s, 1)} kN",
                   f"Asw/s yêu cầu = VEd/(z×fywd×cotθ) = {_f(asw_req, 3)} mm²/mm"]
-        _VRd = max(VRd_c, VRd_s)
-        _lines.append(f"→ VRd = max(VRd,c, VRd,s) = {_f(_VRd, 1)} kN")
+        # Sức kháng khống chế lấy thẳng từ kết quả checker (tính 1 lần):
+        # VRd,c nếu chưa cần đai tính toán, min(VRd,s, VRd,max) nếu đã cần đai
+        _VRd = d.get("VRd_kN", 0.0) or 0.0
+        _lines.append(f"→ VRd (khống chế, theo checker) = {_f(_VRd, 1)} kN")
         _lines.append(f"{_mark} So sánh: VEd = {_f(VEd, 1)} kN {'≤' if VEd <= _VRd else '>'} VRd = {_f(_VRd, 1)} kN")
         return _mk(f"Kiểm tra chịu cắt phương {_dnum}", "EC2 6.2",
                     _lines,
