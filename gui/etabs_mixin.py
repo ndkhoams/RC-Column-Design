@@ -590,7 +590,12 @@ class EtabsMixin:
                             eps_yd=steel.eps_yd, n_bal=n_bal,
                             const_moment=True)
                         meds.append(dm["MEd"])
-                    _r = _cap_g.dc_ratio(_f.N, meds[0], meds[1])
+                    # FIX mất dấu (2026-10-21): meds từ ec2_design_moment là
+                    # trị tuyệt đối — khôi phục dấu theo mô men gốc của case
+                    # trước khi tính D/C (giống _ec2_calculate_full).
+                    _r = _cap_g.dc_ratio(
+                        _f.N, math.copysign(meds[0], _f.Mx),
+                        math.copysign(meds[1], _f.My))
                 except Exception:
                     _r = {"dc": float("nan"), "ok": False}
                 rows.append((_f, _r))
