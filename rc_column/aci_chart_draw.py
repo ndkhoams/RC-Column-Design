@@ -15,26 +15,18 @@ def _design_curve(sec, conc, steel, theta_deg, tied=True, n_points=48):
     """Đường cong thiết kế (đã nhân φ từng điểm), sắp N giảm dần.
 
     Trả về 2 list: n_dsgn (kN), m_dsgn (kN·m).
+    Từ 2026-10-21: m_dsgn = capacity EXACT tại từng mức N (cùng nguồn
+    với D/C), không còn đường cong đơn trục construction cũ.
     """
-    nom = aci_interaction_curve(sec, conc, steel, theta_deg,
-                                n_points=n_points, tied=tied)
-    # Cắt phẳng đỉnh ở N_cap = max_axial_phi*phi_c*Po (ACI 22.4.2),
-    # giống ACICapacity — ETABS cũng vẽ đỉnh bằng
-    Ag = sec.gross_area
-    Ast = sec.steel_area
-    Po_nom = (0.85 * conc.fc * (Ag - Ast) + steel.fy * Ast) / 1000.0
-    phi_c = PHI_TIED if tied else PHI_SPIRAL
-    N_cap = max_axial_phi(tied) * phi_c * Po_nom
-    pts = []
-    for (N, M, _eps_t, phi) in nom:
-        Nd = N * phi
-        if Nd > N_cap:
-            Nd = N_cap
-        pts.append((Nd, M * phi))
-    # KHÔNG sort lại: giữ đúng thứ tự từ aci_interaction_curve
-    # (sort lại sau khi nhân φ biến thiên làm xáo trộn M gây zigzag)
-    n_dsgn = [p[0] for p in pts]
-    m_dsgn = [p[1] for p in pts]
+    from .aci_checker import ACICapacity
+    cap = ACICapacity(sec, conc, steel, tied=tied)
+    eng = cap._exact
+    n_dsgn, m_dsgn = [], []
+    n_lv = 64
+    for i in range(n_lv):
+        N = eng.N_max + (eng.N_min - eng.N_max) * i / (n_lv - 1)
+        n_dsgn.append(float(N))
+        m_dsgn.append(cap.moment_capacity(float(N), theta_deg))
     return n_dsgn, m_dsgn
 
 
@@ -65,13 +57,9 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
     BLUE_DASH = "#3B82F6"
     load_alpha = math.degrees(math.atan2(M2_kNm, M3_kNm))  # quy ước ETABS: đo từ trục M3
     alpha_deg = load_alpha if view_angle_deg is None else view_angle_deg
-    # SNAP về góc rời rạc gần nhất (bước 15°, xử lý wrap-around)
-    # để khớp với checker._curve_at
-    def _adiff(a, b):
-        d = abs(a - b) % 360.0
-        return min(d, 360.0 - d)
-    _angles = [k * 15.0 for k in range(24)]
-    alpha_snap = min(_angles, key=lambda a: _adiff(a, alpha_deg))
+    # Từ 2026-10-21: capacity exact liên tục theo góc — vẽ đúng góc tải,
+    # không snap 15° như thời checker dùng đường cong rời rạc nữa.
+    alpha_snap = alpha_deg
     n_pos, m_pos = _design_curve(sec, conc, steel, alpha_snap, tied=tied,
                                  n_points=96)
     m_neg = [-m for m in m_pos]
@@ -139,13 +127,13 @@ def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
     # Style Y HỆT chart_draw.draw_m2m3_ax
     BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
     GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
-    # Dựng đường bao bằng cách quét các góc 0-360° (mỗi 15°),
-    # nội suy M thiết kế tại N_kN rồi chiếu lên (M2, M3)
+    # Dựng đường bao bằng cách quét các góc 0-360° (mỗi 15°):
+    # vết các trạng thái exact tại N_kN (cùng nguồn với D/C)
+    from .aci_checker import ACICapacity
+    _cap = ACICapacity(sec, conc, steel, tied=tied)
     xs, ys = [], []
     for deg in range(0, 360, 15):
-        n_d, m_d = _design_curve(sec, conc, steel, float(deg),
-                                tied=tied, n_points=72)
-        Md = _interp_M_at_N(n_d, m_d, N_kN)
+        Md = _cap.moment_capacity(N_kN, float(deg))
         th = math.radians(deg)
         xs.append(Md * math.sin(th))  # M2 = Md sinθ (quy ước ETABS)
         ys.append(Md * math.cos(th))  # M3 = Md cosθ
