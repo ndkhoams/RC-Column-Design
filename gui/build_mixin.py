@@ -415,6 +415,11 @@ class BuildMixin:
                                          text="Export (.dxf)",
                                          command=self.on_export_dxf)
         self.btn_dxf_export.grid(row=0, column=1, sticky=tk.EW, padx=4)
+        self.btn_prokon = ttk.Button(_dxf_btn_frame,
+                                     text="Import Prokon (.C13)",
+                                     command=self.on_import_prokon)
+        self.btn_prokon.grid(row=1, column=0, columnspan=2, sticky=tk.EW,
+                             padx=4, pady=(4, 0))
         for w in (self.en_cx, self.en_cy):
             w.bind("<FocusOut>", lambda e: self._refresh_rebar())
 
