@@ -11,6 +11,21 @@ except Exception:
     except Exception:
         APP_BUILD = "000000000000"
 
+def _git_commit():
+    """Lấy hash commit git ngắn khi chạy từ source; trả về '' nếu không có git."""
+    try:
+        import subprocess as _sp, os as _os
+        _d = _os.path.dirname(_os.path.abspath(__file__))
+        _r = _sp.run(["git", "rev-parse", "--short", "HEAD"],
+                     cwd=_d, capture_output=True, text=True, timeout=3)
+        if _r.returncode == 0:
+            return _r.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+_GIT_COMMIT = _git_commit()
+
 import math
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -94,7 +109,8 @@ from .pdf_mixin import PdfMixin
 class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
     def __init__(self):
         super().__init__()
-        self.title(f"RC Column Design [{APP_BUILD}]")
+        _gc = f" · {_GIT_COMMIT}" if _GIT_COMMIT else ""
+        self.title(f"RC Column Design [{APP_BUILD}]{_gc}")
         self.geometry("1360x860")
         # Icon title bar: ưu tiên PNG (ổn định hơn ICO trên tkinter)
         try:
@@ -1847,7 +1863,8 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin):
     def _update_title(self):
         """Title bar hiện tên file đang lưu + mã bản build."""
         import os
-        base = f"RC Column Design [{APP_BUILD}]"
+        _gc = f" · {_GIT_COMMIT}" if _GIT_COMMIT else ""
+        base = f"RC Column Design [{APP_BUILD}]{_gc}"
         p = getattr(self, "current_save_path", None)
         if p:
             self.title(f"{base} — [{os.path.basename(p)}]")
