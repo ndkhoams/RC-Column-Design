@@ -35,6 +35,14 @@ class EtabsMixin:
         self._load_etabs_file(path)
 
     def on_paste_etabs(self):
+        """Dán nội lực ETABS từ clipboard — THAY THẾ toàn bộ dữ liệu hiện có."""
+        self._paste_etabs(append=False)
+
+    def on_paste_etabs_add(self):
+        """Dán nội lực ETABS từ clipboard — GHI THÊM vào dữ liệu hiện có."""
+        self._paste_etabs(append=True)
+
+    def _paste_etabs(self, append: bool):
         """Dán nội lực ETABS từ clipboard (copy từ bảng Element Forces)."""
         try:
             text = self.clipboard_get()
@@ -54,13 +62,21 @@ class EtabsMixin:
             from tkinter import messagebox
             messagebox.showerror("Lỗi đọc clipboard", str(ex))
             return
-        self.etabs_forces = forces
+        _old_n = len(getattr(self, "etabs_forces", []) or [])
+        if append and _old_n:
+            self.etabs_forces = list(self.etabs_forces) + forces
+            self.etabs_info.set(
+                f"Đã thêm {len(forces)} dòng từ clipboard "
+                f"(tổng {len(self.etabs_forces)} dòng) — "
+                f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
+        else:
+            self.etabs_forces = forces
+            n_case = len(set(f.case for f in forces))
+            self.etabs_info.set(
+                f"Đã dán {len(forces)} dòng, {n_case} tổ hợp từ clipboard — "
+                f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
         self.etabs_file = "<clipboard>"
-        n_case = len(set(f.case for f in forces))
-        self.etabs_info.set(
-            f"Đã dán {len(forces)} dòng, {n_case} tổ hợp từ clipboard — "
-            f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
-        self._fill_etabs_table([(f, None) for f in forces])
+        self._fill_etabs_table([(f, None) for f in self.etabs_forces])
 
     def on_delete_forces(self):
         """Xóa toàn bộ nội lực đã import."""
