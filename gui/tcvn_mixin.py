@@ -376,8 +376,14 @@ class TcvnMixin:
         try:
             sh2 = cols['2']['sh']
             sh3 = cols['3']['sh']
+            def _c96(sh):
+                if sh.qb_mode == "NONE":
+                    return "— (không có đai)"
+                return "✓ Đạt" if sh.cond96_ok else "✗ Không đạt → Qb theo CT (97)"
             rows.extend([
-                ("Độ bền trên dải nén xiên Q ≤ 0.3×Rb×b×h0", f"{sh2.Qcap1:.1f} kN", f"{sh3.Qcap1:.1f} kN"),
+                ("Hệ số φn (8.1.3.3.2)", f"{sh2.phi_n:.3f}", f"{sh3.phi_n:.3f}"),
+                ("Điều kiện (96): qsw ≥ 0.25×Rbt×b", _c96(sh2), _c96(sh3)),
+                (f"Độ bền trên dải nén xiên Q ≤ φn×0.3×Rb×b×h0", f"{sh2.Qcap1:.1f} kN", f"{sh3.Qcap1:.1f} kN"),
                 ("Qb = 1.5×Rbt×b×h0²/C", f"{sh2.Qb_opt:.1f} kN", f"{sh3.Qb_opt:.1f} kN"),
                 ("Qsw = 0.75×qsw×C", f"{sh2.Qsw_opt:.1f} kN", f"{sh3.Qsw_opt:.1f} kN"),
                 ("Chiều dài hình chiếu của vết nứt xiên C", f"{sh2.C_opt:.0f} mm", f"{sh3.C_opt:.0f} mm"),

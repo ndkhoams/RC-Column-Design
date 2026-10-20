@@ -253,7 +253,9 @@ def _build_report(inp: ColumnInput, res: CheckResult,
         Asw = Asw_1 * stir_in.legs
         h0u = max(h0, 1)
         sh = check_shear(Q, b_w, h0u, Rb, Rbt, Asw, Rsw,
-                         stir_in.spacing, direction=dnum)
+                         stir_in.spacing, direction=dnum,
+                         N=float(getattr(inp, "N", 0.0) or 0.0),
+                         A_sec=float(getattr(sec, "gross_area", 0.0) or 0.0))
         m1 = "✓" if sh.ok1 else "✗"
         m2 = "✓" if sh.ok2 else "✗"
         # Diễn giải công thức
