@@ -42,55 +42,118 @@ class StirrupResult:
 class ShearResult:
     """Kết quả kiểm tra chịu cắt theo TCVN 5574:2018.
 
-    Điều kiện 1 (dải nén xiên): Q ≤ 0.3 × Rb × b × h0
+    Điều kiện 1 (dải nén xiên): Q ≤ φn × 0.3 × Rb × b × h0
     Điều kiện 2 (vết nứt xiên): Q ≤ Qb + Qsw, khảo sát C ∈ [h0, 2h0]
-      - Qb = φb2 × Rbt × b × h0² / C (φb2 = 1.5),
-             giới hạn [0.5×Rbt×b×h0, 2.5×Rbt×b×h0]
-      - Qsw = φsw × qsw × C (φsw = 0.75), qsw = Rsw × Asw / s
+      - Qb = φn × φb2 × Rbt × b × h0² / C (φb2 = 1.5),
+             giới hạn [0.5×Rbt×b×h0, 2.5×Rbt×b×h0] trước khi nhân φn;
+             nếu điều kiện (96) không thỏa (qsw < 0.25×Rbt×b) thì
+             Qb = φn × 4×φb2×h0²×qsw/C theo công thức (97)
+      - Qsw = φsw × qsw × C (φsw = 0.75), qsw = Rsw × Asw / s (KHÔNG nhân φn)
+      - φn theo §8.1.3.3.2 từ lực dọc N và diện tích toàn tiết diện
     """
     ok: bool
     Q: float = 0.0            # lực cắt tính toán (kN)
     # Điều kiện 1
-    Qcap1: float = 0.0         # = 0.3×Rb×b×h0 (kN)
+    Qcap1: float = 0.0         # = φn×0.3×Rb×b×h0 (kN)
     ok1: bool = True
     # Điều kiện 2
     Qcap2: float = 0.0         # = min(Qb+Qsw) khi khảo sát C (kN)
     C_opt: float = 0.0         # C cho [Q]min (mm)
-    Qb_opt: float = 0.0
+    Qb_opt: float = 0.0        # Qb tại C_opt, đã gồm φn (kN)
     Qsw_opt: float = 0.0
     ok2: bool = True
     direction: str = ""        # "2" hoặc "3"
+    # TCVN 5574:2018 §8.1.3.3.2 — ảnh hưởng ứng suất dọc trục
+    phi_n: float = 1.0         # hệ số φn đã áp vào vế phải (88)/(90)/(94)
+    sigma_m: float = 0.0       # MPa — ứng suất nén trung bình (>0 khi nén)
+    sigma_t: float = 0.0       # MPa — ứng suất kéo trung bình (>0 khi kéo)
+    # TCVN 5574:2018 điều kiện (96) — kể cốt đai vào tính toán
+    cond96_ok: bool = True     # qsw >= 0.25*Rbt*b (True cả khi không có đai)
+    qsw_min96: float = 0.0     # N/mm — ngưỡng 0.25*Rbt*b của phương
+    qb_mode: str = "CT90"      # "CT90": Qb theo (90); "CT97": Qb theo (97)
+                               # khi (96) không thỏa; "NONE": không có đai
+
+
+def phi_n_tcvn(N_kN: float, A_mm2: float, Rb: float, Rbt: float):
+    """Hệ số φn — TCVN 5574:2018 §8.1.3.3.2.
+
+    Trả về (phi_n, sigma_m, sigma_t). N_kN: lực dọc, DƯƠNG = nén (quy ước app).
+    sigma = |N| / A với A = diện tích toàn tiết diện (chuẩn cho phép không kể
+    cốt thép khi hàm lượng thép dọc <= 3%).
+      Nén:  φn = 1 + σm/Rb        khi 0 < σm <= 0.25*Rb
+            φn = 1.25             khi 0.25*Rb < σm <= 0.75*Rb
+            φn = 5*(1 - σm/Rb)    khi 0.75*Rb < σm <= Rb
+      Kéo:  φn = 1 - σt/(2*Rbt)   khi 0 < σt <= Rbt
+      N = 0: φn = 1.
+    Ngoài miền định nghĩa (σm > Rb hoặc σt > Rbt) kéo dài tuyến tính nhánh
+    cuối và chặn dưới 0 (diễn giải — ghi rõ trong báo cáo đợt áp dụng).
+    """
+    if A_mm2 <= 0 or N_kN == 0:
+        return 1.0, 0.0, 0.0
+    sigma = abs(N_kN) * 1000.0 / A_mm2  # MPa
+    if N_kN > 0:  # nén
+        r = sigma / Rb if Rb > 0 else 0.0
+        if r <= 0.25:
+            phi = 1.0 + r
+        elif r <= 0.75:
+            phi = 1.25
+        else:
+            phi = 5.0 * (1.0 - r)
+        return max(phi, 0.0), sigma, 0.0
+    # kéo
+    phi = 1.0 - sigma / (2.0 * Rbt) if Rbt > 0 else 1.0
+    return max(phi, 0.0), 0.0, sigma
 
 
 def check_shear(Q: float, b: float, h0: float,
                 Rb: float, Rbt: float,
                 Asw: float, Rsw: float, s: float,
-                direction: str = "") -> ShearResult:
+                direction: str = "",
+                N: float = 0.0, A_sec: float = 0.0) -> ShearResult:
     """Kiểm tra chịu cắt theo TCVN 5574:2018 (như file Excel mẫu).
 
     Đơn vị: Q (kN), b/h0/s (mm), Rb/Rbt/Rsw (MPa), Asw (mm²).
+    N (kN, dương = nén) và A_sec (mm², diện tích toàn tiết diện) dùng để
+    tính hệ số φn theo §8.1.3.3.2; A_sec <= 0 -> φn = 1 (không kể lực dọc).
     Trả về kN.
     """
     res = ShearResult(ok=True, Q=Q, direction=direction)
 
-    # --- Điều kiện 1: độ bền trên dải nén xiên ---
-    # Q ≤ [Q] = 0.3 × Rb × b × h0
-    res.Qcap1 = 0.3 * Rb * b * h0 / 1000.0
+    # --- Hệ số φn (§8.1.3.3.2): nhân vào vế phải (88), (90), (94) ---
+    phi_n, sigma_m, sigma_t = phi_n_tcvn(N, A_sec, Rb, Rbt)
+    res.phi_n, res.sigma_m, res.sigma_t = phi_n, sigma_m, sigma_t
+
+    # --- Điều kiện 1: độ bền trên dải nén xiên (88) ---
+    # Q ≤ [Q] = φn × 0.3 × Rb × b × h0
+    res.Qcap1 = phi_n * 0.3 * Rb * b * h0 / 1000.0
     res.ok1 = abs(Q) <= res.Qcap1 + 1e-9
 
     # --- Điều kiện 2: độ bền trên vết nứt xiên ---
     # qsw = Rsw × Asw / s (N/mm)
     qsw = Rsw * Asw / s if s > 0 else 0.0
-    # Giới hạn Qb
+    # Giới hạn Qb (áp cho cả (90) và (97) theo văn bản điều (96))
     Qb_min = 0.5 * Rbt * b * h0 / 1000.0
     Qb_max = 2.5 * Rbt * b * h0 / 1000.0
-    # Khảo sát C từ h0 đến 2h0 (11 điểm như Excel)
+    # Điều kiện (96): qsw >= 0.25*Rbt*b mới kể đai theo (90);
+    # không thỏa nhưng có đai -> Qb theo công thức (97), đai vẫn được kể
+    res.qsw_min96 = 0.25 * Rbt * b
+    has_sw = Asw > 0 and qsw > 0
+    use97 = has_sw and qsw < res.qsw_min96 - 1e-12
+    res.cond96_ok = not use97
+    res.qb_mode = "CT97" if use97 else ("CT90" if has_sw else "NONE")
+    # Khảo sát C từ h0 đến 2h0 (11 điểm như Excel);
+    # φn nằm TRONG vòng khảo sát (nhân vào Qb sau khi chặn [0.5, 2.5])
     best = None
     n_pts = 11
     for i in range(n_pts):
         C = h0 + (2 * h0 - h0) * i / (n_pts - 1)
-        Qb_tt = 1.5 * Rbt * b * h0 * h0 / C / 1000.0
-        Qb = min(max(Qb_tt, Qb_min), Qb_max)
+        if use97:
+            # (97): Qb = 4*φb2*h0²*qsw/C, φb2 = 1.5
+            Qb_tt = 4 * 1.5 * h0 * h0 * qsw / C / 1000.0
+        else:
+            # (90): Qb = φb2*Rbt*b*h0²/C, φb2 = 1.5
+            Qb_tt = 1.5 * Rbt * b * h0 * h0 / C / 1000.0
+        Qb = phi_n * min(max(Qb_tt, Qb_min), Qb_max)
         Qsw = 0.75 * qsw * C / 1000.0
         Qcap = Qb + Qsw
         if best is None or Qcap < best[0]:
@@ -110,7 +173,8 @@ def compute_shear_cols(inp, sec) -> dict:
 
     Trả về {"2": {...}, "3": {...}}; mỗi dict gồm:
     Q, b, h0, Asw (bao + giữa theo phương), qsw (= Σ Rsw·Asw,i/si),
-    sh (ShearResult), sw_txt (vd "2φ10 a200 + 2φ10 a200"), s_eff.
+    sh (ShearResult — đã gồm φn §8.1.3.3.2 và điều kiện (96)/(97)),
+    sw_txt (vd "2φ10 a200 + 2φ10 a200"), s_eff, phi_n, cond96_ok, qb_mode.
     Lỗi bất kỳ -> {} (giữ hành vi cũ của _tcvn_calculate_full).
     """
     from .sections import bar_area
@@ -154,10 +218,20 @@ def compute_shear_cols(inp, sec) -> dict:
                     pass
             # Bước đai tương đương để check_shear tính đúng qsw
             s_eff = Rsw * Asw / qsw if qsw > 0 else s_outer
+            # φn (§8.1.3.3.2): N của tổ hợp đang kiểm tra + diện tích
+            # toàn tiết diện (gross) — cùng 1 N cho cả 2 phương
+            try:
+                A_sec = float(sec.gross_area)
+            except Exception:
+                A_sec = float(inp.cx) * float(inp.cy)
             sh = check_shear(Q, b_w, max(h0, 1), conc_mat.Rb, conc_mat.Rbt,
-                             Asw, Rsw, s_eff)
+                             Asw, Rsw, s_eff, direction=lbl,
+                             N=float(getattr(inp, "N", 0.0) or 0.0),
+                             A_sec=A_sec)
             cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw,
-                             sh=sh, sw_txt=sw_txt, s_eff=s_eff)
+                             sh=sh, sw_txt=sw_txt, s_eff=s_eff,
+                             phi_n=sh.phi_n, cond96_ok=sh.cond96_ok,
+                             qb_mode=sh.qb_mode)
     except Exception:
         return {}
     return cols
