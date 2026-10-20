@@ -64,7 +64,10 @@ class DxfMixin:
         + vị trí thép thật, đi đúng đường như import DXF), chiều dài +
         điều kiện biên, và nội lực (mỗi load case -> 2 dòng đầu
         dưới/trên trong bảng ETABS ở mục 5).
-        Ánh xạ trục: Prokon Mx -> M3 của app, Prokon My -> M2 của app.
+        Ánh xạ trục: Prokon Mx -> M2 của app (EtabsForce.Mx), Prokon My
+        -> M3 của app (EtabsForce.My) — vì app M2 ≡ mô men ΣσA·y như
+        Prokon Mx, app M3 ≡ ΣσA·x như Prokon My. (Đã sửa 2026-10-21:
+        trước đây ánh xạ ngược Mx<->My.)
         """
         from tkinter import filedialog, messagebox
         path = filedialog.askopenfilename(
@@ -182,13 +185,13 @@ class DxfMixin:
                 story=data["title"], column=data["label"],
                 case=ld["name"], case_type="Combination",
                 station=0.0, N=ld["P"],
-                Mx=ld["My_bottom"], My=ld["Mx_bottom"],
+                Mx=ld["Mx_bottom"], My=ld["My_bottom"],
                 Q2=0.0, Q3=0.0))
             forces.append(EtabsForce(
                 story=data["title"], column=data["label"],
                 case=ld["name"], case_type="Combination",
                 station=data["L0"], N=ld["P"],
-                Mx=ld["My_top"], My=ld["Mx_top"],
+                Mx=ld["Mx_top"], My=ld["My_top"],
                 Q2=0.0, Q3=0.0))
         self.etabs_forces = forces
         self.etabs_file = path
