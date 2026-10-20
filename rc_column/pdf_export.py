@@ -867,31 +867,22 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     from reportlab.platypus import KeepTogether
     _sw_story = []
     try:
-        from .stirrup import StirrupInput, check_shear
-        from .sections import bar_area
-        stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
-                               legs=inp.sw_legs)
-        _sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
-                   f"a{stir_in.spacing:.0f}")
-        _cols = []
-        for Q, b_w, h_dim in ((inp.Q2, _t2, _t3), (inp.Q3, _t3, _t2)):
-            h0 = h_dim - inp.cover - inp.sw_dia - 12
-            Asw = stir_in.legs * bar_area(stir_in.dia)
-            sh = check_shear(abs(Q), b_w, max(h0, 1),
-                             _cg.Rb if _cg else 0,
-                             _cg.Rbt if _cg else 0,
-                             Asw, _swg.Rsw if _swg else 0,
-                             stir_in.spacing)
-            qsw = (_swg.Rsw * Asw / stir_in.spacing) if _swg else 0
-            _cols.append(dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw, sh=sh))
-        _r2, _r3 = _cols[0], _cols[1]
+        # NGUYÊN TẮC "tính 1 lần": đọc shear_cols đã tính bởi
+        # _tcvn_calculate_full (GUI truyền qua shear_info). Nếu thiếu
+        # (gọi trực tiếp không qua GUI) thì tính bằng ĐÚNG hàm dùng chung
+        # compute_shear_cols — KHÔNG viết công thức riêng ở đây.
+        _cols = shear_info if isinstance(shear_info, dict) else None
+        if not (_cols and "2" in _cols and "3" in _cols):
+            from .stirrup import compute_shear_cols
+            _cols = compute_shear_cols(inp, sec)
+        _r2, _r3 = _cols["2"], _cols["3"]
         _sw_data = [
             [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
              Paragraph("<b>Phương V2</b>", st_hdr),
              Paragraph("<b>Phương V3</b>", st_hdr)],
         ]
         _sw_rows = [
-            ("Thép đai bố trí", _sw_txt, _sw_txt),
+            ("Thép đai bố trí", _r2['sw_txt'], _r3['sw_txt']),
             ("Lực cắt tính toán, Q",
              f"{_r2['Q']:.1f} kN", f"{_r3['Q']:.1f} kN"),
             ("Kích thước tiết diện, b × h<sub>0</sub>",
