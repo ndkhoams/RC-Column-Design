@@ -569,28 +569,49 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
             return _x*_nx + _y*_ny - _threshold
     
     if show_compression and sec_poly and len(sec_poly) >= 3:
-        _corners = list(sec_poly)
-        _comp_corners = [(_cx, _cy) for (_cx, _cy) in _corners
-                         if _naval(_cx, _cy) >= -1e-9]
-        _edges = [(_corners[i], _corners[(i+1)%len(_corners)]) for i in range(len(_corners))]
+        # Cắt đa giác tiết diện theo nửa mặt phẳng nén (Sutherland–Hodgman):
+        # giữ nguyên thứ tự đỉnh nên đúng cả với tiết diện LÕM (chữ L, T...)
+        # (cách cũ sắp xếp theo góc cực chỉ đúng với đa giác lồi).
+        _src = list(sec_poly)
+        _poly_pts = []
+        for _i in range(len(_src)):
+            _cur = _src[_i]
+            _prv = _src[_i - 1]
+            _vc = _naval(_cur[0], _cur[1])
+            _vp = _naval(_prv[0], _prv[1])
+            _cur_in = _vc >= -1e-9
+            _prv_in = _vp >= -1e-9
+            if _cur_in != _prv_in:
+                _t = abs(_vp) / (abs(_vp) + abs(_vc))
+                _poly_pts.append((_prv[0] + _t * (_cur[0] - _prv[0]),
+                                  _prv[1] + _t * (_cur[1] - _prv[1])))
+            if _cur_in:
+                _poly_pts.append(_cur)
+        if len(_poly_pts) >= 3:
+            ax.add_patch(MplPolygon(_poly_pts, closed=True, fill=True,
+                                    facecolor="#BFDBFE", edgecolor="#2563EB",
+                                    lw=1.5, zorder=3, alpha=0.7))
+        # Đường trung hòa: nối các cặp giao điểm liên tiếp dọc theo đường
+        # trung hòa (đúng cả khi đường cắt tiết diện lõm tạo 4 giao điểm)
+        _edges = [(sec_poly[i], sec_poly[(i + 1) % len(sec_poly)])
+                  for i in range(len(sec_poly))]
         _intersects = []
         for (_x1, _y1), (_x2, _y2) in _edges:
             _v1 = _naval(_x1, _y1)
             _v2 = _naval(_x2, _y2)
             if _v1 * _v2 < 0:
                 _t = abs(_v1) / (abs(_v1) + abs(_v2))
-                _intersects.append((_x1 + _t*(_x2-_x1), _y1 + _t*(_y2-_y1)))
-        _poly_pts = _comp_corners + _intersects
-        if len(_poly_pts) >= 3:
-            _gcx = sum(p[0] for p in _poly_pts)/len(_poly_pts)
-            _gcy = sum(p[1] for p in _poly_pts)/len(_poly_pts)
-            _poly_pts.sort(key=lambda p: math.atan2(p[1]-_gcy, p[0]-_gcx))
-            ax.add_patch(MplPolygon(_poly_pts, closed=True, fill=True,
-                                    facecolor="#BFDBFE", edgecolor="#2563EB",
-                                    lw=1.5, zorder=3, alpha=0.7))
-            if len(_intersects) == 2:
-                ax.plot([_intersects[0][0], _intersects[1][0]],
-                        [_intersects[0][1], _intersects[1][1]],
+                _intersects.append((_x1 + _t * (_x2 - _x1),
+                                    _y1 + _t * (_y2 - _y1)))
+        if len(_intersects) >= 2:
+            if _use_exact:
+                _dxn, _dyn = _na_ct, _na_st
+            else:
+                _dxn, _dyn = -_ny, _nx
+            _intersects.sort(key=lambda p: p[0] * _dxn + p[1] * _dyn)
+            for _i in range(0, len(_intersects) - 1, 2):
+                ax.plot([_intersects[_i][0], _intersects[_i + 1][0]],
+                        [_intersects[_i][1], _intersects[_i + 1][1]],
                         '--', color='#DC2626', linewidth=1.5, zorder=4)
     
     groups = {}
