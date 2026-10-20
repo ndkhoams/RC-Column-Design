@@ -21,7 +21,9 @@ chịu **nén uốn xiên** (N + Mx + My) theo **mô hình biến dạng phi tuy
 
 ```bash
 pip install -r requirements.txt
-python main.py          # mở giao diện
+clear
+Get-ChildItem -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+python main.py         # mở giao diện
 python -m tests.test_engine   # chạy kiểm chứng
 ```
 
