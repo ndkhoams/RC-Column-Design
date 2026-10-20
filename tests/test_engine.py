@@ -20,7 +20,8 @@ def test_materials():
     assert 0 < c.stress(0.001) < c.Rb        # parabol
     assert abs(c.stress(0.003) - c.Rb) < 1e-9  # chữ nhật
     s = SteelMaterial(cb400, 1.0)
-    assert abs(s.stress(0.001) - 2.1e5 * 0.001) < 1e-6
+    # Es = 2.0e5 MPa theo TCVN 5574:2018 mục 6.2.3.3 (cốt thép thanh)
+    assert abs(s.stress(0.001) - 2.0e5 * 0.001) < 1e-6
     assert abs(s.stress(0.01) - 350.0) < 1e-9
 
 
