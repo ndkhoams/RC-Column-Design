@@ -118,11 +118,12 @@ def render_result_tab(app, config):
     _hdr = tk.Frame(f_tl, bg="white")
     _hdr.pack(fill=tk.X, pady=(2, 2))
     tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
-             font=("", 11, "bold"), bg="white").pack(side=tk.LEFT, padx=(4, 0))
+             font=("", 11, "bold"), bg="white").pack(side=tk.TOP, fill=tk.X)
     tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
                    font=("", 8), fg="#374151",
                    variable=app._show_compression,
-                   command=lambda: redraw_section_figure(app)).pack(side=tk.RIGHT, padx=(0, 4))
+                   command=lambda: redraw_section_figure(app)).place(
+                       relx=1.0, rely=0.5, anchor="e", x=-4)
     fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
     a1 = fig_sec.add_subplot(111)
     from rc_column.pdf_export import draw_compression_zone_ax
