@@ -622,19 +622,42 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None, she
         # qsw đã lấy từ shear_cols (không tính lại)
         Qb_lim_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
+        # φn (§8.1.3.3.2) + điều kiện (96)/(97) — đọc từ ShearResult đã tính
+        _sig = sh.sigma_m if inp.N >= 0 else sh.sigma_t
+        _sig_lbl = "σm" if inp.N >= 0 else "σt"
+        if sh.qb_mode == "NONE":
+            _c96_line = "ĐK (96): không có cốt đai → Qsw = 0"
+        elif sh.cond96_ok:
+            _c96_line = (f"✓ ĐK (96): qsw = {_f(qsw, 1)} ≥ 0.25×Rbt×b "
+                         f"= {_f(sh.qsw_min96, 1)} N/mm")
+        else:
+            _c96_line = (f"✗ ĐK (96): qsw = {_f(qsw, 1)} < 0.25×Rbt×b "
+                         f"= {_f(sh.qsw_min96, 1)} N/mm → Qb theo CT (97)")
+        if sh.qb_mode == "CT97":
+            _qb_line = (f"  Qb = φn×4×1.5×h₀²×qsw/C = {_f(sh.phi_n, 3)}×6×"
+                        f"{h0u:.0f}²×{_f(qsw, 1)}/{sh.C_opt:.0f}/1000 "
+                        f"= {_f(sh.Qb_opt, 1)} kN")
+        else:
+            _qb_line = (f"  Qb = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²/"
+                        f"{sh.C_opt:.0f}/1000 = {_f(sh.Qb_opt, 1)} kN"
+                        if abs(sh.phi_n - 1.0) <= 1e-9 else
+                        f"  Qb = {_f(sh.phi_n, 3)}×1.5×{_f(Rbt, 2)}×{b_w:.0f}×"
+                        f"{h0u:.0f}²/{sh.C_opt:.0f}/1000 "
+                        f"= {_f(sh.Qb_opt, 1)} kN")
         lines = [
             f"Q = {_f(Q, 1)} kN{(_q2_info if dnum=='2' else _q3_info)}",
             f"b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
             f"Asw = {sw_txt} = {Asw:.0f} mm²",
-            f"{m1} ĐK1 (dải nén xiên): Q ≤ 0.3×Rb×b×h₀",
-            f"  = 0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
+            f"{_sig_lbl} = |N|/A = {_f(_sig, 2)} MPa → φn = {_f(sh.phi_n, 3)} (8.1.3.3.2)",
+            f"{m1} ĐK1 (dải nén xiên): Q ≤ φn×0.3×Rb×b×h₀",
+            f"  = {_f(sh.phi_n, 3)}×0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
             f"= {_f(sh.Qcap1, 1)} kN",
             f"{m2} ĐK2 (vết nứt xiên): Q ≤ Qb + Qsw",
             f"  qsw = Rsw×Asw/s = {_f(Rsw, 0)}×{Asw:.0f}/"
             f"{s_eff:.0f} = {_f(qsw, 1)} N/mm",
-            f"  Qb = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²/"
-            f"{sh.C_opt:.0f}/1000 = {_f(sh.Qb_opt, 1)} kN",
-            f"  (Qb ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN)",
+            _c96_line,
+            _qb_line,
+            f"  (Qb ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN — giới hạn trước φn)",
             f"  Qsw = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
             f"= {_f(sh.Qsw_opt, 1)} kN",
             f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm",
