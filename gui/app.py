@@ -12,17 +12,44 @@ except Exception:
         APP_BUILD = "000000000000"
 
 def _git_commit():
-    """Lấy hash commit git ngắn khi chạy từ source; trả về '' nếu không có git."""
+    """Lấy hash commit git ngắn (7 ký tự) khi chạy từ source.
+    Đọc trực tiếp thư mục .git nên không cần git trong PATH;
+    trả về '' nếu không tìm thấy."""
+    import os as _os
+    # Tìm thư mục .git (lên tối đa 5 cấp từ thư mục file này)
+    _d = _os.path.dirname(_os.path.abspath(__file__))
+    _root = None
+    for _ in range(5):
+        if _os.path.isdir(_os.path.join(_d, ".git")):
+            _root = _os.path.join(_d, ".git")
+            break
+        _parent = _os.path.dirname(_d)
+        if _parent == _d:
+            break
+        _d = _parent
+    if not _root:
+        return ""
     try:
-        import subprocess as _sp, os as _os
-        _d = _os.path.dirname(_os.path.abspath(__file__))
-        _r = _sp.run(["git", "rev-parse", "--short", "HEAD"],
-                     cwd=_d, capture_output=True, text=True, timeout=3)
-        if _r.returncode == 0:
-            return _r.stdout.strip()
+        with open(_os.path.join(_root, "HEAD"), "r") as _f:
+            _head = _f.read().strip()
+        if _head.startswith("ref:"):
+            _ref = _head[4:].strip()
+            # Tìm ref trong file rời trước, rồi packed-refs
+            _ref_path = _os.path.join(_root, *_ref.split("/"))
+            if _os.path.isfile(_ref_path):
+                with open(_ref_path, "r") as _f:
+                    return _f.read().strip()[:7]
+            _packed = _os.path.join(_root, "packed-refs")
+            if _os.path.isfile(_packed):
+                with open(_packed, "r") as _f:
+                    for _line in _f:
+                        _line = _line.strip()
+                        if _line.endswith(_ref):
+                            return _line.split()[0][:7]
+            return ""
+        return _head[:7]  # detached HEAD
     except Exception:
-        pass
-    return ""
+        return ""
 
 _GIT_COMMIT = _git_commit()
 
