@@ -171,6 +171,381 @@ def capacity_at_N(curve: List[Tuple[float, float]], N: float) -> float:
     return 0.0
 
 
+# ---------------------------------------------------------------------------
+# Engine song trục EXACT (2026-10-21): giải lặp cân bằng chính xác.
+#
+# Như EC2/ACI: quét mặt phẳng biến dạng theo hướng gradient gamma, tích
+# phân fiber ra CẢ HAI thành phần mô men; capacity tại (N, theta) là
+# nghiệm M_perp = 0 trong frame tải. Với TCVN, trạng thái (gamma, na)
+# được đổi thẳng sang (eps0, kx, ky) của FiberSection.forces nên mô hình
+# vật liệu 3 đoạn của TCVN được tái dùng nguyên vẹn:
+#   s = x·cosγ + y·sinγ (tọa độ dọc gradient), mép nén tại s_max,
+#   eps(s) = eps_cu − κ(s_max − s), κ = eps_cu/na
+#   -> eps0 = eps_cu − κ·s_max, kx = κ·cosγ, ky = κ·sinγ.
+# ---------------------------------------------------------------------------
+class _TCVNExact:
+    """Lưới trạng thái exact + nội suy contour tại mức N (cho 1 tiết diện)."""
+
+    N_GAMMA = 120        # bước gamma 3 độ
+    N_PTS = 96           # số điểm theo chiều sâu trục trung hòa (dày hơn lưới cũ để nội suy contour chính xác)
+
+    def __init__(self, fs: FiberSection, model: str = "3line"):
+        self.fs = fs
+        self.model = model
+        self.sec = fs.sec
+        self.eps_cu = EPS_B2
+        fx = np.array([f.x for f in fs.sec.fibers], dtype=float)
+        fy = np.array([f.y for f in fs.sec.fibers], dtype=float)
+        self._fx, self._fy = fx, fy
+        eps_s_max = min(0.9 * EPS_S2, 10.0 * fs.eps_y)
+        gam = [math.radians(3.0 * i) for i in range(self.N_GAMMA)]
+        self.gammas = gam
+        self._eps_far = []
+        for i in range(self.N_PTS):
+            frac = 1.0 - (float(i) / max(1, self.N_PTS - 1)) ** 0.8
+            self._eps_far.append(-eps_s_max + (self.eps_cu + eps_s_max) * frac)
+        # Thêm điểm cụm ở vùng nén cao (na/h lớn): đường M(N) ở đó rất
+        # dốc, nội suy tuyến tính cần lưới dày hơn để bám bản fine
+        _extra = [self.eps_cu * (1.0 - 1.0 / r) for r in
+                  (1.25, 1.6, 2.0, 2.6, 3.4, 4.5, 6.0, 8.0, 11.0, 15.0,
+                   21.0, 30.0, 45.0, 70.0, 120.0, 250.0)]
+        self._eps_far = sorted(set(self._eps_far) | set(_extra),
+                               reverse=True)
+        self.sweeps = []
+        n_all = []
+        for g in gam:
+            cg, sg = math.cos(g), math.sin(g)
+            s_f = fx * cg + fy * sg
+            s_max = float(s_f.max()) if len(s_f) else 0.0
+            s_min = float(s_f.min()) if len(s_f) else 0.0
+            h_s = max(s_max - s_min, 1e-9)
+            Ns, M2s, M3s, NAs = [], [], [], []
+            for eps_far in self._eps_far:
+                if eps_far >= self.eps_cu - 1e-15:
+                    na = float("inf")
+                else:
+                    na = self.eps_cu * h_s / (self.eps_cu - eps_far)
+                N, M2, M3 = self._state(g, na)
+                Ns.append(N); M2s.append(M2); M3s.append(M3); NAs.append(na)
+            kN, kM2, kM3, kNA = [], [], [], []
+            last = None
+            for N, M2, M3, na in zip(Ns, M2s, M3s, NAs):
+                if last is None or N < last - 1e-9:
+                    kN.append(N); kM2.append(M2); kM3.append(M3); kNA.append(na)
+                    last = N
+            self.sweeps.append({
+                "N": np.array(kN), "M2": np.array(kM2),
+                "M3": np.array(kM3), "NA": np.array(kNA),
+                "s_max": s_max, "s_min": s_min})
+            n_all.extend(kN)
+        self.N_max = max(n_all) if n_all else 0.0
+        self.N_min = min(n_all) if n_all else 0.0
+
+    def _state(self, gamma_rad: float, na: float):
+        """Trạng thái biến dạng phẳng (gamma, na) -> (N_kN, M2_kNm, M3_kNm)
+        qua FiberSection.forces (đúng mô hình vật liệu TCVN)."""
+        cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
+        s_f = self._fx * cg + self._fy * sg
+        s_max = float(s_f.max()) if len(s_f) else 0.0
+        if math.isinf(na):
+            eps0, kx, ky = self.eps_cu, 0.0, 0.0
+        else:
+            kappa = self.eps_cu / na
+            eps0 = self.eps_cu - kappa * s_max
+            # forces: eps = eps0 + kx*fy + ky*fx -> kx = κ·sinγ (hệ số
+            # của y), ky = κ·cosγ (hệ số của x)
+            kx, ky = kappa * sg, kappa * cg
+        # forces trả sẵn (N kN, Mx kN·m, My kN·m) với Mx = ΣσA·y ≡ M2
+        # của app, My = ΣσA·x ≡ M3 của app
+        return self.fs.forces(eps0, kx, ky, self.model)
+
+    def _sweep_at_N(self, gi: int, N: float):
+        sw = self.sweeps[gi]
+        Ns = sw["N"]
+        if len(Ns) < 2 or N > Ns[0] or N < Ns[-1]:
+            return None
+        M2 = float(np.interp(-N, -Ns, sw["M2"]))
+        M3 = float(np.interp(-N, -Ns, sw["M3"]))
+        na = float(np.interp(-N, -Ns, sw["NA"]))
+        return M2, M3, na
+
+    def _scan(self, N: float, theta_deg: float):
+        th = math.radians(theta_deg)
+        ux, uy = math.sin(th), math.cos(th)
+        px, py = math.cos(th), -math.sin(th)
+        pts = []
+        for gi, g in enumerate(self.gammas):
+            st = self._sweep_at_N(gi, N)
+            if st is None:
+                continue
+            M2, M3, na = st
+            pts.append((math.degrees(g), M2 * ux + M3 * uy,
+                        M2 * px + M3 * py, na, M2, M3, gi))
+        return pts
+
+    @staticmethod
+    def _roots(pts):
+        out = []
+        n = len(pts)
+        if n == 0:
+            return out
+        for i in range(n):
+            a = pts[i]
+            b = pts[(i + 1) % n]
+            if (i + 1) % n == 0:
+                if not (a[6] == _TCVNExact.N_GAMMA - 1 and b[6] == 0):
+                    continue
+            elif b[6] != a[6] + 1:
+                continue
+            pa, pb = a[2], b[2]
+            if pa == 0.0 and a[1] > 0:
+                out.append({"gamma_deg": a[0], "capacity": a[1], "na": a[3],
+                            "M2": a[4], "M3": a[5],
+                            "gi_a": a[6], "gi_b": a[6]})
+            if pa * pb < 0.0:
+                t = pa / (pa - pb)
+                along = a[1] + t * (b[1] - a[1])
+                if along > 0:
+                    gdeg = a[0] + t * ((b[0] - a[0]) % 360.0)
+                    out.append({"gamma_deg": gdeg % 360.0, "capacity": along,
+                                "na": a[3] + t * (b[3] - a[3]),
+                                "M2": a[4] + t * (b[4] - a[4]),
+                                "M3": a[5] + t * (b[5] - a[5]),
+                                "gi_a": a[6], "gi_b": b[6]})
+        return out
+
+    def capacity_fast(self, N: float, theta_deg: float) -> float:
+        """Capacity exact tại (N, theta) từ lưới quét (nội suy)."""
+        if N > self.N_max or N < self.N_min:
+            return 0.0
+        pts = self._scan(N, theta_deg)
+        roots = self._roots(pts)
+        if roots:
+            return min(r["capacity"] for r in roots)
+        pos = [p[1] for p in pts if p[1] > 0]
+        return max(pos) if pos else 0.0
+
+    def boundary_fast(self, N: float, theta_deg: float):
+        """Trạng thái biên tại (N, theta): dict(gamma_deg, na, M2, M3,
+        capacity) hoặc None."""
+        if N > self.N_max or N < self.N_min:
+            return None
+        roots = self._roots(self._scan(N, theta_deg))
+        if not roots:
+            return None
+        return min(roots, key=lambda r: r["capacity"])
+
+    # ---- Bản fine ----
+    def _state_at_N_fine(self, gamma_rad: float, N_target: float):
+        cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
+        s_f = self._fx * cg + self._fy * sg
+        s_max = float(s_f.max()) if len(s_f) else 0.0
+        s_min = float(s_f.min()) if len(s_f) else 0.0
+        h_s = max(s_max - s_min, 1e-9)
+        nas = []
+        for eps_far in self._eps_far:
+            if eps_far >= self.eps_cu - 1e-15:
+                nas.append(float("inf"))
+            else:
+                nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
+        vals = [self._state(gamma_rad, na) for na in nas]
+        Ns = [v[0] for v in vals]
+        if N_target > Ns[0] or N_target < Ns[-1]:
+            return None
+        for i in range(len(Ns) - 1):
+            if Ns[i] >= N_target >= Ns[i + 1]:
+                lo, hi = nas[i + 1], nas[i]
+                if math.isinf(hi):
+                    if abs(Ns[0] - N_target) < 1e-6:
+                        return (Ns[0], vals[0][1], vals[0][2], float("inf"))
+                    hi = nas[i + 1] * 4.0 + h_s
+                for _ in range(40):
+                    mid = 0.5 * (lo + hi)
+                    if self._state(gamma_rad, mid)[0] < N_target:
+                        lo = mid
+                    else:
+                        hi = mid
+                na = 0.5 * (lo + hi)
+                N, M2, M3 = self._state(gamma_rad, na)
+                return (N, M2, M3, na)
+        return None
+
+    def _fine_scan_roots(self, N: float, theta_deg: float):
+        th = math.radians(theta_deg)
+        ux, uy = math.sin(th), math.cos(th)
+        px, py = math.cos(th), -math.sin(th)
+        pts = []
+        for g in self.gammas:
+            st = self._state_at_N_fine(g, N)
+            if st is None:
+                continue
+            _N, M2, M3, na = st
+            pts.append((math.degrees(g), M2 * ux + M3 * uy,
+                        M2 * px + M3 * py, na, M2, M3))
+        roots = []
+        n = len(pts)
+        for i in range(n):
+            a = pts[i]
+            b = pts[(i + 1) % n]
+            if (i + 1) % n == 0:
+                if not (abs(a[0] - 357.0) < 1e-9 and abs(b[0]) < 1e-9):
+                    continue
+            elif abs(b[0] - a[0] - 3.0) > 1e-9:
+                continue
+            pa, pb = a[2], b[2]
+            if pa * pb < 0.0:
+                ga, gb = math.radians(a[0]), math.radians(b[0])
+                if gb < ga:
+                    gb += 2.0 * math.pi
+                fa = pa
+                gm = None
+                for _ in range(30):
+                    gm = 0.5 * (ga + gb)
+                    stm = self._state_at_N_fine(gm % (2.0 * math.pi), N)
+                    if stm is None:
+                        break
+                    pm = stm[1] * px + stm[2] * py
+                    if fa * pm <= 0.0:
+                        gb = gm
+                    else:
+                        ga, fa = gm, pm
+                if gm is None:
+                    continue
+                stm = self._state_at_N_fine(gm % (2.0 * math.pi), N)
+                if stm is None:
+                    continue
+                along = stm[1] * ux + stm[2] * uy
+                if along > 0:
+                    roots.append({"gamma_deg": math.degrees(gm) % 360.0,
+                                  "capacity": along, "na": stm[3],
+                                  "M2": stm[1], "M3": stm[2]})
+            elif pa == 0.0 and a[1] > 0:
+                roots.append({"gamma_deg": a[0], "capacity": a[1],
+                              "na": a[3], "M2": a[4], "M3": a[5]})
+        return roots
+
+    def capacity_fine(self, N: float, theta_deg: float) -> float:
+        """Capacity exact bản fine (chặt đôi na + gamma) — bản tham chiếu."""
+        if N > self.N_max or N < self.N_min:
+            return 0.0
+        roots = self._fine_scan_roots(N, theta_deg)
+        if roots:
+            return min(r["capacity"] for r in roots)
+        return 0.0
+
+    def _fine_state_hint(self, gamma_rad: float, N_target: float,
+                         na_hint: float):
+        """Trạng thái fine tại (gamma, N) với bracket na từ na_hint
+        (mở rộng hình học tới khi kẹp được N, rồi chặt đôi)."""
+        lo = na_hint / 2.5 if na_hint and math.isfinite(na_hint) else 10.0
+        hi = na_hint * 2.5 if na_hint and math.isfinite(na_hint) else 1.0e5
+        flo = self._state(gamma_rad, lo)[0] - N_target
+        fhi = self._state(gamma_rad, hi)[0] - N_target
+        for _ in range(8):
+            if flo <= 0.0 <= fhi:
+                break
+            if flo > 0.0:
+                hi, fhi = lo, flo
+                lo = lo / 4.0
+                flo = self._state(gamma_rad, lo)[0] - N_target
+            else:
+                lo, flo = hi, fhi
+                hi = hi * 4.0
+                fhi = self._state(gamma_rad, hi)[0] - N_target
+        if not (flo <= 0.0 <= fhi):
+            return None
+        for _ in range(28):
+            mid = 0.5 * (lo + hi)
+            fm = self._state(gamma_rad, mid)[0] - N_target
+            if fm < 0.0:
+                lo = mid
+            else:
+                hi = mid
+        na = 0.5 * (lo + hi)
+        N, M2, M3 = self._state(gamma_rad, na)
+        return (N, M2, M3, na)
+
+    def boundary_fine(self, N: float, theta_deg: float):
+        """Trạng thái biên fine tại (N, theta): tinh chỉnh bracket thắng
+        cuộc của bản fast bằng trạng thái fine (chặt đôi gamma + na).
+        Trả dict như _roots + s_max/s_min."""
+        if N > self.N_max or N < self.N_min:
+            return None
+        roots = self._roots(self._scan(N, theta_deg))
+        if not roots:
+            return None
+        r = min(roots, key=lambda x: x["capacity"])
+        try:
+            th = math.radians(theta_deg)
+            px, py = math.cos(th), -math.sin(th)
+            ux, uy = math.sin(th), math.cos(th)
+            ga = self.gammas[r["gi_a"]]
+            gb = ga + math.radians(3.0)
+            sta = self._fine_state_hint(ga, N, r["na"])
+            stb = self._fine_state_hint(gb % (2.0 * math.pi), N, r["na"])
+            if sta is not None and stb is not None:
+                fa = sta[1] * px + sta[2] * py
+                fb = stb[1] * px + stb[2] * py
+                if fa * fb < 0.0:
+                    hint = r["na"]
+                    for _ in range(25):
+                        gm = 0.5 * (ga + gb)
+                        stm = self._fine_state_hint(
+                            gm % (2.0 * math.pi), N, hint)
+                        if stm is None:
+                            break
+                        hint = stm[3]
+                        pm = stm[1] * px + stm[2] * py
+                        if fa * pm <= 0.0:
+                            gb = gm
+                        else:
+                            ga, fa = gm, pm
+                    gm = 0.5 * (ga + gb)
+                    stm = self._fine_state_hint(gm % (2.0 * math.pi), N, hint)
+                    if stm is not None:
+                        r = {"gamma_deg": math.degrees(gm) % 360.0,
+                             "capacity": stm[1] * ux + stm[2] * uy,
+                             "na": stm[3], "M2": stm[1], "M3": stm[2]}
+        except Exception:
+            pass
+        g = math.radians(r["gamma_deg"])
+        s_f = self._fx * math.cos(g) + self._fy * math.sin(g)
+        r["s_max"] = float(s_f.max()) if len(s_f) else 0.0
+        r["s_min"] = float(s_f.min()) if len(s_f) else 0.0
+        return r
+
+
+def _tcvn_exact_fingerprint(fs: FiberSection, model: str):
+    sec = fs.sec
+    fx = np.array([f.x for f in sec.fibers], dtype=float)
+    fy = np.array([f.y for f in sec.fibers], dtype=float)
+    fa = np.array([f.area for f in sec.fibers], dtype=float)
+    rx = np.array([r.x for r in sec.rebars], dtype=float)
+    ry = np.array([r.y for r in sec.rebars], dtype=float)
+    ra = np.array([r.area for r in sec.rebars], dtype=float)
+
+    def _r(v):
+        return round(float(v), 3)
+    return (len(fx), _r(fa.sum()), _r(fa @ fx), _r(fa @ fy),
+            _r(fa @ (fx * fx)), _r(fa @ (fy * fy)), _r(fa @ (fx * fy)),
+            len(rx), _r(ra.sum()), _r(ra @ rx), _r(ra @ ry),
+            _r(ra @ (rx * rx)), _r(ra @ (ry * ry)),
+            round(float(fs.Rb), 4), round(float(fs.Rs), 4),
+            round(float(fs.Rsc), 4), str(model))
+
+
+_TCVN_EXACT_CACHE: dict = {}
+
+
+def _get_tcvn_exact(fs: FiberSection, model: str = "3line") -> _TCVNExact:
+    key = _tcvn_exact_fingerprint(fs, model)
+    eng = _TCVN_EXACT_CACHE.get(key)
+    if eng is None:
+        eng = _TCVNExact(fs, model)
+        _TCVN_EXACT_CACHE[key] = eng
+    return eng
+
+
 class BiaxialCapacity:
     """Khả năng chịu nén uốn xiên của tiết diện (mặt tương tác 3D rời rạc)."""
 
@@ -186,28 +561,23 @@ class BiaxialCapacity:
             self.angles.append(th)
             self.curves[th] = uniaxial_curve_fs(self.fs, th, model, n_points)
 
+        # Engine song trục exact (D/C + capacity dùng bản này từ 2026-10-21;
+        # curves giữ cho các nhu cầu phụ trợ như N_max)
+        self._exact = _get_tcvn_exact(self.fs, model)
+
     def moment_capacity(self, N: float, phi_deg: float) -> float:
-        """Mô men khả năng chịu tại (N, hướng phi độ)."""
-        phi = phi_deg % 360.0
-        angs = self.angles
-        # tìm 2 góc kẹp
-        for i in range(len(angs)):
-            a1 = angs[i]
-            a2 = angs[(i + 1) % len(angs)]
-            # xử lý vòng 360
-            b1, b2, bp = a1, a2, phi
-            if b2 <= b1:
-                b2 += 360.0
-            if bp < b1:
-                bp += 360.0
-            if b1 <= bp <= b2:
-                m1 = capacity_at_N(self.curves[a1], N)
-                m2 = capacity_at_N(self.curves[a2 % 360.0 if (i + 1) < len(angs) else angs[0]], N)
-                t = (bp - b1) / max(b2 - b1, 1e-12)
-                return m1 + t * (m2 - m1)
-        # fallback: góc gần nhất
-        best = min(angs, key=lambda a: abs((a - phi + 180) % 360 - 180))
-        return capacity_at_N(self.curves[best], N)
+        """Mô men khả năng chịu tại (N, hướng phi độ).
+
+        Từ 2026-10-21: capacity EXACT (nghiệm cân bằng M_perp = 0 trên
+        lưới trạng thái biến dạng phẳng), không còn nội suy giữa 2 đường
+        cong đơn trục construction cũ.
+        """
+        return self._exact.capacity_fast(N, phi_deg)
+
+    def exact_capacity(self, N: float, theta_deg: float) -> float:
+        """Capacity exact bản fine (chặt đôi na + gamma) — bản tham chiếu
+        dùng cho kiểm chứng; moment_capacity là bản nội suy nhanh."""
+        return self._exact.capacity_fine(N, theta_deg)
 
     def mx_my_curve(self, N: float, n_angles: int = 72) -> List[Tuple[float, float]]:
         """Đường cong tương tác Mx-My tại lực dọc N cho trước.
@@ -279,9 +649,19 @@ class BiaxialCapacity:
                 hi = mid
         lam = 0.5 * (lo + hi)
         dc = 1.0 / lam if lam > 1e-12 else float("inf")
-        return {"dc": dc, "lambda_max": lam,
-                "Bx": lam * Mx, "By": lam * My, "BN": lam * N,
-                "ok": dc <= 1.0}
+        res = {"dc": dc, "lambda_max": lam,
+               "Bx": lam * Mx, "By": lam * My, "BN": lam * N,
+               "ok": dc <= 1.0}
+        # Mặt phẳng biến dạng tại điểm biên B (để vẽ đường trung hòa/vùng
+        # nén nhất quán với D/C exact): hướng gradient gamma* + na*
+        try:
+            _b = self._exact.boundary_fast(lam * N, phi)
+            if _b is not None:
+                res["gamma_deg"] = _b["gamma_deg"]
+                res["na_depth"] = _b["na"]
+        except Exception:
+            pass
+        return res
 
     def check(self, N: float, Mx: float, My: float) -> dict:
         """Kiểm tra (N kN, Mx, My kN·m). Trả về dict kết quả."""
@@ -300,105 +680,44 @@ class BiaxialCapacity:
             "N_max": Nmax,
         }
 
-
 def neutral_axis_at_N(fs, N_target_kN: float, theta_deg: float,
                       model: str = "3line", n_points: int = 96):
-    """Tìm đường trung hòa chính xác từ fiber model tại (N_target, hướng theta).
-    
-    Dùng cùng logic xây dựng đường cong như uniaxial_curve_fs, nhưng giữ lại
-    tham số biến dạng để trích xuất vị trí đường trung hòa.
-    
+    """Đường trung hòa từ mặt phẳng biến dạng EXACT tại (N_target, theta).
+
+    Từ 2026-10-21: dùng mặt phẳng biên của nghiệm cân bằng song trục
+    exact (gamma*, na*) tại mức N — nhất quán với D/C exact mới, thay
+    cho construction đường cong đơn trục cũ.
     Quy ước góc kiểu ETABS: theta đo từ trục M3.
-    
-    Trả về dict:
-    - 'yp_na': tọa độ yp (hệ xoay) của đường trung hòa; None nếu không có (nén/kéo đều)
-    - 'theta_deg', 'ct', 'st': góc và cos/sin góc xoay (yp = -x*st + y*ct)
-    - 'y_top', 'y_bot': biên trên/dưới của tiết diện trong hệ xoay
-    - 'eps0', 'kx_p': tham số mặt phẳng biến dạng tại trạng thái tìm được
-    - 'found': True nếu tìm được trạng thái khớp N_target
+
+    Trả về dict cùng định dạng bản cũ. Hệ trục yp được chọn trùng hướng
+    gradient gamma (yp ≡ s = x·cosγ + y·sinγ, tức
+    st = −cosγ, ct = sinγ) nên: yp_na = s_max − na (vị trí strain = 0),
+    eps = eps0 + kx_p·yp với kx_p = eps_cu/na, eps0 = eps_cu − kx_p·s_max.
     """
-    import math
-    import numpy as np
-    from rc_column.materials import EPS_B2, EPS_S2
-
-    th = math.radians(90.0 - theta_deg)
-    ct, st = math.cos(th), math.sin(th)
-    yp_f = -fs.fx * st + fs.fy * ct
-    yp_r = -fs.rx * st + fs.ry * ct if fs.ra.size else np.array([])
-
-    h = float(np.max(yp_f) - np.min(yp_f)) if yp_f.size else 0.0
-    if h <= 0:
+    eng = _get_tcvn_exact(fs, model)
+    b = eng.boundary_fine(float(N_target_kN), float(theta_deg))
+    if b is None:
+        th = math.radians(90.0 - theta_deg)
+        ct, st = math.cos(th), math.sin(th)
+        yp_f = -fs.fx * st + fs.fy * ct
         return {'found': False, 'yp_na': None, 'theta_deg': theta_deg,
-                'ct': ct, 'st': st, 'y_top': 0, 'y_bot': 0,
+                'ct': ct, 'st': st,
+                'y_top': float(np.max(yp_f)) if yp_f.size else 0,
+                'y_bot': float(np.min(yp_f)) if yp_f.size else 0,
                 'eps0': 0, 'kx_p': 0}
-    y_top = float(np.max(yp_f))
-    y_bot = float(np.min(yp_f))
-    eps_cu = EPS_B2
-
-    def state_at_eps_bot(eps_bot):
-        """Trả về (eps0, kx_p, N_kN) tại eps_bot cho trước."""
-        kx_p = (eps_cu - eps_bot) / h
-        eps0 = eps_cu - kx_p * y_top
-        # kiểm tra biến dạng thép
-        if yp_r.size:
-            er = eps0 + kx_p * yp_r
-            if np.any(np.abs(er) > EPS_S2 + 1e-9):
-                return None
-        ef = eps0 + kx_p * yp_f
-        sf = fs.concrete_stress(ef, model)
-        Nf = np.sum(sf * fs.fa)
-        if fs.ra.size:
-            er = eps0 + kx_p * yp_r
-            sr = fs.steel_stress(er)
-            Nr = np.sum(sr * fs.ra)
-        else:
-            Nr = 0.0
-        return (eps0, kx_p, (Nf + Nr) / 1000.0)
-
-    N_target = float(N_target_kN)
-    eps_s_max = min(0.9 * EPS_S2, 10.0 * fs.eps_y)
-    # Quét eps_bot từ eps_cu (nén đều) về -eps_s_max (kéo)
-    # N giảm đơn điệu theo eps_bot -> dùng nội suy
-    prev = None
-    best = None
-    for i in range(n_points + 1):
-        frac = i / n_points
-        f2 = frac ** 0.8 if i > 0 else 0.0
-        eps_bot = eps_cu - f2 * (eps_cu + eps_s_max)
-        cur = state_at_eps_bot(eps_bot)
-        if cur is None:
-            continue
-        _, _, _N = cur
-        if prev is not None:
-            _p_eps0, _p_kx, _pN = prev
-            # kiểm tra N_target nằm giữa _pN và _N
-            if (_pN - N_target) * (_N - N_target) <= 0 and abs(_pN - _N) > 1e-12:
-                t = (N_target - _N) / (_pN - _N)
-                _eps0 = cur[0] + t * (prev[0] - cur[0])
-                _kx = cur[1] + t * (prev[1] - cur[1])
-                best = (_eps0, _kx)
-                break
-        # lưu trạng thái gần nhất
-        if best is None or abs(_N - N_target) < abs(best[2] - N_target):
-            best = (cur[0], cur[1], _N)
-        prev = cur
-
-    if best is None:
-        return {'found': False, 'yp_na': None, 'theta_deg': theta_deg,
-                'ct': ct, 'st': st, 'y_top': y_top, 'y_bot': y_bot,
-                'eps0': 0, 'kx_p': 0}
-    if len(best) == 3:
-        # chỉ có trạng thái gần nhất, không nội suy được
-        _eps0, _kx, _ = best
-    else:
-        _eps0, _kx = best
-
-    # Đường trung hòa: eps = 0 -> yp_na = -eps0/kx_p
-    if abs(_kx) < 1e-12:
-        yp_na = None  # biến dạng đều, không có đường trung hòa
-    else:
-        yp_na = -_eps0 / _kx
-
-    return {'found': True, 'yp_na': yp_na, 'theta_deg': theta_deg,
-            'ct': ct, 'st': st, 'y_top': y_top, 'y_bot': y_bot,
-            'eps0': _eps0, 'kx_p': _kx}
+    g = math.radians(b["gamma_deg"])
+    ct = math.sin(g)
+    st = -math.cos(g)
+    na = b["na"]
+    s_max, s_min = b["s_max"], b["s_min"]
+    if math.isinf(na):
+        # Nén đều: không có đường trung hòa
+        return {'found': True, 'yp_na': None, 'theta_deg': theta_deg,
+                'ct': ct, 'st': st, 'y_top': s_max, 'y_bot': s_min,
+                'eps0': EPS_B2, 'kx_p': 0.0,
+                'gamma_deg': b["gamma_deg"], 'na_depth': na}
+    kappa = EPS_B2 / na
+    return {'found': True, 'yp_na': s_max - na, 'theta_deg': theta_deg,
+            'ct': ct, 'st': st, 'y_top': s_max, 'y_bot': s_min,
+            'eps0': EPS_B2 - kappa * s_max, 'kx_p': kappa,
+            'gamma_deg': b["gamma_deg"], 'na_depth': na}
