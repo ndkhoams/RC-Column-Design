@@ -146,8 +146,15 @@ class Ec2Mixin:
 
         # 4. P-M-M với mô men thiết kế
         try:
+            # FIX mất dấu (2026-10-21): ec2_design_moment trả MEd = abs(...)
+            # nên MEd2/MEd3 luôn dương. Phải khôi phục dấu theo mô men bậc 1
+            # gốc TRƯỚC khi gọi check — nếu không D/C luôn tính ở góc
+            # phi ∈ [0°, 90°], sai với tiết diện bất đối xứng (vd Prokon V2).
+            _sgn2 = 1.0 if M2 >= 0 else -1.0
+            _sgn3 = 1.0 if M3 >= 0 else -1.0
             ec2_res = check_column_ec2(sec, conc, steel, N_kN=N,
-                                       M2_kNm=MEd2, M3_kNm=MEd3)
+                                       M2_kNm=_sgn2 * MEd2,
+                                       M3_kNm=_sgn3 * MEd3)
             # Đảm bảo điểm B nằm trên tia O-A: B = lam * (N, MEd2_signed, MEd3_signed)
             # (vì MEd đã bị abs() trong ec2_design_moment)
             try:
