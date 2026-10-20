@@ -102,6 +102,67 @@ def check_shear(Q: float, b: float, h0: float,
     return res
 
 
+def compute_shear_cols(inp, sec) -> dict:
+    """Tính kiểm tra chịu cắt TCVN 2 phương từ ColumnInput — NGUỒN DUY NHẤT.
+
+    Mọi nơi (tab Kết quả/Chi tiết, PDF tóm tắt/chi tiết) đều đọc dict này,
+    KHÔNG tự tính lại (nguyên tắc "tính 1 lần, hiển thị nhiều nơi").
+
+    Trả về {"2": {...}, "3": {...}}; mỗi dict gồm:
+    Q, b, h0, Asw (bao + giữa theo phương), qsw (= Σ Rsw·Asw,i/si),
+    sh (ShearResult), sw_txt (vd "2φ10 a200 + 2φ10 a200"), s_eff.
+    Lỗi bất kỳ -> {} (giữ hành vi cũ của _tcvn_calculate_full).
+    """
+    from .sections import bar_area
+    from .materials import CONCRETE_GRADES, STEEL_GRADES, ConcreteMaterial
+    cols = {}
+    try:
+        stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
+                               legs=inp.sw_legs)
+        conc_mat = ConcreteMaterial(CONCRETE_GRADES[inp.concrete_grade],
+                                    inp.gamma_b)
+        swg = STEEL_GRADES.get(inp.sw_steel_grade)
+        # (kết quả cấu tạo không dùng ở đây — giữ lời gọi như bản gốc)
+        check_stirrup(sec, stir_in, inp.cover)
+        for Q, lbl, b_w, h_dim, mdia, ms, mlegs in (
+                (inp.Q2, "2", inp.cy, inp.cx,
+                 inp.swm2_dia, inp.swm2_spacing, inp.swm2_legs),
+                (inp.Q3, "3", inp.cx, inp.cy,
+                 inp.swm3_dia, inp.swm3_spacing, inp.swm3_legs)):
+            h0 = h_dim - inp.cover - inp.sw_dia - 12
+            # Đai bao ngoài
+            Asw_outer = stir_in.legs * bar_area(stir_in.dia)
+            s_outer = stir_in.spacing
+            Rsw = swg.Rsw if swg else 0
+            # qsw = Σ(Rsw×Asw,i/si) theo TCVN 5574:2018 (8.1.3)
+            qsw = Rsw * Asw_outer / s_outer if s_outer > 0 else 0
+            Asw = Asw_outer
+            sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
+                      f"a{stir_in.spacing:.0f}")
+            # Cộng đai giữa (nếu có) - tính đúng theo spacing riêng
+            if mdia and ms:
+                try:
+                    mdia_f = float(mdia)
+                    ms_f = float(ms)
+                    mlegs_i = int(mlegs)
+                    if mdia_f > 0 and ms_f > 0 and mlegs_i > 0:
+                        Asw_mid = mlegs_i * bar_area(mdia_f)
+                        Asw += Asw_mid
+                        qsw += Rsw * Asw_mid / ms_f
+                        sw_txt += f" + {mlegs_i}φ{mdia_f:.0f} a{ms_f:.0f}"
+                except Exception:
+                    pass
+            # Bước đai tương đương để check_shear tính đúng qsw
+            s_eff = Rsw * Asw / qsw if qsw > 0 else s_outer
+            sh = check_shear(Q, b_w, max(h0, 1), conc_mat.Rb, conc_mat.Rbt,
+                             Asw, Rsw, s_eff)
+            cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw,
+                             sh=sh, sw_txt=sw_txt, s_eff=s_eff)
+    except Exception:
+        return {}
+    return cols
+
+
 def _is_high_grade(concrete_grade: str) -> bool:
     """Bê tông từ B70 đến B100."""
     try:
