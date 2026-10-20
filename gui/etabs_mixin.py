@@ -129,71 +129,109 @@ class EtabsMixin:
             t.insert("", tk.END, values=vals, tags=tuple(tags))
 
     def _edit_etabs_cell(self, event):
-        """Double-click vào ô N/M2/M3 để sửa trực tiếp."""
+        """Double-click vào ô bất kỳ (trừ cột D/C) để sửa trực tiếp.
+
+        Cột 0-2 (Story/Label/Combo): sửa dạng chữ.
+        Cột 3 (Station): số, hiện 2 chữ số thập phân.
+        Cột 4-8 (N/V2/V3/M2/M3): số, hiện nguyên.
+        Sau khi sửa, cột D/C của dòng đó về "—" (chờ CHECK lại).
+        """
         t = self.etabs_tree
         row_id = t.identify_row(event.y)
         col_id = t.identify_column(event.x)
         if not row_id or not col_id:
             return
-        # Cho sửa N(4), V2(5), V3(6), M2(7), M3(8) - 0-based
         col_idx = int(col_id[1:]) - 1
-        if col_idx not in (4, 5, 6, 7, 8):
+        if col_idx not in (0, 1, 2, 3, 4, 5, 6, 7, 8):
             return
-        # Lấy index dòng trong etabs_forces (theo thứ tự hiển thị)
-        children = t.get_children()
-        try:
-            row_pos = list(children).index(row_id)
-        except ValueError:
-            return
-        # Entry đè lên ô
         bbox = t.bbox(row_id, col_id)
         if not bbox:
             return
         x, y, w, h = bbox
         vals = t.item(row_id, "values")
+        # Tìm object nội lực tương ứng theo giá trị HIỆN TẠI của dòng
+        # (phải tìm trước khi sửa vì cột 0-3 chính là khóa tìm)
+        _st, _lb, _cs, _sn = vals[0], vals[1], vals[2], vals[3]
+        tgt = None
+        try:
+            _sn_f = float(_sn)
+        except (TypeError, ValueError):
+            _sn_f = None
+        for f in getattr(self, "etabs_forces", []):
+            if (str(f.story).strip() == str(_st).strip() and
+                str(f.column).strip() == str(_lb).strip() and
+                str(f.case).strip() == str(_cs).strip() and
+                _sn_f is not None and abs(f.station - _sn_f) < 0.01):
+                tgt = f
+                break
+        if tgt is None:
+            return
         entry = tk.Entry(t, font=("", 9))
         entry.insert(0, vals[col_idx])
         entry.select_range(0, tk.END)
         entry.focus()
         entry.place(x=x, y=y, width=w, height=h)
+        _state = {"done": False}
+
+        def _close():
+            if not _state["done"]:
+                _state["done"] = True
+                try:
+                    entry.destroy()
+                except Exception:
+                    pass
 
         def _save(_e=None):
-            new_val = entry.get().strip()
-            try:
-                num = float(new_val)
-            except ValueError:
-                entry.destroy()
+            if _state["done"]:
                 return
-            # Cập nhật etabs_forces (tìm theo story+label+case+station)
-            _st, _lb, _cs, _sn = vals[0], vals[1], vals[2], vals[3]
-            for f in self.etabs_forces:
-                if (f.story.strip() == _st.strip() and
-                    f.column.strip() == _lb.strip() and
-                    f.case.strip() == _cs.strip() and
-                    abs(f.station - float(_sn)) < 0.01):
-                    if col_idx == 4:
-                        f.N = num
-                    elif col_idx == 5:
-                        f.Q2 = num
-                    elif col_idx == 6:
-                        f.Q3 = num
-                    elif col_idx == 7:
-                        f.Mx = num
-                    elif col_idx == 8:
-                        f.My = num
-                    break
+            new_val = entry.get().strip()
+            if col_idx in (0, 1, 2):
+                if not new_val:
+                    _close()
+                    return
+                if col_idx == 0:
+                    tgt.story = new_val
+                elif col_idx == 1:
+                    tgt.column = new_val
+                else:
+                    tgt.case = new_val
+                disp = new_val
+            else:
+                try:
+                    num = float(new_val)
+                except ValueError:
+                    _close()
+                    return
+                if col_idx == 3:
+                    tgt.station = num
+                    disp = f"{num:.2f}"
+                elif col_idx == 4:
+                    tgt.N = num
+                    disp = f"{num:.0f}"
+                elif col_idx == 5:
+                    tgt.Q2 = num
+                    disp = f"{num:.0f}"
+                elif col_idx == 6:
+                    tgt.Q3 = num
+                    disp = f"{num:.0f}"
+                elif col_idx == 7:
+                    tgt.Mx = num
+                    disp = f"{num:.0f}"
+                else:
+                    tgt.My = num
+                    disp = f"{num:.0f}"
             new_vals = list(vals)
-            new_vals[col_idx] = f"{num:.0f}"
-            new_vals[4] = "—"
-            new_vals[5] = "—"
+            new_vals[col_idx] = disp
+            # D/C cũ không còn hiệu lực sau khi sửa dữ liệu
+            new_vals[9] = "" if str(tgt.case).strip().startswith("TX_") else "—"
             t.item(row_id, values=new_vals)
-            entry.destroy()
+            _close()
             self.etabs_info.set("Đã sửa dữ liệu — bấm 'KIỂM TRA KHẢ NĂNG "
                                 "CHỊU LỰC' để tính lại.")
 
         entry.bind("<Return>", _save)
-        entry.bind("<FocusOut>", lambda e: entry.destroy())
-        entry.bind("<Escape>", lambda e: entry.destroy())
+        entry.bind("<FocusOut>", lambda e: _close())
+        entry.bind("<Escape>", lambda e: _close())
 
     def _check_aci_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo ACI 318-19."""
