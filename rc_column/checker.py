@@ -119,6 +119,10 @@ class CheckResult:
     clear_cx: float; clear_cy: float
     alpha_e: float            # Es/Eb
     details: List[str] = field(default_factory=list)
+    # Mặt phẳng biến dạng tại điểm biên B của D/C exact (2026-10-21):
+    # hướng gradient gamma* (độ) + chiều sâu trục trung hòa na* (mm)
+    gamma_deg: float = 0.0
+    na_depth: float = 0.0
 
 
 def build_section(inp: ColumnInput) -> Section:
@@ -228,6 +232,8 @@ def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
         Ncrx=buck.Ncrx, Ncry=buck.Ncry, etax=buck.etax, etay=buck.etay,
         steel_area=sec.steel_area, reinforcement_ratio=mu,
         clear_cx=ccx, clear_cy=ccy, alpha_e=alpha_e, details=details,
+        gamma_deg=r.get("gamma_deg") or 0.0,
+        na_depth=r.get("na_depth") or 0.0,
     )
 
 
