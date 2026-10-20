@@ -452,3 +452,617 @@ class TcvnMixin:
             tk.Label(tf, text=v3, font=("", 9), bg=_bg, fg="#111827",
                      anchor="center", padx=6, pady=4).grid(row=i, column=2, sticky="nsew")
 
+
+    def _on_toggle_table(self):
+        """Bật/tắt bảng tổng hợp (mục 8) -> render lại thuyết minh."""
+        if not getattr(self, "_pdf_inp", None):
+            return
+        from rc_column.report import generate_report_sections
+        from rc_column.checker import build_section
+        inp, res = self._pdf_inp, self._pdf_res
+        sec = build_section(inp)
+        batch = getattr(self, "_batch_rows", None)
+        if not self.var_export_table.get():
+            batch = None
+        case_info = getattr(self, "_pdf_case", None)
+        shear_info = getattr(self, "_pdf_shear", None)
+        self._render_report_sections(
+            generate_report_sections(inp, res, batch_rows=batch,
+                                     case_info=case_info,
+                                     shear_info=shear_info),
+            sec, inp, res, case_info=case_info,
+            shear_info=shear_info)
+        self._pdf_batch = batch
+
+    def _setup_report_tags(self, t):
+        """Định nghĩa tags màu sắc theo Tailwind của web mẫu."""
+        t.tag_configure("title", font=("", 13, "bold"),
+                        foreground="#0f172a")
+        t.tag_configure("sec_title", font=("", 11, "bold"),
+                        foreground="#0f172a")
+        t.tag_configure("sec_ref", font=("", 9),
+                        foreground="#64748b")
+        t.tag_configure("card", font=("", 10),
+                        foreground="#1e293b")
+        t.tag_configure("mono", font=("Consolas", 10),
+                        foreground="#334155")
+        t.tag_configure("result", font=("", 10, "bold"),
+                        foreground="#0f172a")
+        t.tag_configure("dc", font=("Consolas", 14, "bold"),
+                        foreground="#059669")
+        t.tag_configure("ok", font=("", 12, "bold"),
+                        foreground="#065f46", background="#d1fae5",
+                        borderwidth=1, relief="solid")
+        t.tag_configure("ng", font=("", 12, "bold"),
+                        foreground="#991b1b", background="#fee2e2",
+                        borderwidth=1, relief="solid")
+
+    def _clean_math(self, text: str) -> str:
+        """Chuyển _{xx} thành xx cho hiển thị trong app."""
+        import re
+        return re.sub(r"_\{([^}]+)\}", r"\1", text)
+
+    def _bind_wheel_to_calc(self, widget):
+        """Gắn cuộn chuột cho thanh công cụ -> cuộn canvas thuyết minh."""
+        self._bind_wheel(widget, self._calc_canvas)
+
+    # ============ Helpers cho tab Tóm tắt (layout 2x2) ============
+    def _section_card_values(self, sec):
+        """Số liệu cho các thẻ thống kê dưới sơ đồ mặt cắt."""
+        import math
+        from collections import Counter
+        from rc_column.sections import clear_spacing
+        n = len(sec.rebars)
+        cnt = Counter((getattr(r, "layer", 1), r.dia) for r in sec.rebars)
+        parts = [f"{cnt[k]}d{k[1]:.0f}"
+                 for k in sorted(cnt, key=lambda k: (k[0], -k[1]))]
+        ccx, ccy = clear_spacing(sec)
+        dias = sorted(set(r.dia for r in sec.rebars))
+        d_avg = sum(dias) / len(dias) if dias else 0.0
+        vals = {
+            "n": " + ".join(parts),
+            "nsub": "",
+            "as": f"{sec.steel_area:.0f} mm\u00b2",
+            "ab": f"{sec.concrete_area:.0f} mm\u00b2",
+            "mu": f"{sec.reinforcement_ratio * 100:.2f}%",
+        }
+        if math.isfinite(ccx):
+            vals["clear"] = f"t3 = {ccx:.1f} mm, t2 = {ccy:.1f} mm"
+            vals["tim"] = (f"t3 = {ccx + d_avg:.1f} mm, "
+                           f"t2 = {ccy + d_avg:.1f} mm")
+        else:
+            vals["clear"] = vals["tim"] = "\u2014"
+        return vals
+
+    def _on_nm_angle_changed(self, event=None):
+        """Vẽ lại biểu đồ N-M tại góc được chọn trong Combobox."""
+        try:
+            sel = self._nm_angle_cb.get()
+            if sel == "3D":
+                self._draw_3d_interaction()
+                return
+            if sel.startswith("\u03b1"):
+                angle = None
+            else:
+                angle = float(sel.replace("\u00b0", ""))
+        except Exception:
+            angle = None
+        self._nm_view_angle = angle
+        # Cập nhật nhãn α trên header
+        try:
+            if angle is None:
+                import math
+                res = self._last_res
+                a0 = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+                    if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
+                self._nm_alpha_lbl.config(text=f"  \u03b1 = {a0:.1f}\u00b0  ")
+            else:
+                self._nm_alpha_lbl.config(
+                    text=f"  xem {angle:.0f}\u00b0  ")
+        except Exception:
+            pass
+        # Vẽ lại chỉ biểu đồ N-M
+        try:
+            # Nếu đang ở 3D (axes có projection 3d), tạo lại axes 2D
+            _fig = self._nm_fig
+            _cur_axes = _fig.axes[0] if _fig.axes else None
+            _is_3d = _cur_axes is not None and getattr(_cur_axes, 'name', '') == '3d'
+            if _is_3d:
+                _fig.clear()
+                ax = _fig.add_subplot(111)
+                self._nm_ax_ref = ax
+            else:
+                ax = self._nm_ax_ref
+                ax.clear()
+            self._nm_draw_fn(ax, angle)
+            self._nm_fig.tight_layout()
+            self._nm_fig.subplots_adjust(bottom=0.30)
+            self._nm_cv_ref.draw()
+        except Exception:
+            pass
+
+    def _enable_manual_3d_rotate(self, cv_widget, fig, ax):
+        """Xoay 3D thủ công bằng chuột trái (dự phòng khi mouse_init không hoạt động)."""
+        state = {"drag": False, "x0": 0, "y0": 0, "elev0": 0, "azim0": 0}
+        def _get_ax():
+            try:
+                _a = fig.axes[0] if fig.axes else None
+                return _a if getattr(_a, 'name', '') == '3d' else None
+            except Exception:
+                return None
+        def _press(ev):
+            _a = _get_ax()
+            if _a is None:
+                return
+            try:
+                state["drag"] = True
+                state["x0"], state["y0"] = ev.x, ev.y
+                state["elev0"], state["azim0"] = _a.elev, _a.azim
+            except Exception:
+                pass
+        def _move(ev):
+            if not state["drag"]:
+                return
+            _a = _get_ax()
+            if _a is None:
+                return
+            try:
+                dx = ev.x - state["x0"]
+                dy = ev.y - state["y0"]
+                _a.view_init(elev=state["elev0"] - dy * 0.3,
+                             azim=state["azim0"] + dx * 0.3)
+                fig.stale = True
+                fig.canvas.draw_idle()
+                fig.canvas.flush_events()
+            except Exception as ex:
+                print(f"[3D-DEBUG] Move error: {ex}")
+        def _rel(ev):
+            state["drag"] = False
+        try:
+            # Xóa binding cũ tránh trùng lặp khi hàm 3D được gọi nhiều lần
+            for _seq in ("<ButtonPress-1>", "<B1-Motion>", "<ButtonRelease-1>"):
+                try:
+                    cv_widget.unbind(_seq)
+                except Exception:
+                    pass
+            cv_widget.bind("<ButtonPress-1>", _press)
+            cv_widget.bind("<B1-Motion>", _move)
+            cv_widget.bind("<ButtonRelease-1>", _rel)
+        except Exception:
+            pass
+
+    def _draw_3d_interaction(self):
+        """Vẽ biểu đồ tương tác 3D (N-M2-M3) cho TCVN."""
+        try:
+            from mpl_toolkits.mplot3d import Axes3D  # noqa
+            import numpy as np
+            fig = self._nm_fig
+            fig.clear()
+            ax = fig.add_subplot(111, projection='3d')
+            # Đảm bảo mouse rotation hoạt động
+            try:
+                ax.mouse_init()
+            except Exception:
+                pass
+            # Lấy sec và inp từ lần tính cuối, dựng BiaxialCapacity
+            sec = getattr(self, '_last_sec', None)
+            inp = getattr(self, '_last_inp', None)
+            if sec is None or inp is None:
+                ax.text2D(0.5, 0.5, "Chưa có dữ liệu - hãy bấm KIỂM TRA",
+                          transform=ax.transAxes, ha='center')
+            else:
+                from rc_column.interaction import BiaxialCapacity
+                cap = BiaxialCapacity(sec, model=inp.concrete_model,
+                                      n_angles=24)
+                n_vals, th_vals, mx_grid, my_grid = cap.surface_grid(
+                    n_n=25, n_angles=36)
+                # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để fill kín
+                mx_grid = np.hstack([mx_grid, mx_grid[:, :1]])
+                my_grid = np.hstack([my_grid, my_grid[:, :1]])
+                n_angles_closed = len(th_vals) + 1
+                # Vẽ mặt 3D
+                ax.plot_surface(mx_grid, my_grid,
+                                np.tile(n_vals[:, None], (1, n_angles_closed)),
+                                cmap='Greens', alpha=0.7, edgecolor='none')
+                # Vẽ điểm tải trọng A
+                res = getattr(self, '_last_res', None)
+                if res is not None:
+                    ax.scatter([res.Mx_star], [res.My_star], [res.N],
+                               color='red', s=50, label='Điểm tải A')
+                    ax.legend()
+            ax.set_xlabel('M2 (kN·m)')
+            ax.set_ylabel('M3 (kN·m)')
+            ax.set_zlabel('N (kN)')
+            # (bỏ title theo yêu cầu)
+            fig.tight_layout()
+            self._nm_cv_ref.draw()
+            self._nm_ax_ref = None
+        except Exception as ex:
+            print(f"Lỗi vẽ 3D: {ex}")
+            import traceback
+            traceback.print_exc()
+
+    def _redraw(self):
+        """Tab Kết quả tính toán cho TCVN - dùng bản gốc (ổn định).
+        ACI/EC2 dùng unified renderer. Sẽ migrate TCVN sau khi ổn định."""
+        return self._redraw_old()
+
+    def _redraw_new_unified(self):
+        """[WIP] Bản dùng unified renderer - đang lỗi, chưa dùng."""
+        if not HAS_MPL or self._last_sec is None:
+            return
+        from gui.result_renderer import render_result_tab
+        from rc_column.pdf_export import draw_section_ax
+        from rc_column.chart_draw import draw_nm_alpha_ax, draw_m2m3_ax
+        import math
+
+        sec, inp, res = self._last_sec, self._last_inp, self._last_res
+
+        # Lấy rows thông số
+        param_rows, dc_row, alpha_deg, Ma = self._get_tcvn_param_rows(inp, res)
+
+        # Section cards
+        vals = self._section_card_values(sec)
+        section_cards = {"n": vals["n"], "as": vals["as"], "ab": vals["ab"], "mu": vals["mu"]}
+
+        # Hàm vẽ N-M (dùng góc đã chọn nếu có)
+        def _draw_nm(ax):
+            _view_angle = getattr(self, "_tcvn_nm_view_angle", None)
+            _Mx_star = res.Mx_star
+            _My_star = res.My_star
+            if _view_angle is not None:
+                _Ma = math.hypot(_Mx_star, _My_star)
+                _rad = math.radians(_view_angle)
+                _Mx_star = _Ma * math.sin(_rad)
+                _My_star = _Ma * math.cos(_rad)
+            draw_nm_alpha_ax(ax, sec, inp, res, _Mx_star, _My_star)
+
+        # Hàm vẽ M2-M3
+        def _draw_m2m3(ax):
+            draw_m2m3_ax(ax, sec, inp, res)
+
+        # Notes
+        _ok = res.ok
+        _okt = "ĐẠT" if _ok else "KHÔNG ĐẠT"
+        _okc = "#059669" if _ok else "#DC2626"
+        _case = getattr(self, "_pdf_case", None) or {}
+        _parts = []
+        if _case.get("story"): _parts.append(str(_case.get("story")))
+        if _case.get("column"): _parts.append(str(_case.get("column")))
+        if _case.get("case"):
+            _st = _case.get("station", "")
+            _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
+            _parts.append(f"{_case.get('case')}{_st_txt}")
+        _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
+        # Lấy thông tin B từ res
+        _BN = getattr(res, 'BN', 0)
+        _Bx = getattr(res, 'Bx', 0)
+        _By = getattr(res, 'By', 0)
+        _Mb = math.hypot(_Bx, _By)
+        notes = [
+            (f"● Đường bao kiểm tra: N-Mα (α = {alpha_deg:.1f}°) — TCVN 5574:2018   D/C = {res.dc:.3f} → {_okt}", _okc),
+            (f"● A (điểm tải){_combo_txt}:  N = {res.N:+.1f} kN,  Mα = {Ma:.1f} kN×m  (M2 = {res.Mx_star:.1f}, M3 = {res.My_star:.1f})", "#2563EB"),
+            (f"◆ B (điểm giới hạn):  N = {_BN:+.1f} kN,  Mα,u = {_Mb:.1f} kN×m  (M2u = {_Bx:.1f}, M3u = {_By:.1f})", "#EA580C"),
+        ]
+
+        config = {
+            "std_title": "(TCVN 5574:2018)",
+            "param_rows": param_rows,
+            "dc_row": dc_row,
+            "section": sec,
+            "section_cards": section_cards,
+            "draw_nm": _draw_nm,
+            "draw_m2m3": _draw_m2m3,
+            "nm_title": "Biểu đồ tương tác N-Mα",
+            "nm_alpha_text": f"α = {alpha_deg:.1f}°",
+            "m2m3_title": "Mặt cắt M2-M3",
+            "m2m3_n_text": f"N = {res.N:+.1f} kN",
+            "notes_nm": notes,
+            "on_nm_angle_change": lambda sel: self._on_tcvn_angle_unified(sel),
+            "shear_builder": lambda parent: self._build_stirrup_summary(
+                parent, inp, res, getattr(self, '_tcvn_full', {}) or {}),
+        }
+        render_result_tab(self, config)
+        self._update_ck()
+
+    def _on_tcvn_angle_unified(self, sel):
+        """Xử lý chọn góc xem TCVN - chỉ vẽ lại biểu đồ N-M."""
+        try:
+            if sel.startswith("α"):
+                self._tcvn_nm_view_angle = None
+            else:
+                self._tcvn_nm_view_angle = float(sel.replace("°", ""))
+            ax = getattr(self, "_nm_ax", None)
+            canvas = getattr(self, "_nm_canvas", None)
+            draw_fn = getattr(self, "_nm_draw_fn", None)
+            if ax is not None and draw_fn is not None:
+                ax.clear()
+                draw_fn(ax)
+                if canvas:
+                    canvas.draw()
+        except Exception as e:
+            print(f"[TCVN] Lỗi đổi góc xem: {e}")
+
+    def _redraw_old(self):
+        """Layout 2x2: [mặt cắt + thẻ TK | bảng thông số] /
+        [N-M + chú thích | header + M2-M3]."""
+        if not HAS_MPL or self._last_sec is None:
+            return
+        import math
+        sec, inp, res = self._last_sec, self._last_inp, self._last_res
+        # Xóa toàn bộ nội dung cũ trong _sum_inner
+        for w in self._sum_inner.winfo_children():
+            w.destroy()
+        # (sẽ gọi _update_ck ở cuối method)
+        self._sec_ax = None
+        self._sec_fig = None
+        self._sec_canvas = None
+        self._sec_card_vars = {}
+        from rc_column.pdf_export import draw_section_ax, _radial_limit
+        from rc_column.interaction import (BiaxialCapacity, FiberSection,
+                                           uniaxial_curve_fs)
+        from rc_column.chart_draw import draw_nm_alpha_ax, draw_m2m3_ax
+        fs = FiberSection(sec)
+
+        def _nm_alpha_ax(ax, title_sz=12, view_angle_deg=None):
+            # Biểu đồ N-M tại góc uốn xiên α (dùng điểm B song trục)
+            # view_angle_deg: góc xem đường cong (None = góc tải trọng)
+            # Style theo mẫu: đường xanh lá, fill nhạt, lưới đứt mảnh
+            GREEN, GREEN_LT = "#059669", "#D1FAE5"
+            RED, ORANGE = "#DC2626", "#F97316"
+            BLUE_DASH = "#3B82F6"
+            if view_angle_deg is not None:
+                alpha_deg = view_angle_deg
+            else:
+                alpha_deg = math.degrees(
+                    math.atan2(res.Mx_star, res.My_star))
+            cv = uniaxial_curve_fs(fs, alpha_deg, inp.concrete_model)
+            m_pos = [p[1] for p in cv]
+            n_pos = [p[0] for p in cv]
+            m_neg = [-p[1] for p in cv]
+            ax.plot(m_pos, n_pos, color=GREEN, linewidth=2.2, zorder=3)
+            ax.plot(m_neg, n_pos, color=GREEN, linewidth=2.2, zorder=3)
+            # Fill nhạt vùng trong
+            ax.fill_betweenx(n_pos, 0, m_pos, color=GREEN, alpha=0.08,
+                             zorder=1)
+            ax.fill_betweenx(n_pos, m_neg, 0, color=GREEN, alpha=0.08,
+                             zorder=1)
+            Ma = math.hypot(res.Mx_star, res.My_star)
+            Mb = math.hypot(res.Bx, res.By)
+            lim = (res.BN, Mb)
+            # Nét đứt đỏ từ tâm qua A tới B (kéo dài 1.18)
+            ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=RED,
+                    ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+            # Đường chiếu xanh đứt từ A xuống trục
+            ax.plot([Ma, Ma], [0, res.N], color=BLUE_DASH, ls="--",
+                    lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
+            ax.plot([0, Ma], [res.N, res.N], color=BLUE_DASH, ls="--",
+                    lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
+            # Điểm B (giới hạn) vẽ trước, điểm A (tải trọng) vẽ sau
+            ax.scatter([lim[1]], [lim[0]], c=ORANGE, s=70, zorder=5,
+                       edgecolors="white", linewidths=1.2, label="Giới hạn")
+            ax.scatter([Ma], [res.N], c=GREEN, s=70, zorder=6,
+                       edgecolors="white", linewidths=1.2,
+                       label="Điểm tải A")
+            ax.text(Ma, res.N, "  A", fontsize=9, color=GREEN,
+                    weight="bold", va="center", zorder=7)
+            ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
+                    weight="bold", va="center", zorder=7)
+            _xlbl = ("Mα (kN·m)" if view_angle_deg is None
+                     else f"Mα (kN·m) @ {view_angle_deg:.0f}°")
+            ax.set_xlabel(_xlbl, fontweight="bold", fontsize=10)
+            ax.set_ylabel("N (kN)", fontweight="bold", fontsize=10)
+
+            # Legend 4 mục như web, đặt dưới biểu đồ
+            from matplotlib.lines import Line2D
+            leg_elems = [
+                Line2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+                       label="Tia tải O-A-B"),
+                Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+                       markersize=8, markeredgecolor="white", label="Điểm tải A"),
+                Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+                       markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+            ]
+            ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
+                      bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
+            ax.grid(True, color="#E5E7EB", linestyle="--",
+                    linewidth=0.7, alpha=0.9)
+            ax.set_axisbelow(True)
+            # Chỉ hiện nửa có tải (Mα >= 0, N >= 0) — giữ khi đổi góc xem
+            ax.set_xlim(left=0)
+            ax.set_ylim(bottom=0)
+
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            for sp in ("left", "bottom"):
+                ax.spines[sp].set_color("#9CA3AF")
+
+        def _m2m3_ax(ax):
+            # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
+            # Style theo mẫu: đường xanh dương, fill nhạt
+            BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
+            GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
+            cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
+            pts = cap.mx_my_curve(res.N)
+            xs = [p[0] for p in pts] + [pts[0][0]]
+            ys = [p[1] for p in pts] + [pts[0][1]]
+            ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
+            ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
+            # Nét đứt đỏ từ tâm qua A tới B
+            ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
+                    ls="--", lw=1.5, dashes=(4, 3), zorder=4)
+            ax.scatter([res.Bx], [res.By], c=ORANGE, s=70, zorder=5,
+                       edgecolors="white", linewidths=1.2, label="Giới hạn")
+            ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70,
+                       zorder=6, edgecolors="white", linewidths=1.2,
+                       label="Điểm tải A")
+            ax.text(res.Mx_star, res.My_star, "  A", fontsize=9,
+                    color=GREEN, weight="bold", va="center", zorder=7)
+            # Trục qua tâm
+            ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
+            ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
+            ax.set_xlabel("M2 (kN·m)", fontweight="bold", fontsize=10)
+            ax.set_ylabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+
+            from matplotlib.lines import Line2D
+            leg_elems = [
+                Line2D([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+                Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
+                       label="Tia tải O-A-B"),
+                Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
+                       markersize=8, markeredgecolor="white", label="Điểm tải A"),
+                Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
+                       markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+            ]
+            ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
+                      bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
+            ax.grid(True, color="#E5E7EB", linestyle="--",
+                    linewidth=0.7, alpha=0.9)
+            ax.set_axisbelow(True)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            for sp in ("left", "bottom"):
+                ax.spines[sp].set_color("#9CA3AF")
+
+
+        def _new_fig(parent, figsize):
+            fig = Figure(figsize=figsize, dpi=100)
+            cv = FigureCanvasTkAgg(fig, master=parent)
+            _w = cv.get_tk_widget()
+            # takefocus=0 ngăn canvas chiếm focus (đủ để cuộn chuột
+            # hoạt động); KHÔNG chặn ButtonPress/Release để biểu đồ
+            # 3D xoay được bằng kéo chuột
+            try:
+                _w.configure(highlightthickness=0, takefocus=0,
+                             highlightbackground="white", highlightcolor="white",
+                             borderwidth=0)
+            except Exception:
+                pass
+            _w.pack(fill=tk.BOTH, expand=True)
+            return fig, cv
+
+        # Grid 2x2 trong _sum_inner
+        self._sum_inner.columnconfigure(0, weight=1)
+        self._sum_inner.columnconfigure(1, weight=1)
+        self._sum_inner.rowconfigure(0, weight=0)
+        self._sum_inner.rowconfigure(1, weight=1)
+
+        # ===== Ô trên-phải: vùng nén tiết diện + thẻ thống kê =====
+        f_tl = tk.Frame(self._sum_inner, bg="white", highlightbackground="#D1D5DB",
+                        highlightthickness=1)
+        f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        if getattr(self, "_show_compression", None) is None:
+            self._show_compression = tk.BooleanVar(value=True)
+        _hdr = tk.Frame(f_tl, bg="white")
+        _hdr.pack(fill=tk.X, pady=(2, 2))
+        tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
+                 font=("", 11, "bold"), bg="white").pack(side=tk.LEFT, padx=(4, 0))
+        tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
+                       font=("", 8), fg="#374151",
+                       variable=self._show_compression,
+                       command=lambda: self._redraw_tcvn_section()).pack(side=tk.RIGHT, padx=(0, 4))
+        self.ck_var = tk.StringVar(value="")
+        # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
+        fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
+        a1 = fig_sec.add_subplot(111)
+        from rc_column.pdf_export import draw_compression_zone_ax
+        try:
+            _tBN = getattr(res, "BN", inp.N)
+            _tBx = getattr(res, "Bx", 0)
+            _tBy = getattr(res, "By", 0)
+            _tNmax = getattr(res, "Nmax", abs(_tBN)*2) if hasattr(res, "Nmax") else abs(_tBN)*2
+            # Đường trung hòa chính xác từ fiber model TCVN
+            _t_na = None
+            try:
+                from rc_column.interaction import FiberSection, neutral_axis_at_N
+                _t_fs = FiberSection(sec)
+                _t_alpha = getattr(res, "alpha_deg", 0) if hasattr(res, "alpha_deg") else 0
+                # tính alpha từ Bx, By nếu chưa có
+                import math as _m
+                if abs(_tBx) + abs(_tBy) > 1e-9:
+                    _t_alpha = _m.degrees(_m.atan2(_tBx, _tBy))
+                _t_na = neutral_axis_at_N(_t_fs, _tBN, _t_alpha,
+                                          getattr(inp, "concrete_model", "3line"))
+            except Exception:
+                _t_na = None
+            _sc_tcvn = bool(self._show_compression.get())
+            draw_compression_zone_ax(a1, sec, N_kN=_tBN, M2_kNm=_tBx, M3_kNm=_tBy,
+                                     Nmax_kN=_tNmax, na_info=_t_na,
+                                     show_compression=_sc_tcvn)
+            # Lưu data để checkbox vẽ lại
+            self._tcvn_sec_data = (sec, _tBN, _tBx, _tBy, _tNmax, _t_na)
+        except Exception:
+            draw_section_ax(a1, sec, show_stats=False, dot_scale=1.5)
+        fig_sec.tight_layout()
+        cv_sec.draw()
+        self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
+        self._sec_card_vars = self._build_section_cards(f_tl, sec, inp)
+
+        # ===== Ô trên-trái: bảng thông số tính toán =====
+        f_tr = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
+                        highlightthickness=1, takefocus=0)
+        f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_param_table(f_tr, inp, res)
+
+        # ===== Ô dưới-trái: header + biểu đồ N-M =====
+        f_bl = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
+                        highlightthickness=1, takefocus=0)
+        f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_nm_header(f_bl, res)
+        fig_nm, cv_nm = _new_fig(f_bl, (5.2, 3.9))
+        self._nm_fig = fig_nm
+        a3 = fig_nm.add_subplot(111)
+        draw_nm_alpha_ax(a3, sec, inp, res, fs)
+        fig_nm.tight_layout()
+        fig_nm.subplots_adjust(bottom=0.30)
+        cv_nm.draw()
+        # Lưu tham chiếu để vẽ lại khi đổi góc xem
+        self._nm_ax_ref = a3
+        self._nm_cv_ref = cv_nm
+        self._nm_draw_fn = lambda ax, va=None: _nm_alpha_ax(
+            ax, view_angle_deg=va)
+
+        # ===== Ô dưới-phải: header + biểu đồ M2-M3 =====
+        f_br = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",
+                        highlightthickness=1, takefocus=0)
+        f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        self._build_m2m3_header(f_br, res)
+        fig_mm, cv_mm = _new_fig(f_br, (5.2, 3.9))
+        self._m2m3_fig = fig_mm
+        a4 = fig_mm.add_subplot(111)
+        draw_m2m3_ax(a4, sec, inp, res)
+        fig_mm.tight_layout()
+        fig_mm.subplots_adjust(bottom=0.30)
+        cv_mm.draw()
+
+        # ===== Hàng 3 full-width: chi tiết biểu đồ N-M =====
+        f_notes = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
+                     padx=4, pady=(4, 12))
+        self._build_nm_notes(f_notes, inp, res)
+
+        # ===== Hàng 4 full-width: tóm tắt thép đai =====
+        f_sw = ttk.Frame(self._sum_inner, style="Card.TLabelframe")
+        f_sw.grid(row=3, column=0, columnspan=2, sticky="ew",
+                  padx=4, pady=4)
+        _tfull = getattr(self, '_tcvn_full', {}) or {}
+        self._build_stirrup_summary(f_sw, inp, res, _tfull)
+        self._sum_inner.rowconfigure(3, weight=0)
+
+        self._sum_inner.rowconfigure(2, weight=0)
+        # Gắn lại cuộn chuột cho các widget mới (kể cả hình matplotlib)
+        self._bind_wheel(self._sum_inner, self._sum_canvas)
+        # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
+        def _to_top():
+            try:
+                self._sum_inner.update_idletasks()
+                self._sum_canvas.configure(
+                    scrollregion=self._sum_canvas.bbox("all"))
+                self._sum_canvas.yview_moveto(0)
+            except Exception:
+                pass
+        self._sum_canvas.after_idle(_to_top)
