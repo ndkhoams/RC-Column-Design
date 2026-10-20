@@ -13,7 +13,7 @@ try:
 except Exception:
     HAS_MPL = False
 from rc_column.checker import ColumnInput, build_section, check_column
-from rc_column.report import generate_report, generate_report_sections
+from rc_column.report import generate_report_sections
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
 from rc_column.sections import clear_spacing, bar_area
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
@@ -615,7 +615,7 @@ class TcvnMixin:
                 fig.canvas.draw_idle()
                 fig.canvas.flush_events()
             except Exception as ex:
-                print(f"[3D-DEBUG] Move error: {ex}")
+                pass
         def _rel(ev):
             state["drag"] = False
         try:
@@ -678,7 +678,6 @@ class TcvnMixin:
             self._nm_cv_ref.draw()
             self._nm_ax_ref = None
         except Exception as ex:
-            print(f"Lỗi vẽ 3D: {ex}")
             import traceback
             traceback.print_exc()
 
@@ -781,7 +780,7 @@ class TcvnMixin:
                 if canvas:
                     canvas.draw()
         except Exception as e:
-            print(f"[TCVN] Lỗi đổi góc xem: {e}")
+            pass
 
     def _redraw_old(self):
         """Layout 2x2: [mặt cắt + thẻ TK | bảng thông số] /

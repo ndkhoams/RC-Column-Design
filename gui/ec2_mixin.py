@@ -18,7 +18,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import math
 from rc_column.checker import ColumnInput, build_section, check_column
-from rc_column.report import generate_report, generate_report_sections
+from rc_column.report import generate_report_sections
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
 from rc_column.sections import clear_spacing, bar_area
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
@@ -250,7 +250,6 @@ class Ec2Mixin:
                                              EC2_STEEL_GRADES)
         from rc_column.ec2_checker import (ec2_design_moment, check_column_ec2,
                                            ec2_shear_check, ec2_balanced_point)
-        from rc_column.ec2_report import generate_ec2_report_sections
         from rc_column.sections import bar_area
         try:
             fck = EC2_CONCRETE_GRADES.get(self.cb_ec2_conc.get(), 30.0)
@@ -489,7 +488,7 @@ class Ec2Mixin:
                     if canvas:
                         canvas.draw()
         except Exception as e:
-            print(f"[EC2] Lỗi đổi góc xem: {e}")
+            pass
 
     def _restore_2d_ec2(self):
         """Khôi phục biểu đồ 2D EC2 sau khi xem 3D."""
@@ -523,7 +522,6 @@ class Ec2Mixin:
             self._nm_ax = ax
             self._nm_canvas = cv
         except Exception as e:
-            print(f"[EC2] Lỗi khôi phục 2D: {e}")
             self._show_ec2_summary()
 
     def _build_ec2_section_cards(self, parent, sec, conc, steel):
@@ -888,7 +886,6 @@ class Ec2Mixin:
             fig2.tight_layout()
             return (fig1, fig2)
         except Exception as e:
-            print(f"[EC2] Lỗi tạo fig detail: {e}")
             return (None, None, None)
 
     def _render_ec2_report(self, sections):
@@ -974,7 +971,6 @@ class Ec2Mixin:
             self._ec2_nm_cv_ref.draw()
             self._ec2_nm_ax_ref = None
         except Exception as ex:
-            print(f"Lỗi vẽ 3D EC2: {ex}")
             import traceback
             traceback.print_exc()
 

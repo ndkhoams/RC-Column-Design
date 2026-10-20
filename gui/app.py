@@ -62,7 +62,7 @@ from rc_column.lang import T, set_lang
 from rc_column.aci_materials import ACIConcrete, ACISteel
 from rc_column.aci_checker import check_column_aci, moment_magnification, aci_shear_check
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
-from rc_column.report import generate_report, generate_report_sections
+from rc_column.report import generate_report_sections
 from rc_column.sections import clear_spacing
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
 

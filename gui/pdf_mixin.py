@@ -18,7 +18,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import math
 from rc_column.checker import ColumnInput, build_section, check_column
-from rc_column.report import generate_report, generate_report_sections
+from rc_column.report import generate_report_sections
 from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
 from rc_column.sections import clear_spacing, bar_area
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
@@ -178,13 +178,11 @@ class PdfMixin:
                     from rc_column.ec2_pdf_summary import _ec2_charts_png
                     # _ec2_charts_png tự lấy M2_mag/M3_mag từ ec2_res
                     # (đã lưu trong _ec2_full, tương thích ngược qua _ec2_res)
-                    print(f"[PDF] Vẽ biểu đồ EC2 mới cho chi tiết")
                     pngs = _ec2_charts_png(
                         self._ec2_sec, self._ec2_conc, self._ec2_steel,
                         self._ec2_res, self._ec2_inp)
-                    print("[PDF] Vẽ biểu đồ EC2 mới: OK")
                 except Exception as _ex:
-                    print(f"[PDF] Vẽ biểu đồ EC2 mới lỗi: {_ex}")
+                    pass
             if is_summary:
                 from rc_column.aci_pdf_summary import export_aci_summary_pdf
                 export_aci_summary_pdf(
@@ -234,13 +232,11 @@ class PdfMixin:
                     from rc_column.ec2_pdf_summary import _ec2_charts_png
                     # _ec2_charts_png tự lấy M2_mag/M3_mag từ ec2_res
                     # (đã lưu trong _ec2_full, tương thích ngược qua _ec2_res)
-                    print(f"[PDF] Vẽ biểu đồ EC2 mới cho chi tiết")
                     pngs = _ec2_charts_png(
                         self._ec2_sec, self._ec2_conc, self._ec2_steel,
                         self._ec2_res, self._ec2_inp)
-                    print("[PDF] Vẽ biểu đồ EC2 mới: OK")
                 except Exception as _ex:
-                    print(f"[PDF] Vẽ biểu đồ EC2 mới lỗi: {_ex}")
+                    pass
             if is_summary:
                 from rc_column.ec2_pdf_summary import export_ec2_summary_pdf
                 _fyk_sw = None
