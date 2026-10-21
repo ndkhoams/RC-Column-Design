@@ -234,15 +234,21 @@ class _ACIExact:
             s_min = float(s_f.min()) if len(s_f) else 0.0
             h_s = max(s_max - s_min, 1e-9)
             _pre = (s_f, s_r, s_max)
-            Ns, M2s, M3s, NAs, ETs = [], [], [], [], []
-            for eps_far in self._eps_far:
-                if eps_far >= self.eps_cu - 1e-15:
-                    na = float("inf")
-                else:
-                    na = self.eps_cu * h_s / (self.eps_cu - eps_far)
-                Nd, M2, M3, et = self._state_design(g, na, _pre)
-                Ns.append(Nd); M2s.append(M2); M3s.append(M3)
-                NAs.append(na); ETs.append(et)
+            # Batch nhanh hon khi fiber vua/nho; tiet dien rat nhieu
+            # fiber (da giac V2 ~6700) thi vong lap tung trang thai
+            # nhanh hon vi mang nho vua cache L2 — giu ca 2 duong.
+            if len(self.fx) <= 3000:
+                Ns, M2s, M3s, NAs, ETs = self._states_batch(_pre, h_s)
+            else:
+                Ns, M2s, M3s, NAs, ETs = [], [], [], [], []
+                for eps_far in self._eps_far:
+                    if eps_far >= self.eps_cu - 1e-15:
+                        na = float("inf")
+                    else:
+                        na = self.eps_cu * h_s / (self.eps_cu - eps_far)
+                    Nd, M2, M3, et = self._state_design(g, na, _pre)
+                    Ns.append(Nd); M2s.append(M2); M3s.append(M3)
+                    NAs.append(na); ETs.append(et)
             # Lọc N thiết kế giảm nghiêm ngặt (giữ điểm đầu mỗi mức):
             # khớp ngữ nghĩa nội suy "qua điểm đầu tiên" của đường cong cũ
             kN, kM2, kM3, kNA, kET = [], [], [], [], []
@@ -347,6 +353,65 @@ class _ACIExact:
                         M2 * ux + M3 * uy, M2 * px + M3 * py,
                         na, M2, M3, int(gi), et))
         return pts
+
+    def _states_batch(self, _pre, h_s: float):
+        """Toàn bộ trạng thái thiết kế của 1 gamma tính BATCH.
+
+        Phần tử (khối nén, eps thép, clip, ứng suất net) vector hoá trên
+        ma trận (n_state x n_fiber) bằng ĐÚNG biểu thức của _state_nom;
+        tổng N theo axis=1 khớp .sum() 1D từng bit; M2/M3 giữ phép dot
+        @ theo từng hàng như _state_nom (matmul cả ma trận lệch ~1e-13);
+        bước thiết kế (phi theo eps_t, cắt N tại N_cap) giữ vòng lặp
+        scalar như _state_design. Kết quả lưới identical (đã kiểm chứng).
+        Trả (Ns, M2s, M3s, NAs, ETs) dạng list, đúng thứ tự _eps_far.
+        """
+        s_f, s_r, s_max = _pre
+        nas = []
+        for eps_far in self._eps_far:
+            if eps_far >= self.eps_cu - 1e-15:
+                nas.append(float("inf"))
+            else:
+                nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
+        na_arr = np.array(nas, dtype=float)
+        kappa = self.eps_cu / na_arr          # na=inf -> 0.0 (như _state_nom)
+        dist_f = s_max - s_f
+        dist_r = s_max - s_r
+        n = len(nas)
+        # Chunk theo so fiber de ma tran tam vua cache (tiet dien lon)
+        blk = max(14, min(n, 384_000 // max(len(self.fx), 1)))
+        Ns, M2s, M3s, ETs = [], [], [], []
+        for a in range(0, n, blk):
+            b = min(n, a + blk)
+            block_f = dist_f[None, :] <= (self.beta1 * na_arr[a:b])[:, None]
+            block_r = dist_r[None, :] <= (self.beta1 * na_arr[a:b])[:, None]
+            eps_r = self.eps_cu - kappa[a:b, None] * dist_r[None, :]
+            sig_f = np.where(block_f, self.f_block, 0.0)
+            fs_ = np.clip(self.steel.Es * eps_r,
+                          -self.steel.fy, self.steel.fy)
+            fs_ = np.where(block_r & (fs_ > 0.0), fs_ - self.f_block, fs_)
+            CF = sig_f * self.fa[None, :]
+            CS = fs_ * self.ra[None, :]
+            Nn = (CF.sum(axis=1) + CS.sum(axis=1)) / 1000.0
+            if len(self.rx):
+                ETa = np.maximum(0.0, -eps_r.min(axis=1))
+            else:
+                ETa = np.zeros(b - a)
+            for jj in range(b - a):
+                j = a + jj
+                M2n = (float(CF[jj] @ self.fy)
+                       + float(CS[jj] @ self.ry)) / 1.0e6
+                M3n = (float(CF[jj] @ self.fx)
+                       + float(CS[jj] @ self.rx)) / 1.0e6
+                et = float(ETa[jj])
+                phi = phi_factor(et, self.steel.eps_y, self.tied)
+                Nd = phi * float(Nn[jj])
+                if Nd > self.N_cap:
+                    Nd = self.N_cap
+                Ns.append(Nd)
+                M2s.append(phi * M2n)
+                M3s.append(phi * M3n)
+                ETs.append(et)
+        return Ns, M2s, M3s, nas, ETs
 
     def _state_nom(self, gamma_rad: float, na: float, _pre=None):
         """Trạng thái danh nghĩa (gamma, na) -> (N, M2, M3, eps_t).
