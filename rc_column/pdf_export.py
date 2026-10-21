@@ -699,8 +699,9 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                 else:
                     data.append([Paragraph(lbl, st_lbl),
                                  Paragraph(_vs, st_val)])
-            # colWidths: nhãn 60mm (2 phần), giá trị 30mm (1 phần)
-            t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
+            # colWidths: nhãn 55mm, giá trị 35mm (đủ cho nhãn tiêu chuẩn
+            # dài nhất "EC2 (EN 1992-1-1:2004)" nằm trọn 1 dòng)
+            t = Table(data, colWidths=[55 * mm, 35 * mm], hAlign="LEFT")
             style = [
                 ("SPAN", (0, 0), (1, 0)),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -951,7 +952,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
 
 
         # ===== Bảng 2 cột chính =====
-        # Tỉ lệ 2:1:3 — nhãn 60mm, giá trị 30mm, hình 90mm
+        # Khối trái 90mm (nhãn 55mm + giá trị 35mm), hình 90mm
         main_data = [[left_flow, right_flow]]
         t_main = Table(main_data, colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
         t_main.setStyle(TableStyle([

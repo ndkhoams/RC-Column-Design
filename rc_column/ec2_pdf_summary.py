@@ -342,7 +342,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                 else:
                     data.append([Paragraph(lbl, st_lbl),
                                  Paragraph(_vs, st_val)])
-            t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
+            t = Table(data, colWidths=[55 * mm, 35 * mm], hAlign="LEFT")
             style = [
                 ("SPAN", (0, 0), (1, 0)),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
