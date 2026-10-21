@@ -240,14 +240,21 @@ class _EC2Exact:
             s_min = float(s_f.min()) if len(s_f) else 0.0
             h_s = max(s_max - s_min, 1e-9)
             _pre = (s_f, s_r, s_max)
-            Ns, M2s, M3s, NAs = [], [], [], []
-            for eps_far in self._eps_far:
-                if eps_far >= self.eps_cu - 1e-15:
-                    na = float("inf")
-                else:
-                    na = self.eps_cu * h_s / (self.eps_cu - eps_far)
-                N, M2, M3 = self._state(g, na, _pre)
-                Ns.append(N); M2s.append(M2); M3s.append(M3); NAs.append(na)
+            # Batch nhanh hon khi fiber vua/nho; tiet dien rat nhieu
+            # fiber (da giac V2 ~6700) thi vong lap tung trang thai
+            # nhanh hon vi mang nho vua cache L2 — giu ca 2 duong.
+            if len(self.fx) <= 3000:
+                Ns, M2s, M3s, NAs = self._states_batch(_pre, h_s)
+            else:
+                Ns, M2s, M3s, NAs = [], [], [], []
+                for eps_far in self._eps_far:
+                    if eps_far >= self.eps_cu - 1e-15:
+                        na = float("inf")
+                    else:
+                        na = self.eps_cu * h_s / (self.eps_cu - eps_far)
+                    N, M2, M3 = self._state(g, na, _pre)
+                    Ns.append(N); M2s.append(M2); M3s.append(M3)
+                    NAs.append(na)
             # Lọc N giảm nghiêm ngặt (giữ điểm đầu của mỗi mức) để nội suy
             kN, kM2, kM3, kNA = [], [], [], []
             last = None
@@ -345,6 +352,53 @@ class _EC2Exact:
                         M2 * ux + M3 * uy, M2 * px + M3 * py,
                         na, M2, M3, int(gi)))
         return pts
+
+    def _states_batch(self, _pre, h_s: float):
+        """Toàn bộ trạng thái của 1 gamma tính BATCH.
+
+        Phần tử (khối nén, eps thép, clip, ứng suất net) vector hoá trên
+        ma trận (n_state x n_fiber) bằng ĐÚNG biểu thức của _state; tổng
+        N theo axis=1 khớp .sum() 1D từng bit; M2/M3 giữ phép dot @ theo
+        từng hàng như _state (matmul cả ma trận lệch ~1e-13). Kết quả
+        lưới identical (đã kiểm chứng).
+        Trả (Ns, M2s, M3s, NAs) dạng list, đúng thứ tự _eps_far.
+        """
+        s_f, s_r, s_max = _pre
+        nas = []
+        for eps_far in self._eps_far:
+            if eps_far >= self.eps_cu - 1e-15:
+                nas.append(float("inf"))
+            else:
+                nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
+        na_arr = np.array(nas, dtype=float)
+        kappa = self.eps_cu / na_arr          # na=inf -> 0.0 (như _state)
+        dist_f = s_max - s_f
+        dist_r = s_max - s_r
+        n = len(nas)
+        # Chunk theo so fiber de ma tran tam vua cache (tiet dien lon)
+        blk = max(14, min(n, 384_000 // max(len(self.fx), 1)))
+        Ns = np.empty(n)
+        M2s = np.empty(n)
+        M3s = np.empty(n)
+        for a in range(0, n, blk):
+            b = min(n, a + blk)
+            block_f = dist_f[None, :] <= (self.lam_b * na_arr[a:b])[:, None]
+            block_r = dist_r[None, :] <= (self.lam_b * na_arr[a:b])[:, None]
+            eps_r = self.eps_cu - kappa[a:b, None] * dist_r[None, :]
+            sig_f = np.where(block_f, self.f_block, 0.0)
+            fs_ = np.clip(self.steel.Es * eps_r,
+                          -self.steel.fyd, self.steel.fyd)
+            fs_ = np.where(block_r & (fs_ > 0.0), fs_ - self.f_block, fs_)
+            CF = sig_f * self.fa[None, :]
+            CS = fs_ * self.ra[None, :]
+            Ns[a:b] = (CF.sum(axis=1) + CS.sum(axis=1)) / 1000.0
+            for jj in range(b - a):
+                M2s[a + jj] = (float(CF[jj] @ self.fy)
+                               + float(CS[jj] @ self.ry)) / 1.0e6
+                M3s[a + jj] = (float(CF[jj] @ self.fx)
+                               + float(CS[jj] @ self.rx)) / 1.0e6
+        return ([float(v) for v in Ns], [float(v) for v in M2s],
+                [float(v) for v in M3s], nas)
 
     def _state(self, gamma_rad: float, na: float, _pre=None):
         """Trạng thái biến dạng phẳng (gamma, na) -> (N_kN, M2_kNm, M3_kNm).
