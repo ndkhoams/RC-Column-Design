@@ -634,24 +634,9 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None, she
         else:
             _c96_line = (f"✗ ĐK (96): qsw = {_f(qsw, 1)} < 0.25×Rbt×b "
                          f"= {_f(sh.qsw_min96, 1)} N/mm → Qb theo CT (97)")
-        # Điều kiện (98): s_w <= s_max = Rbt×b×h0²/Q — áp từng nhóm đai
-        _smax_txt = ("∞" if sh.s_max == float("inf")
-                     else f"{_f(sh.s_max, 0)} mm")
-        if sh.cond98_ok:
-            _c98_line = (f"✓ ĐK (98): mọi nhóm đai có s ≤ s_max "
-                         f"= {_smax_txt} (s_max = Rbt×b×h₀²/Q)")
-        else:
-            _drop_txt = ", ".join(f"s = {s_i:.0f} mm" for _a, s_i
-                                  in sh.dropped98)
-            if sh.Asw_counted > 0:
-                _c98_line = (f"✗ ĐK (98): nhóm đai {_drop_txt} > s_max "
-                             f"= {_smax_txt} → không được kể; "
-                             f"Asw kể = {sh.Asw_counted:.0f} mm², "
-                             f"qsw kể = {_f(sh.qsw, 1)} N/mm")
-            else:
-                _c98_line = (f"✗ ĐK (98): mọi nhóm đai có s > s_max "
-                             f"= {_smax_txt} → Qsw = 0 "
-                             f"(tính như không có đai)")
+        # Dòng s_max / ĐK (98): KHÔNG hiển thị trên thẻ tab Chi tiết (theo
+        # yêu cầu trình bày) — engine vẫn kiểm tra (98), hệ quả Qsw = 0 của
+        # nhóm đai vi phạm vẫn thể hiện ở các dòng qsw/[Q] phía dưới.
         if sh.qb_mode == "CT97":
             _qb_line = (f"  Qb = φn×4×1.5×h₀²×qsw/C = {_f(sh.phi_n, 3)}×6×"
                         f"{h0u:.0f}²×{_f(qsw, 1)}/{sh.C_opt:.0f}/1000 "
@@ -677,7 +662,6 @@ def _build_sec7(g, inp: ColumnInput, res: CheckResult, sec, shear_info=None, she
              f"  qsw (được kể, sau ĐK 98) = Σ Rsw×Asw,i/si "
              f"= {_f(qsw, 1)} N/mm"),
             _c96_line,
-            _c98_line,
             _qb_line,
             f"  (Qb ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN — giới hạn trước φn)",
             f"  Qsw = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "

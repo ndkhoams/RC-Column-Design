@@ -380,21 +380,12 @@ class TcvnMixin:
                 if sh.qb_mode == "NONE":
                     return "— (không có đai)"
                 return "✓ Đạt" if sh.cond96_ok else "✗ Không đạt → Qb theo CT (97)"
-            def _smax(sh):
-                return "∞" if sh.s_max == float("inf") else f"{sh.s_max:.0f} mm"
-            def _c98(sh):
-                if sh.qb_mode == "NONE" and sh.cond98_ok:
-                    return "— (không có đai)"
-                if sh.cond98_ok:
-                    return "✓ Đạt"
-                if sh.Asw_counted > 0:
-                    return "✗ Không đạt → loại nhóm đai s > s_max"
-                return "✗ Không đạt → Qsw = 0"
             rows.extend([
                 ("Hệ số φn (8.1.3.3.2)", f"{sh2.phi_n:.3f}", f"{sh3.phi_n:.3f}"),
                 ("Điều kiện (96): qsw ≥ 0.25×Rbt×b", _c96(sh2), _c96(sh3)),
-                ("Bước đai tối đa s_max (98) = Rbt×b×h0²/Q", _smax(sh2), _smax(sh3)),
-                ("Điều kiện (98): s ≤ s_max", _c98(sh2), _c98(sh3)),
+                # Hàng s_max + Điều kiện (98): KHÔNG hiển thị (theo yêu cầu
+                # trình bày) — engine vẫn kiểm tra (98), Qsw nhóm vi phạm
+                # vẫn = 0 trong các hàng số liệu phía dưới.
                 (f"Độ bền trên dải nén xiên Q ≤ φn×0.3×Rb×b×h0", f"{sh2.Qcap1:.1f} kN", f"{sh3.Qcap1:.1f} kN"),
                 ("Qb = 1.5×Rbt×b×h0²/C", f"{sh2.Qb_opt:.1f} kN", f"{sh3.Qb_opt:.1f} kN"),
                 ("Qsw = 0.75×qsw×C", f"{sh2.Qsw_opt:.1f} kN", f"{sh3.Qsw_opt:.1f} kN"),
