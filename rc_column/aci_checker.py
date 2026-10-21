@@ -18,6 +18,7 @@ import numpy as np
 from .aci_materials import (ACIConcrete, ACISteel, PHI_SPIRAL, PHI_TIED,
                             max_axial_phi, phi_factor)
 from .sections import Section
+from . import batch_dc
 
 
 # ---------------------------------------------------------------------------
@@ -536,6 +537,17 @@ class _ACIExact:
             return None
         return min(roots, key=lambda r: r["capacity"])
 
+    def capacity_fast_batch(self, Ns, theta_degs):
+        """capacity_fast cho cả mảng truy vấn (N, theta_deg): bản
+        batch khớp từng bit với capacity_fast từng truy vấn
+        (xem rc_column/batch_dc.py)."""
+        return batch_dc.capacity_fast_batch(self, Ns, theta_degs)
+
+    def boundary_fast_batch(self, Ns, theta_degs):
+        """boundary_fast cho cả mảng truy vấn: list dict|None, dict
+        như boundary_fast (khớp từng bit)."""
+        return batch_dc.boundary_fast_batch(self, Ns, theta_degs)
+
     # ---- Bản fine ----
     def _state_at_N_fine(self, gamma_rad: float, N_target: float):
         cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
@@ -946,6 +958,62 @@ class ACICapacity:
             res["gamma_deg"] = _gamma
             res["na_depth"] = _na
         return res
+
+    def _dc_from_raw(self, rw: dict) -> dict:
+        """Lắp dict kết quả dc_ratio từ dict thô của batch_dc.ray_batch
+        (cùng khóa/cùng giá trị như dc_ratio từng dòng)."""
+        if rw["cat"] == "zero":
+            return {"dc": 0.0, "lambda_max": float("inf"),
+                    "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": True,
+                    "phi": 0.90, "eps_t": 0.0}
+        if rw["cat"] == "flo":
+            return {"dc": float("inf"), "lambda_max": 0.0,
+                    "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": False,
+                    "phi": self.phi_c, "eps_t": 0.0}
+        if rw["cat"] == "unbounded":
+            return {"dc": 0.0, "lambda_max": float("inf"),
+                    "Bx": 0.0, "By": 0.0, "BN": 0.0, "ok": True,
+                    "phi": 0.90, "eps_t": 0.01}
+        BN = rw["BN"]
+        eps_t = None
+        _gamma = _na = None
+        _b = rw["boundary"]
+        if _b is not None:
+            eps_t = _b["eps_t"]
+            _gamma = _b["gamma_deg"]
+            _na = _b["na"]
+        if eps_t is None:
+            eps_t = self.eps_t_at(BN, rw["phi_deg"])
+        phi_lim = phi_factor(max(eps_t, 0.0), self.steel.eps_y, self.tied)
+        res = {"dc": rw["dc"], "lambda_max": rw["lam"],
+               "Bx": rw["Bx"], "By": rw["By"], "BN": BN,
+               "ok": rw["ok"], "phi": phi_lim, "eps_t": eps_t}
+        if _gamma is not None:
+            res["gamma_deg"] = _gamma
+            res["na_depth"] = _na
+        return res
+
+    def dc_ratio_batch(self, rows, n_iter: int = 60) -> list:
+        """dc_ratio cho cả khối dòng [(N, Mx, My), ...]: kết quả từng
+        dòng giống hệt gọi dc_ratio riêng lẻ (khớp từng bit), chỉ
+        khác là chặt đôi chạy đồng thời cho mọi dòng. Các dòng có
+        giá trị không hữu hạn đi đường scalar như cũ."""
+        rows = [(float(N), float(Mx), float(My)) for (N, Mx, My) in rows]
+        out: list = [None] * len(rows)
+        fin = []
+        for i, (N, Mx, My) in enumerate(rows):
+            if math.isfinite(N) and math.isfinite(Mx) \
+                    and math.isfinite(My):
+                fin.append(i)
+            else:
+                out[i] = self.dc_ratio(N, Mx, My, n_iter=n_iter)
+        if fin:
+            raws = batch_dc.ray_batch(
+                self._exact, [rows[i] for i in fin], n_iter=n_iter,
+                n_cap=self.N_cap)
+            for i, rw in zip(fin, raws):
+                out[i] = self._dc_from_raw(rw)
+        return out
 
 
 # ---------------------------------------------------------------------------
