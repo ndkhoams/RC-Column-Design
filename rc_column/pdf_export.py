@@ -920,18 +920,9 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                  ("Đạt" if _r2['sh'].cond96_ok else "Không đạt → Q<sub>b</sub> theo CT (97)"),
                  "— (không có đai)" if _r3['sh'].qb_mode == "NONE" else
                  ("Đạt" if _r3['sh'].cond96_ok else "Không đạt → Q<sub>b</sub> theo CT (97)")),
-                ("Bước đai tối đa s<sub>max</sub> (98) = R<sub>bt</sub>×b×h<sub>0</sub><sup>2</sup>/Q",
-                 "∞" if _r2['sh'].s_max == float("inf") else f"{_r2['sh'].s_max:.0f} mm",
-                 "∞" if _r3['sh'].s_max == float("inf") else f"{_r3['sh'].s_max:.0f} mm"),
-                ("Điều kiện (98): s ≤ s<sub>max</sub>",
-                 "— (không có đai)" if (_r2['sh'].qb_mode == "NONE" and _r2['sh'].cond98_ok) else
-                 ("Đạt" if _r2['sh'].cond98_ok else
-                  ("Không đạt → loại nhóm đai s &gt; s<sub>max</sub>" if _r2['sh'].Asw_counted > 0
-                   else "Không đạt → Q<sub>sw</sub> = 0")),
-                 "— (không có đai)" if (_r3['sh'].qb_mode == "NONE" and _r3['sh'].cond98_ok) else
-                 ("Đạt" if _r3['sh'].cond98_ok else
-                  ("Không đạt → loại nhóm đai s &gt; s<sub>max</sub>" if _r3['sh'].Asw_counted > 0
-                   else "Không đạt → Q<sub>sw</sub> = 0"))),
+                # Hàng s_max + Điều kiện (98): KHÔNG hiển thị ở bản tóm tắt
+                # (theo yêu cầu trình bày) — engine vẫn kiểm tra (98) như cũ,
+                # Q_sw của nhóm đai vi phạm vẫn bị loại trong số liệu phía dưới.
                 ("Độ bền trên dải nén xiên Q ≤ φ<sub>n</sub>×0.3×R<sub>b</sub>×b×h<sub>0</sub>",
                  f"{_r2['sh'].Qcap1:.1f} kN", f"{_r3['sh'].Qcap1:.1f} kN"),
                 ("Q<sub>b</sub> = 1.5×R<sub>bt</sub>×b×h<sub>0</sub><sup>2</sup>/C",
