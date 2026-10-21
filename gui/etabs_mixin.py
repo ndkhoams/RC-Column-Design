@@ -233,11 +233,12 @@ class EtabsMixin:
         entry.bind("<FocusOut>", lambda e: _close())
         entry.bind("<Escape>", lambda e: _close())
 
-    def _batch_pump(self, total):
+    def _batch_pump(self, total, step=1):
         """Tien trinh batch: moi 16 dong cap nhat trang thai + bom su
         kien UI (update_idletasks) de cua so khong bi Windows gan
-        'Not Responding' trong luc tinh batch dai."""
-        n = getattr(self, "_batch_done", 0) + 1
+        'Not Responding' trong luc tinh batch dai. step: so dong vua
+        hoan thanh ke tu lan goi truoc (duong batch tinh theo khoi)."""
+        n = getattr(self, "_batch_done", 0) + step
         self._batch_done = n
         if n % 16 == 0 or n == total:
             try:
@@ -314,7 +315,10 @@ class EtabsMixin:
                                      _inp_g.psi_y) * 1000
             _Ig2 = sec_g.cx * sec_g.cy**3 / 12
             _Ig3 = sec_g.cy * sec_g.cx**3 / 12
-            for _f in _flist:
+            _res_g: list = [None] * len(_flist)
+            _items_g = []
+            _slot_g = []
+            for _fi, _f in enumerate(_flist):
                 self._batch_pump(len(_forces_check))
                 try:
                     if _cap_g is None:
@@ -345,10 +349,26 @@ class EtabsMixin:
                     _d3 = _mm3.get("delta_ns", 1.0) if _mm3.get("ok") else 1.0
                     _M2s = _d2 * _f.Mx
                     _M3s = _d3 * _f.My
-                    _r = _cap_g.dc_ratio(_f.N, _M2s, _M3s)
+                    _items_g.append((_f.N, _M2s, _M3s))
+                    _slot_g.append(_fi)
                 except Exception:
-                    _r = {"dc": float("nan"), "ok": False}
-                rows.append((_f, _r))
+                    _res_g[_fi] = {"dc": float("nan"), "ok": False}
+            if _items_g:
+                # D/C theo cả khối (dc_ratio_batch, khớp từng bit với
+                # dc_ratio từng dòng); lỗi bất ngờ thì lùi về từng dòng.
+                try:
+                    _rs_g = _cap_g.dc_ratio_batch(_items_g)
+                except Exception:
+                    _rs_g = []
+                    for (_n2, _m2s, _m3s) in _items_g:
+                        try:
+                            _rs_g.append(_cap_g.dc_ratio(_n2, _m2s, _m3s))
+                        except Exception:
+                            _rs_g.append({"dc": float("nan"),
+                                          "ok": False})
+                for _k, _fi in enumerate(_slot_g):
+                    _res_g[_fi] = _rs_g[_k]
+            rows.extend(zip(_flist, _res_g))
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
         # Thêm các dòng TX_ vào cuối (không tính D/C)
@@ -576,7 +596,10 @@ class EtabsMixin:
                     n_bal = Nb / (conc.fcd * Ac / 1000.0) if Ac > 0 else 0.0
                 except Exception:
                     n_bal = 0.0
-            for _f in _flist:
+            _res_g: list = [None] * len(_flist)
+            _items_g = []
+            _slot_g = []
+            for _fi, _f in enumerate(_flist):
                 self._batch_pump(len(_forces_check))
                 try:
                     if _cap_g is None:
@@ -617,12 +640,27 @@ class EtabsMixin:
                     # FIX mất dấu (2026-10-21): meds từ ec2_design_moment là
                     # trị tuyệt đối — khôi phục dấu theo mô men gốc của case
                     # trước khi tính D/C (giống _ec2_calculate_full).
-                    _r = _cap_g.dc_ratio(
-                        _f.N, math.copysign(meds[0], _f.Mx),
-                        math.copysign(meds[1], _f.My))
+                    _items_g.append((_f.N, math.copysign(meds[0], _f.Mx),
+                                     math.copysign(meds[1], _f.My)))
+                    _slot_g.append(_fi)
                 except Exception:
-                    _r = {"dc": float("nan"), "ok": False}
-                rows.append((_f, _r))
+                    _res_g[_fi] = {"dc": float("nan"), "ok": False}
+            if _items_g:
+                # D/C theo cả khối (dc_ratio_batch, khớp từng bit với
+                # dc_ratio từng dòng); lỗi bất ngờ thì lùi về từng dòng.
+                try:
+                    _rs_g = _cap_g.dc_ratio_batch(_items_g)
+                except Exception:
+                    _rs_g = []
+                    for (_n2, _m2s, _m3s) in _items_g:
+                        try:
+                            _rs_g.append(_cap_g.dc_ratio(_n2, _m2s, _m3s))
+                        except Exception:
+                            _rs_g.append({"dc": float("nan"),
+                                          "ok": False})
+                for _k, _fi in enumerate(_slot_g):
+                    _res_g[_fi] = _rs_g[_k]
+            rows.extend(zip(_flist, _res_g))
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
         # Thêm các dòng TX_ vào cuối (không tính D/C)
@@ -823,11 +861,11 @@ class EtabsMixin:
             _inp_g.Ly = _Ly_grp
             _bc = BatchChecker(_inp_g, n_angles=12)
             from rc_column.stability import LongTermLoads as _LongTermLoads
+            # Gom cả nhóm rồi tính D/C theo khối (dc_ratio_batch, khớp
+            # từng bit với check_one từng dòng); phi_L từng tổ hợp vẫn
+            # tra TX_* tại đúng vị trí như trước.
+            _items = []
             for _f in _flist:
-                self._batch_pump(len(_forces_check))
-                # phi_L của TỪNG tổ hợp: dùng mô men TX_* tại đúng vị trí
-                # (nhất quán với tính full của tổ hợp nguy hiểm nhất ở dưới);
-                # không có TX_* tại vị trí thì giữ long_term từ collect()
                 _lt_f = _inp_g.long_term
                 _cb = _f.case.strip()
                 for _sf in ("max", "min"):
@@ -841,8 +879,12 @@ class EtabsMixin:
                     _lt_f = _LongTermLoads(
                         has_data=True, N_lt=0.0,
                         Mx_lt=_tx_mf[0], My_lt=_tx_mf[1])
-                _r = _bc.check_one(_f.N, _f.Mx, _f.My, _lt_f)
-                rows.append((_f, _r))
+                _items.append((_f.N, _f.Mx, _f.My, _lt_f))
+            _rs = _bc.check_many(
+                _items,
+                pump=lambda k: self._batch_pump(len(_forces_check),
+                                                 step=k))
+            rows.extend(zip(_flist, _rs))
         # sắp xếp theo D/C giảm dần (nguy hiểm nhất lên đầu)
         rows.sort(key=lambda x: -(x[1]["dc"]) if x[1]["dc"] == x[1]["dc"]
                   else float("inf"))
