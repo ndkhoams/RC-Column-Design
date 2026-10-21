@@ -79,6 +79,15 @@ class AciMixin:
                 "M2_mag": Mc2, "M3_mag": Mc3,
                 "L0_2": L0_2/1000, "L0_3": L0_3/1000,
             })
+            # Plumbing chi de HIEN THI (PDF tom tat, muc chieu dai tinh
+            # toan): ti so do manh kLu/r voi k = 1.0, Lu = L0 (mm),
+            # r = sqrt(Ig/Ag) — cung dinh nghia PDF chi tiet dang dung.
+            # Khong dung trong tinh toan, khong doi ket qua nao.
+            _Ag_mm = sec.gross_area
+            _r_2 = math.sqrt(Ig2 / _Ag_mm) if _Ag_mm > 0 else 0.0
+            _r_3 = math.sqrt(Ig3 / _Ag_mm) if _Ag_mm > 0 else 0.0
+            res["klu_r2"] = (L0_2 / _r_2) if _r_2 > 0 else 0.0
+            res["klu_r3"] = (L0_3 / _r_3) if _r_3 > 0 else 0.0
             # Tính alpha và Malpha 1 lần từ M đã phóng đại (dùng chung)
             import math as _math
             _alpha = _math.degrees(_math.atan2(Mc2, Mc3)) if abs(Mc2)+abs(Mc3) > 1e-9 else 0.0
@@ -98,6 +107,7 @@ class AciMixin:
                 "delta2": 1.0, "delta3": 1.0,
                 "M2_mag": Mc2, "M3_mag": Mc3,
                 "L0_2": 0, "L0_3": 0,
+                "klu_r2": 0.0, "klu_r3": 0.0,
             })
 
         # 1b. Sway (luôn Q=0, bỏ qua)

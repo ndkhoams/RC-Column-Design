@@ -183,7 +183,10 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
     _ISP = (2, 1.5, 1, 1)[_LV]           # spacer giua cac hinh
     _MSP = (4, 3, 2, 2)[_LV]             # spacer truoc bang cat
     _MRG = (8, 8, 7, 6)[_LV]             # le tren/duoi (mm)
-    _DROP = {"Mô đun đàn hồi bê tông, Ec", "Mô đun đàn hồi thép, Es", "Hệ số an toàn, FS"} if _LV >= 3 else set()
+    _IW0 = (66.0, 66.0, 62.0, 56.0)[_LV]  # co hinh cot phai theo muc nen (mm)
+    # Dan y moi (user chot): MOI hang trong dan y deu la hang bat buoc,
+    # khong muc nen nao duoc bo hang nua -> _DROP rong o moi muc.
+    _DROP = set()
 
     # Font
     FN, FNB = "Helvetica", "Helvetica-Bold"
@@ -307,57 +310,118 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         tie_txt = "Đai rời (tied)" if tied else "Đai xoắn (spiral)"
         _fyt = getattr(inp, "fyt", None) or getattr(steel, "fyt", steel.fy)
 
-        # ===== Cột trái =====
+        # ===== Cột trái (dan y user chot 2026-10-21, khung nhu TCVN) =====
         left_flow = []
         left_flow.append(_sec_table("THÔNG TIN CHUNG", [
             ("Tiêu chuẩn", "ACI 318-19"),
-            ("Tên cấu kiện", _ck_name or "—"),
+            ("Cấu kiện", _ck_name or "—"),
         ]))
+        # VAT LIEU: [f'c, Ec, fy, fyt, Es] — "Loai cot dai" chuyen xuong
+        # dau bang kiem tra cat (xem phan cat ben duoi).
         left_flow.append(_sec_table("VẬT LIỆU", [
             ("Cường độ bê tông, f'c", f"{_fm(conc.fc)} MPa"),
             ("Mô đun đàn hồi bê tông, Ec", f"{conc.Ec:.0f} MPa"),
             ("Cường độ thép dọc, fy", f"{_fm(steel.fy)} MPa"),
-            ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
             ("Cường độ thép đai, fyt", f"{_fm(_fyt)} MPa"),
-            ("Loại cốt đai", tie_txt),
+            ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
         ]))
-        left_flow.append(_sec_table("TIẾT DIỆN", [
-            ("Chiều rộng, t3", f"{_t3:.0f} mm"),
-            ("Chiều cao, t2", f"{_t2:.0f} mm"),
-            ("Lớp bê tông bảo vệ, c", f"{inp.cover:.0f} mm"),
-        ]))
-        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP", [
-            ("Cốt thép dọc", " + ".join(_parts)),
+        # TIẾT DIỆN (theo loai tiet dien)
+        _kind = getattr(sec, "kind", None) or getattr(inp, "section_type", "rect")
+        if _kind == "circle":
+            _sec_rows = [("Hình tròn, đường kính d", f"{_t3:.0f} mm")]
+        elif _kind == "poly":
+            _sec_rows = [("Diện tích bê tông, A<sub>c</sub>",
+                          f"{sec.gross_area:.0f} mm²")]
+        else:
+            _sec_rows = [("Hình chữ nhật, t2 × t3",
+                          f"{_t2:.0f} × {_t3:.0f} mm")]
+        _sec_rows.append(("Lớp bê tông bảo vệ cốt thép dọc, c",
+                          f"{inp.cover:.0f} mm"))
+        left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
+        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
+            ("Số lượng thép", " + ".join(_parts)),
             ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
         ]))
-        left_flow.append(_sec_table("NỘI LỰC THIẾT KẾ", [
+        left_flow.append(_sec_table("NỘI LỰC KIỂM TRA", [
             ("Vị trí cột", _vpos),
             ("Tổ hợp tính toán", _combo_txt),
-            ("Lực dọc, N", f"{inp.N:.1f} kN"),
-            ("Momen quanh trục 2, M2", f"{inp.Mx:.1f} kNm"),
-            ("Momen quanh trục 3, M3", f"{inp.My:.1f} kNm"),
+            ("Lực dọc tính toán, Pu", f"{inp.N:.1f} kN"),
+            ("Mômen ban đầu, M2, M3", f"{inp.Mx:.1f} / {inp.My:.1f} kNm"),
         ]))
+        # CHIỀU DÀI TÍNH TOÁN & PHÓNG ĐẠI MÔMEN — chi doc tu dict ket
+        # qua cua _aci_calculate_full (mm2/mm3, L0, delta, klu_r) va
+        # mm_res; khong tinh cong thuc moi o tang PDF.
+        _mmr = mm_res or {}
+        _mm2d = aci_res.get("mm2") or _mmr.get("dir2") or {}
+        _mm3d = aci_res.get("mm3") or _mmr.get("dir3") or {}
+        _L0_2 = aci_res.get("L0_2") or _mmr.get("L0_2")
+        _L0_3 = aci_res.get("L0_3") or _mmr.get("L0_3")
+        _k2v = _mmr.get("k2", 1.0)
+        _k3v = _mmr.get("k3", 1.0)
+        _len_rows = [
+            ("Chiều dài cột, L2, L3",
+             f"{inp.Lx*1000:.0f} / {inp.Ly*1000:.0f} mm"),
+            ("Hệ số chiều dài tính toán, k2, k3",
+             f"{_f(_k2v, 2)} / {_f(_k3v, 2)}"),
+        ]
+        if _L0_2 and _L0_3:
+            _len_rows.append(
+                ("Chiều dài không giằng, Lu2, Lu3",
+                 f"{float(_L0_2)*1000:.0f} / {float(_L0_3)*1000:.0f} mm"))
+        _klr2 = aci_res.get("klu_r2")
+        _klr3 = aci_res.get("klu_r3")
+        if _klr2 and _klr3:
+            _len_rows.append(
+                ("Độ mảnh, kLu/r2, kLu/r3",
+                 f"{_f(_klr2, 1)} / {_f(_klr3, 1)}"))
+        _pc2 = _mm2d.get("Pc_kN")
+        _pc3 = _mm3d.get("Pc_kN")
+        if _pc2 is not None and _pc3 is not None:
+            _len_rows.append(
+                ("Lực tới hạn Euler, Pc2, Pc3",
+                 f"{_f(_pc2, 0)} / {_f(_pc3, 0)} kN"))
+        _dl2 = aci_res.get("delta2", _mm2d.get("delta_ns"))
+        _dl3 = aci_res.get("delta3", _mm3d.get("delta_ns"))
+        if _dl2 is not None and _dl3 is not None:
+            _len_rows.append(
+                ("Hệ số phóng đại mômen, δns2, δns3",
+                 f"{_f(_dl2, 3)} / {_f(_dl3, 3)}"))
+        _cm2 = _mm2d.get("Cm")
+        _cm3 = _mm3d.get("Cm")
+        if _cm2 is not None and _cm3 is not None:
+            _len_rows.append(
+                ("Hệ số mômen tương đương, Cm2, Cm3",
+                 f"{_f(_cm2, 2)} / {_f(_cm3, 2)}"))
+        left_flow.append(_sec_table(
+            "CHIỀU DÀI TÍNH TOÁN &amp; PHÓNG ĐẠI MÔMEN", _len_rows))
+        # KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC
         _BN = aci_res.get("BN", 0)
         _Bx = aci_res.get("Bx", 0)
         _By = aci_res.get("By", 0)
         _Mb_aci = _m.hypot(_Bx, _By)
-        _Ma_aci = _m.hypot(inp.Mx, inp.My)
-        left_flow.append(_sec_table("KẾT QUẢ TÍNH TOÁN", [
-            ("Góc tác dụng mômen, α", f"{_alpha:.1f}°"),
-            ("Hệ số sức kháng, φ", f"{aci_res.get('phi', 0):.2f}"),
-            ("Biến dạng thép, εt", f"{aci_res.get('eps_t', 0):.5f}"),
-            ("Điểm tải trọng A", ""),
-            ("Lực dọc, N", f"{inp.N:.1f} kN"),
-            ("Mômen, M2", f"{inp.Mx:.1f} kNm"),
-            ("Mômen, M3", f"{inp.My:.1f} kNm"),
-            ("Mômen tổng, Mα", f"{_Ma_aci:.1f} kNm"),
-            ("Điểm giới hạn B", ""),
-            ("Lực dọc, Nu", f"{_BN:.1f} kN"),
-            ("Mômen, M2u", f"{_Bx:.1f} kNm"),
-            ("Mômen, M3u", f"{_By:.1f} kNm"),
-            ("Mômen tổng, Mα,u", f"{_Mb_aci:.1f} kNm"),
-            ("Tỉ số sử dụng khả năng chịu lực, D/C", f"{_dc:.3f}"),
-            ("Hệ số an toàn, FS", f"{_fs:.2f}"),
+        _M2s = aci_res.get("M2_mag", _mmr.get("Mc2"))
+        _M3s = aci_res.get("M3_mag", _mmr.get("Mc3"))
+        if _M2s is None:
+            _M2s = inp.Mx
+        if _M3s is None:
+            _M3s = inp.My
+        _alpha_r = aci_res.get("alpha_deg")
+        if _alpha_r is None:
+            _alpha_r = _m.degrees(_m.atan2(_M2s, _M3s)) \
+                if abs(_M2s) + abs(_M3s) > 1e-9 else 0.0
+        _Ma_aci = aci_res.get("Malpha")
+        if _Ma_aci is None:
+            _Ma_aci = _m.hypot(_M2s, _M3s)
+        left_flow.append(_sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", [
+            ("Lực dọc tính toán, Pu", f"{inp.N:.1f} kN"),
+            ("Mômen sau phóng đại, M2*, M3*",
+             f"{_M2s:.1f} / {_M3s:.1f} kNm"),
+            (f"Mômen tổng kiểm tra, Mα (α = {_alpha_r:.1f}°)",
+             f"{_Ma_aci:.1f} kNm"),
+            ("Lực dọc giới hạn, φPn", f"{_BN:.1f} kN"),
+            ("Mômen giới hạn, Mα,u", f"{_Mb_aci:.1f} kNm"),
+            ("Tỉ số sử dụng khả năng chịu lực, D/C (FS)",
+             f"{_dc:.3f} ({_fs:.2f})"),
             ("Kết luận", _ok_txt),
         ]))
 
@@ -439,7 +503,8 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         ]))
 
         story = []
-        story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
+        story.append(Paragraph(
+            "KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", st_title))
         story.append(t_main)
         story.append(Spacer(1, _MSP))
 
@@ -482,6 +547,11 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                  Paragraph("<b>Phương V2</b>", st_hdr),
                  Paragraph("<b>Phương V3</b>", st_hdr)],
             ]
+            # "Loai cot dai" (truoc o khoi VAT LIEU) dat o dau bang cat,
+            # gia tri span ca 2 cot phuong.
+            _data.append([Paragraph("Loại cốt đai", st_lbl),
+                          Paragraph(tie_txt, st_cell),
+                          Paragraph("", st_cell)])
             _rows = []
             # CHỈ dùng kết quả đã tính từ app (nguyên tắc "tính 1 lần") - KHÔNG tính lại
             # Ưu tiên: 1) shear_info từ GUI, 2) aci_res["shear2"/"shear3"] từ _aci_calculate_full
@@ -545,6 +615,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                          hAlign="LEFT")
             _st = [
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("SPAN", (1, 1), (2, 1)),
                 ("TOPPADDING", (0, 0), (-1, -1), _PAD),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), _PAD),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -632,9 +703,9 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                 _CSP + (_arg[4] - _CSP) * _fac,
                 _ISP + (_arg[5] - _ISP) * _fac,
                 _MSP + (_arg[6] - _MSP) * _fac,
-                66.0 + (_arg[7] - 66.0) * _fac)
+                _IW0 + (_arg[7] - _IW0) * _fac)
 
-    _base = (_PAD, _HPAD, _LEAD, _TSP, _CSP, _ISP, _MSP, 66.0)
+    _base = (_PAD, _HPAD, _LEAD, _TSP, _CSP, _ISP, _MSP, _IW0)
     _pg, _gap, _info = _try(*_base)
     if _pg == 1 and _gap is not None and _gap > _TARGET + 1.5:
         _hl, _hr, _hs, _rl, _rs, _hi = _info
@@ -685,15 +756,15 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         _dlead = _solve(_rem, max(0.0, 11.5 - _LEAD), _freeL2)
         _rem -= _grow(_dlead, _freeL2)
         # (d) Tang co hinh cot phai (giu nguyen ti le, tran 80mm)
-        _iw = 66.0
+        _iw = _IW0
         if _rem > 0 and _hi > 1:
-            _iw = min(80.0, 66.0 * (1.0 + (_rem + _freeR) / _hi))
+            _iw = min(80.0, _IW0 * (1.0 + (_rem + _freeR) / _hi))
         # Can bang 2 cot bang chinh: cot phai con thieu so voi cot
         # trai (sau gian dong) thi bu bang spacer/tieu de/co hinh cot
         # phai — mien phi ve tong chieu cao vi cot trai dang cao nhat,
         # chi lap khoang trong trong o ben phai.
         _gL = (2.0 * _dpad + _dlead) * _rl
-        _gR = 2.0 * _disp + 4.0 * _dcsp + (_iw / 66.0 - 1.0) * _hi
+        _gR = 2.0 * _disp + 4.0 * _dcsp + (_iw / _IW0 - 1.0) * _hi
         _short = (_hl + _gL) - (_hr + _gR)
         if _short > 1.0:
             _add = min(8.0 - _disp, _short / 2.0)
@@ -706,7 +777,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                     _dcsp += _add
                     _short -= 4.0 * _add
             if _short > 1.0 and _hi > 1:
-                _iw = min(80.0, _iw + 66.0 * _short / _hi)
+                _iw = min(80.0, _iw + _IW0 * _short / _hi)
         _arg = (_PAD + _dpad, _HPAD + _dpad, _LEAD + _dlead,
                 _TSP + _dtsp, _CSP + _dcsp, _ISP + _disp,
                 _MSP + _dmsp, _iw)
@@ -751,8 +822,9 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     """Xuat PDF tom tat ACI 318-19 — LUON dung 1 trang A4.
 
     Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
-    padding/leading, muc cao nhat bo vai dong thong tin phu) va lay
-    muc dau tien cho ra dung 1 trang. So lieu/ket luan khong doi.
+    padding/leading, thu nho hinh cot phai o muc cao) va lay muc dau
+    tien cho ra dung 1 trang. Moi hang theo dan y deu giu nguyen o
+    moi muc nen. So lieu/ket luan khong doi.
     """
     import io as _io
     _buf = None

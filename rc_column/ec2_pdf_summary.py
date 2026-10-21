@@ -267,7 +267,10 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
     _ISP = (2, 1.5, 1, 1)[_LV]           # spacer giua cac hinh
     _MSP = (4, 3, 2, 2)[_LV]             # spacer truoc bang cat
     _MRG = (8, 8, 7, 6)[_LV]             # le tren/duoi (mm)
-    _DROP = {"Mô đun đàn hồi, Ecm", "Mô đun đàn hồi thép, Es", "Hệ số an toàn, FS"} if _LV >= 3 else set()
+    _IW0 = (66.0, 66.0, 62.0, 56.0)[_LV]  # co hinh cot phai theo muc nen (mm)
+    # Dan y moi (user chot): MOI hang trong dan y deu la hang bat buoc,
+    # khong muc nen nao duoc bo hang nua -> _DROP rong o moi muc.
+    _DROP = set()
 
     # Font
     FN, FNB = "Helvetica", "Helvetica-Bold"
@@ -392,11 +395,11 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         _sl2 = slend_res.get("dir2", {}) if isinstance(slend_res, dict) else {}
         _sl3 = slend_res.get("dir3", {}) if isinstance(slend_res, dict) else {}
 
-        # ===== Cột trái =====
+        # ===== Cột trái (dan y user chot 2026-10-21, khung nhu TCVN) =====
         left_flow = []
         left_flow.append(_sec_table("THÔNG TIN CHUNG", [
             ("Tiêu chuẩn", "EC2 (EN 1992-1-1)"),
-            ("Tên cấu kiện", _ck_name or "—"),
+            ("Cấu kiện", _ck_name or "—"),
         ]))
         _fyk_sw = fyk_sw if fyk_sw is not None else steel.fyk
         _fyd_sw = _fyk_sw / 1.15
@@ -409,43 +412,116 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             ("Cường độ tính toán, fyd", f"{steel.fyd:.1f} MPa"),
             ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
         ]))
-        left_flow.append(_sec_table("TIẾT DIỆN", [
-            ("Chiều rộng, t3", f"{_t3:.0f} mm"),
-            ("Chiều cao, t2", f"{_t2:.0f} mm"),
-            ("Lớp bê tông bảo vệ, c", f"{inp.cover:.0f} mm"),
-        ]))
-        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP", [
-            ("Cốt thép dọc", " + ".join(_parts)),
+        # TIẾT DIỆN (theo loai tiet dien)
+        _kind = getattr(sec, "kind", None) or getattr(inp, "section_type", "rect")
+        if _kind == "circle":
+            _sec_rows = [("Hình tròn, đường kính d", f"{_t3:.0f} mm")]
+        elif _kind == "poly":
+            _sec_rows = [("Diện tích bê tông, A<sub>c</sub>",
+                          f"{sec.gross_area:.0f} mm²")]
+        else:
+            _sec_rows = [("Hình chữ nhật, t2 × t3",
+                          f"{_t2:.0f} × {_t3:.0f} mm")]
+        _sec_rows.append(("Lớp bê tông bảo vệ cốt thép dọc, c",
+                          f"{inp.cover:.0f} mm"))
+        left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
+        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
+            ("Số lượng thép", " + ".join(_parts)),
             ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
         ]))
-        left_flow.append(_sec_table("NỘI LỰC THIẾT KẾ", [
+        left_flow.append(_sec_table("NỘI LỰC KIỂM TRA", [
             ("Vị trí cột", _vpos),
             ("Tổ hợp tính toán", _combo_txt),
-            ("Lực dọc, NEd", f"{inp.N:.1f} kN"),
-            ("Momen trục 2, MEd2", f"{inp.Mx:.1f} kNm"),
-            ("Momen trục 3, MEd3", f"{inp.My:.1f} kNm"),
+            ("Lực dọc tính toán, NEd", f"{inp.N:.1f} kN"),
+            ("Mômen ban đầu, M2, M3", f"{inp.Mx:.1f} / {inp.My:.1f} kNm"),
         ]))
-
+        # CHIỀU DÀI TÍNH TOÁN & HIỆU ỨNG BẬC 2 — chi doc tu slend_res
+        # (dm cua _ec2_calculate_full) / ec2_res; thieu key nao bo hang
+        # do, khong tinh cong thuc moi o tang PDF.
+        _dm = slend_res if isinstance(slend_res, dict) else {}
+        _l0_2 = _dm.get("l0_2") or ec2_res.get("l0_2")
+        _l0_3 = _dm.get("l0_3") or ec2_res.get("l0_3")
+        _lam2 = _dm.get("lambda_2") or _sl2.get("lambda_sl") \
+            or ec2_res.get("lambda_2")
+        _lam3 = _dm.get("lambda_3") or _sl3.get("lambda_sl") \
+            or ec2_res.get("lambda_3")
+        _len_rows = [
+            ("Chiều dài cột, L2, L3",
+             f"{inp.Lx*1000:.0f} / {inp.Ly*1000:.0f} mm"),
+        ]
+        if _l0_2 and _l0_3:
+            _len_rows.append(
+                ("Chiều dài tính toán, l02, l03",
+                 f"{float(_l0_2)*1000:.0f} / {float(_l0_3)*1000:.0f} mm"))
+        if _lam2 and _lam3:
+            _len_rows.append(
+                ("Độ mảnh, λ2, λ3",
+                 f"{_f(_lam2, 1)} / {_f(_lam3, 1)}"))
+        _ll2 = _sl2.get("lambda_lim")
+        _ll3 = _sl3.get("lambda_lim")
+        if _ll2 is not None and _ll3 is not None:
+            _len_rows.append(
+                ("Độ mảnh giới hạn, λlim2, λlim3",
+                 f"{_f(_ll2, 1)} / {_f(_ll3, 1)}"))
+        _ei2 = _sl2.get("ei_mm")
+        _ei3 = _sl3.get("ei_mm")
+        if _ei2 is not None and _ei3 is not None:
+            _len_rows.append(
+                ("Độ lệch tâm sai lệch, ei2, ei3",
+                 f"{_f(_ei2, 1)} / {_f(_ei3, 1)} mm"))
+        _mi2 = _sl2.get("M_imp")
+        _mi3 = _sl3.get("M_imp")
+        if _mi2 is not None and _mi3 is not None:
+            _len_rows.append(
+                ("Mômen do sai lệch, Mimp2, Mimp3",
+                 f"{_f(_mi2, 1)} / {_f(_mi3, 1)} kNm"))
+        _fa2 = _sl2.get("factor", _sl2.get("so_factor"))
+        _fa3 = _sl3.get("factor", _sl3.get("so_factor"))
+        if _fa2 is not None and _fa3 is not None:
+            _len_rows.append(
+                ("Hệ số phóng đại bậc 2, β2, β3",
+                 f"{_f(_fa2, 3)} / {_f(_fa3, 3)}"))
+        _m22 = _sl2.get("so_M2")
+        _m23 = _sl3.get("so_M2")
+        if _m22 is not None and _m23 is not None:
+            _len_rows.append(
+                ("Mômen bậc 2, M2,2, M2,3",
+                 f"{_f(_m22, 1)} / {_f(_m23, 1)} kNm"))
+        left_flow.append(_sec_table(
+            "CHIỀU DÀI TÍNH TOÁN &amp; HIỆU ỨNG BẬC 2", _len_rows))
+        # KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC (MEd da gom bac 2, giu dau
+        # theo mo men goc nhu _ec2_calculate_full da khoi phuc)
         _BN = ec2_res.get("BN", 0)
         _Bx = ec2_res.get("Bx", 0)
         _By = ec2_res.get("By", 0)
         _Mb = _m.hypot(_Bx, _By)
-        _Ma = _m.hypot(inp.Mx, inp.My)
-        left_flow.append(_sec_table("KẾT QUẢ TÍNH TOÁN", [
-            ("Góc tác dụng mômen, α", f"{_alpha:.1f}°"),
-            ("N_Rd,max (nén đúng tâm)", f"{_f(ec2_res.get('N_Rd_max'), 0)} kN"),
-            ("Điểm tải trọng A", ""),
-            ("Lực dọc, NEd", f"{inp.N:.1f} kN"),
-            ("Mômen, MEd2", f"{inp.Mx:.1f} kNm"),
-            ("Mômen, MEd3", f"{inp.My:.1f} kNm"),
-            ("Mômen tổng, Mα", f"{_Ma:.1f} kNm"),
-            ("Điểm giới hạn B", ""),
-            ("Lực dọc, NRd", f"{_BN:.1f} kN"),
-            ("Mômen, M2Rd", f"{_Bx:.1f} kNm"),
-            ("Mômen, M3Rd", f"{_By:.1f} kNm"),
-            ("Mômen tổng, Mα,Rd", f"{_Mb:.1f} kNm"),
-            ("Tỉ số sử dụng khả năng chịu lực, D/C", f"{_f_dc(_dc)}"),
-            ("Hệ số an toàn, FS", f"{_f(_fs, 2)}"),
+        _M2s = ec2_res.get("M2_mag")
+        _M3s = ec2_res.get("M3_mag")
+        if _M2s is None:
+            _M2s = abs(inp.Mx)
+        if _M3s is None:
+            _M3s = abs(inp.My)
+        _o2 = ec2_res.get("M2_orig", inp.Mx)
+        _o3 = ec2_res.get("M3_orig", inp.My)
+        _M2sgn = (1.0 if _o2 >= 0 else -1.0) * _M2s
+        _M3sgn = (1.0 if _o3 >= 0 else -1.0) * _M3s
+        _alpha_r = ec2_res.get("alpha_deg")
+        if _alpha_r is None:
+            _alpha_r = _m.degrees(_m.atan2(_M2sgn, _M3sgn)) \
+                if abs(_M2sgn) + abs(_M3sgn) > 1e-9 else 0.0
+        _Ma = ec2_res.get("Malpha")
+        if _Ma is None:
+            _Ma = _m.hypot(_M2s, _M3s)
+        left_flow.append(_sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", [
+            ("Lực dọc tính toán, NEd", f"{inp.N:.1f} kN"),
+            ("Mômen thiết kế, MEd2, MEd3",
+             f"{_M2sgn:.1f} / {_M3sgn:.1f} kNm"),
+            (f"Mômen tổng kiểm tra, Mα (α = {_alpha_r:.1f}°)",
+             f"{_Ma:.1f} kNm"),
+            ("Lực dọc giới hạn, NRd", f"{_BN:.1f} kN"),
+            ("Mômen giới hạn, Mα,Rd", f"{_Mb:.1f} kNm"),
+            ("Tỉ số sử dụng khả năng chịu lực, D/C (FS)",
+             f"{_f_dc(_dc)} ({_f(_fs, 2)})"),
             ("Kết luận", _ok_txt),
         ]))
 
@@ -523,7 +599,8 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         ]))
 
         story = []
-        story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
+        story.append(Paragraph(
+            "KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", st_title))
         story.append(t_main)
         story.append(Spacer(1, _MSP))
 
@@ -706,9 +783,9 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                 _CSP + (_arg[4] - _CSP) * _fac,
                 _ISP + (_arg[5] - _ISP) * _fac,
                 _MSP + (_arg[6] - _MSP) * _fac,
-                66.0 + (_arg[7] - 66.0) * _fac)
+                _IW0 + (_arg[7] - _IW0) * _fac)
 
-    _base = (_PAD, _HPAD, _LEAD, _TSP, _CSP, _ISP, _MSP, 66.0)
+    _base = (_PAD, _HPAD, _LEAD, _TSP, _CSP, _ISP, _MSP, _IW0)
     _pg, _gap, _info = _try(*_base)
     if _pg == 1 and _gap is not None and _gap > _TARGET + 1.5:
         _hl, _hr, _hs, _rl, _rs, _hi = _info
@@ -759,15 +836,15 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         _dlead = _solve(_rem, max(0.0, 11.5 - _LEAD), _freeL2)
         _rem -= _grow(_dlead, _freeL2)
         # (d) Tang co hinh cot phai (giu nguyen ti le, tran 80mm)
-        _iw = 66.0
+        _iw = _IW0
         if _rem > 0 and _hi > 1:
-            _iw = min(80.0, 66.0 * (1.0 + (_rem + _freeR) / _hi))
+            _iw = min(80.0, _IW0 * (1.0 + (_rem + _freeR) / _hi))
         # Can bang 2 cot bang chinh: cot phai con thieu so voi cot
         # trai (sau gian dong) thi bu bang spacer/tieu de/co hinh cot
         # phai — mien phi ve tong chieu cao vi cot trai dang cao nhat,
         # chi lap khoang trong trong o ben phai.
         _gL = (2.0 * _dpad + _dlead) * _rl
-        _gR = 2.0 * _disp + 4.0 * _dcsp + (_iw / 66.0 - 1.0) * _hi
+        _gR = 2.0 * _disp + 4.0 * _dcsp + (_iw / _IW0 - 1.0) * _hi
         _short = (_hl + _gL) - (_hr + _gR)
         if _short > 1.0:
             _add = min(8.0 - _disp, _short / 2.0)
@@ -780,7 +857,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                     _dcsp += _add
                     _short -= 4.0 * _add
             if _short > 1.0 and _hi > 1:
-                _iw = min(80.0, _iw + 66.0 * _short / _hi)
+                _iw = min(80.0, _iw + _IW0 * _short / _hi)
         _arg = (_PAD + _dpad, _HPAD + _dpad, _LEAD + _dlead,
                 _TSP + _dtsp, _CSP + _dcsp, _ISP + _disp,
                 _MSP + _dmsp, _iw)
@@ -826,8 +903,9 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
     """Xuat PDF tom tat EC2 — LUON dung 1 trang A4.
 
     Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
-    padding/leading, muc cao nhat bo vai dong thong tin phu) va lay
-    muc dau tien cho ra dung 1 trang. So lieu/ket luan khong doi.
+    padding/leading, thu nho hinh cot phai o muc cao) va lay muc dau
+    tien cho ra dung 1 trang. Moi hang theo dan y deu giu nguyen o
+    moi muc nen. So lieu/ket luan khong doi.
     """
     import io as _io
     _buf = None

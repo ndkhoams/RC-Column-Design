@@ -630,7 +630,10 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
     _ISP = (2, 1.5, 1, 1)[_LV]           # spacer giua cac hinh
     _MSP = (4, 3, 2, 2)[_LV]             # spacer truoc bang cat
     _MRG = (8, 8, 7, 6)[_LV]             # le tren/duoi (mm)
-    _DROP = {"Mô đun đàn hồi, E<sub>b</sub>", "Mô đun đàn hồi, E<sub>s</sub>", "Hệ số an toàn, FS"} if _LV >= 3 else set()
+    _IW0 = (66.0, 66.0, 62.0, 56.0)[_LV]  # co hinh cot phai theo muc nen (mm)
+    # Dan y moi (user chot): MOI hang trong dan y deu la hang bat buoc,
+    # khong muc nen nao duoc bo hang nua -> _DROP rong o moi muc.
+    _DROP = set()
 
     # Font
     FN, FNB = "Helvetica", "Helvetica-Bold"
@@ -749,17 +752,20 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         _alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         _ok_txt = "<b>ĐẠT</b>" if res.ok else "<b>KHÔNG ĐẠT</b>"
+        # He so chieu dai tinh toan psi: doc tu L0 (engine da tinh) / L goc
+        _psi2 = (res.L0x / inp.Lx) if inp.Lx else 0.0
+        _psi3 = (res.L0y / inp.Ly) if inp.Ly else 0.0
 
-        # ===== Cột trái: các bảng =====
+        # ===== Cột trái: các bảng (dan y user chot 2026-10-21) =====
         left_flow = []
 
         # THÔNG TIN CHUNG
         left_flow.append(_sec_table("THÔNG TIN CHUNG", [
             ("Tiêu chuẩn", "TCVN 5574:2018"),
-            ("Tên cấu kiện", _ck_name or "—"),
+            ("Cấu kiện", _ck_name or "—"),
         ]))
 
-        # VẬT LIỆU
+        # VẬT LIỆU (Es chi 1 hang o cuoi khoi)
         _mat_rows = []
         if _cg:
             _mat_rows += [
@@ -771,7 +777,6 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             _mat_rows += [
                 ("Cốt thép dọc", inp.steel_grade),
                 ("Cường độ chịu kéo, R<sub>s</sub>", f"{_fm(_sg.Rs)} MPa"),
-                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(_sg.Es)} MPa"),
             ]
         if _swg:
             _mat_rows += [
@@ -779,47 +784,72 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                 ("Cường độ chịu cắt, R<sub>sw</sub>", f"{_fm(_swg.Rsw)} MPa"),
                 ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(_swg.Es)} MPa"),
             ]
+        elif _sg:
+            _mat_rows.append(
+                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(_sg.Es)} MPa"))
         left_flow.append(_sec_table("VẬT LIỆU", _mat_rows))
 
-        # TIẾT DIỆN
-        left_flow.append(_sec_table("TIẾT DIỆN", [
-            ("Chiều rộng, t3", f"{_t3:.0f} mm"),
-            ("Chiều cao, t2", f"{_t2:.0f} mm"),
-            ("Lớp bê tông bảo vệ, c", f"{inp.cover:.0f} mm"),
-        ]))
+        # TIẾT DIỆN (theo loai tiet dien)
+        _kind = getattr(sec, "kind", None) or getattr(inp, "section_type", "rect")
+        if _kind == "circle":
+            _sec_rows = [("Hình tròn, đường kính d", f"{_t3:.0f} mm")]
+        elif _kind == "poly":
+            _sec_rows = [("Diện tích bê tông, A<sub>c</sub>",
+                          f"{sec.gross_area:.0f} mm²")]
+        else:
+            _sec_rows = [("Hình chữ nhật, t2 × t3",
+                          f"{_t2:.0f} × {_t3:.0f} mm")]
+        _sec_rows.append(("Lớp bê tông bảo vệ cốt thép dọc, c",
+                          f"{inp.cover:.0f} mm"))
+        left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
 
-        # BỐ TRÍ CỐT THÉP
-        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP", [
-            ("Cốt thép dọc", " + ".join(_parts)),
+        # BỐ TRÍ CỐT THÉP DỌC
+        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
+            ("Số lượng thép", " + ".join(_parts)),
             ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
         ]))
 
-        # NỘI LỰC TÍNH TOÁN (bỏ V2, V3 theo yêu cầu)
-        left_flow.append(_sec_table("NỘI LỰC TÍNH TOÁN", [
+        # NỘI LỰC KIỂM TRA (M2, M3 gop 1 hang; V2, V3 o bang cat)
+        left_flow.append(_sec_table("NỘI LỰC KIỂM TRA", [
             ("Vị trí cột", _vpos),
             ("Tổ hợp tính toán", _combo_txt),
-            ("Lực dọc, N", f"{res.N:.1f} kN"),
-            ("Momen quanh trục 2, M2", f"{res.Mx:.1f} kNm"),
-            ("Momen quanh trục 3, M3", f"{res.My:.1f} kNm"),
+            ("Lực dọc tính toán, N", f"{res.N:.1f} kN"),
+            ("Mômen ban đầu, M2, M3", f"{res.Mx:.1f} / {res.My:.1f} kNm"),
         ]))
 
-        # KẾT QUẢ TÍNH TOÁN (thêm điểm B để lấp khoảng trống)
+        # CHIỀU DÀI TÍNH TOÁN & HIỆU ỨNG UỐN DỌC (doc tu CheckResult —
+        # engine da tinh 1 lan: L0, lambda, e0, Ncr, eta; psi = L0/L)
+        left_flow.append(_sec_table(
+            "CHIỀU DÀI TÍNH TOÁN &amp; HIỆU ỨNG UỐN DỌC", [
+                ("Chiều dài cột, L2, L3",
+                 f"{inp.Lx*1000:.0f} / {inp.Ly*1000:.0f} mm"),
+                ("Hệ số chiều dài tính toán, ψ2, ψ3",
+                 f"{_psi2:.2f} / {_psi3:.2f}"),
+                ("Chiều dài tính toán, L02, L03",
+                 f"{res.L0x*1000:.0f} / {res.L0y*1000:.0f} mm"),
+                ("Độ mảnh cột, λ2, λ3",
+                 f"{res.lambda_x:.1f} / {res.lambda_y:.1f}"),
+                ("Độ lệch tâm ban đầu, e02, e03",
+                 f"{res.e0x:.1f} / {res.e0y:.1f} mm"),
+                ("Lực tới hạn Euler, Ncr,2, Ncr,3",
+                 f"{res.Ncrx:.1f} / {res.Ncry:.1f} kN"),
+                ("Hệ số uốn dọc, η2, η3",
+                 f"{res.etax:.3f} / {res.etay:.3f}"),
+            ]))
+
+        # KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC
         _Mb = _m.hypot(res.Bx, res.By)
         _Ma = _m.hypot(res.Mx_star, res.My_star)
-        left_flow.append(_sec_table("KẾT QUẢ TÍNH TOÁN", [
-            ("Góc tác dụng mômen, α", f"{_alpha:.1f}°"),
-            ("Điểm tải trọng A", ""),
-            ("Lực dọc, N", f"{res.N:.1f} kN"),
-            ("Mômen tính toán, M2*", f"{res.Mx_star:.1f} kNm"),
-            ("Mômen tính toán, M3*", f"{res.My_star:.1f} kNm"),
-            ("Mômen tổng, Mα", f"{_Ma:.1f} kNm"),
-            ("Điểm giới hạn B", ""),
-            ("Lực dọc, Nu", f"{res.BN:.1f} kN"),
-            ("Mômen, M2u", f"{res.Bx:.1f} kNm"),
-            ("Mômen, M3u", f"{res.By:.1f} kNm"),
-            ("Mômen tổng, Mα,u", f"{_Mb:.1f} kNm"),
-            ("Tỉ số sử dụng khả năng chịu lực, D/C", f"{res.dc:.3f}"),
-            ("Hệ số an toàn, FS", f"{res.fs:.2f}"),
+        left_flow.append(_sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", [
+            ("Lực dọc tính toán, N", f"{res.N:.1f} kN"),
+            ("Mômen sau uốn dọc, M2*, M3*",
+             f"{res.Mx_star:.1f} / {res.My_star:.1f} kNm"),
+            (f"Mômen tổng kiểm tra, Mα (α = {_alpha:.1f}°)",
+             f"{_Ma:.1f} kNm"),
+            ("Lực dọc giới hạn, Nu", f"{res.BN:.1f} kN"),
+            ("Mômen giới hạn, Mα,u", f"{_Mb:.1f} kNm"),
+            ("Tỉ số sử dụng khả năng chịu lực, D/C (FS)",
+             f"{res.dc:.3f} ({res.fs:.2f})"),
             ("Kết luận", _ok_txt),
         ]))
 
@@ -893,7 +923,8 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         ]))
 
         story = []
-        story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
+        story.append(Paragraph(
+            "KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", st_title))
         story.append(t_main)
         story.append(Spacer(1, _MSP))
 
@@ -1056,9 +1087,9 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                 _CSP + (_arg[4] - _CSP) * _fac,
                 _ISP + (_arg[5] - _ISP) * _fac,
                 _MSP + (_arg[6] - _MSP) * _fac,
-                66.0 + (_arg[7] - 66.0) * _fac)
+                _IW0 + (_arg[7] - _IW0) * _fac)
 
-    _base = (_PAD, _HPAD, _LEAD, _TSP, _CSP, _ISP, _MSP, 66.0)
+    _base = (_PAD, _HPAD, _LEAD, _TSP, _CSP, _ISP, _MSP, _IW0)
     _pg, _gap, _info = _try(*_base)
     if _pg == 1 and _gap is not None and _gap > _TARGET + 1.5:
         _hl, _hr, _hs, _rl, _rs, _hi = _info
@@ -1109,15 +1140,15 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         _dlead = _solve(_rem, max(0.0, 11.5 - _LEAD), _freeL2)
         _rem -= _grow(_dlead, _freeL2)
         # (d) Tang co hinh cot phai (giu nguyen ti le, tran 80mm)
-        _iw = 66.0
+        _iw = _IW0
         if _rem > 0 and _hi > 1:
-            _iw = min(80.0, 66.0 * (1.0 + (_rem + _freeR) / _hi))
+            _iw = min(80.0, _IW0 * (1.0 + (_rem + _freeR) / _hi))
         # Can bang 2 cot bang chinh: cot phai con thieu so voi cot
         # trai (sau gian dong) thi bu bang spacer/tieu de/co hinh cot
         # phai — mien phi ve tong chieu cao vi cot trai dang cao nhat,
         # chi lap khoang trong trong o ben phai.
         _gL = (2.0 * _dpad + _dlead) * _rl
-        _gR = 2.0 * _disp + 4.0 * _dcsp + (_iw / 66.0 - 1.0) * _hi
+        _gR = 2.0 * _disp + 4.0 * _dcsp + (_iw / _IW0 - 1.0) * _hi
         _short = (_hl + _gL) - (_hr + _gR)
         if _short > 1.0:
             _add = min(8.0 - _disp, _short / 2.0)
@@ -1130,7 +1161,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                     _dcsp += _add
                     _short -= 4.0 * _add
             if _short > 1.0 and _hi > 1:
-                _iw = min(80.0, _iw + 66.0 * _short / _hi)
+                _iw = min(80.0, _iw + _IW0 * _short / _hi)
         _arg = (_PAD + _dpad, _HPAD + _dpad, _LEAD + _dlead,
                 _TSP + _dtsp, _CSP + _dcsp, _ISP + _disp,
                 _MSP + _dmsp, _iw)
@@ -1174,8 +1205,9 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     """Xuat PDF tom tat TCVN — LUON dung 1 trang A4.
 
     Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
-    padding/leading, muc cao nhat bo vai dong thong tin phu) va lay
-    muc dau tien cho ra dung 1 trang. So lieu/ket luan khong doi.
+    padding/leading, thu nho hinh cot phai o muc cao) va lay muc dau
+    tien cho ra dung 1 trang. Moi hang theo dan y deu giu nguyen o
+    moi muc nen. So lieu/ket luan khong doi.
     """
     import io as _io
     _buf = None
