@@ -229,16 +229,18 @@ class _ACIExact:
         for g in gam:
             cg, sg = math.cos(g), math.sin(g)
             s_f = self.fx * cg + self.fy * sg
+            s_r = self.rx * cg + self.ry * sg
             s_max = float(s_f.max()) if len(s_f) else 0.0
             s_min = float(s_f.min()) if len(s_f) else 0.0
             h_s = max(s_max - s_min, 1e-9)
+            _pre = (s_f, s_r, s_max)
             Ns, M2s, M3s, NAs, ETs = [], [], [], [], []
             for eps_far in self._eps_far:
                 if eps_far >= self.eps_cu - 1e-15:
                     na = float("inf")
                 else:
                     na = self.eps_cu * h_s / (self.eps_cu - eps_far)
-                Nd, M2, M3, et = self._state_design(g, na)
+                Nd, M2, M3, et = self._state_design(g, na, _pre)
                 Ns.append(Nd); M2s.append(M2); M3s.append(M3)
                 NAs.append(na); ETs.append(et)
             # Lọc N thiết kế giảm nghiêm ngặt (giữ điểm đầu mỗi mức):
@@ -257,13 +259,108 @@ class _ACIExact:
             n_all.extend(kN)
         self.N_max = max(n_all) if n_all else 0.0
         self.N_min = min(n_all) if n_all else 0.0
+        self._build_scan_cache()
 
-    def _state_nom(self, gamma_rad: float, na: float):
-        """Trạng thái danh nghĩa (gamma, na) -> (N, M2, M3, eps_t)."""
-        cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
-        s_f = self.fx * cg + self.fy * sg
-        s_r = self.rx * cg + self.ry * sg
-        s_max = float(s_f.max()) if len(s_f) else 0.0
+    def _build_scan_cache(self):
+        """Ma tran dem (padding) cua cac sweep de quet gamma vector hoa.
+
+        XP[g] = -N tang dan (dem lap gia tri cuoi), F2/F3/FNA/FET tuong
+        ung. _scan_fast dung cac ma tran nay voi cong thuc noi suy
+        f0 + ((f1-f0)/(x1-x0))*(x-x0) — da kiem chung khop tung bit voi
+        np.interp o moi diem trong; rieng diem mut phai (x == xp[-1])
+        tra thang gia tri cuoi nhu np.interp.
+        """
+        G = len(self.sweeps)
+        L = max((len(sw["N"]) for sw in self.sweeps), default=0)
+        self._glen = np.zeros(G, dtype=int)
+        self._N0 = np.zeros(G)
+        self._N1 = np.zeros(G)
+        self._XP = np.zeros((G, L))
+        self._F2 = np.zeros((G, L))
+        self._F3 = np.zeros((G, L))
+        self._FNA = np.zeros((G, L))
+        self._FET = np.zeros((G, L))
+        for gi, sw in enumerate(self.sweeps):
+            n = len(sw["N"])
+            self._glen[gi] = n
+            if n == 0:
+                continue
+            self._N0[gi] = sw["N"][0]
+            self._N1[gi] = sw["N"][-1]
+            for arr, key in ((self._XP, None), (self._F2, "M2"),
+                             (self._F3, "M3"), (self._FNA, "NA"),
+                             (self._FET, "ET")):
+                v = -sw["N"] if key is None else sw[key]
+                arr[gi, :n] = v
+                if n < L:
+                    arr[gi, n:] = v[-1]
+
+    def _scan_fast(self, N: float, theta_deg: float, full: bool):
+        """Ban vector hoa cua _scan: cung pts, cung thu tu, gia tri khop
+        tung bit voi _sweep_at_N/np.interp. full=False: na/et tra 0.0
+        (capacity_fast khong dung 2 gia tri nay)."""
+        th = math.radians(theta_deg)
+        ux, uy = math.sin(th), math.cos(th)
+        px, py = math.cos(th), -math.sin(th)
+        x = -N
+        ok = (self._glen >= 2) & (N <= self._N0) & (N >= self._N1)
+        idx = np.nonzero(ok)[0]
+        pts = []
+        if len(idx) == 0:
+            return pts
+        gl = self._glen[idx]
+        XP = self._XP[idx]
+        j = (XP <= x).sum(axis=1) - 1
+        j = np.minimum(j, gl - 2)
+        np.maximum(j, 0, out=j)
+        rows = np.arange(len(idx))
+        x0 = XP[rows, j]
+        dx = XP[rows, j + 1] - x0
+        xlast = XP[rows, gl - 1]
+        at_end = x >= xlast
+
+        def _interp(F):
+            Fg = F[idx]
+            f0 = Fg[rows, j]
+            f1 = Fg[rows, j + 1]
+            with np.errstate(invalid="ignore", divide="ignore",
+                             over="ignore"):
+                y = f0 + ((f1 - f0) / dx) * (x - x0)
+            # np.interp: tai nut trai tra dung f0; dau mut khong huu han
+            # (NA = inf o trang thai nen deu) thang trong doan, giong
+            # hanh vi goc cua np.interp voi du lieu chua inf.
+            y = np.where(at_end, Fg[rows, gl - 1], y)
+            y = np.where(x == x0, f0, y)
+            y = np.where(~np.isfinite(f0), f0, y)
+            y = np.where((x > x0) & ~np.isfinite(f1), f1, y)
+            return y
+
+        M2a = _interp(self._F2)
+        M3a = _interp(self._F3)
+        NAa = _interp(self._FNA) if full else None
+        ETa = _interp(self._FET) if full else None
+        for k, gi in enumerate(idx):
+            M2 = float(M2a[k]); M3 = float(M3a[k])
+            na = float(NAa[k]) if full else 0.0
+            et = float(ETa[k]) if full else 0.0
+            pts.append((math.degrees(self.gammas[gi]),
+                        M2 * ux + M3 * uy, M2 * px + M3 * py,
+                        na, M2, M3, int(gi), et))
+        return pts
+
+    def _state_nom(self, gamma_rad: float, na: float, _pre=None):
+        """Trạng thái danh nghĩa (gamma, na) -> (N, M2, M3, eps_t).
+
+        _pre = (s_f, s_r, s_max) tinh san cho gamma nay (cung bieu thuc
+        nhu duoi) de tranh tinh lai khi quet nhieu na cung mot gamma.
+        """
+        if _pre is None:
+            cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
+            s_f = self.fx * cg + self.fy * sg
+            s_r = self.rx * cg + self.ry * sg
+            s_max = float(s_f.max()) if len(s_f) else 0.0
+        else:
+            s_f, s_r, s_max = _pre
         if math.isinf(na):
             kappa = 0.0
             block_f = np.ones(len(self.fx), dtype=bool)
@@ -287,9 +384,9 @@ class _ACIExact:
         eps_t = float(max(0.0, -eps_r.min())) if len(eps_r) else 0.0
         return N, M2, M3, eps_t
 
-    def _state_design(self, gamma_rad: float, na: float):
+    def _state_design(self, gamma_rad: float, na: float, _pre=None):
         """Trạng thái thiết kế: nhân phi(eps_t), cắt N tại N_cap."""
-        Nn, M2n, M3n, eps_t = self._state_nom(gamma_rad, na)
+        Nn, M2n, M3n, eps_t = self._state_nom(gamma_rad, na, _pre)
         phi = phi_factor(eps_t, self.steel.eps_y, self.tied)
         Nd = phi * Nn
         if Nd > self.N_cap:
@@ -357,7 +454,7 @@ class _ACIExact:
         """Capacity thiết kế exact tại (N, theta) từ lưới quét (nội suy)."""
         if N > self.N_max or N < self.N_min:
             return 0.0
-        pts = self._scan(N, theta_deg)
+        pts = self._scan_fast(N, theta_deg, False)
         roots = self._roots(pts)
         if roots:
             return min(r["capacity"] for r in roots)
@@ -369,7 +466,7 @@ class _ACIExact:
         capacity, eps_t) hoặc None."""
         if N > self.N_max or N < self.N_min:
             return None
-        roots = self._roots(self._scan(N, theta_deg))
+        roots = self._roots(self._scan_fast(N, theta_deg, True))
         if not roots:
             return None
         return min(roots, key=lambda r: r["capacity"])
@@ -378,16 +475,18 @@ class _ACIExact:
     def _state_at_N_fine(self, gamma_rad: float, N_target: float):
         cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
         s_f = self.fx * cg + self.fy * sg
+        s_r = self.rx * cg + self.ry * sg
         s_max = float(s_f.max()) if len(s_f) else 0.0
         s_min = float(s_f.min()) if len(s_f) else 0.0
         h_s = max(s_max - s_min, 1e-9)
+        _pre = (s_f, s_r, s_max)
         nas = []
         for eps_far in self._eps_far:
             if eps_far >= self.eps_cu - 1e-15:
                 nas.append(float("inf"))
             else:
                 nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
-        vals = [self._state_design(gamma_rad, na) for na in nas]
+        vals = [self._state_design(gamma_rad, na, _pre) for na in nas]
         Ns = [v[0] for v in vals]
         if N_target > max(Ns) or N_target < min(Ns):
             return None
@@ -395,7 +494,7 @@ class _ACIExact:
             if (Ns[i] - N_target) * (Ns[i + 1] - N_target) <= 0.0 \
                     and abs(Ns[i] - Ns[i + 1]) > 1e-9:
                 lo, hi = nas[i + 1], nas[i]      # na tăng -> Nd tăng (gần đúng)
-                flo = self._state_design(gamma_rad, lo)[0] - N_target
+                flo = self._state_design(gamma_rad, lo, _pre)[0] - N_target
                 if math.isinf(hi):
                     if abs(Ns[0] - N_target) < 1e-6:
                         return (Ns[0], vals[0][1], vals[0][2],
@@ -403,13 +502,13 @@ class _ACIExact:
                     hi = nas[i + 1] * 4.0 + h_s
                 for _ in range(40):
                     mid = 0.5 * (lo + hi)
-                    fm = self._state_design(gamma_rad, mid)[0] - N_target
+                    fm = self._state_design(gamma_rad, mid, _pre)[0] - N_target
                     if flo * fm <= 0.0:
                         hi = mid
                     else:
                         lo, flo = mid, fm
                 na = 0.5 * (lo + hi)
-                Nd, M2, M3, et = self._state_design(gamma_rad, na)
+                Nd, M2, M3, et = self._state_design(gamma_rad, na, _pre)
                 return (Nd, M2, M3, na, et)
         return None
 
@@ -482,32 +581,36 @@ class _ACIExact:
                          na_hint: float):
         """Trạng thái thiết kế fine tại (gamma, N) với bracket na từ
         na_hint (mở rộng hình học tới khi kẹp được N, rồi chặt đôi)."""
+        cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
+        _sf = self.fx * cg + self.fy * sg
+        _sr = self.rx * cg + self.ry * sg
+        _pre = (_sf, _sr, float(_sf.max()) if len(_sf) else 0.0)
         lo = na_hint / 2.5 if na_hint and math.isfinite(na_hint) else 10.0
         hi = na_hint * 2.5 if na_hint and math.isfinite(na_hint) else 1.0e5
-        flo = self._state_design(gamma_rad, lo)[0] - N_target
-        fhi = self._state_design(gamma_rad, hi)[0] - N_target
+        flo = self._state_design(gamma_rad, lo, _pre)[0] - N_target
+        fhi = self._state_design(gamma_rad, hi, _pre)[0] - N_target
         for _ in range(8):
             if flo <= 0.0 <= fhi:
                 break
             if flo > 0.0:
                 hi, fhi = lo, flo
                 lo = lo / 4.0
-                flo = self._state_design(gamma_rad, lo)[0] - N_target
+                flo = self._state_design(gamma_rad, lo, _pre)[0] - N_target
             else:
                 lo, flo = hi, fhi
                 hi = hi * 4.0
-                fhi = self._state_design(gamma_rad, hi)[0] - N_target
+                fhi = self._state_design(gamma_rad, hi, _pre)[0] - N_target
         if not (flo <= 0.0 <= fhi):
             return None
         for _ in range(28):
             mid = 0.5 * (lo + hi)
-            fm = self._state_design(gamma_rad, mid)[0] - N_target
+            fm = self._state_design(gamma_rad, mid, _pre)[0] - N_target
             if fm < 0.0:
                 lo = mid
             else:
                 hi = mid
         na = 0.5 * (lo + hi)
-        Nd, M2, M3, et = self._state_design(gamma_rad, na)
+        Nd, M2, M3, et = self._state_design(gamma_rad, na, _pre)
         return (Nd, M2, M3, na, et)
 
     def boundary_fine(self, N: float, theta_deg: float):
@@ -608,6 +711,8 @@ class ACICapacity:
         self.steel = steel
         self.tied = tied
         self.phi_c = PHI_TIED if tied else PHI_SPIRAL
+        self._n_angles = n_angles
+        self._n_points = n_points
 
         # Pn danh nghĩa lớn nhất (nén đúng tâm): Po = 0.85f'c(Ag-Ast) + fy*Ast
         Ag = sec.gross_area
@@ -617,33 +722,47 @@ class ACICapacity:
         self.N_cap = max_axial_phi(tied) * self.phi_c * Po_nom
         self.Po_nom = Po_nom
 
-        self.angles: List[float] = []
-        # theta -> list (Nd, Md, eps_t) đã nhân phi, sắp N giảm dần
-        self.design_curves: Dict[float, List[Tuple[float, float, float]]] = {}
         step = 360.0 / n_angles
-        for k in range(n_angles):
-            th = k * step
-            self.angles.append(th)
-            nom = aci_interaction_curve(sec, conc, steel, th, n_points, tied)
-            dsgn: List[Tuple[float, float, float]] = []
-            for (Nn, Mn, eps_t, phi) in nom:
-                Nd, Md = phi * Nn, phi * Mn
-                # Cắt đỉnh ở N_cap
-                if Nd > self.N_cap:
-                    Nd = self.N_cap
-                dsgn.append((Nd, Md, eps_t))
-            dsgn.sort(key=lambda p: -p[0])
-            # Loại trùng sau khi cắt đỉnh
-            clean: List[Tuple[float, float, float]] = []
-            for p in dsgn:
-                if (not clean or abs(p[0] - clean[-1][0]) > 1e-6
-                        or abs(p[1] - clean[-1][1]) > 1e-6):
-                    clean.append(p)
-            self.design_curves[th] = clean
+        self.angles: List[float] = [k * step for k in range(n_angles)]
+        # design_curves dựng LƯỜI (lazy) khi thật sự cần (surface_grid,
+        # eps_t_at fallback): trước đây dựng ngay trong __init__ khiến
+        # mỗi lần tạo ACICapacity (rất nhiều lần trong 1 CHECK do các
+        # hàm vẽ tạo mới) tốn ~0.5s cho 24 đường cong không ai dùng tới.
+        self._design_curves = None
 
         # Engine song trục exact (D/C + capacity dùng bản này từ 2026-10-21;
         # design_curves giữ cho các nhu cầu phụ trợ)
         self._exact = _get_aci_exact(sec, conc, steel, tied)
+
+    @property
+    def design_curves(self) -> Dict[float, List[Tuple[float, float, float]]]:
+        """theta -> list (Nd, Md, eps_t) đã nhân phi, sắp N giảm dần.
+
+        Dựng ở lần truy cập đầu tiên bằng đúng thuật toán cũ (kết quả
+        không đổi), cache trong object.
+        """
+        if self._design_curves is None:
+            curves: Dict[float, List[Tuple[float, float, float]]] = {}
+            for th in self.angles:
+                nom = aci_interaction_curve(self.sec, self.conc, self.steel,
+                                            th, self._n_points, self.tied)
+                dsgn: List[Tuple[float, float, float]] = []
+                for (Nn, Mn, eps_t, phi) in nom:
+                    Nd, Md = phi * Nn, phi * Mn
+                    # Cắt đỉnh ở N_cap
+                    if Nd > self.N_cap:
+                        Nd = self.N_cap
+                    dsgn.append((Nd, Md, eps_t))
+                dsgn.sort(key=lambda p: -p[0])
+                # Loại trùng sau khi cắt đỉnh
+                clean: List[Tuple[float, float, float]] = []
+                for p in dsgn:
+                    if (not clean or abs(p[0] - clean[-1][0]) > 1e-6
+                            or abs(p[1] - clean[-1][1]) > 1e-6):
+                        clean.append(p)
+                curves[th] = clean
+            self._design_curves = curves
+        return self._design_curves
 
     def _curve_at(self, phi_deg: float) -> List[Tuple[float, float, float]]:
         """Đường cong thiết kế tại góc gần nhất (xử lý wrap-around)."""
@@ -728,6 +847,11 @@ class ACICapacity:
                     "phi": 0.90, "eps_t": 0.01}
         for _ in range(n_iter):
             mid = 0.5 * (lo + hi)
+            if mid == lo or mid == hi:
+                # Khoảng đã thu về 2 float kề nhau: các vòng sau không
+                # đổi được lo/hi nữa (f(mid) trùng f tại đầu mút) —
+                # thoát sớm cho kết quả y hệt.
+                break
             if f(mid) > 0:
                 lo = mid
             else:
