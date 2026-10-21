@@ -50,6 +50,13 @@ class ShearResult:
              Qb = φn × 4×φb2×h0²×qsw/C theo công thức (97)
       - Qsw = φsw × qsw × C (φsw = 0.75), qsw = Rsw × Asw / s (KHÔNG nhân φn)
       - φn theo §8.1.3.3.2 từ lực dọc N và diện tích toàn tiết diện
+      - Điều kiện (98): bước đai được kể trong tính toán s_w không vượt
+             s_max = Rbt × b × h0² / |Q|. Áp cho TỪNG NHÓM đai: nhóm nào
+             có s_i > s_max thì không được kể (bị loại khỏi qsw); nếu mọi
+             nhóm đều bị loại thì Qsw = 0 — đúng hệ quả văn bản chuẩn
+             ("khi các yêu cầu nêu trên không thỏa mãn thì tính theo
+             (89)/(93) với Qsw lấy bằng không"). Điều kiện (96) sau đó
+             xét trên qsw của phần đai CÒN được kể.
     """
     ok: bool
     Q: float = 0.0            # lực cắt tính toán (kN)
@@ -72,6 +79,14 @@ class ShearResult:
     qsw_min96: float = 0.0     # N/mm — ngưỡng 0.25*Rbt*b của phương
     qb_mode: str = "CT90"      # "CT90": Qb theo (90); "CT97": Qb theo (97)
                                # khi (96) không thỏa; "NONE": không có đai
+    # TCVN 5574:2018 điều kiện (98) — bước đai tối đa được kể trong tính toán
+    s_max: float = float("inf")  # mm — Rbt*b*h0²/|Q| (inf khi Q = 0)
+    cond98_ok: bool = True     # True khi không nhóm đai nào bị loại bởi (98)
+    qsw: float = 0.0           # N/mm — qsw ĐƯỢC KỂ (sau lọc (98)), dùng
+                               # cho (96)/(97) và Qsw
+    Asw_counted: float = 0.0   # mm² — Asw được kể sau lọc (98)
+    dropped98: list = field(default_factory=list)
+                               # các nhóm (Asw_i, s_i) bị loại bởi (98)
 
 
 def phi_n_tcvn(N_kN: float, A_mm2: float, Rb: float, Rbt: float):
@@ -109,12 +124,16 @@ def check_shear(Q: float, b: float, h0: float,
                 Rb: float, Rbt: float,
                 Asw: float, Rsw: float, s: float,
                 direction: str = "",
-                N: float = 0.0, A_sec: float = 0.0) -> ShearResult:
+                N: float = 0.0, A_sec: float = 0.0,
+                groups=None) -> ShearResult:
     """Kiểm tra chịu cắt theo TCVN 5574:2018 (như file Excel mẫu).
 
     Đơn vị: Q (kN), b/h0/s (mm), Rb/Rbt/Rsw (MPa), Asw (mm²).
     N (kN, dương = nén) và A_sec (mm², diện tích toàn tiết diện) dùng để
     tính hệ số φn theo §8.1.3.3.2; A_sec <= 0 -> φn = 1 (không kể lực dọc).
+    groups: danh sách các nhóm đai [(Asw_i, s_i), ...] của phương đang xét
+    (đai bao + đai giữa) — dùng cho điều kiện (98) theo TỪNG NHÓM.
+    groups=None -> một nhóm duy nhất (Asw, s) như cách gọi cũ.
     Trả về kN.
     """
     res = ShearResult(ok=True, Q=Q, direction=direction)
@@ -128,16 +147,44 @@ def check_shear(Q: float, b: float, h0: float,
     res.Qcap1 = phi_n * 0.3 * Rb * b * h0 / 1000.0
     res.ok1 = abs(Q) <= res.Qcap1 + 1e-9
 
+    # --- Điều kiện (98): bước đai được kể trong tính toán ---
+    # s_w <= s_max = Rbt × b × h0² / |Q|  (Q tính bằng N; Q = 0 -> không
+    # giới hạn). Chuẩn viết cho một bước đai duy nhất; app có nhiều nhóm
+    # đai (bao + giữa, bước khác nhau) nên áp điều kiện cho TỪNG NHÓM:
+    # nhóm nào có s_i > s_max thì nhóm đó "không được kể đến trong tính
+    # toán" — đúng nghĩa đen của điều kiện và đúng cơ chế vật lý (vết nứt
+    # xiên phải cắt qua được đai của nhóm). Nếu mọi nhóm đều bị loại thì
+    # Qsw = 0, tính như không có đai — đúng hệ quả văn bản chuẩn.
+    if groups is None:
+        groups = [(Asw, s)] if (Asw > 0 and s > 0) else []
+    else:
+        groups = [(float(a), float(si)) for a, si in groups
+                  if a > 0 and si > 0]
+    if abs(Q) > 1e-12:
+        res.s_max = Rbt * b * h0 * h0 / (abs(Q) * 1000.0)
+    else:
+        res.s_max = float("inf")
+    counted = []
+    for a_i, s_i in groups:
+        if s_i <= res.s_max + 1e-9:
+            counted.append((a_i, s_i))
+        else:
+            res.dropped98.append((a_i, s_i))
+    res.cond98_ok = not res.dropped98
+    # qsw được kể = Σ Rsw × Asw,i / s_i trên các nhóm còn lại
+    qsw = sum(Rsw * a_i / s_i for a_i, s_i in counted)
+    res.qsw = qsw
+    res.Asw_counted = sum(a_i for a_i, s_i in counted)
+
     # --- Điều kiện 2: độ bền trên vết nứt xiên ---
-    # qsw = Rsw × Asw / s (N/mm)
-    qsw = Rsw * Asw / s if s > 0 else 0.0
     # Giới hạn Qb (áp cho cả (90) và (97) theo văn bản điều (96))
     Qb_min = 0.5 * Rbt * b * h0 / 1000.0
     Qb_max = 2.5 * Rbt * b * h0 / 1000.0
     # Điều kiện (96): qsw >= 0.25*Rbt*b mới kể đai theo (90);
-    # không thỏa nhưng có đai -> Qb theo công thức (97), đai vẫn được kể
+    # không thỏa nhưng có đai được kể -> Qb theo công thức (97),
+    # đai vẫn được kể. qsw ở đây là qsw ĐƯỢC KỂ sau điều kiện (98).
     res.qsw_min96 = 0.25 * Rbt * b
-    has_sw = Asw > 0 and qsw > 0
+    has_sw = qsw > 0
     use97 = has_sw and qsw < res.qsw_min96 - 1e-12
     res.cond96_ok = not use97
     res.qb_mode = "CT97" if use97 else ("CT90" if has_sw else "NONE")
@@ -172,8 +219,11 @@ def compute_shear_cols(inp, sec) -> dict:
     KHÔNG tự tính lại (nguyên tắc "tính 1 lần, hiển thị nhiều nơi").
 
     Trả về {"2": {...}, "3": {...}}; mỗi dict gồm:
-    Q, b, h0, Asw (bao + giữa theo phương), qsw (= Σ Rsw·Asw,i/si),
-    sh (ShearResult — đã gồm φn §8.1.3.3.2 và điều kiện (96)/(97)),
+    Q, b, h0, Asw (bao + giữa theo phương — diện tích BỐ TRÍ),
+    qsw (= Σ Rsw·Asw,i/si trên các nhóm ĐƯỢC KỂ sau điều kiện (98)),
+    qsw_arr (qsw bố trí trước lọc (98)), Asw_counted (Asw được kể),
+    s_max, cond98_ok (từ ShearResult),
+    sh (ShearResult — đã gồm φn §8.1.3.3.2 và điều kiện (96)/(97)/(98)),
     sw_txt (vd "2φ10 a200 + 2φ10 a200"), s_eff, phi_n, cond96_ok, qb_mode.
     Lỗi bất kỳ -> {} (giữ hành vi cũ của _tcvn_calculate_full).
     """
@@ -198,8 +248,11 @@ def compute_shear_cols(inp, sec) -> dict:
             Asw_outer = stir_in.legs * bar_area(stir_in.dia)
             s_outer = stir_in.spacing
             Rsw = swg.Rsw if swg else 0
-            # qsw = Σ(Rsw×Asw,i/si) theo TCVN 5574:2018 (8.1.3)
-            qsw = Rsw * Asw_outer / s_outer if s_outer > 0 else 0
+            # Các nhóm đai của phương: [(Asw_i, s_i)] — đai bao + đai giữa.
+            # qsw bố trí = Σ(Rsw×Asw,i/si) theo TCVN 5574:2018 (8.1.3);
+            # qsw ĐƯỢC KỂ do check_shear quyết định sau điều kiện (98).
+            groups = [(Asw_outer, s_outer)]
+            qsw_arr = Rsw * Asw_outer / s_outer if s_outer > 0 else 0
             Asw = Asw_outer
             sw_txt = (f"{stir_in.legs:.0f}φ{stir_in.dia:.0f} "
                       f"a{stir_in.spacing:.0f}")
@@ -212,12 +265,11 @@ def compute_shear_cols(inp, sec) -> dict:
                     if mdia_f > 0 and ms_f > 0 and mlegs_i > 0:
                         Asw_mid = mlegs_i * bar_area(mdia_f)
                         Asw += Asw_mid
-                        qsw += Rsw * Asw_mid / ms_f
+                        qsw_arr += Rsw * Asw_mid / ms_f
+                        groups.append((Asw_mid, ms_f))
                         sw_txt += f" + {mlegs_i}φ{mdia_f:.0f} a{ms_f:.0f}"
                 except Exception:
                     pass
-            # Bước đai tương đương để check_shear tính đúng qsw
-            s_eff = Rsw * Asw / qsw if qsw > 0 else s_outer
             # φn (§8.1.3.3.2): N của tổ hợp đang kiểm tra + diện tích
             # toàn tiết diện (gross) — cùng 1 N cho cả 2 phương
             try:
@@ -225,10 +277,17 @@ def compute_shear_cols(inp, sec) -> dict:
             except Exception:
                 A_sec = float(inp.cx) * float(inp.cy)
             sh = check_shear(Q, b_w, max(h0, 1), conc_mat.Rb, conc_mat.Rbt,
-                             Asw, Rsw, s_eff, direction=lbl,
+                             Asw, Rsw, s_outer, direction=lbl,
                              N=float(getattr(inp, "N", 0.0) or 0.0),
-                             A_sec=A_sec)
-            cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=qsw,
+                             A_sec=A_sec, groups=groups)
+            # Bước đai tương đương của phần đai ĐƯỢC KỂ (cho dòng công
+            # thức qsw = Rsw×Asw/s ở thuyết minh): s_eff từ Asw/qsw kể
+            s_eff = (Rsw * sh.Asw_counted / sh.qsw if sh.qsw > 0
+                     else s_outer)
+            cols[lbl] = dict(Q=Q, b=b_w, h0=h0, Asw=Asw, qsw=sh.qsw,
+                             qsw_arr=qsw_arr,
+                             Asw_counted=sh.Asw_counted,
+                             s_max=sh.s_max, cond98_ok=sh.cond98_ok,
                              sh=sh, sw_txt=sw_txt, s_eff=s_eff,
                              phi_n=sh.phi_n, cond96_ok=sh.cond96_ok,
                              qb_mode=sh.qb_mode)
