@@ -579,9 +579,9 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     ax.set_xticks([])
     ax.set_yticks([])
     ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
+def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                        sec_img_path=None, shear_info=None,
-                       show_compression: bool = True):
+                       show_compression: bool = True, _level: int = 0):
     """Xuất PDF Kết quả tính toán TCVN 5574:2018 (1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình vùng nén + 2 biểu đồ.
@@ -604,6 +604,20 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     from collections import Counter
     import os as _os
 
+
+    # --- Ep 1 trang: muc nen layout theo bac (wrapper chon muc thap
+    # nhat cho ra dung 1 trang; muc 0 = le/padding goc, chi thu hep dan).
+    _LV = max(0, min(3, int(_level)))
+    _PAD = (2.0, 1.2, 0.8, 0.6)[_LV]     # padding doc cac o bang
+    _HPAD = (3.0, 2.2, 1.8, 1.5)[_LV]    # padding duoi tieu de section
+    _LEAD = (9.0, 9.0, 8.5, 8.5)[_LV]    # leading dong chu 7pt
+    _TSP = (8, 4, 3, 2)[_LV]             # spaceAfter tieu de chinh
+    _CSP = (2.0, 1.5, 1.0, 1.0)[_LV]     # space quanh tieu de bieu do
+    _ISP = (2, 1.5, 1, 1)[_LV]           # spacer giua cac hinh
+    _MSP = (4, 3, 2, 2)[_LV]             # spacer truoc bang cat
+    _MRG = (8, 8, 7, 6)[_LV]             # le tren/duoi (mm)
+    _DROP = {"Mô đun đàn hồi, E<sub>b</sub>", "Mô đun đàn hồi, E<sub>s</sub>", "Hệ số an toàn, FS"} if _LV >= 3 else set()
+
     # Font
     FN, FNB = "Helvetica", "Helvetica-Bold"
     try:
@@ -619,14 +633,14 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
 
     # Styles — khớp mẫu Excel
     st_title = ParagraphStyle("t", fontName=FNB, fontSize=14,
-                              alignment=TA_CENTER, spaceAfter=8)
+                              alignment=TA_CENTER, spaceAfter=_TSP)
     st_sec = ParagraphStyle("sec", fontName=FNB, fontSize=9,
                             spaceBefore=5, spaceAfter=1,
                             textColor=HexColor("#111111"),
                             borderPadding=(0, 0, 2))
-    st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
-    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
-    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
+    st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=_LEAD)
+    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=_LEAD)
+    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=_LEAD,
                              alignment=TA_CENTER)
     st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
 
@@ -638,6 +652,8 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         """Bảng 2 cột kiểu Excel: tiêu đề section + các dòng xen kẽ màu."""
         data = [[Paragraph(f"<b>{title}</b>", st_sec_title)]]
         for lbl, val in rows:
+            if lbl in _DROP:
+                continue
             _vs = str(val)
             # Nếu giá trị có thẻ <b>, dùng style in đậm trực tiếp (tránh lỗi font <b>)
             if "<b>" in _vs:
@@ -651,13 +667,13 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), _PAD),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), _PAD),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             # Gạch dưới tiêu đề section
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), _HPAD),
         ]
         # Xen kẽ màu nền (trắng / xám nhạt) từ dòng 1
         for i in range(1, len(data)):
@@ -802,7 +818,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         return _t
 
     st_chart_title = ParagraphStyle("ct", parent=st_cell_b, alignment=TA_CENTER,
-                                      fontSize=8, spaceBefore=2, spaceAfter=2)
+                                      fontSize=8, spaceBefore=_CSP, spaceAfter=_CSP)
     right_flow = []
     try:
         # Hình VÙNG NÉN (giống app) - đường trung hòa chính xác từ fiber model
@@ -825,7 +841,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             getattr(res, "Bx", 0), getattr(res, "By", 0),
             na_info=_cz_na, show_compression=show_compression)
         right_flow.append(_centered_img(_sec_png, 66))
-        right_flow.append(Spacer(1, 2))
+        right_flow.append(Spacer(1, _ISP))
         # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
         _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
                                     small=True, right_half=True)
@@ -833,7 +849,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
             f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
             st_chart_title))
         right_flow.append(_centered_img(_nm_png, 66))
-        right_flow.append(Spacer(1, 2))
+        right_flow.append(Spacer(1, _ISP))
         # Biểu đồ M2-M3 (có tiêu đề như app)
         _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
         if isinstance(_m2m3_png, bytes):
@@ -860,7 +876,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
     story = []
     story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
     story.append(t_main)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, _MSP))
 
     # ===== KIỂM TRA THÉP ĐAI (full width, giữ ở trang 1) =====
     # Dùng KeepTogether để không bị tách trang
@@ -938,12 +954,12 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         _sw_style = [
             # Không kẻ GRID — thể hiện như bảng thông tin (xen kẽ màu)
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), _PAD),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), _PAD),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), _HPAD),
         ]
         for i in range(1, len(_sw_data)):
             if i % 2 == 0:
@@ -962,7 +978,31 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=10 * mm, bottomMargin=10 * mm,
+                            topMargin=_MRG * mm, bottomMargin=_MRG * mm,
                             title="Kết quả kiểm tra cột BTCT")
     doc.build(story)
+    return getattr(doc, "page", 1)
+
+
+def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
+                       sec_img_path=None, shear_info=None,
+                       show_compression: bool = True):
+    """Xuat PDF tom tat TCVN — LUON dung 1 trang A4.
+
+    Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
+    padding/leading, muc cao nhat bo vai dong thong tin phu) va lay
+    muc dau tien cho ra dung 1 trang. So lieu/ket luan khong doi.
+    """
+    import io as _io
+    _buf = None
+    for _lvl in range(4):
+        _buf = _io.BytesIO()
+        _pages = _export_summary_pdf_impl(
+            sec, inp, res, _buf, case_info=case_info,
+            sec_img_path=sec_img_path, shear_info=shear_info,
+            show_compression=show_compression, _level=_lvl)
+        if _pages <= 1:
+            break
+    with open(filepath, "wb") as _f:
+        _f.write(_buf.getvalue())
     return filepath

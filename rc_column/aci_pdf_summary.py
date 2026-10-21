@@ -135,9 +135,9 @@ def _extract_shear_q(shear_info):
     return q2, q3
 
 
-def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
+def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                            case_info=None, mm_res=None, sec_img_path=None, chart_pngs=None,
-                           shear_info=None, show_compression: bool = True):
+                           shear_info=None, show_compression: bool = True, _level: int = 0):
     """Xuất PDF Kết quả tính toán theo mẫu Excel (ACI 318-19, 1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình mặt cắt + 2 biểu đồ.
@@ -156,6 +156,20 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     from collections import Counter
     import os as _os
+
+
+    # --- Ep 1 trang: muc nen layout theo bac (wrapper chon muc thap
+    # nhat cho ra dung 1 trang; muc 0 = le/padding goc, chi thu hep dan).
+    _LV = max(0, min(3, int(_level)))
+    _PAD = (2.0, 1.2, 0.8, 0.6)[_LV]     # padding doc cac o bang
+    _HPAD = (3.0, 2.2, 1.8, 1.5)[_LV]    # padding duoi tieu de section
+    _LEAD = (9.0, 9.0, 8.5, 8.5)[_LV]    # leading dong chu 7pt
+    _TSP = (8, 4, 3, 2)[_LV]             # spaceAfter tieu de chinh
+    _CSP = (2.0, 1.5, 1.0, 1.0)[_LV]     # space quanh tieu de bieu do
+    _ISP = (2, 1.5, 1, 1)[_LV]           # spacer giua cac hinh
+    _MSP = (4, 3, 2, 2)[_LV]             # spacer truoc bang cat
+    _MRG = (8, 8, 7, 6)[_LV]             # le tren/duoi (mm)
+    _DROP = {"Mô đun đàn hồi bê tông, Ec", "Mô đun đàn hồi thép, Es", "Hệ số an toàn, FS"} if _LV >= 3 else set()
 
     # Font
     FN, FNB = "Helvetica", "Helvetica-Bold"
@@ -181,13 +195,13 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             pass
 
     st_title = ParagraphStyle("t", fontName=FNB, fontSize=14,
-                              alignment=TA_CENTER, spaceAfter=8)
+                              alignment=TA_CENTER, spaceAfter=_TSP)
     st_sec = ParagraphStyle("sec", fontName=FNB, fontSize=9,
                             spaceBefore=5, spaceAfter=1,
                             textColor=HexColor("#111111"))
-    st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=9)
-    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=9)
-    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=9,
+    st_cell = ParagraphStyle("c", fontName=FN, fontSize=7, leading=_LEAD)
+    st_cell_b = ParagraphStyle("cb", fontName=FNB, fontSize=7, leading=_LEAD)
+    st_hdr = ParagraphStyle("hdr", fontName=FNB, fontSize=7, leading=_LEAD,
                              alignment=TA_CENTER)
     st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
     st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
@@ -198,6 +212,8 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     def _sec_table(title, rows):
         data = [[Paragraph(f"<b>{title}</b>", st_sec_title)]]
         for lbl, val in rows:
+            if lbl in _DROP:
+                continue
             _vs = str(val)
             if "<b>" in _vs:
                 _vs_clean = _vs.replace("<b>", "").replace("</b>", "")
@@ -209,12 +225,12 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
         style = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), _PAD),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), _PAD),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), _HPAD),
         ]
         for i in range(1, len(data)):
             if i % 2 == 0:
@@ -339,7 +355,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
         return _t
 
     st_chart_title = ParagraphStyle("ct", parent=st_cell_b, alignment=TA_CENTER,
-                                      fontSize=8, spaceBefore=2, spaceAfter=2)
+                                      fontSize=8, spaceBefore=_CSP, spaceAfter=_CSP)
 
     right_flow = []
     try:
@@ -362,7 +378,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                                                    na_info=_na,
                                                    show_compression=show_compression)
         right_flow.append(_centered_img(_sec_png, 66))
-        right_flow.append(Spacer(1, 2))
+        right_flow.append(Spacer(1, _ISP))
         # 2 biểu đồ ACI (có tiêu đề)
         _alpha_aci = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
@@ -374,7 +390,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                 f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
                 st_chart_title))
             right_flow.append(_centered_img(_pngs[0], 66))
-            right_flow.append(Spacer(1, 2))
+            right_flow.append(Spacer(1, _ISP))
             right_flow.append(Paragraph(
                 f"<b>Mặt cắt M2-M3</b> (N = {inp.N:+.1f} kN)",
                 st_chart_title))
@@ -384,7 +400,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                 f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
                 st_chart_title))
             right_flow.append(_centered_img(chart_pngs[0], 66))
-            right_flow.append(Spacer(1, 2))
+            right_flow.append(Spacer(1, _ISP))
             right_flow.append(Paragraph(
                 f"<b>Mặt cắt M2-M3</b> (N = {inp.N:+.1f} kN)",
                 st_chart_title))
@@ -406,7 +422,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
     story = []
     story.append(Paragraph("KIỂM TRA CỘT BÊ TÔNG CỐT THÉP", st_title))
     story.append(t_main)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, _MSP))
 
     # ===== KIỂM TRA CẮT (full width, giữ ở trang 1) =====
     # Nguyên tắc "tính 1 lần": ưu tiên dùng kết quả đã tính từ app (aci_res)
@@ -510,12 +526,12 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                      hAlign="LEFT")
         _st = [
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), _PAD),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), _PAD),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, HexColor("#111111")),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), _HPAD),
         ]
         for i in range(1, len(_data)):
             if i % 2 == 0:
@@ -529,7 +545,33 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=15 * mm, rightMargin=15 * mm,
-                            topMargin=10 * mm, bottomMargin=10 * mm,
+                            topMargin=_MRG * mm, bottomMargin=_MRG * mm,
                             title="Kết quả kiểm tra cột BTCT (ACI 318-19)")
     doc.build(story)
+    return getattr(doc, "page", 1)
+
+
+def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
+                           case_info=None, mm_res=None, sec_img_path=None,
+                           chart_pngs=None, shear_info=None,
+                           show_compression: bool = True):
+    """Xuat PDF tom tat ACI 318-19 — LUON dung 1 trang A4.
+
+    Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
+    padding/leading, muc cao nhat bo vai dong thong tin phu) va lay
+    muc dau tien cho ra dung 1 trang. So lieu/ket luan khong doi.
+    """
+    import io as _io
+    _buf = None
+    for _lvl in range(4):
+        _buf = _io.BytesIO()
+        _pages = _export_aci_summary_pdf_impl(
+            sec, inp, aci_res, conc, steel, tied, _buf,
+            case_info=case_info, mm_res=mm_res, sec_img_path=sec_img_path,
+            chart_pngs=chart_pngs, shear_info=shear_info,
+            show_compression=show_compression, _level=_lvl)
+        if _pages <= 1:
+            break
+    with open(filepath, "wb") as _f:
+        _f.write(_buf.getvalue())
     return filepath
