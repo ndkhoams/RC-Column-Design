@@ -219,14 +219,7 @@ class _TCVNExact:
             s_max = float(s_f.max()) if len(s_f) else 0.0
             s_min = float(s_f.min()) if len(s_f) else 0.0
             h_s = max(s_max - s_min, 1e-9)
-            Ns, M2s, M3s, NAs = [], [], [], []
-            for eps_far in self._eps_far:
-                if eps_far >= self.eps_cu - 1e-15:
-                    na = float("inf")
-                else:
-                    na = self.eps_cu * h_s / (self.eps_cu - eps_far)
-                N, M2, M3 = self._state(g, na, s_max)
-                Ns.append(N); M2s.append(M2); M3s.append(M3); NAs.append(na)
+            Ns, M2s, M3s, NAs = self._states_batch(g, s_max, h_s)
             kN, kM2, kM3, kNA = [], [], [], []
             last = None
             for N, M2, M3, na in zip(Ns, M2s, M3s, NAs):
@@ -323,6 +316,121 @@ class _TCVNExact:
                         M2 * ux + M3 * uy, M2 * px + M3 * py,
                         na, M2, M3, int(gi)))
         return pts
+
+    def _states_batch(self, gamma_rad: float, s_max: float, h_s: float):
+        """Toàn bộ trạng thái của 1 gamma (theo _eps_far) tính BATCH.
+
+        Cùng biểu thức, cùng thứ tự phép tính từng phần tử như vòng lặp
+        _state -> FiberSection.forces/concrete_stress/steel_stress, và
+        tổng theo axis=1 khớp np.sum 1D từng bit (đã kiểm chứng) — kết
+        quả lưới identical, chỉ khác là numpy chạy trên ma trận
+        (n_state x n_fiber) thay vì từng trạng thái một.
+        Trả (Ns, M2s, M3s, NAs) dạng list, đúng thứ tự _eps_far.
+        """
+        fs = self.fs
+        nas = []
+        for eps_far in self._eps_far:
+            if eps_far >= self.eps_cu - 1e-15:
+                nas.append(float("inf"))
+            else:
+                nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
+        na_arr = np.array(nas, dtype=float)
+        kappa = self.eps_cu / na_arr          # na=inf -> 0.0 (như _state)
+        cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
+        eps0 = self.eps_cu - kappa * s_max
+        kx = kappa * sg
+        ky = kappa * cg
+        n = len(nas)
+        # Chunk theo so fiber de ma tran tam vua cache (tiet dien lon
+        # nhu da giac V2 ~6700 fiber: batch day du cham hon vi tran RAM)
+        blk = max(14, min(n, 384_000 // max(len(fs.fx), 1)))
+        Ns = np.empty(n)
+        M2s = np.empty(n)
+        M3s = np.empty(n)
+        Fa = fs.fa[None, :]
+        Ra = fs.ra[None, :]
+        fy2 = fs.fy[None, :]
+        fx2 = fs.fx[None, :]
+        ry2 = fs.ry[None, :]
+        rx2 = fs.rx[None, :]
+        # Workspace cap 1 lan, tai dung cho moi gamma/block: tranh cap
+        # phat lai cac ma tran MB o moi gamma (chiem phan lon chi phi
+        # batch tren tiet dien nhieu fiber). Cac phep tinh dung out=
+        # nhung giu nguyen thu tu/trinh tu phep tinh tung phan tu.
+        ws = self.__dict__.get("_batch_ws")
+        if ws is None or ws[0].shape != (blk, len(fs.fx)):
+            E = np.empty((blk, len(fs.fx)))
+            SF = np.empty_like(E)
+            P = np.empty_like(E)
+            T = np.empty_like(E)
+            C = np.empty((blk, len(fs.fx)), dtype=bool)
+            ER = np.empty((blk, len(fs.rx)))
+            SR = np.empty_like(ER)
+            Q = np.empty_like(ER)
+            ws = (E, SF, P, T, C, ER, SR, Q)
+            self._batch_ws = ws
+        E, SF, P, T, C, ER, SR, Q = ws
+        for a in range(0, n, blk):
+            b = min(n, a + blk)
+            m = b - a
+            Ev = E[:m]
+            # Biến dạng fiber: eps0 + kx*fy + ky*fx (biểu thức của
+            # forces; cong doi cho doi cho phep vi phep cong IEEE
+            # giao hoan tung bit: kx*fy + eps0 == eps0 + kx*fy)
+            np.multiply(kx[a:b, None], fy2, out=Ev)
+            Ev += eps0[a:b, None]
+            np.multiply(ky[a:b, None], fx2, out=T[:m])
+            Ev += T[:m]
+            # concrete_stress batch: xu ly tren tap con eps>0 bang mask
+            # nhu FiberSection.concrete_stress (it luot quet ma tran
+            # lon hon chuoi np.where long nhau, cung bieu thuc tung
+            # phan tu nen khop bit)
+            SFv = SF[:m]
+            SFv.fill(0.0)
+            np.greater(Ev, 0.0, out=C[:m])
+            e = Ev[C[:m]]
+            if self.model == "3line":
+                eta = np.minimum(e / 0.002, 1.0)
+                par = fs.Rb * (2.0 * eta - eta * eta)
+                SFv[C[:m]] = np.where(e <= EPS_B2,
+                                      np.where(e <= 0.002, par, fs.Rb), 0.0)
+            else:
+                e0 = fs.Rb / fs.Eb
+                SFv[C[:m]] = np.where(e <= e0, fs.Eb * e,
+                                      np.where(e <= EPS_B2, fs.Rb, 0.0))
+            np.multiply(SFv, Fa, out=P[:m])
+            Nf = np.sum(P[:m], axis=1)
+            np.multiply(P[:m], fy2, out=T[:m])
+            Mxf = np.sum(T[:m], axis=1)
+            np.multiply(P[:m], fx2, out=T[:m])
+            Myf = np.sum(T[:m], axis=1)
+            if fs.ra.size:
+                ERv = ER[:m]
+                np.multiply(kx[a:b, None], ry2, out=ERv)
+                ERv += eps0[a:b, None]
+                np.multiply(ky[a:b, None], rx2, out=Q[:m])
+                ERv += Q[:m]
+                # steel_stress batch: gan theo mask nhu FiberSection
+                SRv = SR[:m]
+                SRv.fill(0.0)
+                aER = np.abs(ERv)
+                el = aER <= fs.eps_y
+                SRv[el] = fs.Es * ERv[el]
+                pl = (~el) & (aER <= EPS_S2)
+                SRv[pl] = np.where(ERv[pl] > 0, fs.Rs, -fs.Rsc)
+                np.multiply(SRv, Ra, out=Q[:m])
+                Nr = np.sum(Q[:m], axis=1)
+                np.multiply(Q[:m], ry2, out=ERv)
+                Mxr = np.sum(ERv, axis=1)
+                np.multiply(Q[:m], rx2, out=ERv)
+                Myr = np.sum(ERv, axis=1)
+            else:
+                Nr = Mxr = Myr = 0.0
+            Ns[a:b] = (Nf + Nr) / 1000.0
+            M2s[a:b] = (Mxf + Mxr) / 1e6
+            M3s[a:b] = (Myf + Myr) / 1e6
+        return ([float(v) for v in Ns], [float(v) for v in M2s],
+                [float(v) for v in M3s], nas)
 
     def _state(self, gamma_rad: float, na: float, _smax=None):
         """Trạng thái biến dạng phẳng (gamma, na) -> (N_kN, M2_kNm, M3_kNm)
