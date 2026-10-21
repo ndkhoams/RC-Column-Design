@@ -233,6 +233,20 @@ class EtabsMixin:
         entry.bind("<FocusOut>", lambda e: _close())
         entry.bind("<Escape>", lambda e: _close())
 
+    def _batch_pump(self, total):
+        """Tien trinh batch: moi 16 dong cap nhat trang thai + bom su
+        kien UI (update_idletasks) de cua so khong bi Windows gan
+        'Not Responding' trong luc tinh batch dai."""
+        n = getattr(self, "_batch_done", 0) + 1
+        self._batch_done = n
+        if n % 16 == 0 or n == total:
+            try:
+                self.etabs_info.set(
+                    f"Đang kiểm tra... {n}/{total} tổ hợp")
+                self.update_idletasks()
+            except Exception:
+                pass
+
     def _check_aci_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo ACI 318-19."""
         from rc_column.aci_materials import ACIConcrete, ACISteel
@@ -249,6 +263,7 @@ class EtabsMixin:
         conc = ACIConcrete(fc=fc)
         steel = ACISteel(fy=fy)
         self.etabs_info.set("Đang kiểm tra ACI, vui lòng đợi...")
+        self._batch_done = 0
         self.update_idletasks()
         import time
         t0 = time.time()
@@ -300,6 +315,7 @@ class EtabsMixin:
             _Ig2 = sec_g.cx * sec_g.cy**3 / 12
             _Ig3 = sec_g.cy * sec_g.cx**3 / 12
             for _f in _flist:
+                self._batch_pump(len(_forces_check))
                 try:
                     if _cap_g is None:
                         raise RuntimeError("capacity")
@@ -488,6 +504,7 @@ class EtabsMixin:
                   if self.cb_ec2_method.get().startswith("Độ cong")
                   else "stiffness")
         self.etabs_info.set("Đang kiểm tra EC2, vui lòng đợi...")
+        self._batch_done = 0
         self.update_idletasks()
         import time
         t0 = time.time()
@@ -550,6 +567,7 @@ class EtabsMixin:
                 except Exception:
                     n_bal = 0.0
             for _f in _flist:
+                self._batch_pump(len(_forces_check))
                 try:
                     if _cap_g is None:
                         raise RuntimeError("capacity")
@@ -749,6 +767,7 @@ class EtabsMixin:
             return
         from rc_column.checker import BatchChecker
         self.etabs_info.set("Đang kiểm tra, vui lòng đợi...")
+        self._batch_done = 0
         self.update_idletasks()
         import time
         t0 = time.time()
@@ -789,6 +808,7 @@ class EtabsMixin:
             _bc = BatchChecker(_inp_g, n_angles=12)
             from rc_column.stability import LongTermLoads as _LongTermLoads
             for _f in _flist:
+                self._batch_pump(len(_forces_check))
                 # phi_L của TỪNG tổ hợp: dùng mô men TX_* tại đúng vị trí
                 # (nhất quán với tính full của tổ hợp nguy hiểm nhất ở dưới);
                 # không có TX_* tại vị trí thì giữ long_term từ collect()
