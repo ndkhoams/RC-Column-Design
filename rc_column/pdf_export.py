@@ -883,7 +883,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
 
         st_chart_title = ParagraphStyle("ct", parent=st_cell_b, alignment=TA_CENTER,
                                           fontSize=8, spaceBefore=_CSP, spaceAfter=_CSP)
-        right_flow = []
+        _blkA, _blkB, _blkC = [], [], []
         try:
             # Hình VÙNG NÉN (giống app) - đường trung hòa chính xác từ fiber model
             _cz_na = None
@@ -904,25 +904,51 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                 sec, getattr(res, "BN", inp.N),
                 getattr(res, "Bx", 0), getattr(res, "By", 0),
                 na_info=_cz_na, show_compression=show_compression)
-            right_flow.append(_centered_img(_sec_png, _IW))
-            right_flow.append(Spacer(1, _ISP))
+            _blkA.append(_centered_img(_sec_png, _IW))
             # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
             _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
                                         small=True, right_half=True)
-            right_flow.append(Paragraph(
+            _blkB.append(Paragraph(
                 f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
                 st_chart_title))
-            right_flow.append(_centered_img(_nm_png, _IW))
-            right_flow.append(Spacer(1, _ISP))
+            _blkB.append(_centered_img(_nm_png, _IW))
             # Biểu đồ M2-M3 (có tiêu đề như app)
             _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
             if isinstance(_m2m3_png, bytes):
-                right_flow.append(Paragraph(
+                _blkC.append(Paragraph(
                     f"<b>Mặt cắt M2-M3</b> (N = {res.N:+.1f} kN)",
                     st_chart_title))
-                right_flow.append(_centered_img(_m2m3_png, _IW))
+                _blkC.append(_centered_img(_m2m3_png, _IW))
         except Exception as e:
-            right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
+            _blkA = [Paragraph(f"(Không vẽ được hình: {e})", st_cell)]
+            _blkB, _blkC = [], []
+        # --- Neo 3 khoi hinh cot phai: mat cat CAN TREN, M2-M3 CAN
+        # DUOI, N-M CAN GIUA: phan chieu cao cot phai con thieu so
+        # voi cot trai chia deu vao cac spacer giua cac khoi.
+        def _hh(_fl):
+            _t = 0.0
+            for _f in _fl:
+                _w2, _h2 = _f.wrap(90 * mm, 10000)
+                _t += _h2
+                try:
+                    _t += _f.getSpaceBefore() + _f.getSpaceAfter()
+                except Exception:
+                    pass
+            return _t
+        _blocks = [_b for _b in (_blkA, _blkB, _blkC) if _b]
+        _ngaps = max(0, len(_blocks) - 1)
+        _extra = 0.0
+        if _ngaps:
+            _resid = (_hh(left_flow)
+                      - sum(_hh(_b) for _b in _blocks)
+                      - _ISP * _ngaps)
+            _extra = max(0.0, _resid) / _ngaps
+        right_flow = []
+        for _i, _b in enumerate(_blocks):
+            if _i:
+                right_flow.append(Spacer(1, _ISP + _extra))
+            right_flow.extend(_b)
+
 
         # ===== Bảng 2 cột chính =====
         # Tỉ lệ 2:1:3 — nhãn 60mm, giá trị 30mm, hình 90mm
@@ -930,7 +956,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         t_main = Table(main_data, colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
         t_main.setStyle(TableStyle([
             ("VALIGN", (0, 0), (0, 0), "TOP"),
-            ("VALIGN", (1, 0), (1, 0), "BOTTOM"),
+            ("VALIGN", (1, 0), (1, 0), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0),

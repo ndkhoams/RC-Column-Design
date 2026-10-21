@@ -455,7 +455,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         st_chart_title = ParagraphStyle("ct", parent=st_cell_b, alignment=TA_CENTER,
                                           fontSize=8, spaceBefore=_CSP, spaceAfter=_CSP)
 
-        right_flow = []
+        _blkA, _blkB, _blkC = [], [], []
         try:
             # Vùng nén (giống app)
             import sys as _sys
@@ -475,8 +475,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _sec_png = _pdf_exp.compression_zone_image(sec, _BN, _Bx, _By,
                                                        na_info=_na,
                                                        show_compression=show_compression)
-            right_flow.append(_centered_img(_sec_png, _IW))
-            right_flow.append(Spacer(1, _ISP))
+            _blkA.append(_centered_img(_sec_png, _IW))
             # 2 biểu đồ ACI (có tiêu đề)
             _alpha_aci = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
                 if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
@@ -484,33 +483,59 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
                                     mc2=_mm.get("Mc2"), mc3=_mm.get("Mc3"))
             if _pngs and len(_pngs) >= 2:
-                right_flow.append(Paragraph(
+                _blkB.append(Paragraph(
                     f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
                     st_chart_title))
-                right_flow.append(_centered_img(_pngs[0], _IW))
-                right_flow.append(Spacer(1, _ISP))
-                right_flow.append(Paragraph(
+                _blkB.append(_centered_img(_pngs[0], _IW))
+                _blkC.append(Paragraph(
                     f"<b>Mặt cắt M2-M3</b> (N = {inp.N:+.1f} kN)",
                     st_chart_title))
-                right_flow.append(_centered_img(_pngs[1], _IW))
+                _blkC.append(_centered_img(_pngs[1], _IW))
             elif chart_pngs and len(chart_pngs) >= 2:
-                right_flow.append(Paragraph(
+                _blkB.append(Paragraph(
                     f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
                     st_chart_title))
-                right_flow.append(_centered_img(chart_pngs[0], _IW))
-                right_flow.append(Spacer(1, _ISP))
-                right_flow.append(Paragraph(
+                _blkB.append(_centered_img(chart_pngs[0], _IW))
+                _blkC.append(Paragraph(
                     f"<b>Mặt cắt M2-M3</b> (N = {inp.N:+.1f} kN)",
                     st_chart_title))
-                right_flow.append(_centered_img(chart_pngs[1], _IW))
+                _blkC.append(_centered_img(chart_pngs[1], _IW))
         except Exception as e:
-            right_flow.append(Paragraph(f"(Không vẽ được hình: {e})", st_cell))
+            _blkA = [Paragraph(f"(Không vẽ được hình: {e})", st_cell)]
+            _blkB, _blkC = [], []
+        # --- Neo 3 khoi hinh cot phai: mat cat CAN TREN, M2-M3 CAN
+        # DUOI, N-M CAN GIUA: phan chieu cao cot phai con thieu so
+        # voi cot trai chia deu vao cac spacer giua cac khoi.
+        def _hh(_fl):
+            _t = 0.0
+            for _f in _fl:
+                _w2, _h2 = _f.wrap(90 * mm, 10000)
+                _t += _h2
+                try:
+                    _t += _f.getSpaceBefore() + _f.getSpaceAfter()
+                except Exception:
+                    pass
+            return _t
+        _blocks = [_b for _b in (_blkA, _blkB, _blkC) if _b]
+        _ngaps = max(0, len(_blocks) - 1)
+        _extra = 0.0
+        if _ngaps:
+            _resid = (_hh(left_flow)
+                      - sum(_hh(_b) for _b in _blocks)
+                      - _ISP * _ngaps)
+            _extra = max(0.0, _resid) / _ngaps
+        right_flow = []
+        for _i, _b in enumerate(_blocks):
+            if _i:
+                right_flow.append(Spacer(1, _ISP + _extra))
+            right_flow.extend(_b)
+
 
         t_main = Table([[left_flow, right_flow]],
                        colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
         t_main.setStyle(TableStyle([
             ("VALIGN", (0, 0), (0, 0), "TOP"),
-            ("VALIGN", (1, 0), (1, 0), "BOTTOM"),
+            ("VALIGN", (1, 0), (1, 0), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
