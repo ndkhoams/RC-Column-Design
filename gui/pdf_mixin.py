@@ -43,7 +43,7 @@ class PdfMixin:
             # dùng kết quả cột còn lưu để xuất cho vách
             if getattr(self, "cb_member", None) is not None \
                     and self.cb_member.get() == "Vách":
-                self._wall_notice("Xuất PDF")
+                self._wall_notice("Xuất PDF", "lát 6")
                 return
             # Kiểm tra kết quả theo tiêu chuẩn đang chọn
             # (trước đây chỉ kiểm tra _last_sec của TCVN nên ACI/EC2 báo lỗi)
