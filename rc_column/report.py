@@ -259,7 +259,10 @@ def _build_report(inp: ColumnInput, res: CheckResult,
         m1 = "✓" if sh.ok1 else "✗"
         m2 = "✓" if sh.ok2 else "✗"
         # Diễn giải công thức
-        qsw = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
+        # qsw hiển thị ở dòng Qsw phải là qsw ĐƯỢC KỂ từ check_shear
+        # (sau điều kiện (98)); qsw bố trí chỉ để in dòng công thức gốc
+        qsw = sh.qsw
+        qsw_arr = Rsw * Asw / stir_in.spacing if stir_in.spacing > 0 else 0
         Qb_lim_lo = 0.5 * Rbt * b_w * h0u / 1000.0
         Qb_lim_hi = 2.5 * Rbt * b_w * h0u / 1000.0
         A(f"  Phương {dnum}: Q = {_f(Q, 1)} kN; "
@@ -271,7 +274,11 @@ def _build_report(inp: ColumnInput, res: CheckResult,
           f"= {_f(sh.Qcap1, 1)} kN\n", "card")
         A(f"    {m2} ĐK2 (vết nứt xiên): Q ≤ Q_{{b}} + Q_{{sw}}\n", "card")
         A(f"       q_{{sw}} = R_{{sw}}×A_{{sw}}/s = {_f(Rsw, 0)}×{Asw:.0f}/{stir_in.spacing:.0f}"
-          f" = {_f(qsw, 1)} N/mm\n", "card")
+          f" = {_f(qsw_arr, 1)} N/mm\n", "card")
+        if not sh.cond98_ok:
+            A(f"       ✗ ĐK (98): s = {stir_in.spacing:.0f} > s_max = "
+              f"{_f(sh.s_max, 0)} mm → đai không được kể, "
+              f"qsw kể = {_f(sh.qsw, 1)} N/mm, Qsw = 0\n", "card")
         A(f"       Q_{{b}} = φ_{{b2}}×R_{{bt}}×b×h_{{0}}²/C = 1.5×{_f(Rbt, 2)}×{b_w:.0f}×{h0u:.0f}²"
           f"/{sh.C_opt:.0f}/1000 = {_f(sh.Qb_opt, 1)} kN\n", "card")
         A(f"       (giới hạn Q_{{b}} ∈ [{_f(Qb_lim_lo, 1)}, {_f(Qb_lim_hi, 1)}] kN)\n",
