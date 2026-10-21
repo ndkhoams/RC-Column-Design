@@ -96,9 +96,10 @@ class BuildMixin:
                    command=self.on_save_as_data).grid(row=0, column=2,
                                                       sticky=tk.EW,
                                                       padx=(2, 2))
-        ttk.Button(top_grid, text="✓ CHECK", style="Check.TButton",
-                   command=self.on_check).grid(row=0, column=3,
-                                               sticky=tk.EW, padx=(4, 0))
+        self.btn_check = ttk.Button(top_grid, text="✓ CHECK",
+                                    style="Check.TButton",
+                                    command=self.on_check)
+        self.btn_check.grid(row=0, column=3, sticky=tk.EW, padx=(4, 0))
         # Hàng 2: Tiêu chuẩn [dropdown dài] Tên cấu kiện [textbox=col2] [CHECK=col3]
         # (theo yêu cầu user 2026-10-17: textbox bằng SAVE AS, CHECK bằng XUẤT PDF)
         row2 = ttk.Frame(top_grid)
