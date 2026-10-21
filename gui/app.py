@@ -53,6 +53,22 @@ def _git_commit():
 
 _GIT_COMMIT = _git_commit()
 
+
+def _ensure_app_user_model_id():
+    """Windows: gán AppUserModelID riêng cho tiến trình để taskbar gom
+    cửa sổ theo đúng app này và dùng icon của app, thay vì gom theo
+    python.exe (icon Python) khi chạy từ source. Phải gọi trước khi tạo
+    cửa sổ; ngoài Windows là no-op."""
+    try:
+        import sys as _sys
+        if _sys.platform != "win32":
+            return
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "RCColumnDesign.App")
+    except Exception:
+        pass
+
 import math
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -90,29 +106,43 @@ from .preview_mixin import PreviewMixin
 class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin,
           BuildMixin, DataMixin, DxfMixin, PreviewMixin):
     def __init__(self):
+        _ensure_app_user_model_id()
         super().__init__()
         _gc = f" · {_GIT_COMMIT}" if _GIT_COMMIT else ""
         self.title(f"RC Column Design [{APP_BUILD}]{_gc}")
         self.geometry("1360x860")
-        # Icon title bar: ưu tiên PNG (ổn định hơn ICO trên tkinter)
+        # Icon cửa sổ (title bar + taskbar). Nguồn duy nhất: icon.png /
+        # icon.ico ở thư mục gốc repo (chạy source) hoặc trong bundle exe
+        # (build_exe.py đóng gói kèm bằng --add-data; thiếu là bản exe
+        # không tìm thấy file và cửa sổ mất icon). PNG qua iconphoto —
+        # đặt làm mặc định cho cả cửa sổ con/hộp thoại. Riêng Windows gắn
+        # thêm iconbitmap bằng file .ico: đó là đường icon gốc của
+        # Windows (đủ size 16/32/48 cho title bar và taskbar).
         try:
             import os, sys
-            _base = os.path.normpath(os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), ".."))
+            _bases = [os.path.normpath(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), ".."))]
             if hasattr(sys, "_MEIPASS"):
-                _base = sys._MEIPASS
-            _png = os.path.join(_base, "icon.png")
-            _ico = os.path.join(_base, "icon.ico")
-            _done = False
-            if os.path.exists(_png):
+                _bases.insert(0, sys._MEIPASS)
+            if getattr(sys, "frozen", False):
+                _bases.append(os.path.dirname(
+                    os.path.abspath(sys.executable)))
+            _png = _ico = None
+            for _b in _bases:
+                if _png is None and os.path.exists(
+                        os.path.join(_b, "icon.png")):
+                    _png = os.path.join(_b, "icon.png")
+                if _ico is None and os.path.exists(
+                        os.path.join(_b, "icon.ico")):
+                    _ico = os.path.join(_b, "icon.ico")
+            if _png:
                 try:
                     _img = tk.PhotoImage(file=_png)
                     self.iconphoto(True, _img)
                     self._icon_img = _img
-                    _done = True
                 except Exception:
                     pass
-            if not _done and os.path.exists(_ico):
+            if _ico and sys.platform == "win32":
                 try:
                     self.iconbitmap(_ico)
                 except Exception:
@@ -392,6 +422,7 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin,
 
 
 def main():
+    _ensure_app_user_model_id()
     app = App()
     app._refresh_rebar()
     app.mainloop()
