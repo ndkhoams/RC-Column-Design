@@ -25,6 +25,20 @@ def _find_font_bold():
     return _mpl_font("DejaVuSans-Bold.ttf")
 
 
+def _fm(x):
+    """Định dạng cường độ tra bảng/nhập liệu: in ĐÚNG giá trị thật dùng trong
+    tính toán, cắt số 0 thừa ở cuối (14.5 -> '14.5', 350 -> '350',
+    1.05 -> '1.05'). Không dùng cho giá trị suy ra bằng phép chia."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(v):
+        return "—"
+    s = f"{v:.6f}".rstrip("0").rstrip(".")
+    return s if s not in ("", "-0") else "0"
+
+
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
 def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                    legend_y: float = 1.02,
@@ -750,20 +764,20 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         if _cg:
             _mat_rows += [
                 ("Bê tông", inp.concrete_grade),
-                ("Cường độ chịu nén, R<sub>b</sub>", f"{_cg.Rb:.0f} MPa"),
-                ("Mô đun đàn hồi, E<sub>b</sub>", f"{_cg.Eb:.0f} MPa"),
+                ("Cường độ chịu nén, R<sub>b</sub>", f"{_fm(_cg.Rb)} MPa"),
+                ("Mô đun đàn hồi, E<sub>b</sub>", f"{_fm(_cg.Eb)} MPa"),
             ]
         if _sg:
             _mat_rows += [
                 ("Cốt thép dọc", inp.steel_grade),
-                ("Cường độ chịu kéo, R<sub>s</sub>", f"{_sg.Rs:.0f} MPa"),
-                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_sg.Es:.0f} MPa"),
+                ("Cường độ chịu kéo, R<sub>s</sub>", f"{_fm(_sg.Rs)} MPa"),
+                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(_sg.Es)} MPa"),
             ]
         if _swg:
             _mat_rows += [
                 ("Cốt thép đai", inp.sw_steel_grade),
-                ("Cường độ chịu cắt, R<sub>sw</sub>", f"{_swg.Rsw:.0f} MPa"),
-                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_swg.Es:.0f} MPa"),
+                ("Cường độ chịu cắt, R<sub>sw</sub>", f"{_fm(_swg.Rsw)} MPa"),
+                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(_swg.Es)} MPa"),
             ]
         left_flow.append(_sec_table("VẬT LIỆU", _mat_rows))
 

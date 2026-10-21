@@ -10,6 +10,20 @@ def _f(x: float, nd: int = 2) -> str:
     return f"{x:.{nd}f}"
 
 
+def _fm(x):
+    """Định dạng cường độ tra bảng/nhập liệu: in ĐÚNG giá trị thật, cắt số 0
+    thừa ở cuối (460.5 -> '460.5', 500 -> '500'). Không dùng cho giá trị
+    suy ra bằng phép chia (fcd/fyd giữ quy ước thập phân hiện tại)."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(v):
+        return "—"
+    s = f"{v:.6f}".rstrip("0").rstrip(".")
+    return s if s not in ("", "-0") else "0"
+
+
 def _mk(title: str, ref: str, lines: List[str], result: str = "", dc_conclusion: bool = False, dc: float = 0.0, fs: float = 0.0, ok: bool = True, shear_conclusion: bool = False) -> Dict[str, Any]:
     return {"title": title, "ref": ref, "lines": lines, "result": result, "dc_conclusion": dc_conclusion, "dc": dc, "fs": fs, "ok": ok, "shear_conclusion": shear_conclusion, "full": False, "conclusion": False}
 
@@ -38,19 +52,19 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         "cards": [
             _mk("Bê tông",
                 "EC2 3.1",
-                [f"fck = {_f(fck, 0)} MPa",
+                [f"fck = {_fm(fck)} MPa",
                  f"fcd = {_f(conc.fcd, 2)} MPa",
                  f"Ecm = {_f(conc.Ecm, 0)} MPa"],
                 ""),
             _mk("Cốt thép dọc",
                 "EC2 3.2",
-                [f"fyk = {_f(fyk, 0)} MPa",
+                [f"fyk = {_fm(fyk)} MPa",
                  f"fyd = {_f(steel.fyd, 1)} MPa",
                  "Es = 200000 MPa"],
                 ""),
             _mk("Cốt thép đai",
                 "EC2 3.2",
-                [f"fyk,đai = {_f(getattr(steel, 'fyk_sw', fyk), 0)} MPa",
+                [f"fyk,đai = {_fm(getattr(steel, 'fyk_sw', fyk))} MPa",
                  "Es = 200000 MPa"],
                 ""),
         ],

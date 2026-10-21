@@ -43,6 +43,20 @@ def _f(x, nd=1, unit=""):
     return f"{float(x):.{nd}f}{unit}"
 
 
+def _fm(x):
+    """Định dạng cường độ tra bảng/nhập liệu: in ĐÚNG giá trị thật, cắt số 0
+    thừa ở cuối (460.5 -> '460.5', 500 -> '500'). Không dùng cho giá trị
+    suy ra bằng phép chia (fcd/fyd giữ quy ước thập phân hiện tại)."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return "—"
+    if not _m.isfinite(v):
+        return "—"
+    s = f"{v:.6f}".rstrip("0").rstrip(".")
+    return s if s not in ("", "-0") else "0"
+
+
 def _f_dc(dc):
     try:
         if dc is None or not _m.isfinite(float(dc)):
@@ -387,11 +401,11 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         _fyk_sw = fyk_sw if fyk_sw is not None else steel.fyk
         _fyd_sw = _fyk_sw / 1.15
         left_flow.append(_sec_table("VẬT LIỆU", [
-            ("Cường độ bê tông, fck", f"{conc.fck:.0f} MPa"),
+            ("Cường độ bê tông, fck", f"{_fm(conc.fck)} MPa"),
             ("Cường độ tính toán, fcd", f"{conc.fcd:.2f} MPa"),
             ("Mô đun đàn hồi, Ecm", f"{conc.Ecm:.0f} MPa"),
-            ("Cường độ thép dọc, fyk", f"{steel.fyk:.0f} MPa"),
-            ("Cường độ thép đai, fyk", f"{_fyk_sw:.0f} MPa"),
+            ("Cường độ thép dọc, fyk", f"{_fm(steel.fyk)} MPa"),
+            ("Cường độ thép đai, fyk", f"{_fm(_fyk_sw)} MPa"),
             ("Cường độ tính toán, fyd", f"{steel.fyd:.1f} MPa"),
             ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
         ]))

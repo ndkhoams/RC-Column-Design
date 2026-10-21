@@ -15,6 +15,20 @@ def _f(x: float, nd: int = 2) -> str:
     return f"{x:.{nd}f}"
 
 
+def _fm(x):
+    """Định dạng cường độ tra bảng/nhập liệu: in ĐÚNG giá trị thật, cắt số 0
+    thừa ở cuối (27.579 -> '27.579', 420 -> '420'). Không dùng cho giá trị
+    suy ra bằng phép chia/công thức."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(v):
+        return "—"
+    s = f"{v:.6f}".rstrip("0").rstrip(".")
+    return s if s not in ("", "-0") else "0"
+
+
 def _mk(title: str, ref: str, lines: List[str], result: str = "", full: bool = False, conclusion: bool = False, dc_conclusion: bool = False, dc: float = 0.0, fs: float = 0.0, ok: bool = True, shear_conclusion: bool = False) -> Dict[str, Any]:
     return {"title": title, "ref": ref, "lines": lines, "result": result, "full": full, "conclusion": conclusion, "dc_conclusion": dc_conclusion, "dc": dc, "fs": fs, "ok": ok, "shear_conclusion": shear_conclusion}
 
@@ -50,7 +64,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         "cards": [
             _mk("Bê tông",
                 "ACI 19.2.2.1, 22.2.2.1",
-                [f"f'c = {_f(fc, 0)} MPa",
+                [f"f'c = {_fm(fc)} MPa",
                  f"Ec = 4700√f'c = {_f(conc.Ec, 0)} MPa",
                  "εcu = 0.003",
                  f"β1 = {_f(conc.beta1, 4)}",
@@ -58,13 +72,13 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                 ""),
             _mk("Cốt thép dọc",
                 "ACI 20.2.2",
-                [f"fy = {_f(fy, 0)} MPa",
+                [f"fy = {_fm(fy)} MPa",
                  "Es = 200000 MPa",
                  f"εy = {_f(eps_y, 5)}"],
                 ""),
             _mk("Cốt thép đai",
                 "ACI 20.2.2",
-                [f"fyt = {_f(fyt_MPa, 0)} MPa",
+                [f"fyt = {_fm(fyt_MPa)} MPa",
                  "Es = 200000 MPa",
                  f"Loại: {tie_txt}"],
                 ""),

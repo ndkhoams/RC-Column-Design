@@ -43,6 +43,20 @@ def _f(x, nd=1, unit=""):
     return f"{float(x):.{nd}f}{unit}"
 
 
+def _fm(x):
+    """Định dạng cường độ tra bảng/nhập liệu: in ĐÚNG giá trị thật, cắt số 0
+    thừa ở cuối (27.579 -> '27.579', 420 -> '420'). Không dùng cho giá trị
+    suy ra bằng phép chia/công thức."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return "—"
+    if not _m.isfinite(v):
+        return "—"
+    s = f"{v:.6f}".rstrip("0").rstrip(".")
+    return s if s not in ("", "-0") else "0"
+
+
 def _f_dc(dc):
     try:
         if dc is None or not _m.isfinite(float(dc)):
@@ -300,11 +314,11 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             ("Tên cấu kiện", _ck_name or "—"),
         ]))
         left_flow.append(_sec_table("VẬT LIỆU", [
-            ("Cường độ bê tông, f'c", f"{conc.fc:.2f} MPa"),
+            ("Cường độ bê tông, f'c", f"{_fm(conc.fc)} MPa"),
             ("Mô đun đàn hồi bê tông, Ec", f"{conc.Ec:.0f} MPa"),
-            ("Cường độ thép dọc, fy", f"{steel.fy:.0f} MPa"),
+            ("Cường độ thép dọc, fy", f"{_fm(steel.fy)} MPa"),
             ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
-            ("Cường độ thép đai, fyt", f"{_fyt:.0f} MPa"),
+            ("Cường độ thép đai, fyt", f"{_fm(_fyt)} MPa"),
             ("Loại cốt đai", tie_txt),
         ]))
         left_flow.append(_sec_table("TIẾT DIỆN", [
