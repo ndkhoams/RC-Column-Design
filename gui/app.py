@@ -101,10 +101,11 @@ from .build_mixin import BuildMixin
 from .data_mixin import DataMixin
 from .dxf_mixin import DxfMixin
 from .preview_mixin import PreviewMixin
+from .wall_mixin import WallMixin
 
 
 class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin,
-          BuildMixin, DataMixin, DxfMixin, PreviewMixin):
+          BuildMixin, DataMixin, DxfMixin, PreviewMixin, WallMixin):
     def __init__(self):
         _ensure_app_user_model_id()
         super().__init__()

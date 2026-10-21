@@ -137,6 +137,12 @@ class DataMixin:
                 pass
 
     def _on_check_impl(self):
+        # Chế độ Vách (GĐ1 lát 0): chưa có engine — báo rõ chưa hỗ trợ,
+        # KHÔNG chạy engine cột cho dữ liệu vách
+        if getattr(self, "cb_member", None) is not None \
+                and self.cb_member.get() == "Vách":
+            self._on_check_wall()
+            return
         # Chế độ ETABS: kiểm tra tất cả tổ hợp
         if self.var_load_mode.get() == "etabs":
             self.on_check_etabs()
@@ -178,6 +184,9 @@ class DataMixin:
             return v.get()
         return {
             "version": 1,
+            # Loại cấu kiện (khóa cộng thêm; file cũ thiếu -> hiểu là "column")
+            "member_type": "wall" if (getattr(self, "cb_member", None) is not None
+                                      and self.cb_member.get() == "Vách") else "column",
             # Tên cấu kiện
             "member_name": self.member_var.get().strip() if hasattr(self, "member_var") else "",
             # 1. Vật liệu
@@ -250,6 +259,12 @@ class DataMixin:
                  "Q2": f.Q2, "Q3": f.Q3}
                 for f in getattr(self, "etabs_forces", [])
             ],
+            # Vách (GĐ1): namespace riêng, ghi cả khi đang ở chế độ Cột để
+            # chuyển qua lại không mất dữ liệu (như 3 bộ vật liệu hiện tại).
+            # pier_forces: parser/batch ở lát 5; lát 0 giữ nguyên dữ liệu
+            # thô đã nạp (nếu có) để không làm mất khi lưu lại.
+            "wall": self._collect_wall() if hasattr(self, "w_en_Lw") else {},
+            "pier_forces": getattr(self, "_pier_forces_raw", []),
         }
 
     def _apply_data(self, d: dict):
@@ -281,6 +296,13 @@ class DataMixin:
             se(self.en_ec2_phi, d.get("ec2_phi", "2.0"))
             se(self.en_ec2_fyt, d.get("ec2_fyt", "500"))
             self._toggle_code()
+            # Loại cấu kiện + dữ liệu vách (file cũ thiếu khóa -> Cột)
+            if hasattr(self, "cb_member"):
+                self.cb_member.set(
+                    "Vách" if d.get("member_type") == "wall" else "Cột")
+                self._apply_wall(d.get("wall") or {})
+                self._toggle_member()
+            self._pier_forces_raw = d.get("pier_forces") or []
             self.cb_kind.set(d.get("kind", "Chữ nhật"))
             se(self.en_cx, d.get("cx", "400")); se(self.en_cy, d.get("cy", "400"))
             se(self.en_dia, d.get("dia", "600") or "600")

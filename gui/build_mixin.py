@@ -112,6 +112,15 @@ class BuildMixin:
         # Cột 0-1: Tiêu chuẩn + dropdown dài
         _std_frame = ttk.Frame(row2)
         _std_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW, padx=(0, 2))
+        # Bộ chọn loại cấu kiện (Cột / Vách — chế độ Vách GĐ1)
+        ttk.Label(_std_frame, text="Cấu kiện:",
+                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 4))
+        self.cb_member = ttk.Combobox(_std_frame, values=["Cột", "Vách"],
+                                      state="readonly", width=6)
+        self.cb_member.set("Cột")
+        self.cb_member.bind("<<ComboboxSelected>>",
+                            lambda e: self._toggle_member())
+        self.cb_member.pack(side=tk.LEFT, padx=(0, 4))
         ttk.Label(_std_frame, text="Tiêu chuẩn:",
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 4))
         self.cb_code = ttk.Combobox(_std_frame, values=["TCVN 5574:2018", "ACI 318-19",
@@ -155,10 +164,13 @@ class BuildMixin:
         scr.pack(side=tk.RIGHT, fill=tk.Y)
 
         self._sec_materials()
+        self._sec_wall()
         self._sec_section()
         self._sec_rebar()
         self._sec_stability()
         self._sec_loads()
+        # Mặc định chế độ Cột: ẩn frame vách (hiện khi chọn "Vách")
+        self.frm_wall.pack_forget()
         # Spacer (không expand để bảng nội lực ở mục 5 fill hết không gian)
         _spacer = ttk.Frame(self.left)
         _spacer.pack(fill=tk.X)
@@ -358,6 +370,7 @@ class BuildMixin:
     # ---- 2. Tiết diện ----
     def _sec_section(self):
         f = self._frame(T("2. Tiết diện"))
+        self.frm_sec_section = f  # để _toggle_member ẩn/hiện theo loại cấu kiện
         # Dùng grid 4 cột đều (khớp 4 nút bên trên) cho toàn section
         for _c in range(4):
             f.columnconfigure(_c, weight=1, uniform="sec2")
@@ -429,6 +442,7 @@ class BuildMixin:
 
     def _sec_rebar(self):
         f = self._frame(T("3. Bố trí cốt thép dọc"))
+        self.frm_sec_rebar = f  # để _toggle_member ẩn/hiện theo loại cấu kiện
         DIAS = self.DIAS
 
         # ===== Panel cho tiết diện chữ nhật =====
@@ -715,6 +729,7 @@ class BuildMixin:
     # ---- 4. Chiều dài tính toán ----
     def _sec_stability(self):
         f = self._frame(T("4. Chiều dài tính toán"))
+        self.frm_sec_stability = f  # để _toggle_member ẩn/hiện theo loại cấu kiện
         hdr = ["Tham số", "Phương 2", "Phương 3"]
         for c, h in enumerate(hdr):
             ttk.Label(f, text=h, font=("", 9, "bold")).grid(
@@ -767,6 +782,7 @@ class BuildMixin:
     # ---- 5. Nội lực ----
     def _sec_loads(self):
         f = self._frame(T("5. Nội lực kiểm tra"))
+        self.frm_loads = f  # mốc pack "before" cho _toggle_member
         # Cho phép giãn dọc để bảng fill hết cửa sổ
         f.pack_configure(fill=tk.BOTH, expand=True)
         # Chọn chế độ: nhập tay / import Excel

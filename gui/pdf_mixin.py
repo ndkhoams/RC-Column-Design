@@ -39,6 +39,12 @@ class PdfMixin:
         """Xuất PDF theo tab đang mở: Tóm tắt hoặc Thuyết minh."""
         try:
             from tkinter import filedialog, messagebox
+            # Chế độ Vách (GĐ1 lát 0): chưa hỗ trợ xuất PDF — không được
+            # dùng kết quả cột còn lưu để xuất cho vách
+            if getattr(self, "cb_member", None) is not None \
+                    and self.cb_member.get() == "Vách":
+                self._wall_notice("Xuất PDF")
+                return
             # Kiểm tra kết quả theo tiêu chuẩn đang chọn
             # (trước đây chỉ kiểm tra _last_sec của TCVN nên ACI/EC2 báo lỗi)
             if self.is_aci():
