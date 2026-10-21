@@ -39,6 +39,20 @@ def _fm(x):
     return s if s not in ("", "-0") else "0"
 
 
+def _fm_m(v_m):
+    """Chiều dài theo MÉT: tối đa 3 số thập phân, cắt 0 thừa ở cuối
+    (10.16 -> '10.16', 1.26 -> '1.26', 4.64 -> '4.64', 5.8 -> '5.8').
+    Chỉ dùng cho hiển thị chiều dài cột/chiều dài tính toán ở mục 5."""
+    try:
+        v = float(v_m)
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(v):
+        return "—"
+    s = f"{v:.3f}".rstrip("0").rstrip(".")
+    return s if s not in ("", "-0") else "0"
+
+
 # --- Vẽ hình bằng matplotlib, trả về bytes PNG ---
 def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                    legend_y: float = 1.02,
@@ -614,7 +628,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Image, Table, TableStyle)
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     from collections import Counter
     import os as _os
 
@@ -667,8 +681,8 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
 
         st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
-        st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
-        st_val_b = ParagraphStyle("val_b", parent=st_cell_b, alignment=TA_LEFT)
+        st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_RIGHT)
+        st_val_b = ParagraphStyle("val_b", parent=st_cell_b, alignment=TA_RIGHT)
         st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
         def _sec_table(title, rows):
             """Bảng 2 cột kiểu Excel: tiêu đề section + các dòng xen kẽ màu."""
@@ -688,6 +702,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             # colWidths: nhãn 60mm (2 phần), giá trị 30mm (1 phần)
             t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
             style = [
+                ("SPAN", (0, 0), (1, 0)),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), _PAD),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), _PAD),
@@ -822,11 +837,11 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         left_flow.append(_sec_table(
             "CHIỀU DÀI TÍNH TOÁN &amp; HIỆU ỨNG UỐN DỌC", [
                 ("Chiều dài cột, L2, L3",
-                 f"{inp.Lx*1000:.0f} / {inp.Ly*1000:.0f} mm"),
+                 f"{_fm_m(inp.Lx)} / {_fm_m(inp.Ly)} m"),
                 ("Hệ số chiều dài tính toán, ψ2, ψ3",
                  f"{_psi2:.2f} / {_psi3:.2f}"),
                 ("Chiều dài tính toán, L02, L03",
-                 f"{res.L0x*1000:.0f} / {res.L0y*1000:.0f} mm"),
+                 f"{_fm_m(res.L0x)} / {_fm_m(res.L0y)} m"),
                 ("Độ mảnh cột, λ2, λ3",
                  f"{res.lambda_x:.1f} / {res.lambda_y:.1f}"),
                 ("Độ lệch tâm ban đầu, e02, e03",
@@ -990,8 +1005,12 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             for i in range(1, len(_sw_data)):
                 for j in (1, 2):
                     _sw_data[i][j].style.alignment = TA_CENTER
+            # hAlign CENTER co y: bang rong dung khung trang
+            # (180mm) nhu bang chinh 2 cot; frame SimpleDocTemplate
+            # co padding ngang 6pt nen bang can TRAI bi day vao 6pt
+            # so voi bang chinh — can giua de mep trai trung khit.
             t_sw = Table(_sw_data, colWidths=[90 * mm, 45 * mm, 45 * mm],
-                         hAlign="LEFT")
+                         hAlign="CENTER")
             _sw_style = [
                 # Không kẻ GRID — thể hiện như bảng thông tin (xen kẽ màu)
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),

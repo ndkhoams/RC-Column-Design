@@ -57,6 +57,20 @@ def _fm(x):
     return s if s not in ("", "-0") else "0"
 
 
+def _fm_m(v_m):
+    """Chiều dài theo MÉT: tối đa 3 số thập phân, cắt 0 thừa ở cuối
+    (10.16 -> '10.16', 1.26 -> '1.26', 4.64 -> '4.64', 5.8 -> '5.8').
+    Chỉ dùng cho hiển thị chiều dài cột/chiều dài tính toán ở mục 5."""
+    try:
+        v = float(v_m)
+    except (TypeError, ValueError):
+        return "—"
+    if not _m.isfinite(v):
+        return "—"
+    s = f"{v:.3f}".rstrip("0").rstrip(".")
+    return s if s not in ("", "-0") else "0"
+
+
 def _f_dc(dc):
     try:
         if dc is None or not _m.isfinite(float(dc)):
@@ -167,7 +181,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
                                     Image, Table, TableStyle)
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     from collections import Counter
     import os as _os
 
@@ -227,8 +241,8 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                                  alignment=TA_CENTER)
         st_hdr_left = ParagraphStyle("hdr_left", parent=st_hdr, alignment=TA_LEFT)
         st_lbl = ParagraphStyle("lbl", parent=st_cell, alignment=TA_LEFT)
-        st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_LEFT)
-        st_val_b = ParagraphStyle("val_b", parent=st_cell_b, alignment=TA_LEFT)
+        st_val = ParagraphStyle("val", parent=st_cell, alignment=TA_RIGHT)
+        st_val_b = ParagraphStyle("val_b", parent=st_cell_b, alignment=TA_RIGHT)
         st_sec_title = ParagraphStyle("sectitle", parent=st_cell_b, alignment=TA_LEFT)
 
         def _sec_table(title, rows):
@@ -246,6 +260,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                                  Paragraph(_vs, st_val)])
             t = Table(data, colWidths=[60 * mm, 30 * mm], hAlign="LEFT")
             style = [
+                ("SPAN", (0, 0), (1, 0)),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), _PAD),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), _PAD),
@@ -360,14 +375,14 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         _k3v = _mmr.get("k3", 1.0)
         _len_rows = [
             ("Chiều dài cột, L2, L3",
-             f"{inp.Lx*1000:.0f} / {inp.Ly*1000:.0f} mm"),
+             f"{_fm_m(inp.Lx)} / {_fm_m(inp.Ly)} m"),
             ("Hệ số chiều dài tính toán, k2, k3",
              f"{_f(_k2v, 2)} / {_f(_k3v, 2)}"),
         ]
         if _L0_2 and _L0_3:
             _len_rows.append(
                 ("Chiều dài không giằng, Lu2, Lu3",
-                 f"{float(_L0_2)*1000:.0f} / {float(_L0_3)*1000:.0f} mm"))
+                 f"{_fm_m(float(_L0_2))} / {_fm_m(float(_L0_3))} m"))
         _klr2 = aci_res.get("klu_r2")
         _klr3 = aci_res.get("klu_r3")
         if _klr2 and _klr3:
@@ -611,8 +626,12 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             for i in range(1, len(_data)):
                 for j in (1, 2):
                     _data[i][j].style.alignment = TA_CENTER
+            # hAlign CENTER co y: bang rong dung khung trang
+            # (180mm) nhu bang chinh 2 cot; frame SimpleDocTemplate
+            # co padding ngang 6pt nen bang can TRAI bi day vao 6pt
+            # so voi bang chinh — can giua de mep trai trung khit.
             t_sw = Table(_data, colWidths=[90 * mm, 45 * mm, 45 * mm],
-                         hAlign="LEFT")
+                         hAlign="CENTER")
             _st = [
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("SPAN", (1, 1), (2, 1)),
