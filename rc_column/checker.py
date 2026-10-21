@@ -255,18 +255,24 @@ class BatchChecker:
         self.L0y = effective_length(inp.Ly, inp.top_y, inp.bottom_y, inp.psi_y)
         self._Eb = conc.Eb
 
+    def _buckling(self, N: float, Mx: float, My: float, lt):
+        """Uốn dọc cho 1 tổ hợp: phi_L + độ lệch tâm + hệ số uốn dọc.
+        Dùng chung cho check_one và check_many (cùng biểu thức, cùng
+        thứ tự như bản check_one gốc)."""
+        phi = phi_L(N, Mx, My, lt)
+        ecc = eccentricities(N, Mx, My, self.inp.Lx, self.inp.Ly,
+                             self.inp.cx, self.inp.cy)
+        return buckling_factors(ecc.e0x, ecc.e0y, self.inp.cx, self.inp.cy,
+                                phi, self._Eb, self.Ix, self.Iy,
+                                self.Isx, self.Isy, self.L0x, self.L0y,
+                                N, Mx, My)
+
     def check_one(self, N: float, Mx: float, My: float,
                   lt: "LongTermLoads" = None) -> dict:
         """Kiểm tra 1 tổ hợp. Trả về dict {dc, fs, ok, Mx_star, ...}."""
         from .stability import LongTermLoads as _LT
         lt = lt or _LT()
-        phi = phi_L(N, Mx, My, lt)
-        ecc = eccentricities(N, Mx, My, self.inp.Lx, self.inp.Ly,
-                             self.inp.cx, self.inp.cy)
-        buck = buckling_factors(ecc.e0x, ecc.e0y, self.inp.cx, self.inp.cy,
-                                phi, self._Eb, self.Ix, self.Iy,
-                                self.Isx, self.Isy, self.L0x, self.L0y,
-                                N, Mx, My)
+        buck = self._buckling(N, Mx, My, lt)
         r = self.cap.dc_ratio(N, buck.Mx_star, buck.My_star)
         dc = r["dc"]
         return {
@@ -279,3 +285,44 @@ class BatchChecker:
             "Bx": r["Bx"], "By": r["By"], "BN": r["BN"],
             "lambda_max": r["lambda_max"],
         }
+
+    def check_many(self, items, pump=None) -> list:
+        """Kiểm tra cả khối tổ hợp: items = list (N, Mx, My, lt).
+
+        Trả list dict giống hệt check_one từng tổ hợp (khớp từng bit):
+        phần uốn dọc tính từng dòng như check_one, riêng D/C tia tính
+        theo khối bằng dc_ratio_batch. pump(n) được gọi sau mỗi lô
+        256 dòng (bơm tiến trình UI) nếu được truyền.
+        """
+        from .stability import LongTermLoads as _LT
+        out: list = [None] * len(items)
+        CH = 256
+        for s in range(0, len(items), CH):
+            part = items[s:s + CH]
+            stars = []
+            bucks = []
+            for (N, Mx, My, lt) in part:
+                buck = self._buckling(N, Mx, My, lt or _LT())
+                bucks.append(buck)
+                stars.append((N, buck.Mx_star, buck.My_star))
+            try:
+                rs = self.cap.dc_ratio_batch(stars)
+            except Exception:
+                rs = [self.cap.dc_ratio(N, Mx_star, My_star)
+                      for (N, Mx_star, My_star) in stars]
+            for k, ((N, Mx, My, lt), buck, r) in enumerate(
+                    zip(part, bucks, rs)):
+                dc = r["dc"]
+                out[s + k] = {
+                    "N": N, "Mx": Mx, "My": My,
+                    "Mx_star": buck.Mx_star, "My_star": buck.My_star,
+                    "etax": buck.etax, "etay": buck.etay,
+                    "dc": dc,
+                    "fs": 1.0 / dc if dc > 1e-12 else float("inf"),
+                    "ok": r["ok"],
+                    "Bx": r["Bx"], "By": r["By"], "BN": r["BN"],
+                    "lambda_max": r["lambda_max"],
+                }
+            if pump is not None:
+                pump(len(part))
+        return out
