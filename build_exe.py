@@ -61,6 +61,13 @@ def main() -> int:
     # Icon cho file .exe: tạo từ icon.png bằng Pillow trên máy build
     if _make_icon():
         cmd += ["--icon", "icon.ico"]
+    # Đóng gói kèm file icon vào trong exe: gui/app.py tìm icon.png /
+    # icon.ico trong bundle (sys._MEIPASS) để đặt icon cửa sổ (title bar
+    # + taskbar) lúc chạy. Thiếu 2 dòng này là app chạy lên không thấy
+    # file icon nào — chỉ còn icon của file .exe trong Explorer.
+    for _f in ("icon.png", "icon.ico"):
+        if os.path.exists(_f):
+            cmd += ["--add-data", f"{_f}{os.pathsep}."]
     cmd += [
         *MATPLOTLIB_HOOKS,
         # ẩn import để PyInstaller không bỏ sót
