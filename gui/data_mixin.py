@@ -115,6 +115,28 @@ class DataMixin:
         return inp
 
     def on_check(self):
+        # Khóa nút CHECK + con trỏ bận trong lúc tính: tránh bấm đúp và
+        # cho user biết app đang chạy (tính chạy trên UI thread; batch
+        # bơm sự kiện qua _batch_pump trong etabs_mixin).
+        btn = getattr(self, "btn_check", None)
+        try:
+            if btn is not None:
+                btn.config(state="disabled")
+            self.config(cursor="watch")
+            self.update_idletasks()
+        except Exception:
+            pass
+        try:
+            self._on_check_impl()
+        finally:
+            try:
+                if btn is not None:
+                    btn.config(state="normal")
+                self.config(cursor="")
+            except Exception:
+                pass
+
+    def _on_check_impl(self):
         # Chế độ ETABS: kiểm tra tất cả tổ hợp
         if self.var_load_mode.get() == "etabs":
             self.on_check_etabs()
