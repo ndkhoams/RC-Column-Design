@@ -129,6 +129,29 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin,
         self.after(100, self._fix_left_width)
         # Ép tính lại layout sau khi hiện cửa sổ (fix khoảng trống trên Win)
         self.after(300, self._refresh_layout)
+        # Làm ấm matplotlib khi app đã hiện và rảnh: trả trước chi phí
+        # font cache + tight_layout/draw lần đầu để CHECK lạnh đầu tiên
+        # không phải gánh (chỉ dời chi phí, không đổi kết quả)
+        self.after(600, self._warmup_matplotlib)
+
+    def _warmup_matplotlib(self):
+        """Vẽ thử 1 figure nhỏ bằng Agg (không hiện) để nạp font cache và
+        chạy qua đường tight_layout/draw lần đầu của matplotlib trong
+        lúc app rảnh, thay vì dồn vào lần CHECK đầu tiên."""
+        if not HAS_MPL:
+            return
+        try:
+            from matplotlib.backends.backend_agg import FigureCanvasAgg
+            fig = Figure(figsize=(3.0, 2.0))
+            ax = fig.add_subplot(111)
+            ax.plot([0.0, 1.0], [0.0, 1.0])
+            ax.set_title("warmup")
+            ax.set_xlabel("M3")
+            ax.set_ylabel("M2")
+            fig.tight_layout()
+            FigureCanvasAgg(fig).draw()
+        except Exception:
+            pass
 
     def _refresh_layout(self, _retry=0):
         """Ép tkinter tính lại layout (fix lỗi khoảng trống khi mở app)."""
