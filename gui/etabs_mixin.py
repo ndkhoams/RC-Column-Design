@@ -680,7 +680,7 @@ class EtabsMixin:
         n_ng = sum(1 for _, r in rows if r and r["dc"] == r["dc"] and r["dc"] > 1)
         dt = time.time() - t0
         self.etabs_info.set(
-            f"Xong {len(rows)} tổ hợp trong {dt:.1f}s (EC2 EN 1992-1-1) — "
+            f"Xong {len(rows)} tổ hợp trong {dt:.1f}s (EC2 EN 1992-1-1:2004) — "
             f"Nguy hiểm nhất: {worst_f.case} @ {worst_f.station:.2f}m "
             f"(D/C = {worst_r['dc']:.3f}) — {n_ng} tổ hợp KHÔNG ĐẠT.")
         self._batch_rows = rows

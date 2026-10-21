@@ -442,7 +442,7 @@ class Ec2Mixin:
         except Exception:
             _ec2_na_info = None
         config = {
-            "std_title": "(EC2 EN 1992-1-1)",
+            "std_title": "(EC2 EN 1992-1-1:2004)",
             "param_rows": param_rows,
             "dc_row": dc_row,
             "section": sec,
@@ -640,7 +640,7 @@ class Ec2Mixin:
     def _build_ec2_param_table(self, parent, inp, ec2_res, slend):
         """Bảng thông số tính toán EC2 (Treeview 3 cột)."""
         import math
-        ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (EC2 EN 1992-1-1)",
+        ttk.Label(parent, text="BẢNG THÔNG SỐ TÍNH TOÁN (EC2 EN 1992-1-1:2004)",
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
         tree = ttk.Treeview(parent, columns=cols, show="headings", height=16,
@@ -831,7 +831,7 @@ class Ec2Mixin:
         r1 = tk.Frame(box, bg="white")
         r1.pack(fill=tk.X, pady=1, padx=4)
         tk.Label(r1, text=f"● Đường bao kiểm tra: "
-                          f"N-Mα (α = {alpha_deg:.1f}°) — EC2 (EN 1992-1-1)",
+                          f"N-Mα (α = {alpha_deg:.1f}°) — EC2 (EN 1992-1-1:2004)",
                  font=mono, fg="#059669", bg="white").pack(side=tk.LEFT)
         okt = "ĐẠT" if ec2_res["ok"] else "KHÔNG ĐẠT"
         bgc = "#D1FAE5" if ec2_res["ok"] else "#FEE2E2"

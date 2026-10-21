@@ -79,7 +79,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                             topMargin=15 * mm, bottomMargin=10 * mm)
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
-    S.append(P("(Tiêu chuẩn EC2 EN 1992-1-1)", st["sub"]))
+    S.append(P("(Tiêu chuẩn EC2 EN 1992-1-1:2004)", st["sub"]))
     _mn = _member_name(inp)
     if _mn:
         S.append(P(f"Cấu kiện: {_mn}", st["sec_title"]))

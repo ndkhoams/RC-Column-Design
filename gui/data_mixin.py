@@ -267,7 +267,10 @@ class DataMixin:
             se(self.en_gs, d.get("gamma_s", "1.0"))
             self.cb_model.set(d.get("model", self.cb_model.get()))
             # Vật liệu ACI (tương thích file cũ: giữ mặc định nếu thiếu)
-            self.cb_code.set(d.get("code", self.cb_code.get()))
+            _code = d.get("code", self.cb_code.get())
+            if _code == "EC2 (EN 1992-1-1)":  # file cu: chuan hoa nhan
+                _code = "EC2 (EN 1992-1-1:2004)"
+            self.cb_code.set(_code)
             se(self.en_fc, d.get("aci_fc", "30")); se(self.en_fy, d.get("aci_fy", "420"))
             se(self.en_fyt, d.get("aci_fyt", "420"))
             self.cb_tie.set(d.get("aci_tie", "Đai rời (tied)"))

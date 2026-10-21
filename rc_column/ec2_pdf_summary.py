@@ -413,7 +413,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         # ===== Cột trái (dan y user chot 2026-10-21, khung nhu TCVN) =====
         left_flow = []
         left_flow.append(_sec_table("THÔNG TIN CHUNG", [
-            ("Tiêu chuẩn", "EC2 (EN 1992-1-1)"),
+            ("Tiêu chuẩn", "EC2 (EN 1992-1-1:2004)"),
             ("Cấu kiện", _ck_name or "—"),
         ]))
         _fyk_sw = fyk_sw if fyk_sw is not None else steel.fyk

@@ -108,7 +108,7 @@ class DxfMixin:
             return
         # --- 1) Tiêu chuẩn + vật liệu ---
         if code == "EC2":
-            self.cb_code.set("EC2 (EN 1992-1-1)")
+            self.cb_code.set("EC2 (EN 1992-1-1:2004)")
             self._toggle_code()
             from rc_column.ec2_materials import EC2_CONCRETE_GRADES
             _fck = data["fck"]

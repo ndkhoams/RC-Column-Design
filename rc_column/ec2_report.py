@@ -49,7 +49,7 @@ def generate_ec2_report_sections(inp, ec2_res: Dict[str, Any],
     # ---- 1. Vật liệu ----
     sections.append({
         "num": 1,
-        "title": "VẬT LIỆU THEO EC2 (EN 1992-1-1)",
+        "title": "VẬT LIỆU THEO EC2 (EN 1992-1-1:2004)",
         "ref": "EC2 2.4.2.4, 3.1, 3.2",
         "cards": [
             _mk("Bê tông",

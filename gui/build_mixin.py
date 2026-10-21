@@ -115,7 +115,7 @@ class BuildMixin:
         ttk.Label(_std_frame, text="Tiêu chuẩn:",
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 4))
         self.cb_code = ttk.Combobox(_std_frame, values=["TCVN 5574:2018", "ACI 318-19",
-                                                        "EC2 (EN 1992-1-1)"],
+                                                        "EC2 (EN 1992-1-1:2004)"],
                                     state="readonly")
         self.cb_code.set("TCVN 5574:2018")
         self.cb_code.bind("<<ComboboxSelected>>", lambda e: self._toggle_code())
