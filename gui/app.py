@@ -1,1 +1,378 @@
-IyBUaOG7nWkgxJFp4buDbSBidWlsZDogbOG6pXkgdOG7qyBidWlsZF9pbmZvLnB5IChkbyBidWlsZF9leGUucHkgc2luaCBraGkgxJHDs25nIGfDs2kpLgp0cnk6CiAgICBmcm9tIGJ1aWxkX2luZm8gaW1wb3J0IEJVSUxEX1RJTUUgYXMgQVBQX0JVSUxECmV4Y2VwdCBFeGNlcHRpb246CiAgICAjIEZhbGxiYWNrOiBleGUgZnJvemVuIC0+IG10aW1lIGPhu6dhIGZpbGUgZXhlOyBzb3VyY2UgLT4gbXRpbWUgY+G7p2EgZmlsZSBuw6B5CiAgICB0cnk6CiAgICAgICAgaW1wb3J0IG9zIGFzIF9vcywgc3lzIGFzIF9zeXMsIGRhdGV0aW1lIGFzIF9kdAogICAgICAgIF9wID0gX3N5cy5leGVjdXRhYmxlIGlmIGdldGF0dHIoX3N5cywgImZyb3plbiIsIEZhbHNlKSBlbHNlIF9fZmlsZV9fCiAgICAgICAgQVBQX0JVSUxEID0gX2R0LmRhdGV0aW1lLmZyb210aW1lc3RhbXAoCiAgICAgICAgICAgIF9vcy5wYXRoLmdldG10aW1lKF9wKSkuc3RyZnRpbWUoIiVZJW0lZCVIJU0iKQogICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICBBUFBfQlVJTEQgPSAiMDAwMDAwMDAwMDAwIgoKZGVmIF9naXRfY29tbWl0KCk6CiAgICAiIiJM4bqleSBoYXNoIGNvbW1pdCBnaXQgbmfhuq9uICg3IGvDvSB04buxKSBraGkgY2jhuqF5IHThu6sgc291cmNlLgogICAgxJDhu41jIHRy4buxYyB0aeG6v3AgdGjGsCBt4bulYyAuZ2l0IG7Dqm4ga2jDtG5nIGPhuqduIGdpdCB0cm9uZyBQQVRIOwogICAgdHLhuqMgduG7gSAnJyBu4bq/dSBraMO0bmcgdMOsbSB0aOG6pXkuIiIiCiAgICBpbXBvcnQgb3MgYXMgX29zCiAgICAjIFTDrG0gdGjGsCBt4bulYyAuZ2l0IChsw6puIHThu5FpIMSRYSA1IGPhuqVwIHThu6sgdGjGsCBt4bulYyBmaWxlIG7DoHkpCiAgICBfZCA9IF9vcy5wYXRoLmRpcm5hbWUoX29zLnBhdGguYWJzcGF0aChfX2ZpbGVfXykpCiAgICBfcm9vdCA9IE5vbmUKICAgIGZvciBfIGluIHJhbmdlKDUpOgogICAgICAgIGlmIF9vcy5wYXRoLmlzZGlyKF9vcy5wYXRoLmpvaW4oX2QsICIuZ2l0IikpOgogICAgICAgICAgICBfcm9vdCA9IF9vcy5wYXRoLmpvaW4oX2QsICIuZ2l0IikKICAgICAgICAgICAgYnJlYWsKICAgICAgICBfcGFyZW50ID0gX29zLnBhdGguZGlybmFtZShfZCkKICAgICAgICBpZiBfcGFyZW50ID09IF9kOgogICAgICAgICAgICBicmVhawogICAgICAgIF9kID0gX3BhcmVudAogICAgaWYgbm90IF9yb290OgogICAgICAgIHJldHVybiAiIgogICAgdHJ5OgogICAgICAgIHdpdGggb3Blbihfb3MucGF0aC5qb2luKF9yb290LCAiSEVBRCIpLCAiciIpIGFzIF9mOgogICAgICAgICAgICBfaGVhZCA9IF9mLnJlYWQoKS5zdHJpcCgpCiAgICAgICAgaWYgX2hlYWQuc3RhcnRzd2l0aCgicmVmOiIpOgogICAgICAgICAgICBfcmVmID0gX2hlYWRbNDpdLnN0cmlwKCkKICAgICAgICAgICAgIyBUw6xtIHJlZiB0cm9uZyBmaWxlIHLhu51pIHRyxrDhu5tjLCBy4buTaSBwYWNrZWQtcmVmcwogICAgICAgICAgICBfcmVmX3BhdGggPSBfb3MucGF0aC5qb2luKF9yb290LCAqX3JlZi5zcGxpdCgiLyIpKQogICAgICAgICAgICBpZiBfb3MucGF0aC5pc2ZpbGUoX3JlZl9wYXRoKToKICAgICAgICAgICAgICAgIHdpdGggb3BlbihfcmVmX3BhdGgsICJyIikgYXMgX2Y6CiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIF9mLnJlYWQoKS5zdHJpcCgpWzo3XQogICAgICAgICAgICBfcGFja2VkID0gX29zLnBhdGguam9pbihfcm9vdCwgInBhY2tlZC1yZWZzIikKICAgICAgICAgICAgaWYgX29zLnBhdGguaXNmaWxlKF9wYWNrZWQpOgogICAgICAgICAgICAgICAgd2l0aCBvcGVuKF9wYWNrZWQsICJyIikgYXMgX2Y6CiAgICAgICAgICAgICAgICAgICAgZm9yIF9saW5lIGluIF9mOgogICAgICAgICAgICAgICAgICAgICAgICBfbGluZSA9IF9saW5lLnN0cmlwKCkKICAgICAgICAgICAgICAgICAgICAgICAgaWYgX2xpbmUuZW5kc3dpdGgoX3JlZik6CiAgICAgICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gX2xpbmUuc3BsaXQoKVswXVs6N10KICAgICAgICAgICAgcmV0dXJuICIiCiAgICAgICAgcmV0dXJuIF9oZWFkWzo3XSAgIyBkZXRhY2hlZCBIRUFECiAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgIHJldHVybiAiIgoKX0dJVF9DT01NSVQgPSBfZ2l0X2NvbW1pdCgpCgppbXBvcnQgbWF0aAppbXBvcnQgdGtpbnRlciBhcyB0awpmcm9tIHRraW50ZXIgaW1wb3J0IHR0aywgbWVzc2FnZWJveAoKZnJvbSByY19jb2x1bW4uY2hlY2tlciBpbXBvcnQgQ29sdW1uSW5wdXQsIGJ1aWxkX3NlY3Rpb24sIGNoZWNrX2NvbHVtbgpmcm9tIHJjX2NvbHVtbi5sYW5nIGltcG9ydCBULCBzZXRfbGFuZwpmcm9tIHJjX2NvbHVtbi5hY2lfbWF0ZXJpYWxzIGltcG9ydCBBQ0lDb25jcmV0ZSwgQUNJU3RlZWwKZnJvbSByY19jb2x1bW4uYWNpX2NoZWNrZXIgaW1wb3J0IGNoZWNrX2NvbHVtbl9hY2ksIG1vbWVudF9tYWduaWZpY2F0aW9uLCBhY2lfc2hlYXJfY2hlY2sKZnJvbSByY19jb2x1bW4ubWF0ZXJpYWxzIGltcG9ydCBDT05DUkVURV9HUkFERVMsIFNURUVMX0dSQURFUwpmcm9tIHJjX2NvbHVtbi5yZXBvcnQgaW1wb3J0IGdlbmVyYXRlX3JlcG9ydF9zZWN0aW9ucwpmcm9tIHJjX2NvbHVtbi5zZWN0aW9ucyBpbXBvcnQgY2xlYXJfc3BhY2luZwpmcm9tIHJjX2NvbHVtbi5zdGFiaWxpdHkgaW1wb3J0IEJPVU5EQVJZX05BTUVTLCBMb25nVGVybUxvYWRzCgp0cnk6CiAgICBpbXBvcnQgbWF0cGxvdGxpYgogICAgbWF0cGxvdGxpYi51c2UoIlRrQWdnIikKICAgIGZyb20gbWF0cGxvdGxpYi5iYWNrZW5kcy5iYWNrZW5kX3RrYWdnIGltcG9ydCBGaWd1cmVDYW52YXNUa0FnZwogICAgZnJvbSBtYXRwbG90bGliLmZpZ3VyZSBpbXBvcnQgRmlndXJlCiAgICBpbXBvcnQgbWF0cGxvdGxpYi5wYXRjaGVzIGFzIG1wYXRjaGVzCiAgICBIQVNfTVBMID0gVHJ1ZQpleGNlcHQgRXhjZXB0aW9uOgogICAgSEFTX01QTCA9IEZhbHNlCgpmcm9tIC50Y3ZuX21peGluIGltcG9ydCBUY3ZuTWl4aW4KZnJvbSAuYWNpX21peGluIGltcG9ydCBBY2lNaXhpbgpmcm9tIC5lYzJfbWl4aW4gaW1wb3J0IEVjMk1peGluCmZyb20gLmV0YWJzX21peGluIGltcG9ydCBFdGFic01peGluCmZyb20gLnBkZl9taXhpbiBpbXBvcnQgUGRmTWl4aW4KZnJvbSAuYnVpbGRfbWl4aW4gaW1wb3J0IEJ1aWxkTWl4aW4KZnJvbSAuZGF0YV9taXhpbiBpbXBvcnQgRGF0YU1peGluCmZyb20gLmR4Zl9taXhpbiBpbXBvcnQgRHhmTWl4aW4KZnJvbSAucHJldmlld19taXhpbiBpbXBvcnQgUHJldmlld01peGluCgoKY2xhc3MgQXBwKHRrLlRrLCBUY3ZuTWl4aW4sIEFjaU1peGluLCBFYzJNaXhpbiwgRXRhYnNNaXhpbiwgUGRmTWl4aW4sCiAgICAgICAgICBCdWlsZE1peGluLCBEYXRhTWl4aW4sIER4Zk1peGluLCBQcmV2aWV3TWl4aW4pOgogICAgZGVmIF9faW5pdF9fKHNlbGYpOgogICAgICAgIHN1cGVyKCkuX19pbml0X18oKQogICAgICAgIF9nYyA9IGYiIMK3IHtfR0lUX0NPTU1JVH0iIGlmIF9HSVRfQ09NTUlUIGVsc2UgIiIKICAgICAgICBzZWxmLnRpdGxlKGYiUkMgQ29sdW1uIERlc2lnbiBbe0FQUF9CVUlMRH1de19nY30iKQogICAgICAgIHNlbGYuZ2VvbWV0cnkoIjEzNjB4ODYwIikKICAgICAgICAjIEljb24gdGl0bGUgYmFyOiDGsHUgdGnDqm4gUE5HICjhu5VuIMSR4buLbmggaMahbiBJQ08gdHLDqm4gdGtpbnRlcikKICAgICAgICB0cnk6CiAgICAgICAgICAgIGltcG9ydCBvcywgc3lzCiAgICAgICAgICAgIF9iYXNlID0gb3MucGF0aC5ub3JtcGF0aChvcy5wYXRoLmpvaW4oCiAgICAgICAgICAgICAgICBvcy5wYXRoLmRpcm5hbWUob3MucGF0aC5hYnNwYXRoKF9fZmlsZV9fKSksICIuLiIpKQogICAgICAgICAgICBpZiBoYXNhdHRyKHN5cywgIl9NRUlQQVNTIik6CiAgICAgICAgICAgICAgICBfYmFzZSA9IHN5cy5fTUVJUEFTUwogICAgICAgICAgICBfcG5nID0gb3MucGF0aC5qb2luKF9iYXNlLCAiaWNvbi5wbmciKQogICAgICAgICAgICBfaWNvID0gb3MucGF0aC5qb2luKF9iYXNlLCAiaWNvbi5pY28iKQogICAgICAgICAgICBfZG9uZSA9IEZhbHNlCiAgICAgICAgICAgIGlmIG9zLnBhdGguZXhpc3RzKF9wbmcpOgogICAgICAgICAgICAgICAgdHJ5OgogICAgICAgICAgICAgICAgICAgIF9pbWcgPSB0ay5QaG90b0ltYWdlKGZpbGU9X3BuZykKICAgICAgICAgICAgICAgICAgICBzZWxmLmljb25waG90byhUcnVlLCBfaW1nKQogICAgICAgICAgICAgICAgICAgIHNlbGYuX2ljb25faW1nID0gX2ltZwogICAgICAgICAgICAgICAgICAgIF9kb25lID0gVHJ1ZQogICAgICAgICAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICAgICAgICAgICAgICBwYXNzCiAgICAgICAgICAgIGlmIG5vdCBfZG9uZSBhbmQgb3MucGF0aC5leGlzdHMoX2ljbyk6CiAgICAgICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICAgICAgc2VsZi5pY29uYml0bWFwKF9pY28pCiAgICAgICAgICAgICAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgICAgICAgICAgICAgIHBhc3MKICAgICAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgICAgICBwYXNzCiAgICAgICAgIyBN4bufIG3hurdjIMSR4buLbmggZnVsbCBtw6BuIGjDrG5oCiAgICAgICAgdHJ5OgogICAgICAgICAgICBzZWxmLnN0YXRlKCJ6b29tZWQiKQogICAgICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgICAgIHBhc3MKICAgICAgICBzZWxmLl9zZXR1cF9zdHlsZXMoKQogICAgICAgIHNlbGYuX2J1aWxkKCkKICAgICAgICBzZWxmLmFmdGVyKDEwMCwgc2VsZi5fZml4X2xlZnRfd2lkdGgpCiAgICAgICAgIyDDiXAgdMOtbmggbOG6oWkgbGF5b3V0IHNhdSBraGkgaGnhu4duIGPhu61hIHPhu5UgKGZpeCBraG/huqNuZyB0cuG7kW5nIHRyw6puIFdpbikKICAgICAgICBzZWxmLmFmdGVyKDMwMCwgc2VsZi5fcmVmcmVzaF9sYXlvdXQpCgogICAgZGVmIF9yZWZyZXNoX2xheW91dChzZWxmLCBfcmV0cnk9MCk6CiAgICAgICAgIiIiw4lwIHRraW50ZXIgdMOtbmggbOG6oWkgbGF5b3V0IChmaXggbOG7l2kga2hv4bqjbmcgdHLhu5FuZyBraGkgbeG7nyBhcHApLiIiIgogICAgICAgIHRyeToKICAgICAgICAgICAgc2VsZi51cGRhdGVfaWRsZXRhc2tzKCkKICAgICAgICAgICAgZm9yIF9jIGluICgnX2xlZnRfY2FudmFzJywgJ19jYWxjX2NhbnZhcycsICdfc3VtX2NhbnZhcycpOgogICAgICAgICAgICAgICAgaWYgaGFzYXR0cihzZWxmLCBfYyk6CiAgICAgICAgICAgICAgICAgICAgY3YgPSBnZXRhdHRyKHNlbGYsIF9jKQogICAgICAgICAgICAgICAgICAgIHRyeToKICAgICAgICAgICAgICAgICAgICAgICAgY3YuY29uZmlndXJlKHNjcm9sbHJlZ2lvbj1jdi5iYm94KCJhbGwiKSkKICAgICAgICAgICAgICAgICAgICAgICAgY3YueXZpZXdfbW92ZXRvKDApCiAgICAgICAgICAgICAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICAgICAgICAgICAgICAgICAgcGFzcwogICAgICAgICAgICAjIEdp4bqjIGzhuq1wIHJlc2l6ZTogbnVkZ2Uga8OtY2ggdGjGsOG7m2MgMXB4IHLhu5NpIHRy4bqjIGzhuqFpCiAgICAgICAgICAgICMgKGvDrWNoIGhv4bqhdCBs4bqhaSBnZW9tZXRyeSBtYW5hZ2VyIG5oxrAga2hpIHVzZXIgcmVzaXplIHRo4bunIGPDtG5nKQogICAgICAgICAgICBfZyA9IHNlbGYuZ2VvbWV0cnkoKQogICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICBfdywgX2ggPSBzZWxmLndpbmZvX3dpZHRoKCksIHNlbGYud2luZm9faGVpZ2h0KCkKICAgICAgICAgICAgICAgIGlmIF93ID4gMTAwIGFuZCBfaCA+IDEwMDoKICAgICAgICAgICAgICAgICAgICBzZWxmLmdlb21ldHJ5KGYie193KzF9eHtfaH0iKQogICAgICAgICAgICAgICAgICAgIHNlbGYudXBkYXRlX2lkbGV0YXNrcygpCiAgICAgICAgICAgICAgICAgICAgc2VsZi5nZW9tZXRyeShmIntfd314e19ofSIpCiAgICAgICAgICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICAgICAgc2VsZi5nZW9tZXRyeShfZykKICAgICAgICAgICAgICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgICAgICAgICAgICAgcGFzcwogICAgICAgICAgICBzZWxmLnVwZGF0ZSgpCiAgICAgICAgICAgIGlmIF9yZXRyeSA8IDI6CiAgICAgICAgICAgICAgICBzZWxmLmFmdGVyKDUwMCwgbGFtYmRhOiBzZWxmLl9yZWZyZXNoX2xheW91dChfcmV0cnkgKyAxKSkKICAgICAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgICAgICBwYXNzCgogICAgZGVmIF9maXhfbGVmdF93aWR0aChzZWxmLCBfcmV0cnk9MCk6CiAgICAgICAgIyBMYXlvdXQgxJHDoyBmaXggY+G7qW5nIGLhurFuZyBwYWNrIChraMO0bmcgZMO5bmcgUGFuZWRXaW5kb3cpLCBraMO0bmcgY+G6p24gc2V0IHNhc2gKICAgICAgICB0cnk6CiAgICAgICAgICAgIHNlbGYuYWZ0ZXIoMjAwLCBzZWxmLl9yZWZyZXNoX2xheW91dCkKICAgICAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgICAgICBwYXNzCgogICAgZGVmIF9zZXR1cF9zdHlsZXMoc2VsZik6CiAgICAgICAgIiIiU3R5bGUgZ2nhu5FuZyB3ZWIgVmlldGNvblNvZnQ6IHRoYW5oIHRob8OhdCwgZ+G7jW4gZ8OgbmcuIiIiCiAgICAgICAgc3QgPSB0dGsuU3R5bGUoc2VsZikKICAgICAgICB0cnk6CiAgICAgICAgICAgIHN0LnRoZW1lX3VzZSgiY2xhbSIpCiAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICAgICAgcGFzcwogICAgICAgIEdSRUVOID0gIiMwNTk2NjkiCiAgICAgICAgR1JFRU5fREFSSyA9ICIjMDQ3ODU3IgogICAgICAgIEJPUkRFUiA9ICIjRTVFN0VCIgogICAgICAgIEJHID0gIiNGOUZBRkIiCiAgICAgICAgVEVYVCA9ICIjMTExODI3IgogICAgICAgIE1VVEVEID0gIiM2QjcyODAiCiAgICAgICAgIyBO4buBbiBjaHVuZwogICAgICAgIHN0LmNvbmZpZ3VyZSgiLiIsIGJhY2tncm91bmQ9QkcsIGZvbnQ9KCIiLCAxMCkpCiAgICAgICAgc3QuY29uZmlndXJlKCJURnJhbWUiLCBiYWNrZ3JvdW5kPSJ3aGl0ZSIpCiAgICAgICAgc3QuY29uZmlndXJlKCJUTGFiZWwiLCBiYWNrZ3JvdW5kPSJ3aGl0ZSIsIGZvcmVncm91bmQ9VEVYVCwgZm9udD0oIiIsIDEwKSkKICAgICAgICAjIExhYmVsIG3DtCB04bqjOiBtw6B1IGNo4buvIGLDrG5oIHRoxrDhu51uZywgbuG7gW4gdHLhuq9uZyAoa2jDtG5nIGluIG3hu50pCiAgICAgICAgc3QuY29uZmlndXJlKCJNdXRlZC5UTGFiZWwiLCBmb3JlZ3JvdW5kPVRFWFQsIGZvbnQ9KCIiLCA5KSwKICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZD0id2hpdGUiKQogICAgICAgICMgVGnDqnUgxJHhu4EgbeG7pWM6IHPhu5EgeGFuaCBsw6EgKyBjaOG7ryDEkeG6rW0KICAgICAgICBzdC5jb25maWd1cmUoIlNlY3Rpb24uVExhYmVsIiwgZm9yZWdyb3VuZD1URVhULAogICAgICAgICAgICAgICAgICAgICBmb250PSgiIiwgMTEsICJib2xkIikpCiAgICAgICAgIyBDYXJkIHRy4bqvbmcKICAgICAgICBzdC5jb25maWd1cmUoIkNhcmQuVExhYmVsZnJhbWUiLCBiYWNrZ3JvdW5kPSJ3aGl0ZSIsCiAgICAgICAgICAgICAgICAgICAgIGJvcmRlcmNvbG9yPUJPUkRFUiwgcmVsaWVmPSJzb2xpZCIsIGJvcmRlcndpZHRoPTEpCiAgICAgICAgc3QuY29uZmlndXJlKCJDYXJkLlRMYWJlbGZyYW1lLkxhYmVsIiwgYmFja2dyb3VuZD0id2hpdGUiLAogICAgICAgICAgICAgICAgICAgICBmb3JlZ3JvdW5kPVRFWFQsIGZvbnQ9KCIiLCAxMSwgImJvbGQiKSkKICAgICAgICAjIElucHV0IGhp4buHbiDEkeG6oWk6IGNhbyByw6FvLCB2aeG7gW4gbmjhuqF0IGJvIG5o4bq5CiAgICAgICAgZm9yIHcgaW4gKCJURW50cnkiLCAiVENvbWJvYm94IiwgIlRTcGluYm94Iik6CiAgICAgICAgICAgIHN0LmNvbmZpZ3VyZSh3LCBmaWVsZGJhY2tncm91bmQ9IndoaXRlIiwgYm9yZGVyY29sb3I9Qk9SREVSLAogICAgICAgICAgICAgICAgICAgICAgICAgbGlnaHRjb2xvcj1CT1JERVIsIGRhcmtjb2xvcj1CT1JERVIsCiAgICAgICAgICAgICAgICAgICAgICAgICBib3JkZXJ3aWR0aD0xLCBwYWRkaW5nPSg4LCA2KSkKICAgICAgICAgICAgc3QubWFwKHcsIGJvcmRlcmNvbG9yPVsoImZvY3VzIiwgR1JFRU4pXSwKICAgICAgICAgICAgICAgICAgIGZpZWxkYmFja2dyb3VuZD1bKCJyZWFkb25seSIsICJ3aGl0ZSIpXSkKICAgICAgICAjIE7DunQgY2jDrW5oIHhhbmggbMOhCiAgICAgICAgc3QuY29uZmlndXJlKCJBY2NlbnQuVEJ1dHRvbiIsIGJhY2tncm91bmQ9R1JFRU4sIGZvcmVncm91bmQ9IndoaXRlIiwKICAgICAgICAgICAgICAgICAgICAgZm9udD0oIiIsIDExLCAiYm9sZCIpLCBwYWRkaW5nPSgxMiwgMTApLAogICAgICAgICAgICAgICAgICAgICBib3JkZXJ3aWR0aD0wKQogICAgICAgIHN0Lm1hcCgiQWNjZW50LlRCdXR0b24iLAogICAgICAgICAgICAgICBiYWNrZ3JvdW5kPVsoImFjdGl2ZSIsIEdSRUVOX0RBUkspLCAoInByZXNzZWQiLCAiIzA2NUY0NiIpXSkKICAgICAgICAjIE7DunQgcGjhu6Ugdmnhu4FuIHjDoW0KICAgICAgICBzdC5jb25maWd1cmUoIkdob3N0LlRCdXR0b24iLCBiYWNrZ3JvdW5kPSJ3aGl0ZSIsIGZvcmVncm91bmQ9VEVYVCwKICAgICAgICAgICAgICAgICAgICAgZm9udD0oIiIsIDEyKSwgcGFkZGluZz0oMTIsIDgpLCBib3JkZXJ3aWR0aD0xLAogICAgICAgICAgICAgICAgICAgICByZWxpZWY9InNvbGlkIiwgYm9yZGVyY29sb3I9Qk9SREVSKQogICAgICAgICMgTsO6dCBow6BuZyB0csOqbiBjw7luZzogZ+G7jW4gbmjGsCBuw7p0IGltcG9ydCwgaWNvbiBjxINuIGdp4buvYQogICAgICAgIHN0LmNvbmZpZ3VyZSgiVG9wLlRCdXR0b24iLCBiYWNrZ3JvdW5kPSJ3aGl0ZSIsIGZvcmVncm91bmQ9VEVYVCwKICAgICAgICAgICAgICAgICAgICAgZm9udD0oIiIsIDEwKSwgcGFkZGluZz0oMTAsIDQpLCBib3JkZXJ3aWR0aD0xLAogICAgICAgICAgICAgICAgICAgICByZWxpZWY9InNvbGlkIiwgYm9yZGVyY29sb3I9Qk9SREVSLCBhbmNob3I9ImNlbnRlciIsCiAgICAgICAgICAgICAgICAgICAgIGp1c3RpZnk9ImNlbnRlciIpCiAgICAgICAgIyBOw7p0IENIRUNLOiBkZXNpZ24gbuG7lWkgYuG6rXQKICAgICAgICBzdC5jb25maWd1cmUoIkNoZWNrLlRCdXR0b24iLCBiYWNrZ3JvdW5kPUdSRUVOLCBmb3JlZ3JvdW5kPSJ3aGl0ZSIsCiAgICAgICAgICAgICAgICAgICAgIGZvbnQ9KCIiLCAxMSwgImJvbGQiKSwgcGFkZGluZz0oMTYsIDYpLCBib3JkZXJ3aWR0aD0wLAogICAgICAgICAgICAgICAgICAgICByZWxpZWY9ImZsYXQiLCBhbmNob3I9dGsuQ0VOVEVSKQogICAgICAgIHN0Lm1hcCgiQ2hlY2suVEJ1dHRvbiIsCiAgICAgICAgICAgICAgIGJhY2tncm91bmQ9WygiYWN0aXZlIiwgR1JFRU5fREFSSyksICgicHJlc3NlZCIsICIjMDY1RjQ2IildKQogICAgICAgICMgVGFiIMSRYW5nIGNo4buNbjogaGlnaGxpZ2h0IHhhbmggbMOhIG5o4bqhdAogICAgICAgIHN0LmNvbmZpZ3VyZSgiVGFiQWN0aXZlLlRCdXR0b24iLCBiYWNrZ3JvdW5kPSIjRDFGQUU1IiwKICAgICAgICAgICAgICAgICAgICAgZm9yZWdyb3VuZD0iIzA2NUY0NiIsIGZvbnQ9KCIiLCAxMCwgImJvbGQiKSwKICAgICAgICAgICAgICAgICAgICAgcGFkZGluZz0oMTAsIDQpLCBib3JkZXJ3aWR0aD0xLCByZWxpZWY9InNvbGlkIiwKICAgICAgICAgICAgICAgICAgICAgYm9yZGVyY29sb3I9IiMwNTk2NjkiLCBhbmNob3I9ImNlbnRlciIpCiAgICAgICAgIyBUcmVldmlldyBi4bqjbmcgdGjDtG5nIHPhu5EKICAgICAgICBzdC5jb25maWd1cmUoIlRyZWV2aWV3IiwgYmFja2dyb3VuZD0id2hpdGUiLAogICAgICAgICAgICAgICAgICAgICBmaWVsZGJhY2tncm91bmQ9IndoaXRlIiwgZm9yZWdyb3VuZD1URVhULAogICAgICAgICAgICAgICAgICAgICBmb250PSgiIiwgMTApLCByb3doZWlnaHQ9MjgsIGJvcmRlcndpZHRoPTEsCiAgICAgICAgICAgICAgICAgICAgIHJlbGllZj0ic29saWQiKQogICAgICAgIHN0LmNvbmZpZ3VyZSgiVHJlZXZpZXcuSGVhZGluZyIsIGJhY2tncm91bmQ9IiNGM0Y0RjYiLAogICAgICAgICAgICAgICAgICAgICBmb3JlZ3JvdW5kPU1VVEVELCBmb250PSgiIiwgMTAsICJib2xkIiksCiAgICAgICAgICAgICAgICAgICAgIHBhZGRpbmc9NikKICAgICAgICBzdC5tYXAoIlRyZWV2aWV3IiwKICAgICAgICAgICAgICAgYmFja2dyb3VuZD1bKCJzZWxlY3RlZCIsICIjRDFGQUU1IildLAogICAgICAgICAgICAgICBmb3JlZ3JvdW5kPVsoInNlbGVjdGVkIiwgVEVYVCldKQoKICAgICMgPT09PT09PT09PT09PT09PT09PT09PT09PT09PSBVSSA9PT09PT09PT09PT09PT09PT09PT09PT09PT09CiAgICBkZWYgX2RlZmVyX2RldGFpbChzZWxmLCBmbik6CiAgICAgICAgIiIiVHLDrCBob8OjbiByZW5kZXIgdGFiIENoaSB0aeG6v3QgdOG7m2kgbOG6p24gbeG7nyB0YWIgxJHhuqd1IHRpw6puIHNhdSBDSEVDSy4KCiAgICAgICAgQ0hFQ0sgY2jhu4kgdMOtbmggKyB24bq9IHRhYiBL4bq/dCBxdeG6ozsgbuG7mWkgZHVuZyB0YWIgQ2hpIHRp4bq/dCAodGh1eeG6v3QKICAgICAgICBtaW5oICsgZmlnIHJpw6puZykgxJHGsOG7o2MgZOG7sW5nIGzGsOG7nWkgKGxhenkpIGtoaSB1c2VyIGLhuqVtIHNhbmcgdGFiCiAgICAgICAgQ0hJIFRJ4bq+VCBUw41OSCBUT8OBTiDigJQgaG/hurdjIE5HQVkgdHJvbmcgQ0hFQ0sgbuG6v3UgdXNlciDEkWFuZyDEkeG7qW5nCiAgICAgICAg4bufIHRhYiDEkcOzLiBmbiBsw6AgY2xvc3VyZSByZW5kZXIgKMSRw6MgZ+G7k20geOG7rSBsw70gbOG7l2kgbmjGsCBjxakpOyBt4buZdAogICAgICAgIENIRUNLIG3hu5tpIGdoaSDEkcOoIGNsb3N1cmUgY8WpIGNoxrBhIGNo4bqheSAoa2jhu5twIGjDoG5oIHZpIGPFqTogcmVuZGVyCiAgICAgICAgbeG7m2kgdGhheSBu4buZaSBkdW5nIGPFqSkuIFPhu5EgbGnhu4d1IGtow7RuZyDEkeG7lWkg4oCUIGNsb3N1cmUgY2jhu4kgxJHhu41jIGRpY3QKICAgICAgICBr4bq/dCBxdeG6oyDEkcOjIHTDrW5oIDEgbOG6p24gbmjGsCDEkcaw4budbmcgcmVuZGVyIHRy4buxYyB0aeG6v3AgdHLGsOG7m2MgxJHDonkuCiAgICAgICAgIiIiCiAgICAgICAgc2VsZi5fcGVuZGluZ19kZXRhaWwgPSBmbgogICAgICAgIGlmIGdldGF0dHIoc2VsZiwgIl9jdXJyZW50X3RhYiIsICJzdW0iKSA9PSAiY2FsYyI6CiAgICAgICAgICAgIHNlbGYuX2ZsdXNoX2RldGFpbCgpCgogICAgZGVmIF9mbHVzaF9kZXRhaWwoc2VsZik6CiAgICAgICAgIiIiQ2jhuqF5IGNsb3N1cmUgcmVuZGVyIHRhYiBDaGkgdGnhur90IMSRYW5nIGNo4budIChu4bq/dSBjw7MpLCDEkcO6bmcgMSBs4bqnbi4iIiIKICAgICAgICBmbiA9IGdldGF0dHIoc2VsZiwgIl9wZW5kaW5nX2RldGFpbCIsIE5vbmUpCiAgICAgICAgaWYgZm4gaXMgbm90IE5vbmU6CiAgICAgICAgICAgIHNlbGYuX3BlbmRpbmdfZGV0YWlsID0gTm9uZQogICAgICAgICAgICBmbigpCgogICAgZGVmIF9zaG93X3RhYihzZWxmLCB3aGljaCk6CiAgICAgICAgIiIiQ2h1eeG7g24gZ2nhu69hIHRhYiBL4bq/dCBxdeG6oyAvIENoaSB0aeG6v3QuIiIiCiAgICAgICAgaWYgd2hpY2ggPT0gInN1bSI6CiAgICAgICAgICAgIHNlbGYudGFiX2NhbGMucGFja19mb3JnZXQoKQogICAgICAgICAgICBzZWxmLnRhYl9zdW0ucGFjayhmaWxsPXRrLkJPVEgsIGV4cGFuZD1UcnVlKQogICAgICAgICAgICBzZWxmLl9jdXJyZW50X3RhYiA9ICJzdW0iCiAgICAgICAgICAgICMgSGlnaGxpZ2h0IG7DunQgxJHGsOG7o2MgY2jhu41uCiAgICAgICAgICAgIHNlbGYuX3RhYl9idG5fc3VtLmNvbmZpZ3VyZShzdHlsZT0iVGFiQWN0aXZlLlRCdXR0b24iKQogICAgICAgICAgICBzZWxmLl90YWJfYnRuX2NhbGMuY29uZmlndXJlKHN0eWxlPSJUb3AuVEJ1dHRvbiIpCiAgICAgICAgZWxzZToKICAgICAgICAgICAgc2VsZi50YWJfc3VtLnBhY2tfZm9yZ2V0KCkKICAgICAgICAgICAgc2VsZi50YWJfY2FsYy5wYWNrKGZpbGw9dGsuQk9USCwgZXhwYW5kPVRydWUpCiAgICAgICAgICAgIHNlbGYuX2N1cnJlbnRfdGFiID0gImNhbGMiCiAgICAgICAgICAgICMgSGlnaGxpZ2h0IG7DunQgxJHGsOG7o2MgY2jhu41uCiAgICAgICAgICAgIHNlbGYuX3RhYl9idG5fY2FsYy5jb25maWd1cmUoc3R5bGU9IlRhYkFjdGl2ZS5UQnV0dG9uIikKICAgICAgICAgICAgc2VsZi5fdGFiX2J0bl9zdW0uY29uZmlndXJlKHN0eWxlPSJUb3AuVEJ1dHRvbiIpCiAgICAgICAgICAgICMgROG7sW5nIG7hu5lpIGR1bmcgQ2hpIHRp4bq/dCDEkWFuZyBjaOG7nSAobGF6eSkgbmdheSBraGkgbeG7nyB0YWIKICAgICAgICAgICAgc2VsZi5fZmx1c2hfZGV0YWlsKCkKCiAgICBkZWYgX3N3aXRjaF9sYW5nKHNlbGYsIGxhbmcpOgogICAgICAgICIiIkNodXnhu4NuIG5nw7RuIG5n4buvIFZOL0VOLiDDgXAgZOG7pW5nIGNobyBr4bq/dCBxdeG6oyBt4bubaSB0w61uaC4iIiIKICAgICAgICBmcm9tIHJjX2NvbHVtbiBpbXBvcnQgbGFuZyBhcyBfbGFuZwogICAgICAgIF9sYW5nLnNldF9sYW5nKGxhbmcpCiAgICAgICAgc2VsZi5fbGFuZ192YXIuc2V0KGxhbmcpCiAgICAgICAgIyBO4bq/dSDEkcOjIGPDsyBr4bq/dCBxdeG6oywgdMOtbmggbOG6oWkgxJHhu4MgaGnhu4NuIHRo4buLIG5nw7RuIG5n4buvIG3hu5tpCiAgICAgICAgaWYgaGFzYXR0cihzZWxmLCAnX2xhc3RfcmVzdWx0JykgYW5kIHNlbGYuX2xhc3RfcmVzdWx0OgogICAgICAgICAgICBzZWxmLm9uX2NoZWNrKCkKCiAgICBkZWYgX2JpbmRfd2hlZWwoc2VsZiwgcm9vdF93aWRnZXQsIGNhbnZhcyk6CiAgICAgICAgIiIiR+G6r24gY3Xhu5luIGNodeG7mXQgxJHhu4cgcXV5IGNobyByb290X3dpZGdldCB2w6AgbeG7jWkgY29uIGNow6F1LAogICAgICAgIGN14buZbiBjYW52YXMgY2jhu4kgxJHhu4tuaC4gQuG7jyBxdWEgVHJlZXZpZXcgKGdp4buvIGN14buZbiByacOqbmcpLiIiIgogICAgICAgIGRlZiBfcmVjKHcpOgogICAgICAgICAgICBpZiB3IGlzIGdldGF0dHIoc2VsZiwgImV0YWJzX3RyZWUiLCBOb25lKToKICAgICAgICAgICAgICAgIHJldHVybgogICAgICAgICAgICB3LmJpbmQoIjxNb3VzZVdoZWVsPiIsCiAgICAgICAgICAgICAgICAgICBsYW1iZGEgZSwgYz1jYW52YXM6IHNlbGYuX3Njcm9sbF9jYW52YXMoZSwgYykpCiAgICAgICAgICAgIHcuYmluZCgiPEJ1dHRvbi00PiIsCiAgICAgICAgICAgICAgICAgICBsYW1iZGEgZSwgYz1jYW52YXM6IHNlbGYuX3Njcm9sbF9jYW52YXMoZSwgYykpCiAgICAgICAgICAgIHcuYmluZCgiPEJ1dHRvbi01PiIsCiAgICAgICAgICAgICAgICAgICBsYW1iZGEgZSwgYz1jYW52YXM6IHNlbGYuX3Njcm9sbF9jYW52YXMoZSwgYykpCiAgICAgICAgICAgIGZvciBjaCBpbiB3LndpbmZvX2NoaWxkcmVuKCk6CiAgICAgICAgICAgICAgICBfcmVjKGNoKQogICAgICAgIF9yZWMocm9vdF93aWRnZXQpCgogICAgZGVmIF9zY3JvbGxfY2FudmFzKHNlbGYsIGV2ZW50LCBjYW52YXMpOgogICAgICAgICIiIkN14buZbiBjYW52YXMgMyB1bml0cy9u4bqlYy4iIiIKICAgICAgICBpZiBnZXRhdHRyKGV2ZW50LCAibnVtIiwgTm9uZSkgPT0gNDoKICAgICAgICAgICAgY2FudmFzLnl2aWV3X3Njcm9sbCgtMywgInVuaXRzIikKICAgICAgICBlbGlmIGdldGF0dHIoZXZlbnQsICJudW0iLCBOb25lKSA9PSA1OgogICAgICAgICAgICBjYW52YXMueXZpZXdfc2Nyb2xsKDMsICJ1bml0cyIpCiAgICAgICAgZWxzZToKICAgICAgICAgICAgZGVsdGEgPSBpbnQoLWV2ZW50LmRlbHRhIC8gMTIwKSBpZiBldmVudC5kZWx0YSBlbHNlIDAKICAgICAgICAgICAgY2FudmFzLnl2aWV3X3Njcm9sbChkZWx0YSAqIDMsICJ1bml0cyIpCiAgICAgICAgcmV0dXJuICJicmVhayIKCiAgICBkZWYgX29uX3doZWVsX2dsb2JhbChzZWxmLCBldmVudCk6CiAgICAgICAgIiIiKEdp4buvIMSR4buDIHTGsMahbmcgdGjDrWNoIOKAlCDEkcOjIGNodXnhu4NuIHNhbmcgX2JpbmRfd2hlZWwuKSIiIgogICAgICAgIHJldHVybiBOb25lCgogICAgZGVmIF93aGVlbF9vbihzZWxmKToKICAgICAgICAiIiIoR2nhu68gxJHhu4MgdMawxqFuZyB0aMOtY2gg4oCUIGtow7RuZyBjw7JuIGTDuW5nLikiIiIKICAgICAgICBwYXNzCgogICAgZGVmIF93aGVlbF9vZmYoc2VsZik6CiAgICAgICAgIiIiKEdp4buvIMSR4buDIHTGsMahbmcgdGjDrWNoIOKAlCBraMO0bmcgY8OybiBkw7luZy4pIiIiCiAgICAgICAgcGFzcwoKICAgIGRlZiBfb25fd2hlZWwoc2VsZiwgZXZlbnQpOgogICAgICAgICIiIihHaeG7ryDEkeG7gyB0xrDGoW5nIHRow61jaCDigJQga2jDtG5nIGPDsm4gZMO5bmcuKSIiIgogICAgICAgIHJldHVybiBOb25lCgogICAgZGVmIF9mcmFtZShzZWxmLCB0aXRsZSk6CiAgICAgICAgIyBUaXRsZSBk4bqhbmcgIjEuIFbhuq10IGxp4buHdSIgLT4gc+G7kSB4YW5oIGzDoQogICAgICAgICMgcGFkeD04IMSR4buDIGzhu4EgdHLDoWkga2jhu5twIHbhu5tpIGjDoG5nIDQgbsO6dCBiw6puIHRyw6puCiAgICAgICAgZiA9IHR0ay5MYWJlbEZyYW1lKHNlbGYubGVmdCwgdGV4dD10aXRsZSwgcGFkZGluZz0oMTIsIDEwKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU9IkNhcmQuVExhYmVsZnJhbWUiKQogICAgICAgIGYucGFjayhmaWxsPXRrLlgsIHBhZHg9OCwgcGFkeT04KQogICAgICAgIHJldHVybiBmCgogICAgIyDEkOG7mSBy4buZbmcgY2h14bqpbiBjaG8gY+G7mXQgbGFiZWwgKMSR4buDIGPDoWMgw7Qgbmjhuq1wIHRo4bqzbmcgaMOgbmcgZOG7jWMpCiAgICBfTEJMX1dJRFRIID0gMjQKCiAgICBkZWYgX3JvdyhzZWxmLCBwYXJlbnQsIGxhYmVsLCB3aWRnZXQsIHIsIGMwPTApOgogICAgICAgICMgTGFiZWwgeMOhbSBuaOG7jywgxJHhu5kgcuG7mW5nIGPhu5EgxJHhu4tuaCDEkeG7gyDDtCBuaOG6rXAgdGjhurNuZyBow6BuZwogICAgICAgIGxibCA9IHR0ay5MYWJlbChwYXJlbnQsIHRleHQ9bGFiZWwsIHN0eWxlPSJNdXRlZC5UTGFiZWwiLAogICAgICAgICAgICAgICAgICAgICAgICB3aWR0aD1zZWxmLl9MQkxfV0lEVEgsIGFuY2hvcj10ay5XKQogICAgICAgIGxibC5ncmlkKHJvdz1yLCBjb2x1bW49YzAsIHN0aWNreT10ay5XLCBwYWR4PSg0LCA4KSwgcGFkeT01KQogICAgICAgIHdpZGdldC5ncmlkKHJvdz1yLCBjb2x1bW49YzAgKyAxLCBzdGlja3k9dGsuRVcsIHBhZHg9NCwgcGFkeT01KQogICAgICAgIHBhcmVudC5jb2x1bW5jb25maWd1cmUoYzAgKyAxLCB3ZWlnaHQ9MSkKICAgICAgICByZXR1cm4gbGJsCgogICAgZGVmIF91cGRhdGVfdGl0bGUoc2VsZik6CiAgICAgICAgIiIiVGl0bGUgYmFyIGhp4buHbiB0w6puIGZpbGUgxJFhbmcgbMawdSArIG3DoyBi4bqjbiBidWlsZC4iIiIKICAgICAgICBpbXBvcnQgb3MKICAgICAgICBfZ2MgPSBmIiDCtyB7X0dJVF9DT01NSVR9IiBpZiBfR0lUX0NPTU1JVCBlbHNlICIiCiAgICAgICAgYmFzZSA9IGYiUkMgQ29sdW1uIERlc2lnbiBbe0FQUF9CVUlMRH1de19nY30iCiAgICAgICAgcCA9IGdldGF0dHIoc2VsZiwgImN1cnJlbnRfc2F2ZV9wYXRoIiwgTm9uZSkKICAgICAgICBpZiBwOgogICAgICAgICAgICBzZWxmLnRpdGxlKGYie2Jhc2V9IOKAlCBbe29zLnBhdGguYmFzZW5hbWUocCl9XSIpCiAgICAgICAgZWxzZToKICAgICAgICAgICAgc2VsZi50aXRsZShiYXNlKQoKCmRlZiBtYWluKCk6CiAgICBhcHAgPSBBcHAoKQogICAgYXBwLl9yZWZyZXNoX3JlYmFyKCkKICAgIGFwcC5tYWlubG9vcCgpCgoKaWYgX19uYW1lX18gPT0gIl9fbWFpbl9fIjoKICAgIG1haW4oKQo=
+# Thời điểm build: lấy từ build_info.py (do build_exe.py sinh khi đóng gói).
+try:
+    from build_info import BUILD_TIME as APP_BUILD
+except Exception:
+    # Fallback: exe frozen -> mtime của file exe; source -> mtime của file này
+    try:
+        import os as _os, sys as _sys, datetime as _dt
+        _p = _sys.executable if getattr(_sys, "frozen", False) else __file__
+        APP_BUILD = _dt.datetime.fromtimestamp(
+            _os.path.getmtime(_p)).strftime("%Y%m%d%H%M")
+    except Exception:
+        APP_BUILD = "000000000000"
+
+def _git_commit():
+    """Lấy hash commit git ngắn (7 ký tự) khi chạy từ source.
+    Đọc trực tiếp thư mục .git nên không cần git trong PATH;
+    trả về '' nếu không tìm thấy."""
+    import os as _os
+    # Tìm thư mục .git (lên tối đa 5 cấp từ thư mục file này)
+    _d = _os.path.dirname(_os.path.abspath(__file__))
+    _root = None
+    for _ in range(5):
+        if _os.path.isdir(_os.path.join(_d, ".git")):
+            _root = _os.path.join(_d, ".git")
+            break
+        _parent = _os.path.dirname(_d)
+        if _parent == _d:
+            break
+        _d = _parent
+    if not _root:
+        return ""
+    try:
+        with open(_os.path.join(_root, "HEAD"), "r") as _f:
+            _head = _f.read().strip()
+        if _head.startswith("ref:"):
+            _ref = _head[4:].strip()
+            # Tìm ref trong file rời trước, rồi packed-refs
+            _ref_path = _os.path.join(_root, *_ref.split("/"))
+            if _os.path.isfile(_ref_path):
+                with open(_ref_path, "r") as _f:
+                    return _f.read().strip()[:7]
+            _packed = _os.path.join(_root, "packed-refs")
+            if _os.path.isfile(_packed):
+                with open(_packed, "r") as _f:
+                    for _line in _f:
+                        _line = _line.strip()
+                        if _line.endswith(_ref):
+                            return _line.split()[0][:7]
+            return ""
+        return _head[:7]  # detached HEAD
+    except Exception:
+        return ""
+
+_GIT_COMMIT = _git_commit()
+
+import math
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+from rc_column.checker import ColumnInput, build_section, check_column
+from rc_column.lang import T, set_lang
+from rc_column.aci_materials import ACIConcrete, ACISteel
+from rc_column.aci_checker import check_column_aci, moment_magnification, aci_shear_check
+from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
+from rc_column.report import generate_report_sections
+from rc_column.sections import clear_spacing
+from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
+
+try:
+    import matplotlib
+    matplotlib.use("TkAgg")
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from matplotlib.figure import Figure
+    import matplotlib.patches as mpatches
+    HAS_MPL = True
+except Exception:
+    HAS_MPL = False
+
+from .tcvn_mixin import TcvnMixin
+from .aci_mixin import AciMixin
+from .ec2_mixin import Ec2Mixin
+from .etabs_mixin import EtabsMixin
+from .pdf_mixin import PdfMixin
+from .build_mixin import BuildMixin
+from .data_mixin import DataMixin
+from .dxf_mixin import DxfMixin
+from .preview_mixin import PreviewMixin
+
+
+class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin,
+          BuildMixin, DataMixin, DxfMixin, PreviewMixin):
+    def __init__(self):
+        super().__init__()
+        _gc = f" · {_GIT_COMMIT}" if _GIT_COMMIT else ""
+        self.title(f"RC Column Design [{APP_BUILD}]{_gc}")
+        self.geometry("1360x860")
+        # Icon title bar: ưu tiên PNG (ổn định hơn ICO trên tkinter)
+        try:
+            import os, sys
+            _base = os.path.normpath(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), ".."))
+            if hasattr(sys, "_MEIPASS"):
+                _base = sys._MEIPASS
+            _png = os.path.join(_base, "icon.png")
+            _ico = os.path.join(_base, "icon.ico")
+            _done = False
+            if os.path.exists(_png):
+                try:
+                    _img = tk.PhotoImage(file=_png)
+                    self.iconphoto(True, _img)
+                    self._icon_img = _img
+                    _done = True
+                except Exception:
+                    pass
+            if not _done and os.path.exists(_ico):
+                try:
+                    self.iconbitmap(_ico)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # Mở mặc định full màn hình
+        try:
+            self.state("zoomed")
+        except Exception:
+            pass
+        self._setup_styles()
+        self._build()
+        self.after(100, self._fix_left_width)
+        # Ép tính lại layout sau khi hiện cửa sổ (fix khoảng trống trên Win)
+        self.after(300, self._refresh_layout)
+
+    def _refresh_layout(self, _retry=0):
+        """Ép tkinter tính lại layout (fix lỗi khoảng trống khi mở app)."""
+        try:
+            self.update_idletasks()
+            for _c in ('_left_canvas', '_calc_canvas', '_sum_canvas'):
+                if hasattr(self, _c):
+                    cv = getattr(self, _c)
+                    try:
+                        cv.configure(scrollregion=cv.bbox("all"))
+                        cv.yview_moveto(0)
+                    except Exception:
+                        pass
+            # Giả lập resize: nudge kích thước 1px rồi trả lại
+            # (kích hoạt lại geometry manager như khi user resize thủ công)
+            _g = self.geometry()
+            try:
+                _w, _h = self.winfo_width(), self.winfo_height()
+                if _w > 100 and _h > 100:
+                    self.geometry(f"{_w+1}x{_h}")
+                    self.update_idletasks()
+                    self.geometry(f"{_w}x{_h}")
+            except Exception:
+                try:
+                    self.geometry(_g)
+                except Exception:
+                    pass
+            self.update()
+            if _retry < 2:
+                self.after(500, lambda: self._refresh_layout(_retry + 1))
+        except Exception:
+            pass
+
+    def _fix_left_width(self, _retry=0):
+        # Layout đã fix cứng bằng pack (không dùng PanedWindow), không cần set sash
+        try:
+            self.after(200, self._refresh_layout)
+        except Exception:
+            pass
+
+    def _setup_styles(self):
+        """Style giống web VietconSoft: thanh thoát, gọn gàng."""
+        st = ttk.Style(self)
+        try:
+            st.theme_use("clam")
+        except Exception:
+            pass
+        GREEN = "#059669"
+        GREEN_DARK = "#047857"
+        BORDER = "#E5E7EB"
+        BG = "#F9FAFB"
+        TEXT = "#111827"
+        MUTED = "#6B7280"
+        # Nền chung
+        st.configure(".", background=BG, font=("", 10))
+        st.configure("TFrame", background="white")
+        st.configure("TLabel", background="white", foreground=TEXT, font=("", 10))
+        # Label mô tả: màu chữ bình thường, nền trắng (không in mờ)
+        st.configure("Muted.TLabel", foreground=TEXT, font=("", 9),
+                     background="white")
+        # Tiêu đề mục: số xanh lá + chữ đậm
+        st.configure("Section.TLabel", foreground=TEXT,
+                     font=("", 11, "bold"))
+        # Card trắng
+        st.configure("Card.TLabelframe", background="white",
+                     bordercolor=BORDER, relief="solid", borderwidth=1)
+        st.configure("Card.TLabelframe.Label", background="white",
+                     foreground=TEXT, font=("", 11, "bold"))
+        # Input hiện đại: cao ráo, viền nhạt bo nhẹ
+        for w in ("TEntry", "TCombobox", "TSpinbox"):
+            st.configure(w, fieldbackground="white", bordercolor=BORDER,
+                         lightcolor=BORDER, darkcolor=BORDER,
+                         borderwidth=1, padding=(8, 6))
+            st.map(w, bordercolor=[("focus", GREEN)],
+                   fieldbackground=[("readonly", "white")])
+        # Nút chính xanh lá
+        st.configure("Accent.TButton", background=GREEN, foreground="white",
+                     font=("", 11, "bold"), padding=(12, 10),
+                     borderwidth=0)
+        st.map("Accent.TButton",
+               background=[("active", GREEN_DARK), ("pressed", "#065F46")])
+        # Nút phụ viền xám
+        st.configure("Ghost.TButton", background="white", foreground=TEXT,
+                     font=("", 12), padding=(12, 8), borderwidth=1,
+                     relief="solid", bordercolor=BORDER)
+        # Nút hàng trên cùng: gọn như nút import, icon căn giữa
+        st.configure("Top.TButton", background="white", foreground=TEXT,
+                     font=("", 10), padding=(10, 4), borderwidth=1,
+                     relief="solid", bordercolor=BORDER, anchor="center",
+                     justify="center")
+        # Nút CHECK: design nổi bật
+        st.configure("Check.TButton", background=GREEN, foreground="white",
+                     font=("", 11, "bold"), padding=(16, 6), borderwidth=0,
+                     relief="flat", anchor=tk.CENTER)
+        st.map("Check.TButton",
+               background=[("active", GREEN_DARK), ("pressed", "#065F46")])
+        # Tab đang chọn: highlight xanh lá nhạt
+        st.configure("TabActive.TButton", background="#D1FAE5",
+                     foreground="#065F46", font=("", 10, "bold"),
+                     padding=(10, 4), borderwidth=1, relief="solid",
+                     bordercolor="#059669", anchor="center")
+        # Treeview bảng thông số
+        st.configure("Treeview", background="white",
+                     fieldbackground="white", foreground=TEXT,
+                     font=("", 10), rowheight=28, borderwidth=1,
+                     relief="solid")
+        st.configure("Treeview.Heading", background="#F3F4F6",
+                     foreground=MUTED, font=("", 10, "bold"),
+                     padding=6)
+        st.map("Treeview",
+               background=[("selected", "#D1FAE5")],
+               foreground=[("selected", TEXT)])
+
+    # ============================ UI ============================
+    def _defer_detail(self, fn):
+        """Trì hoãn render tab Chi tiết tới lần mở tab đầu tiên sau CHECK.
+
+        CHECK chỉ tính + vẽ tab Kết quả; nội dung tab Chi tiết (thuyết
+        minh + fig riêng) được dựng lười (lazy) khi user bấm sang tab
+        CHI TIẾT TÍNH TOÁN — hoặc NGAY trong CHECK nếu user đang đứng
+        ở tab đó. fn là closure render (đã gồm xử lý lỗi như cũ); một
+        CHECK mới ghi đè closure cũ chưa chạy (khớp hành vi cũ: render
+        mới thay nội dung cũ). Số liệu không đổi — closure chỉ đọc dict
+        kết quả đã tính 1 lần như đường render trực tiếp trước đây.
+        """
+        self._pending_detail = fn
+        if getattr(self, "_current_tab", "sum") == "calc":
+            self._flush_detail()
+
+    def _flush_detail(self):
+        """Chạy closure render tab Chi tiết đang chờ (nếu có), đúng 1 lần."""
+        fn = getattr(self, "_pending_detail", None)
+        if fn is not None:
+            self._pending_detail = None
+            fn()
+
+    def _show_tab(self, which):
+        """Chuyển giữa tab Kết quả / Chi tiết."""
+        if which == "sum":
+            self.tab_calc.pack_forget()
+            self.tab_sum.pack(fill=tk.BOTH, expand=True)
+            self._current_tab = "sum"
+            # Highlight nút được chọn
+            self._tab_btn_sum.configure(style="TabActive.TButton")
+            self._tab_btn_calc.configure(style="Top.TButton")
+        else:
+            self.tab_sum.pack_forget()
+            self.tab_calc.pack(fill=tk.BOTH, expand=True)
+            self._current_tab = "calc"
+            # Highlight nút được chọn
+            self._tab_btn_calc.configure(style="TabActive.TButton")
+            self._tab_btn_sum.configure(style="Top.TButton")
+            # Dựng nội dung Chi tiết đang chờ (lazy) ngay khi mở tab
+            self._flush_detail()
+
+    def _switch_lang(self, lang):
+        """Chuyển ngôn ngữ VN/EN. Áp dụng cho kết quả mới tính."""
+        from rc_column import lang as _lang
+        _lang.set_lang(lang)
+        self._lang_var.set(lang)
+        # Nếu đã có kết quả, tính lại để hiển thị ngôn ngữ mới
+        if hasattr(self, '_last_result') and self._last_result:
+            self.on_check()
+
+    def _bind_wheel(self, root_widget, canvas):
+        """Gắn cuộn chuột đệ quy cho root_widget và mọi con cháu,
+        cuộn canvas chỉ định. Bỏ qua Treeview (giữ cuộn riêng)."""
+        def _rec(w):
+            if w is getattr(self, "etabs_tree", None):
+                return
+            w.bind("<MouseWheel>",
+                   lambda e, c=canvas: self._scroll_canvas(e, c))
+            w.bind("<Button-4>",
+                   lambda e, c=canvas: self._scroll_canvas(e, c))
+            w.bind("<Button-5>",
+                   lambda e, c=canvas: self._scroll_canvas(e, c))
+            for ch in w.winfo_children():
+                _rec(ch)
+        _rec(root_widget)
+
+    def _scroll_canvas(self, event, canvas):
+        """Cuộn canvas 3 units/nấc."""
+        if getattr(event, "num", None) == 4:
+            canvas.yview_scroll(-3, "units")
+        elif getattr(event, "num", None) == 5:
+            canvas.yview_scroll(3, "units")
+        else:
+            delta = int(-event.delta / 120) if event.delta else 0
+            canvas.yview_scroll(delta * 3, "units")
+        return "break"
+
+    def _on_wheel_global(self, event):
+        """(Giữ để tương thích — đã chuyển sang _bind_wheel.)"""
+        return None
+
+    def _wheel_on(self):
+        """(Giữ để tương thích — không còn dùng.)"""
+        pass
+
+    def _wheel_off(self):
+        """(Giữ để tương thích — không còn dùng.)"""
+        pass
+
+    def _on_wheel(self, event):
+        """(Giữ để tương thích — không còn dùng.)"""
+        return None
+
+    def _frame(self, title):
+        # Title dạng "1. Vật liệu" -> số xanh lá
+        # padx=8 để lề trái khớp với hàng 4 nút bên trên
+        f = ttk.LabelFrame(self.left, text=title, padding=(12, 10),
+                           style="Card.TLabelframe")
+        f.pack(fill=tk.X, padx=8, pady=8)
+        return f
+
+    # Độ rộng chuẩn cho cột label (để các ô nhập thẳng hàng dọc)
+    _LBL_WIDTH = 24
+
+    def _row(self, parent, label, widget, r, c0=0):
+        # Label xám nhỏ, độ rộng cố định để ô nhập thẳng hàng
+        lbl = ttk.Label(parent, text=label, style="Muted.TLabel",
+                        width=self._LBL_WIDTH, anchor=tk.W)
+        lbl.grid(row=r, column=c0, sticky=tk.W, padx=(4, 8), pady=5)
+        widget.grid(row=r, column=c0 + 1, sticky=tk.EW, padx=4, pady=5)
+        parent.columnconfigure(c0 + 1, weight=1)
+        return lbl
+
+    def _update_title(self):
+        """Title bar hiện tên file đang lưu + mã bản build."""
+        import os
+        _gc = f" · {_GIT_COMMIT}" if _GIT_COMMIT else ""
+        base = f"RC Column Design [{APP_BUILD}]{_gc}"
+        p = getattr(self, "current_save_path", None)
+        if p:
+            self.title(f"{base} — [{os.path.basename(p)}]")
+        else:
+            self.title(base)
+
+
+def main():
+    app = App()
+    app._refresh_rebar()
+    app.mainloop()
+
+
+if __name__ == "__main__":
+    main()
