@@ -90,13 +90,13 @@ class AciMixin:
             res["klu_r3"] = (L0_3 / _r_3) if _r_3 > 0 else 0.0
             # Tính alpha và Malpha 1 lần từ M đã phóng đại (dùng chung)
             import math as _math
-            _alpha = _math.degrees(_math.atan2(Mc2, Mc3)) if abs(Mc2)+abs(Mc3) > 1e-9 else 0.0
+            _alpha = _math.degrees(_math.atan2(Mc2, Mc3)) % 360.0 if abs(Mc2)+abs(Mc3) > 1e-9 else 0.0
             _Malpha = _math.hypot(Mc2, Mc3)
             res["alpha_deg"] = _alpha
             res["Malpha"] = _Malpha
             # Tính alpha và Malpha 1 lần từ M đã phóng đại (dùng chung cho tab/PDF)
             import math as _math
-            _alpha = _math.degrees(_math.atan2(Mc2, Mc3)) if abs(Mc2)+abs(Mc3) > 1e-9 else 0.0
+            _alpha = _math.degrees(_math.atan2(Mc2, Mc3)) % 360.0 if abs(Mc2)+abs(Mc3) > 1e-9 else 0.0
             _Malpha = _math.hypot(Mc2, Mc3)
             res["alpha_deg"] = _alpha
             res["Malpha"] = _Malpha
@@ -339,7 +339,7 @@ class AciMixin:
         """Trả về rows data cho bảng thông số ACI."""
         import math
         alpha_deg = (aci_res["alpha_deg"] if isinstance(aci_res, dict) and "alpha_deg" in aci_res
-                     else math.degrees(math.atan2(inp.Mx, inp.My)) if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
+                     else math.degrees(math.atan2(inp.Mx, inp.My)) % 360.0 if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
         Ma = (aci_res["Malpha"] if isinstance(aci_res, dict) and "Malpha" in aci_res
               else math.hypot(inp.Mx, inp.My))
         delta_txt = "—"
@@ -686,7 +686,7 @@ class AciMixin:
         dc_bg = "#D1FAE5" if aci_res["ok"] else "#FEE2E2"
         dc_fg = "#065F46" if aci_res["ok"] else "#991B1B"
         tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
-        alpha_deg = (aci_res["alpha_deg"] if "aci_res" in locals() and isinstance(aci_res, dict) and "alpha_deg" in aci_res else math.degrees(math.atan2(inp.Mx, inp.My)) if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
+        alpha_deg = (aci_res["alpha_deg"] if "aci_res" in locals() and isinstance(aci_res, dict) and "alpha_deg" in aci_res else math.degrees(math.atan2(inp.Mx, inp.My)) % 360.0 if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
         Ma = (aci_res["Malpha"] if "aci_res" in locals() and isinstance(aci_res, dict) and "Malpha" in aci_res else math.hypot(inp.Mx, inp.My))
         delta_txt = "—"
         if mm_res:
@@ -747,7 +747,7 @@ class AciMixin:
     def _build_aci_nm_header(self, parent, inp):
         """Header trên biểu đồ N-Mα (ACI)."""
         import math
-        alpha_deg = (aci_res["alpha_deg"] if "aci_res" in locals() and isinstance(aci_res, dict) and "alpha_deg" in aci_res else math.degrees(math.atan2(inp.Mx, inp.My)) if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
+        alpha_deg = (aci_res["alpha_deg"] if "aci_res" in locals() and isinstance(aci_res, dict) and "alpha_deg" in aci_res else math.degrees(math.atan2(inp.Mx, inp.My)) % 360.0 if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         left = ttk.Frame(hdr)
@@ -790,7 +790,7 @@ class AciMixin:
             if angle is None:
                 import math
                 inp = self._aci_inp
-                a0 = math.degrees(math.atan2(inp.Mx, inp.My)) \
+                a0 = math.degrees(math.atan2(inp.Mx, inp.My)) % 360.0 \
                     if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
                 self._aci_nm_alpha_lbl.config(text=f"  α = {a0:.1f}°  ")
             else:
@@ -840,7 +840,7 @@ class AciMixin:
         mono = ("TkFixedFont", 10)
         Ma = (aci_res["Malpha"] if "aci_res" in locals() and isinstance(aci_res, dict) and "Malpha" in aci_res else math.hypot(inp.Mx, inp.My))
         Mb = math.hypot(aci_res["Bx"], aci_res["By"])
-        alpha_deg = (aci_res["alpha_deg"] if "aci_res" in locals() and isinstance(aci_res, dict) and "alpha_deg" in aci_res else math.degrees(math.atan2(inp.Mx, inp.My)) if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
+        alpha_deg = (aci_res["alpha_deg"] if "aci_res" in locals() and isinstance(aci_res, dict) and "alpha_deg" in aci_res else math.degrees(math.atan2(inp.Mx, inp.My)) % 360.0 if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0)
         box = tk.Frame(parent, bg="white",
                        highlightbackground="#E5E7EB", highlightthickness=1)
         box.pack(fill=tk.X, padx=4, pady=4)

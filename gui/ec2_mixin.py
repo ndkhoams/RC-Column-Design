@@ -173,11 +173,13 @@ class Ec2Mixin:
             res["M2_mag"] = MEd2
             res["M3_mag"] = MEd3
             # Tính alpha 1 lần từ M thiết kế (dùng chung)
-            # Giữ dấu theo M2, M3 gốc (quy ước ETABS: đo từ trục M3)
+            # Góc theo dấu M2, M3 gốc (quy ước ETABS: đo từ trục M3),
+            # chuẩn hoá 0-360° như ETABS (user chốt 2026-10-22,
+            # thay quy ước giữ dấu 2026-10-18)
             import math as _math
             _s2a = 1.0 if M2 >= 0 else -1.0
             _s3a = 1.0 if M3 >= 0 else -1.0
-            _alpha = _math.degrees(_math.atan2(_s2a*MEd2, _s3a*MEd3)) if abs(MEd2)+abs(MEd3) > 1e-9 else 0.0
+            _alpha = _math.degrees(_math.atan2(_s2a*MEd2, _s3a*MEd3)) % 360.0 if abs(MEd2)+abs(MEd3) > 1e-9 else 0.0
             _Malpha = _math.hypot(MEd2, MEd3)
             res["alpha_deg"] = _alpha
             res["Malpha"] = _Malpha
@@ -336,7 +338,7 @@ class Ec2Mixin:
         M2m = ec2_res.get("M2_mag", inp.Mx)
         M3m = ec2_res.get("M3_mag", inp.My)
         alpha_deg = (ec2_res["alpha_deg"] if isinstance(ec2_res, dict) and "alpha_deg" in ec2_res
-                     else math.degrees(math.atan2(M2m, M3m)) if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
+                     else math.degrees(math.atan2(M2m, M3m)) % 360.0 if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
         Ma = math.hypot(M2m, M3m)
         def _sl(lbl):
             try:
@@ -664,7 +666,7 @@ class Ec2Mixin:
         # Fallback dùng inp.Mx/My (có dấu) để giữ đúng góc phần tư
         _fM2 = inp.Mx
         _fM3 = inp.My
-        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(_fM2, _fM3)) \
+        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(_fM2, _fM3)) % 360.0 \
             if abs(_fM2) + abs(_fM3) > 1e-9 else 0.0)
         Ma = math.hypot(M2m, M3m)
         def _sl(lbl):
@@ -729,7 +731,7 @@ class Ec2Mixin:
         import math
         M2m = getattr(self, "_ec2_res", {}).get("M2_mag", inp.Mx)
         M3m = getattr(self, "_ec2_res", {}).get("M3_mag", inp.My)
-        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(M2m, M3m)) \
+        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(M2m, M3m)) % 360.0 \
             if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
@@ -774,7 +776,7 @@ class Ec2Mixin:
                 import math
                 res = self._ec2_res
                 a0 = math.degrees(math.atan2(res.get("M2_mag", 0),
-                                             res.get("M3_mag", 0)))
+                                             res.get("M3_mag", 0))) % 360.0
                 self._ec2_nm_alpha_lbl.config(text=f"  α = {a0:.1f}°  ")
             else:
                 self._ec2_nm_alpha_lbl.config(text=f"  xem {angle:.0f}°  ")
@@ -823,7 +825,7 @@ class Ec2Mixin:
         M3m = ec2_res.get("M3_mag", inp.My)
         Ma = math.hypot(M2m, M3m)
         Mb = math.hypot(ec2_res["Bx"], ec2_res["By"])
-        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(M2m, M3m)) \
+        alpha_deg = (ec2_res["alpha_deg"] if "ec2_res" in locals() and isinstance(ec2_res, dict) and "alpha_deg" in ec2_res else math.degrees(math.atan2(M2m, M3m)) % 360.0 \
             if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
         box = tk.Frame(parent, bg="white",
                        highlightbackground="#E5E7EB", highlightthickness=1)
