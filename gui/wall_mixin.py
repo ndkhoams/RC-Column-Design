@@ -277,14 +277,17 @@ class WallMixin:
         self.w_cb_aci_class = _combo(
             [lab for _, lab in _ACI_CLASS],
             _label_of(_ACI_CLASS, D["seismic_class"], "Đặc biệt (Ch.18)"))
-        self._row(f, "Loại vách (ACI 318-19)", self.w_cb_aci_class, r); r += 1
+        self.w_lbl_aci_class = self._row(
+            f, "Loại vách (ACI 318-19)", self.w_cb_aci_class, r); r += 1
         self.w_var_seismic = tk.BooleanVar(value=bool(D["seismic_on"]))
-        tk.Checkbutton(
-            f, text="Kháng chấn DCM (TCVN 9386 / EN 1998) — áp cho TCVN & EC2",
+        self.w_chk_seismic = tk.Checkbutton(
+            f, text="Kháng chấn DCM (TCVN 9386:2012)",
             variable=self.w_var_seismic, bg="white",
-            activebackground="white", highlightthickness=0).grid(
-                row=r, column=0, columnspan=2, sticky=tk.W, padx=4, pady=4)
+            activebackground="white", highlightthickness=0)
+        self.w_chk_seismic.grid(
+            row=r, column=0, columnspan=2, sticky=tk.W, padx=4, pady=4)
         r += 1
+        self._toggle_wall_seismic()
         ttk.Label(f, foreground="gray", wraplength=560,
                   text="Lát 1: đã hỗ trợ kiểm tra N–M vách theo TCVN "
                        "(nhập tay ở mục 5: N / M2 = mô men ngoài mặt phẳng / "
@@ -309,6 +312,31 @@ class WallMixin:
             "write", lambda *a: self._refresh_wall_preview())
         self.w_var_seismic.trace_add(
             "write", lambda *a: self._refresh_wall_preview())
+
+    # ---------------- Kháng chấn: lọc option theo tiêu chuẩn ----------------
+    def _toggle_wall_seismic(self):
+        """Nhóm 'Kháng chấn' của panel vách: chỉ hiện option thuộc
+        tiêu chuẩn đang chọn (user chốt 2026-10-22):
+        ACI -> ô 'Loại vách (ACI 318-19)'; TCVN -> checkbox
+        'Kháng chấn DCM (TCVN 9386:2012)'; EC2 -> checkbox
+        'Kháng chấn DCM (EN 1998)'. Option đang ẩn chỉ bị grid_remove —
+        biến giá trị (cb/BoolVar) không đổi nên JSON giữ nguyên khi
+        đổi tiêu chuẩn qua lại. Được gọi từ _sec_wall (lúc dựng) và từ
+        _toggle_code (build_mixin) mỗi khi đổi tiêu chuẩn."""
+        if not hasattr(self, "w_cb_aci_class"):
+            return
+        code = self.cb_code.get() if getattr(self, "cb_code", None) else ""
+        if code.startswith("ACI"):
+            self.w_lbl_aci_class.grid()
+            self.w_cb_aci_class.grid()
+            self.w_chk_seismic.grid_remove()
+        else:
+            self.w_lbl_aci_class.grid_remove()
+            self.w_cb_aci_class.grid_remove()
+            self.w_chk_seismic.grid()
+            self.w_chk_seismic.configure(
+                text="Kháng chấn DCM (EN 1998)" if code.startswith("EC2")
+                else "Kháng chấn DCM (TCVN 9386:2012)")
 
     # ---------------- Chuyển đổi Cột <-> Vách ----------------
     def _toggle_member(self):
@@ -726,14 +754,26 @@ class WallMixin:
             ax2 = fig2.add_subplot(111)
             curve = uniaxial_curve_fs(full["fs_obj"], full["alpha_deg"],
                                       full["model"])
-            ax2.plot([m for (_n, m) in curve], [n for (n, _m) in curve],
-                     color="#059669", lw=1.8)
+            _ns = [n for (n, _m) in curve]
+            _ms = [m for (_n, m) in curve]
+            ax2.plot(_ms, _ns, color="#059669", lw=1.8)
+            # Tô màu vùng tương tác như biểu đồ N–M của cột
+            # (chart_draw.draw_nm_alpha_ax: GREEN #059669, alpha 0.08)
+            ax2.fill_betweenx(_ns, 0, _ms, color="#059669", alpha=0.08,
+                              zorder=1)
             ax2.scatter([full["Malpha"]], [full["N"]], c="#DC2626",
                         zorder=5, label="A (làm việc)")
             lam = full["lambda_ray"]
             if math.isfinite(lam):
                 ax2.scatter([lam * full["Malpha"]], [full["BN"]],
                             c="#2563EB", zorder=5, label="B (giới hạn)")
+            # Chỉ hiện góc 1/4 chứa tia làm việc như cột chỉ hiện nửa
+            # có tải: Mα >= 0 luôn; phía N theo dấu N của điểm A/B.
+            ax2.set_xlim(left=0)
+            if full["N"] >= 0:
+                ax2.set_ylim(bottom=0)
+            else:
+                ax2.set_ylim(top=0)
             ax2.set_xlabel("Mα (kN·m)")
             ax2.set_ylabel("N (kN)")
             ax2.set_title(f"N–Mα (α = {full['alpha_deg']:.1f}°)",
@@ -798,13 +838,9 @@ class WallMixin:
                  else "—")
         fs_txt = (f"{full['fs']:.2f}" if math.isfinite(full["fs"])
                   else "∞")
+        # Bỏ 5 hàng Lw/tw/Ab/As/μ (user chốt 2026-10-22): Lw/tw đã có
+        # nhãn kích thước trên hình mặt cắt, As/Ab/μ đã có ở hàng thẻ.
         rows = [
-            ("Lw", "Chiều dài vách", f"{float(winp.Lw):.0f} mm"),
-            ("tw", "Chiều dày vách", f"{float(winp.tw):.0f} mm"),
-            ("Ab", "Diện tích bê tông", f"{sec.gross_area:,.0f} mm²"),
-            ("As", "Tổng diện tích thép dọc", f"{sec.steel_area:.0f} mm²"),
-            ("μ", "Hàm lượng thép dọc",
-             f"{sec.reinforcement_ratio * 100:.2f}%"),
             ("N", "Lực dọc tính toán", f"{full['N']:+.1f} kN"),
             ("M3", "Mô men trong mặt phẳng ban đầu",
              f"{full['M_in']:.1f} kN·m"),

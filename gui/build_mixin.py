@@ -366,6 +366,10 @@ class BuildMixin:
             self.frm_aci.grid_remove()
             self.frm_ec2.grid_remove()
             self.frm_tcvn.grid()
+        # Chế độ Vách: lọc nhóm Kháng chấn theo tiêu chuẩn (nếu có)
+        _hook = getattr(self, "_toggle_wall_seismic", None)
+        if _hook is not None:
+            _hook()
 
     # ---- 2. Tiết diện ----
     def _sec_section(self):
