@@ -870,10 +870,7 @@ class BuildMixin:
         ttk.Button(btn_row, text="Import from Excel", style="Big.TButton",
                    command=self.on_import_etabs).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
-        ttk.Button(btn_row, text="Add from Clipboard", style="Big.TButton",
-                   command=self.on_paste_etabs_add).pack(
-                       side=tk.LEFT, expand=True, fill=tk.X, padx=2)
-        ttk.Button(btn_row, text="Replace from Clipboard", style="Big.TButton",
+        ttk.Button(btn_row, text="Paste from Clipboard", style="Big.TButton",
                    command=self.on_paste_etabs).pack(
                        side=tk.LEFT, expand=True, fill=tk.X, padx=2)
         ttk.Button(btn_row, text="Delete", style="Big.TButton",

@@ -35,15 +35,12 @@ class EtabsMixin:
         self._load_etabs_file(path)
 
     def on_paste_etabs(self):
-        """Dán nội lực ETABS từ clipboard — THAY THẾ toàn bộ dữ liệu hiện có."""
-        self._paste_etabs(append=False)
+        """Dán nội lực ETABS/SAP2000 từ clipboard — GHI THÊM vào dữ liệu
+        hiện có (không bao giờ đè). Muốn làm sạch bảng thì dùng nút Delete."""
+        self._paste_etabs()
 
-    def on_paste_etabs_add(self):
-        """Dán nội lực ETABS từ clipboard — GHI THÊM vào dữ liệu hiện có."""
-        self._paste_etabs(append=True)
-
-    def _paste_etabs(self, append: bool):
-        """Dán nội lực ETABS từ clipboard (copy từ bảng Element Forces)."""
+    def _paste_etabs(self):
+        """Dán nội lực từ clipboard (copy từ bảng Element Forces)."""
         try:
             text = self.clipboard_get()
         except Exception:
@@ -63,7 +60,7 @@ class EtabsMixin:
             messagebox.showerror("Lỗi đọc clipboard", str(ex))
             return
         _old_n = len(getattr(self, "etabs_forces", []) or [])
-        if append and _old_n:
+        if _old_n:
             self.etabs_forces = list(self.etabs_forces) + forces
             self.etabs_info.set(
                 f"Đã thêm {len(forces)} dòng từ clipboard "
