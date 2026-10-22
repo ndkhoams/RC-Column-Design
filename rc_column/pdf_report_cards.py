@@ -492,7 +492,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         c2 = _mk5(*dirs[1], kind)
         S.extend(_two(P, st, c1, c2))
     Ma = math.hypot(res.Mx_star, res.My_star)
-    alpha = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+    alpha = math.degrees(math.atan2(res.Mx_star, res.My_star)) % 360.0 \
         if Ma > 1e-9 else 0.0
     S.append(KeepTogether(_two(P, st,
         _mk( "Góc tác dụng mô men uốn tổng hợp α", "Góc uốn xiên",

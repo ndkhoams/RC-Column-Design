@@ -362,24 +362,25 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     pts = cap.mx_my_curve(res.N)
     BLUE, GREEN, RED, ORANGE = "#2563EB", "#059669", "#DC2626", "#F97316"
-    xs = [p[0] for p in pts] + [pts[0][0]]
-    ys = [p[1] for p in pts] + [pts[0][1]]
+    # Trục như ETABS (2026-10-22): hoành = M3, tung = M2
+    xs = [p[1] for p in pts] + [pts[0][1]]
+    ys = [p[0] for p in pts] + [pts[0][0]]
     ax.plot(xs, ys, color=BLUE, lw=2.2, zorder=3)
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
-    ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
+    ax.plot([0, res.By * 1.18], [0, res.Bx * 1.18], color=RED,
             ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([res.Bx], [res.By], c=ORANGE, marker="D", s=70, zorder=5,
+    ax.scatter([res.By], [res.Bx], c=ORANGE, marker="D", s=70, zorder=5,
                edgecolors="white", linewidths=1.2)
-    ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70, zorder=6,
+    ax.scatter([res.My_star], [res.Mx_star], c=GREEN, s=70, zorder=6,
                edgecolors="white", linewidths=1.2)
-    ax.text(res.Mx_star, res.My_star, "  A", fontsize=9, color=GREEN,
+    ax.text(res.My_star, res.Mx_star, "  A", fontsize=9, color=GREEN,
             weight="bold", va="center", zorder=7)
-    ax.text(res.Bx, res.By, "  B", fontsize=9, color=ORANGE,
+    ax.text(res.By, res.Bx, "  B", fontsize=9, color=ORANGE,
             weight="bold", va="center", zorder=7)
     ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
-    ax.set_xlabel("M2 (kN×m)", fontsize=10, fontweight="bold")
-    ax.set_ylabel("M3 (kN×m)", fontsize=10, fontweight="bold")
+    ax.set_xlabel("M3 (kN×m)", fontsize=10, fontweight="bold")
+    ax.set_ylabel("M2 (kN×m)", fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
     from matplotlib.lines import Line2D as _L2D2
     _leg2 = [
@@ -765,7 +766,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             _station_txt = f"{_st:.2f}" if isinstance(_st, (int, float)) else str(_st)
         _vpos = f"[{_story_txt}]-[{_label_txt}]-[{_station_txt}]" if _story_txt != "—" else "—"
 
-        _alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) \
+        _alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) % 360.0 \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         _ok_txt = "<b>ĐẠT</b>" if res.ok else "<b>KHÔNG ĐẠT</b>"
         # He so chieu dai tinh toan psi: doc tu L0 (engine da tinh) / L goc
