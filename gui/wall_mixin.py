@@ -749,23 +749,48 @@ class WallMixin:
         tk.Label(hdr, text="● Biểu đồ tương tác N–Mα",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         if HAS_MPL:
-            from rc_column.interaction import uniaxial_curve_fs
+            from rc_column.interaction import BiaxialCapacity
             fig2, cv2 = self._new_wall_fig(f_bl, (5.2, 3.9))
             ax2 = fig2.add_subplot(111)
-            curve = uniaxial_curve_fs(full["fs_obj"], full["alpha_deg"],
-                                      full["model"])
-            _ns = [n for (n, _m) in curve]
-            _ms = [m for (_n, m) in curve]
-            ax2.plot(_ms, _ns, color="#059669", lw=1.8)
+            # Đường cong N–Mα: capacity EXACT tại góc α — cùng nguồn
+            # solver sinh điểm B (như chart_draw.draw_nm_alpha_ax của
+            # cột từ 2026-10-21). KHÔNG dùng uniaxial_curve_fs: đường
+            # cong construction đơn trục cho Mα lớn hơn exact ~2–6%
+            # (tại BN của ca chuẩn: +5.8%) khiến B nằm PHÍA TRONG
+            # đường cong đã vẽ.
+            _cap = BiaxialCapacity(full["sec"], model=full["model"])
+            _eng = _cap._exact
+            _n_lv = 64
+            _levels = [_eng.N_max + (_eng.N_min - _eng.N_max) * _i
+                       / (_n_lv - 1) for _i in range(_n_lv)]
+            _BN = full["BN"]
+            if math.isfinite(_BN) and _eng.N_min < _BN < _eng.N_max \
+                    and _BN not in _levels:
+                # Chèn mức N của B để polyline đi đúng qua B
+                _levels.append(_BN)
+                _levels.sort(reverse=True)
+            _ns, _ms = [], []
+            for _N in _levels:
+                _ns.append(float(_N))
+                _ms.append(_cap.moment_capacity(float(_N),
+                                                full["alpha_deg"]))
+            ax2.plot(_ms, _ns, color="#059669", lw=1.8, zorder=3)
             # Tô màu vùng tương tác như biểu đồ N–M của cột
             # (chart_draw.draw_nm_alpha_ax: GREEN #059669, alpha 0.08)
             ax2.fill_betweenx(_ns, 0, _ms, color="#059669", alpha=0.08,
                               zorder=1)
+            lam = full["lambda_ray"]
+            _MB = lam * full["Malpha"] if math.isfinite(lam) else None
+            # Tia tải O–A–B như bên cột (chart_draw.draw_nm_alpha_ax:
+            # nét đứt đỏ từ gốc qua A tới B, kéo dài 1.18 lần)
+            if _MB is not None:
+                ax2.plot([0, _MB * 1.18], [0, _BN * 1.18],
+                         color="#DC2626", ls="--", lw=1.5,
+                         dashes=(4, 3), zorder=4)
             ax2.scatter([full["Malpha"]], [full["N"]], c="#DC2626",
                         zorder=5, label="A (làm việc)")
-            lam = full["lambda_ray"]
-            if math.isfinite(lam):
-                ax2.scatter([lam * full["Malpha"]], [full["BN"]],
+            if _MB is not None:
+                ax2.scatter([_MB], [_BN],
                             c="#2563EB", zorder=5, label="B (giới hạn)")
             # Chỉ hiện góc 1/4 chứa tia làm việc như cột chỉ hiện nửa
             # có tải: Mα >= 0 luôn; phía N theo dấu N của điểm A/B.
