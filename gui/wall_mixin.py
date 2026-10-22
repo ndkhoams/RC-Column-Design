@@ -62,6 +62,125 @@ def _l0_label(factor):
     return _L0_OPTS[0][0]
 
 
+# ---------------------------------------------------------------------
+# Vẽ mặt cắt vách — phong cách tab Kết quả của CỘT (lát 1.5, chỉ hiển
+# thị): cùng quy ước với draw_compression_zone_ax (pdf_export): nền
+# lưới nhạt, khung đen lw=2 nền #F4F7FB, thép là marker tròn kích
+# thước CỐ ĐỊNH theo điểm ảnh (s = (dia*0.22)^2) nên thép biên d28
+# trong vùng biên 500mm vẫn tách từng thanh, legend thép nằm trong
+# BOX viền xám ở bên phải hình (không đè hình/trục), trục t2 (xanh
+# lá, ngang) / t3 (xanh dương, đứng) và nhãn dim t3/t2 sát mép.
+# Khác bản cột ở 2 điểm do tỉ lệ vách rất dẹt (Lw >> tw):
+#  - giới hạn trục tính RIÊNG theo từng phương (bản cột dùng ±0.70*max
+#    cả 2 phương -> vách thành 1 vệt mỏng giữa khoảng trống lớn);
+#  - thép vẽ tại tọa độ THẬT (bản cột co 0.96 về tâm: với vách dài
+#    2500mm, co 4% làm thanh biên lệch tới 50mm khỏi vị trí thật;
+#    thép vách đã lùi khỏi mép >= cover+đai+dia/2 nên không chạm viền).
+# ---------------------------------------------------------------------
+def _wall_section_spans(sec):
+    """Giới hạn trục (x_lo, x_hi, y_lo, y_hi) cho hình mặt cắt vách."""
+    cx, cy = float(sec.cx), float(sec.cy)
+    return (-cx / 2 - 0.10 * cx, cx / 2 + 0.05 * cx,
+            -cy / 2 - 1.05 * cy, cy / 2 + 1.55 * cy)
+
+
+def _wall_section_figsize(sec):
+    """Cỡ figure khớp tỉ lệ span dữ liệu -> aspect 'equal' không bóp
+    dẹt hình và không chừa dải trống lớn quanh mặt cắt."""
+    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec)
+    ratio = (x_hi - x_lo) / max(1e-9, y_hi - y_lo)
+    w = 5.5
+    h = w / max(ratio, 0.55) * 0.94
+    return (w, min(3.3, max(2.0, h)))
+
+
+def draw_wall_section_ax(ax, sec):
+    """Vẽ mặt cắt vách (tiết diện luôn là rect từ build_wall_section)
+    lên axes có sẵn — dùng chung cho hình sau CHECK và live preview."""
+    import matplotlib.patches as mpatches
+    from matplotlib.lines import Line2D
+    ax.set_aspect("equal", adjustable="box")
+    cx, cy = float(sec.cx), float(sec.cy)
+    DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
+                  "#BE123C", "#CA8A04", "#0F766E", "#4D7C0F"]
+    L2_COLOR = "#F59E0B"  # lớp 2 (thép phân bố): cam — như bên cột
+    ax.set_axisbelow(True)
+    ax.grid(True, color="#E8EDF3", linewidth=0.7)
+    ax.add_patch(mpatches.Rectangle(
+        (-cx / 2, -cy / 2), cx, cy, fill=True, facecolor="#F4F7FB",
+        edgecolor="black", lw=2.0, zorder=2))
+    # Chấm thép theo (layer, dia) — marker cố định theo điểm ảnh
+    groups = {}
+    for r in sec.rebars:
+        groups.setdefault((r.layer, r.dia), []).append(r)
+    dias_l1 = sorted(set(d for (ly, d) in groups if ly == 1),
+                     reverse=True)
+    dia_color = {d: DIA_COLORS[i % len(DIA_COLORS)]
+                 for i, d in enumerate(dias_l1)}
+    legend_handles = []
+    for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
+        pts = groups[(layer, dia)]
+        color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
+        dot_s = (max(4.0, dia * 0.22)) ** 2
+        ax.scatter([p.x for p in pts], [p.y for p in pts],
+                   s=dot_s, c=color, zorder=5,
+                   edgecolors="white", linewidths=0.8)
+        legend_handles.append(Line2D(
+            [0], [0], marker="o", color="none", markerfacecolor=color,
+            markeredgecolor="white",
+            markersize=max(4.0, dia * 0.22),
+            label=f"D{dia:.0f}"))
+    # Legend thép: box viền riêng bên phải hình (như tab Kết quả cột)
+    if legend_handles:
+        leg = ax.legend(handles=legend_handles, loc="center left",
+                        bbox_to_anchor=(1.01, 0.5), ncol=1,
+                        frameon=True, fontsize=8,
+                        facecolor="white", edgecolor="#D1D5DB")
+        for txt in leg.get_texts():
+            txt.set_fontweight("bold")
+    # Trục t2 (ngang, xanh lá) / t3 (đứng, xanh dương) tại tâm —
+    # độ dài mũi tên tỉ lệ theo từng phương để nằm gọn trong khung
+    a2 = 0.30 * cx
+    a3 = cy / 2 + 0.85 * cy
+    ax.annotate("", xy=(a2, 0), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="#16A34A", lw=2.0,
+                                shrinkA=0, shrinkB=0), zorder=6)
+    ax.annotate("", xy=(0, a3), xytext=(0, 0),
+                arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0,
+                                shrinkA=0, shrinkB=0), zorder=6)
+    ax.text(a2 * 1.03, 0, "t2", fontsize=8, color="#15803D",
+            weight="bold", va="center", ha="left", zorder=6)
+    ax.text(0, a3 + 0.16 * cy, "t3", fontsize=8, color="#1D4ED8",
+            weight="bold", va="bottom", ha="center", zorder=6)
+    # Dim t3 (dưới đáy) / t2 (bên trái): đường mảnh + chữ sát mép,
+    # khoảng lùi tính theo phương của chính chiều đó
+    doff = 0.34 * cy
+    ax.plot([-cx / 2, cx / 2], [-cy / 2 - doff] * 2,
+            color="black", lw=0.8)
+    for xx in (-cx / 2, cx / 2):
+        ax.plot([xx, xx], [-cy / 2 - doff - 0.14 * cy,
+                           -cy / 2 - doff + 0.14 * cy],
+                color="black", lw=0.8)
+    ax.text(0, -cy / 2 - 0.60 * cy, f"t3 = {cx:.0f} mm", fontsize=8,
+            weight="bold", ha="center", va="top")
+    doffx = 0.035 * cx
+    ax.plot([-cx / 2 - doffx] * 2, [-cy / 2, cy / 2],
+            color="black", lw=0.8)
+    for yy in (-cy / 2, cy / 2):
+        ax.plot([-cx / 2 - doffx - 0.012 * cx,
+                 -cx / 2 - doffx + 0.012 * cx], [yy, yy],
+                color="black", lw=0.8)
+    ax.text(-cx / 2 - 0.062 * cx, 0, f"t2 = {cy:.0f} mm", fontsize=8,
+            weight="bold", ha="right", va="center", rotation=90)
+    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec)
+    ax.set_xlim(x_lo, x_hi)
+    ax.set_ylim(y_lo, y_hi)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+
+
 class WallMixin:
     """Các method của chế độ Vách: frame nhập, toggle, JSON, chặn lát 0."""
 
@@ -397,45 +516,140 @@ class WallMixin:
         self._show_wall_result(full)
         self._defer_detail(lambda _f=full: self._render_wall_detail(_f))
 
-    # ---------------- Hiển thị: mặt cắt (dùng chung preview/kết quả) ----
-    def _build_wall_fig_row(self, parent, sec):
-        """Hàng trên của view vách: hình mặt cắt + thẻ thống kê thép."""
-        row = tk.Frame(parent, bg="#F9FAFB")
-        row.pack(fill=tk.X, padx=2, pady=(2, 4))
-        left = tk.Frame(row, bg="#F9FAFB")
-        left.pack(side=tk.LEFT)
-        right = tk.Frame(row, bg="#F9FAFB")
-        right.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    # ---------------- Hiển thị: lưới tab Kết quả (như bên cột) --------
+    def _new_wall_fig(self, parent, figsize):
+        """Figure + canvas chống vẽ chồng (như _new_fig của TCVN)."""
+        fig = Figure(figsize=figsize, dpi=100)
+        try:
+            from gui.result_renderer import DebouncedFigureCanvasTkAgg
+            cv_cls = DebouncedFigureCanvasTkAgg or FigureCanvasTkAgg
+        except Exception:
+            cv_cls = FigureCanvasTkAgg
+        cv = cv_cls(fig, master=parent)
+        _w = cv.get_tk_widget()
+        try:
+            _w.configure(highlightthickness=0, takefocus=0,
+                         highlightbackground="white",
+                         highlightcolor="white", borderwidth=0)
+        except Exception:
+            pass
+        _w.pack(fill=tk.BOTH, expand=True)
+        return fig, cv
+
+    def _wall_sum_grid(self, bottom_weight=1):
+        """Cấu hình lưới _sum_inner như renderer cột: 2 cột đều nhau,
+        hàng biểu đồ (hàng 2) giãn theo chiều cao còn lại."""
+        self._sum_inner.columnconfigure(0, weight=1)
+        self._sum_inner.columnconfigure(1, weight=1)
+        self._sum_inner.rowconfigure(0, weight=0)
+        self._sum_inner.rowconfigure(1, weight=0)
+        self._sum_inner.rowconfigure(2, weight=bottom_weight)
+        self._sum_inner.rowconfigure(3, weight=0)
+
+    def _finish_wall_sum_layout(self):
+        """Gắn lại cuộn chuột + đẩy nội dung lên đầu (như TCVN)."""
+        try:
+            self._bind_wheel(self._sum_inner, self._sum_canvas)
+        except Exception:
+            pass
+
+        def _to_top():
+            try:
+                self._sum_inner.update_idletasks()
+                self._sum_canvas.configure(
+                    scrollregion=self._sum_canvas.bbox("all"))
+                self._sum_canvas.yview_moveto(0)
+            except Exception:
+                pass
+        try:
+            self._sum_canvas.after_idle(_to_top)
+        except Exception:
+            _to_top()
+
+    def _build_wall_section_cell(self, parent, sec):
+        """Ô MẶT CẮT TIẾT DIỆN (box viền như cột): tiêu đề + hình mặt
+        cắt vách + hàng thẻ thống kê thép dùng chung với cột.
+        Trả về frame của ô (chưa đặt vào lưới — nơi gọi tự grid)."""
+        f = tk.Frame(parent, bg="white", highlightbackground="#D1D5DB",
+                     highlightcolor="#D1D5DB", highlightthickness=1,
+                     takefocus=0)
+        _hdr = tk.Frame(f, bg="white")
+        _hdr.pack(fill=tk.X, pady=(2, 2))
+        tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
+                 font=("", 11, "bold"), bg="white").pack(
+                     side=tk.TOP, fill=tk.X)
         if HAS_MPL:
-            from rc_column.pdf_export import draw_section_ax
-            fig = Figure(figsize=(6.6, 2.9), dpi=100)
+            fig, canvas = self._new_wall_fig(
+                f, _wall_section_figsize(sec))
             ax = fig.add_subplot(111)
-            draw_section_ax(ax, sec, show_stats=False, dot_scale=1.5)
-            canvas = FigureCanvasTkAgg(fig, master=left)
-            canvas.get_tk_widget().pack()
+            draw_wall_section_ax(ax, sec)
             try:
                 fig.tight_layout()
             except Exception:
                 pass
             canvas.draw()
             self._sec_fig, self._sec_canvas, self._sec_ax = fig, canvas, ax
-        self._sec_card_vars = self._build_section_cards(right, sec)
+            # Ô bị lưới kéo co khác cỡ figure gốc: chạy lại
+            # tight_layout khi kích thước canvas đã ổn định để box
+            # legend bên phải luôn nằm trọn trong figure (legend có
+            # cỡ chữ cố định nên không co theo tỉ lệ figure).
+            _cw = canvas.get_tk_widget()
+            _st = {"id": None, "size": (0, 0)}
+
+            def _relayout(event=None):
+                if event is not None:
+                    if (abs(event.width - _st["size"][0]) < 4
+                            and abs(event.height - _st["size"][1]) < 4):
+                        return
+                    _st["size"] = (event.width, event.height)
+                if _st["id"] is not None:
+                    try:
+                        _cw.after_cancel(_st["id"])
+                    except Exception:
+                        pass
+
+                def _apply():
+                    _st["id"] = None
+                    try:
+                        fig.tight_layout()
+                        canvas.draw_idle()
+                    except Exception:
+                        pass
+                _st["id"] = _cw.after(180, _apply)
+            _cw.bind("<Configure>", _relayout)
+        self._sec_card_vars = self._build_section_cards(f, sec)
+        return f
 
     def _show_wall_preview(self, sec, winp):
-        """View xem trước mặt cắt vách (chưa CHECK) ở tab Kết quả."""
+        """View xem trước mặt cắt vách (chưa CHECK) ở tab Kết quả —
+        cùng lưới với view kết quả: ô hướng dẫn trái, ô mặt cắt phải."""
         for w in self._sum_inner.winfo_children():
             w.destroy()
         self._wall_view_active = True
-        ttk.Label(self._sum_inner,
-                  text="MẶT CẮT VÁCH — XEM TRƯỚC (chưa kiểm tra)",
-                  font=("", 11, "bold")).pack(pady=(4, 2))
-        self._build_wall_fig_row(self._sum_inner, sec)
-        ttk.Label(
-            self._sum_inner, foreground="gray", wraplength=900,
+        self._wall_sum_grid(bottom_weight=0)
+        self._sum_inner.rowconfigure(1, weight=1)
+        title = tk.Label(
+            self._sum_inner,
+            text="MẶT CẮT VÁCH — XEM TRƯỚC (chưa kiểm tra)",
+            font=("", 11, "bold"), bg="#FFFBEB", fg="#92400E")
+        title.grid(row=0, column=0, columnspan=2, sticky="ew",
+                   padx=2, pady=(4, 2))
+        f_info = tk.Frame(self._sum_inner, bg="white",
+                          highlightbackground="#D1D5DB",
+                          highlightcolor="#D1D5DB",
+                          highlightthickness=1, takefocus=0)
+        f_info.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        tk.Label(
+            f_info, bg="white", fg="#374151", justify=tk.LEFT,
+            wraplength=360,
             text="Nhập nội lực ở mục 5 (chế độ nhập tay: N, M2 = ngoài "
                  "mặt phẳng, M3 = trong mặt phẳng, Q2, Q3) rồi bấm "
                  "KIỂM TRA KHẢ NĂNG CHỊU LỰC. Lát 1 hỗ trợ TCVN; "
-                 "ACI/EC2 vách thuộc lát 2.").pack(pady=(2, 6))
+                 "ACI/EC2 vách thuộc lát 2.").pack(
+                     anchor="nw", padx=10, pady=10)
+        f_sec = self._build_wall_section_cell(self._sum_inner, sec)
+        f_sec.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        self._finish_wall_sum_layout()
 
     def _refresh_wall_preview(self):
         """Vẽ/cập nhật preview mặt cắt vách khi đổi nhập liệu."""
@@ -450,9 +664,8 @@ class WallMixin:
         ax = getattr(self, "_sec_ax", None)
         if getattr(self, "_wall_view_active", False) and ax is not None:
             try:
-                from rc_column.pdf_export import draw_section_ax
                 ax.clear()
-                draw_section_ax(ax, sec, show_stats=False, dot_scale=1.5)
+                draw_wall_section_ax(ax, sec)
                 self._sec_fig.tight_layout()
                 self._sec_canvas.draw_idle()
                 varmap = getattr(self, "_sec_card_vars", None)
@@ -469,11 +682,14 @@ class WallMixin:
     # ---------------- Hiển thị kết quả CHECK vách TCVN ----------------
     def _show_wall_result(self, full):
         """Tab Kết quả cho vách (đọc từ dict _tcvn_wall_full, không
-        tính lại): mặt cắt + thẻ thép / biểu đồ N–Mα / bảng thông số."""
+        tính lại) — lưới 2x2 như bên cột: banner trên cùng; hàng trên
+        bảng thông số | mặt cắt + thẻ thép; hàng dưới biểu đồ N–Mα |
+        ô dành cho biểu đồ thứ hai; ghi chú phạm vi full-width."""
         for w in self._sum_inner.winfo_children():
             w.destroy()
         self._wall_view_active = True
         self._last_sec = full["sec"]
+        self._wall_sum_grid()
         ok = full["ok"]
         banner = tk.Label(
             self._sum_inner,
@@ -482,18 +698,31 @@ class WallMixin:
             font=("", 11, "bold"),
             bg="#D1FAE5" if ok else "#FEE2E2",
             fg="#065F46" if ok else "#991B1B")
-        banner.pack(fill=tk.X, padx=2, pady=(4, 2))
-        self._build_wall_fig_row(self._sum_inner, full["sec"])
-        # Hàng dưới: biểu đồ N–Mα | bảng thông số
-        row2 = tk.Frame(self._sum_inner, bg="#F9FAFB")
-        row2.pack(fill=tk.X, padx=2, pady=(2, 4))
-        left2 = tk.Frame(row2, bg="#F9FAFB")
-        left2.pack(side=tk.LEFT)
-        right2 = tk.Frame(row2, bg="#F9FAFB")
-        right2.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        banner.grid(row=0, column=0, columnspan=2, sticky="ew",
+                    padx=2, pady=(4, 2))
+        # ===== Ô trên-trái: bảng thông số =====
+        f_tr = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB",
+                        highlightcolor="#D1D5DB", highlightthickness=1,
+                        takefocus=0)
+        f_tr.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_wall_param_table(f_tr, full)
+        # ===== Ô trên-phải: mặt cắt tiết diện + thẻ thép =====
+        f_tl = self._build_wall_section_cell(self._sum_inner, full["sec"])
+        f_tl.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        # ===== Ô dưới-trái: biểu đồ N–Mα =====
+        f_bl = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB",
+                        highlightcolor="#D1D5DB", highlightthickness=1,
+                        takefocus=0)
+        f_bl.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
+        hdr = tk.Frame(f_bl, bg="white")
+        hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
+        tk.Label(hdr, text="● Biểu đồ tương tác N–Mα",
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         if HAS_MPL:
             from rc_column.interaction import uniaxial_curve_fs
-            fig2 = Figure(figsize=(5.6, 3.9), dpi=100)
+            fig2, cv2 = self._new_wall_fig(f_bl, (5.2, 3.9))
             ax2 = fig2.add_subplot(111)
             curve = uniaxial_curve_fs(full["fs_obj"], full["alpha_deg"],
                                       full["model"])
@@ -511,21 +740,38 @@ class WallMixin:
                           fontsize=11)
             ax2.grid(True, color="#E5E7EB", lw=0.6, linestyle="--")
             ax2.legend(fontsize=8)
-            cv2 = FigureCanvasTkAgg(fig2, master=left2)
-            cv2.get_tk_widget().pack()
             try:
                 fig2.tight_layout()
             except Exception:
                 pass
             cv2.draw()
-        self._build_wall_param_table(right2, full)
-        ttk.Label(
-            self._sum_inner, foreground="gray", wraplength=900,
+        # ===== Ô dưới-phải: vị trí dành cho biểu đồ thứ hai =====
+        f_br = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB",
+                        highlightcolor="#D1D5DB", highlightthickness=1,
+                        takefocus=0)
+        f_br.grid(row=2, column=1, sticky="nsew", padx=4, pady=4)
+        hdr2 = tk.Frame(f_br, bg="white")
+        hdr2.pack(fill=tk.X, padx=4, pady=(2, 2))
+        tk.Label(hdr2, text="● Mặt cắt M2–M3",
+                 font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
+        tk.Label(
+            f_br, bg="white", fg="#6B7280", justify=tk.CENTER,
+            wraplength=420,
+            text="Chưa dùng cho vách ở lát 1 — vị trí dành cho biểu "
+                 "đồ thứ hai theo lưới của cột.").pack(
+                     fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # ===== Ghi chú phạm vi (full-width) =====
+        tk.Label(
+            self._sum_inner, foreground="gray", wraplength=1150,
+            justify=tk.LEFT,
             text="Phạm vi lát 1: chỉ kiểm tra N–M (đã kể uốn dọc ngoài "
                  "mặt phẳng theo tw). Vùng biên (lát 3), cắt trong mặt "
                  "phẳng + trượt mạch ngừng (lát 4) và cấu tạo (lát 3) "
                  "CHƯA kiểm — kết luận trên chỉ cho N–M."
-            ).pack(pady=(2, 6))
+            ).grid(row=3, column=0, columnspan=2, sticky="ew",
+                   padx=4, pady=(2, 6))
+        self._finish_wall_sum_layout()
 
     def _build_wall_param_table(self, parent, full):
         """Bảng thông số vách (đọc từ dict kết quả, không tính lại)."""
