@@ -398,8 +398,17 @@ class EtabsMixin:
             _inpw = self.collect()
             _Lx_man = self._f(self.en_Lx, 0.0)
             _Ly_man = self._f(self.en_Ly, 0.0)
-            _inpw.Lx = _Lx_man if _Lx_man > 0 else worst_f.station
-            _inpw.Ly = _Ly_man if _Ly_man > 0 else worst_f.station
+            # L cho worst (riêng từng phương): ưu tiên ô nhập tay; nếu
+            # trống thì dùng station lớn nhất của NHÓM (Story, Column)
+            # của worst — KHÔNG dùng station của chính dòng worst (dòng
+            # nguy hiểm nhất thường ở station 0 -> lu = 0, mất độ mảnh).
+            # Chỉ phân giải tại thời điểm tính, không ghi ngược vào ô nhập.
+            _sts_w = [f.station for f in self.etabs_forces
+                      if f.story == worst_f.story
+                      and f.column == worst_f.column]
+            _max_st_w = max(_sts_w) if _sts_w else 0.0
+            _inpw.Lx = _Lx_man if _Lx_man > 0 else _max_st_w
+            _inpw.Ly = _Ly_man if _Ly_man > 0 else _max_st_w
             _inpw.N = worst_f.N
             _inpw.Mx = worst_f.Mx
             _inpw.My = worst_f.My
@@ -899,22 +908,11 @@ class EtabsMixin:
             messagebox.showinfo("ETABS", "Chỉ có tổ hợp TX_*, không có tổ hợp nào để kiểm tra.")
             return
         worst_f, worst_r = rows[0]
-        # Tự động xác định L: station lớn nhất của cùng Story + Column Label
-        _L_auto = None
-        try:
-            _sts = [f.station for f in self.etabs_forces
-                    if f.story == worst_f.story and f.column == worst_f.column]
-            if _sts:
-                _L_auto = max(_sts)
-        except Exception:
-            pass
-        if _L_auto and _L_auto > 0:
-            # Chỉ điền L tự động khi ô đang trống (không ghi đè số user đã nhập)
-            # Quy tắc: ô trống -> dùng max station; user nhập -> giữ nguyên, dùng số đã nhập
-            if not self.en_Lx.get().strip():
-                self.en_Lx.delete(0, tk.END); self.en_Lx.insert(0, f"{_L_auto:.2f}")
-            if not self.en_Ly.get().strip():
-                self.en_Ly.delete(0, tk.END); self.en_Ly.insert(0, f"{_L_auto:.2f}")
+        # QUY TẮC L (user chốt): ô nhập L chỉ truyền dữ liệu nhập tay —
+        # TUYỆT ĐỐI không ghi ngược L suy ra từ Station vào ô nhập (và
+        # không lưu vào JSON). L dùng để tính được phân giải tại thời
+        # điểm tính ở khối worst bên dưới: ô có số -> dùng số nhập tay;
+        # ô trống -> station lớn nhất của nhóm (Story, Column) của worst.
         children = self.etabs_tree.get_children()
         if children:
             self.etabs_tree.item(children[0], tags=("worst",))
