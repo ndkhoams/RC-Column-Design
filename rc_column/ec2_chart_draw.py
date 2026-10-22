@@ -135,28 +135,29 @@ def draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res,
     for deg in range(0, 360, 15):
         Md = _cap.moment_capacity(N_kN, float(deg))
         th = math.radians(deg)
-        xs.append(Md * math.sin(th))  # M2 = Md sinθ (quy ước ETABS)
-        ys.append(Md * math.cos(th))  # M3 = Md cosθ
+        # Trục như ETABS (2026-10-22): hoành = M3, tung = M2
+        xs.append(Md * math.cos(th))  # M3 = Md cosθ (trục hoành)
+        ys.append(Md * math.sin(th))  # M2 = Md sinθ (trục tung)
     xs.append(xs[0])
     ys.append(ys[0])
     ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
-    # Nét đứt đỏ từ tâm qua A tới B
-    ax.plot([0, ec2_res["Bx"] * 1.18], [0, ec2_res["By"] * 1.18],
+    # Nét đứt đỏ từ tâm qua A tới B: (x, y) = (M3, M2)
+    ax.plot([0, ec2_res["By"] * 1.18], [0, ec2_res["Bx"] * 1.18],
             color=RED, ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([ec2_res["Bx"]], [ec2_res["By"]], c=ORANGE, marker="D", s=70,
+    ax.scatter([ec2_res["By"]], [ec2_res["Bx"]], c=ORANGE, marker="D", s=70,
                zorder=5, edgecolors="white", linewidths=1.2,
                label="Giới hạn")
-    ax.scatter([M2_kNm], [M3_kNm], c=GREEN, s=70,
+    ax.scatter([M3_kNm], [M2_kNm], c=GREEN, s=70,
                zorder=6, edgecolors="white", linewidths=1.2,
                label="Điểm tải A")
-    ax.text(M2_kNm, M3_kNm, "  A", fontsize=9,
+    ax.text(M3_kNm, M2_kNm, "  A", fontsize=9,
             color=GREEN, weight="bold", va="center", zorder=7)
     # Trục qua tâm
     ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
-    ax.set_xlabel("M2 (kN·m)", fontweight="bold", fontsize=10)
-    ax.set_ylabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
 
     from matplotlib.lines import Line2D
     leg_elems = [

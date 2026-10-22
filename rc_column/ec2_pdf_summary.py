@@ -398,7 +398,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             _station_txt = f"{_st:.2f}" if isinstance(_st, (int, float)) else str(_st)
         _vpos = f"[{_story_txt}]-[{_label_txt}]-[{_station_txt}]" if _story_txt != "—" else "—"
 
-        _alpha = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
+        _alpha = _m.degrees(_m.atan2(inp.Mx, inp.My)) % 360.0 \
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         _dc = ec2_res.get("dc", 0)
         _fs = ec2_res.get("fs", 0)
@@ -522,7 +522,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         _M3sgn = (1.0 if _o3 >= 0 else -1.0) * _M3s
         _alpha_r = ec2_res.get("alpha_deg")
         if _alpha_r is None:
-            _alpha_r = _m.degrees(_m.atan2(_M2sgn, _M3sgn)) \
+            _alpha_r = _m.degrees(_m.atan2(_M2sgn, _M3sgn)) % 360.0 \
                 if abs(_M2sgn) + abs(_M3sgn) > 1e-9 else 0.0
         _Ma = ec2_res.get("Malpha")
         if _Ma is None:
@@ -565,7 +565,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             _BN = (ec2_res.get("BN", 0) or 0) if isinstance(ec2_res, dict) else 0
             _Bx = (ec2_res.get("Bx", 0) or 0) if isinstance(ec2_res, dict) else 0
             _By = (ec2_res.get("By", 0) or 0) if isinstance(ec2_res, dict) else 0
-            _alpha = _m.degrees(_m.atan2(_Bx, _By)) if (abs(_Bx)+abs(_By)) > 1e-9 else 0.0
+            _alpha = _m.degrees(_m.atan2(_Bx, _By)) % 360.0 if (abs(_Bx)+abs(_By)) > 1e-9 else 0.0
             _na = None
             try:
                 from .ec2_checker import ec2_neutral_axis_at_N as _nafn

@@ -83,29 +83,32 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
 def draw_m2m3_ax(ax, sec, inp, res):
     # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
     # Style theo mẫu: đường xanh dương, fill nhạt
+    # Trục như ETABS (user chốt 2026-10-22): hoành = M3, tung = M2.
+    # mx_my_curve trả (M2, M3) nên x lấy p[1], y lấy p[0]; điểm A/B
+    # và tia O-A-B chuyển vị tương ứng: (x, y) = (M3, M2).
     BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
     GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
     pts = cap.mx_my_curve(res.N)
-    xs = [p[0] for p in pts] + [pts[0][0]]
-    ys = [p[1] for p in pts] + [pts[0][1]]
+    xs = [p[1] for p in pts] + [pts[0][1]]
+    ys = [p[0] for p in pts] + [pts[0][0]]
     ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
     # Nét đứt đỏ từ tâm qua A tới B
-    ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
+    ax.plot([0, res.By * 1.18], [0, res.Bx * 1.18], color=RED,
             ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([res.Bx], [res.By], c=ORANGE, marker="D", s=70, zorder=5,
+    ax.scatter([res.By], [res.Bx], c=ORANGE, marker="D", s=70, zorder=5,
                edgecolors="white", linewidths=1.2, label="Giới hạn")
-    ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70,
+    ax.scatter([res.My_star], [res.Mx_star], c=GREEN, s=70,
                zorder=6, edgecolors="white", linewidths=1.2,
                label="Điểm tải A")
-    ax.text(res.Mx_star, res.My_star, "  A", fontsize=9,
+    ax.text(res.My_star, res.Mx_star, "  A", fontsize=9,
             color=GREEN, weight="bold", va="center", zorder=7)
     # Trục qua tâm
     ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
-    ax.set_xlabel("M2 (kN·m)", fontweight="bold", fontsize=10)
-    ax.set_ylabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
 
     from matplotlib.lines import Line2D
     leg_elems = [

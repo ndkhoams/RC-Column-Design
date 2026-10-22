@@ -221,7 +221,7 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     BN = ec2_res.get("BN", 0.0) or 0.0
     pm_ok = bool(ec2_res.get("ok", False))
     Ma = math.hypot(MEd2, MEd3)
-    alpha = math.degrees(math.atan2(MEd2, MEd3)) if Ma > 1e-9 else 0.0
+    alpha = math.degrees(math.atan2(MEd2, MEd3)) % 360.0 if Ma > 1e-9 else 0.0
     sections.append({
         "num": 6,
         "title": "ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC NÉN UỐN XIÊN (NEd-MEd)",
