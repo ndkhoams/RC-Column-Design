@@ -37,7 +37,7 @@ Hướng dẫn cho AI coding agent (Muse Code / Muse) làm việc trong repo nà
 
 ## 4. Quy ước kỹ thuật đã chốt (đừng "sửa" lại)
 
-- Góc uốn xiên α đo từ trục M3: `α = atan2(M2, M3)`, **giữ dấu** ở cả 3 TC (TCVN dùng mô men đã phóng đại Mx*/My*, ACI dùng Mc2/Mc3, EC2 dùng M2/M3 gốc — không dùng `abs()`).
+- Góc uốn xiên α đo từ trục M3: `α = atan2(M2, M3) mod 360`, **chuẩn hoá về [0, 360)** ở cả 3 TC (góc dương theo mốc ETABS; TCVN dùng mô men đã phóng đại Mx*/My*, ACI dùng Mc2/Mc3, EC2 dùng M2/M3 gốc — không dùng `abs()`).
 - Import Prokon (.C13): **Prokon Mx → app M2, Prokon My → app M3**, giữ dấu. ψ app Ngàm–Ngàm = 0.5 ≠ β Prokon 0.75 → phải cảnh báo khi import.
 - EC2: αcc = 1.0; φef lấy theo tổ hợp TX_* (`φef = φ(∞,t0) × M_TX/M_Ed`), không có TX_* thì fallback 1.21; Qsway = 0.
 - Cắt TCVN: φb1 = 0.3 (hằng số bản 2018); φn §8.1.3.3.2 chỉ nhân số hạng bê tông; kiểm tra (96)/(98) theo `stirrup.py` hiện tại.
