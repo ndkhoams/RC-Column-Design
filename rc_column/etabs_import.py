@@ -341,6 +341,23 @@ def _parse_sap_clipboard_noheader(lines,
     return forces
 
 
+def _strip_edge_empty_fields(line: str) -> str:
+    """Bỏ các trường RỖNG ở đầu/cuối 1 dòng clipboard (tách theo tab).
+
+    Khi copy từ bảng hiển thị SAP2000/ETABS, mỗi dòng thường dính 1 ô
+    rỗng ở ĐẦU dòng (cột số thứ tự dòng của bảng) và có thể dính ô rỗng
+    ở CUỐI dòng -> các dòng lệch số trường dù cùng layout, parser đối
+    chiếu số trường sẽ chết ở dòng 2. Trường rỗng ở GIỮA dòng (vd Step
+    Type rỗng) được GIỮ NGUYÊN.
+    """
+    parts = line.split("\t")
+    while parts and not parts[0].strip():
+        parts.pop(0)
+    while parts and not parts[-1].strip():
+        parts.pop()
+    return "\t".join(parts)
+
+
 def parse_etabs_clipboard(text: str,
                           only_combinations: bool = True) -> List[EtabsForce]:
     """Đọc nội lực từ clipboard copy từ bảng ETABS 'Element Forces - Columns'.
@@ -358,7 +375,10 @@ def parse_etabs_clipboard(text: str,
     parse theo VỊ TRÍ cột với kiểm chứng chặt từng dòng
     (xem _parse_sap_clipboard_noheader).
     """
-    lines = [ln for ln in text.strip().splitlines() if ln.strip()]
+    # Chuẩn hoá từng dòng TRƯỚC mọi định tuyến/kiểm chứng: bỏ ô rỗng ở
+    # đầu/cuối dòng (tab thừa khi copy từ bảng — xem _strip_edge_empty_fields)
+    lines = [_strip_edge_empty_fields(ln)
+             for ln in text.strip().splitlines() if ln.strip()]
     if len(lines) < 3:
         raise ValueError("Clipboard không có đủ dữ liệu.")
     # Tìm dòng header chứa "Output Case" (ETABS) hoặc "OutputCase" (SAP2000)
