@@ -7,6 +7,9 @@ Quy ước: P âm = nén (ETABS) -> đổi sang N dương = nén.
 Hỗ trợ thêm SAP2000 (bảng Element Forces - Frames): header dùng Frame,
 OutputCase, CaseType, StepType (không khoảng trắng) và KHÔNG có cột Story —
 khi đó Label lấy từ Frame, Story mặc định "Story". Quy ước dấu/mô men như ETABS.
+Clipboard SAP2000 cũng có thể chỉ gồm các dòng số liệu (KHÔNG có dòng header,
+khi user chỉ chọn vùng dữ liệu trong bảng SAP) — trường hợp đó parse theo
+VỊ TRÍ cột với kiểm chứng chặt (xem _parse_sap_clipboard_noheader).
 """
 
 from dataclasses import dataclass
@@ -224,6 +227,120 @@ def _parse_sap_clipboard(lines, hi, idx, only_combinations,
     return forces
 
 
+# Case Type SAP2000 có thể xuất trong bảng Element Forces - Frames — dùng
+# để NHẬN DIỆN clipboard SAP không header (kiểm chứng chặt, tránh parse nhầm
+# dữ liệu rác / layout khác thành nội lực).
+_SAP_CASE_TYPES = {
+    "combination", "linstatic", "linrespspec", "linreshist", "linmodal",
+    "linbuckling", "nonstatic", "envelope",
+}
+_SAP_STEP_TYPES = {"", "max", "min", "absolute"}
+
+
+def _is_number(s: str) -> bool:
+    try:
+        float(s)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+def _match_sap_noheader_row(parts):
+    """Kiểm chứng 1 dòng clipboard SAP2000 KHÔNG header theo vị trí cột.
+
+    Layout: Frame | Station | OutputCase | CaseType | [StepType] | P | V2 |
+    V3 | T | M2 | M3 | [FrameElem | ElemStation].
+    Trả về (p_idx, step) nếu dòng KHỚP CHẶT, ngược lại None:
+    - Station phải là số; OutputCase phải là chữ (không phải số);
+      CaseType thuộc tập Case Type SAP2000 đã biết.
+    - Có cột StepType khi trường ngay sau CaseType KHÔNG phải số mà thuộc
+      {rỗng, Max, Min, Absolute} và trường kế tiếp là số (chính là P).
+    - 6 trường P..M3 liên tiếp phải đều là số; phần đuôi sau M3 chỉ được
+      có 0 hoặc 2 trường, và ElemStation (trường cuối) phải là số.
+    """
+    parts = [p.strip() for p in parts]
+    if len(parts) < 10:
+        return None
+    frame, station, case, case_type = parts[0], parts[1], parts[2], parts[3]
+    if not frame or not case or _is_number(case):
+        return None
+    if not _is_number(station):
+        return None
+    if case_type.lower().replace(" ", "") not in _SAP_CASE_TYPES:
+        return None
+    if _is_number(parts[4]):
+        p_idx, step = 4, ""
+    elif (parts[4].lower() in _SAP_STEP_TYPES and len(parts) >= 11
+            and _is_number(parts[5])):
+        p_idx, step = 5, parts[4].lower()
+    else:
+        return None
+    if len(parts) < p_idx + 6:
+        return None
+    if not all(_is_number(x) for x in parts[p_idx:p_idx + 6]):
+        return None
+    trail = parts[p_idx + 6:]
+    if len(trail) not in (0, 2):
+        return None
+    if len(trail) == 2 and not _is_number(trail[1]):
+        return None
+    return p_idx, step
+
+
+def _parse_sap_clipboard_noheader(lines,
+                                  only_combinations) -> List[EtabsForce]:
+    """Parse clipboard SAP2000 chỉ gồm các dòng số liệu (KHÔNG có header).
+
+    Chỉ kích hoạt khi dòng đầu tiên khớp chặt layout SAP theo vị trí
+    (xem _match_sap_noheader_row); mọi dòng sau phải cùng layout — dòng
+    nào lệch sẽ báo lỗi kèm SỐ DÒNG thay vì parse sai thầm lặng. Nếu
+    dòng đầu không khớp thì giữ nguyên lỗi "Không tìm thấy header".
+    Ánh xạ như đường SAP có header: Story = "Story", Label <- Frame,
+    N = -P, Mx <- M2, My <- M3, hậu tố Step Type gắn vào tên tổ hợp.
+    Không có dòng đơn vị nên giữ nguyên số (đơn vị kN, kN-m như bản
+    xuất SAP2000 mặc định).
+    """
+    first = _match_sap_noheader_row(lines[0].split("\t"))
+    if first is None:
+        raise ValueError("Không tìm thấy header ETABS (Output Case).")
+    p_idx = first[0]
+    n_fields = len(lines[0].split("\t"))
+
+    forces: List[EtabsForce] = []
+    for i, ln in enumerate(lines):
+        parts = ln.split("\t")
+        m = _match_sap_noheader_row(parts)
+        if m is None or len(parts) != n_fields or m[0] != p_idx:
+            raise ValueError(
+                f"Dòng {i + 1} trong clipboard không đúng định dạng "
+                f"SAP2000 (Element Forces - Frames không header).")
+        vals = [float(x) for x in parts[p_idx:p_idx + 6]]  # P,V2,V3,T,M2,M3
+        case = parts[2].strip()
+        case_type = parts[3].strip()
+        if only_combinations and "combination" not in case_type.lower():
+            continue
+        if m[1] == "max":
+            case = f"{case}max"
+        elif m[1] == "min":
+            case = f"{case}min"
+        forces.append(EtabsForce(
+            story="Story",
+            column=parts[0].strip(),
+            case=case,
+            case_type=case_type,
+            station=float(parts[1]),
+            N=-vals[0],
+            Mx=vals[4],
+            My=vals[5],
+            Q2=vals[1],
+            Q3=vals[2],
+        ))
+    if not forces:
+        raise ValueError(
+            "Không đọc được dòng nội lực nào từ clipboard SAP2000.")
+    return forces
+
+
 def parse_etabs_clipboard(text: str,
                           only_combinations: bool = True) -> List[EtabsForce]:
     """Đọc nội lực từ clipboard copy từ bảng ETABS 'Element Forces - Columns'.
@@ -237,6 +354,9 @@ def parse_etabs_clipboard(text: str,
     Nhận thêm clipboard SAP2000 (bảng Element Forces - Frames): header theo
     tên cột Frame | Station | OutputCase | CaseType | StepType | P | V2 | V3 |
     T | M2 | M3 | ... (không có Story) — parse theo TÊN cột, Story = "Story".
+    Clipboard SAP2000 KHÔNG có header (chỉ các dòng số liệu) cũng được nhận:
+    parse theo VỊ TRÍ cột với kiểm chứng chặt từng dòng
+    (xem _parse_sap_clipboard_noheader).
     """
     lines = [ln for ln in text.strip().splitlines() if ln.strip()]
     if len(lines) < 3:
@@ -249,7 +369,11 @@ def parse_etabs_clipboard(text: str,
             hi = i
             break
     if hi is None:
-        raise ValueError("Không tìm thấy header ETABS (Output Case).")
+        # Không có dòng header: thử clipboard SAP2000 chỉ gồm các dòng
+        # số liệu (parse theo vị trí với kiểm chứng chặt). Nếu dòng đầu
+        # không khớp layout SAP, hàm này tự ném lại đúng lỗi
+        # "Không tìm thấy header ETABS (Output Case)." như trước.
+        return _parse_sap_clipboard_noheader(lines, only_combinations)
     # Tự động nhận diện có cột "Step Type" hay không để match đúng vị trí
     # Có Step Type: Story|Column|Unique Name|Output Case|Case Type|Step Type|
     #               Station|P|V2|V3|T|M2|M3|...
