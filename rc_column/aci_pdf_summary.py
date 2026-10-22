@@ -314,7 +314,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _station_txt = f"{_st:.2f}" if isinstance(_st, (int, float)) else str(_st)
         _vpos = f"[{_story_txt}]-[{_label_txt}]-[{_station_txt}]" if _story_txt != "—" else "—"
 
-        _alpha = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
+        _alpha = _m.degrees(_m.atan2(inp.Mx, inp.My)) % 360.0 \
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         _dc = aci_res.get("dc", 0)
         _fs = aci_res.get("fs", 0) or 0
@@ -422,7 +422,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _M3s = inp.My
         _alpha_r = aci_res.get("alpha_deg")
         if _alpha_r is None:
-            _alpha_r = _m.degrees(_m.atan2(_M2s, _M3s)) \
+            _alpha_r = _m.degrees(_m.atan2(_M2s, _M3s)) % 360.0 \
                 if abs(_M2s) + abs(_M3s) > 1e-9 else 0.0
         _Ma_aci = aci_res.get("Malpha")
         if _Ma_aci is None:
@@ -477,7 +477,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                                                        show_compression=show_compression)
             _blkA.append(_centered_img(_sec_png, _IW))
             # 2 biểu đồ ACI (có tiêu đề)
-            _alpha_aci = _m.degrees(_m.atan2(inp.Mx, inp.My)) \
+            _alpha_aci = _m.degrees(_m.atan2(inp.Mx, inp.My)) % 360.0 \
                 if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
             _mm = mm_res or {}
             _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied,

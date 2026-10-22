@@ -52,7 +52,7 @@ class TcvnMixin:
         try:
             _mx_s = res.Mx_star if hasattr(res, 'Mx_star') else inp.Mx
             _my_s = res.My_star if hasattr(res, 'My_star') else inp.My
-            _alpha = _math.degrees(_math.atan2(_mx_s, _my_s)) if abs(_mx_s)+abs(_my_s) > 1e-9 else 0.0
+            _alpha = _math.degrees(_math.atan2(_mx_s, _my_s)) % 360.0 if abs(_mx_s)+abs(_my_s) > 1e-9 else 0.0
             _Malpha = _math.hypot(_mx_s, _my_s)
         except:
             _alpha, _Malpha = 0.0, 0.0
@@ -152,7 +152,7 @@ class TcvnMixin:
     def _get_tcvn_param_rows(self, inp, res):
         """Trả về rows data cho bảng thông số TCVN."""
         import math
-        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) % 360.0 \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
         rows = [
@@ -201,7 +201,7 @@ class TcvnMixin:
         dc_bg = "#D1FAE5" if res.ok else "#FEE2E2"
         dc_fg = "#065F46" if res.ok else "#991B1B"
         tree.tag_configure("dc", background=dc_bg, foreground=dc_fg)
-        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) % 360.0 \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
         rows = [
@@ -250,7 +250,7 @@ class TcvnMixin:
         """3 d\u00f2ng ch\u00fa th\u00edch d\u01b0\u1edbi bi\u1ec3u \u0111\u1ed3 N-M."""
         import math
         mono = ("TkFixedFont", 10)
-        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) % 360.0 \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         Ma = math.hypot(res.Mx_star, res.My_star)
         Mb = math.hypot(res.Bx, res.By)
@@ -289,7 +289,7 @@ class TcvnMixin:
     def _build_nm_header(self, parent, res):
         """Header trên biểu đồ N-M (format giống M2-M3)."""
         import math
-        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+        alpha_deg = math.degrees(math.atan2(res.Mx_star, res.My_star)) % 360.0 \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
@@ -508,7 +508,7 @@ class TcvnMixin:
             if angle is None:
                 import math
                 res = self._last_res
-                a0 = math.degrees(math.atan2(res.Mx_star, res.My_star)) \
+                a0 = math.degrees(math.atan2(res.Mx_star, res.My_star)) % 360.0 \
                     if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
                 self._nm_alpha_lbl.config(text=f"  \u03b1 = {a0:.1f}\u00b0  ")
             else:
@@ -835,29 +835,31 @@ class TcvnMixin:
         def _m2m3_ax(ax):
             # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
             # Style theo mẫu: đường xanh dương, fill nhạt
+            # Trục như ETABS (2026-10-22): hoành = M3, tung = M2 —
+            # đồng bộ chart_draw.draw_m2m3_ax (x = p[1], y = p[0]).
             BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
             GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
             pts = cap.mx_my_curve(res.N)
-            xs = [p[0] for p in pts] + [pts[0][0]]
-            ys = [p[1] for p in pts] + [pts[0][1]]
+            xs = [p[1] for p in pts] + [pts[0][1]]
+            ys = [p[0] for p in pts] + [pts[0][0]]
             ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
             ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
-            # Nét đứt đỏ từ tâm qua A tới B
-            ax.plot([0, res.Bx * 1.18], [0, res.By * 1.18], color=RED,
+            # Nét đứt đỏ từ tâm qua A tới B: (x, y) = (M3, M2)
+            ax.plot([0, res.By * 1.18], [0, res.Bx * 1.18], color=RED,
                     ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-            ax.scatter([res.Bx], [res.By], c=ORANGE, s=70, zorder=5,
+            ax.scatter([res.By], [res.Bx], c=ORANGE, s=70, zorder=5,
                        edgecolors="white", linewidths=1.2, label="Giới hạn")
-            ax.scatter([res.Mx_star], [res.My_star], c=GREEN, s=70,
+            ax.scatter([res.My_star], [res.Mx_star], c=GREEN, s=70,
                        zorder=6, edgecolors="white", linewidths=1.2,
                        label="Điểm tải A")
-            ax.text(res.Mx_star, res.My_star, "  A", fontsize=9,
+            ax.text(res.My_star, res.Mx_star, "  A", fontsize=9,
                     color=GREEN, weight="bold", va="center", zorder=7)
             # Trục qua tâm
             ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
             ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
-            ax.set_xlabel("M2 (kN·m)", fontweight="bold", fontsize=10)
-            ax.set_ylabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+            ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
+            ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
 
             from matplotlib.lines import Line2D
             leg_elems = [
