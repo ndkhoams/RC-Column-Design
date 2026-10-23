@@ -1,8 +1,8 @@
 """Chế độ Vách (GĐ1 — lát 0: khung + plumbing; lát 1: N–M TCVN).
 
-Gồm: frame nhập liệu vách (mục 2 khi ở chế độ Vách), chuyển đổi loại
-cấu kiện Cột <-> Vách (_toggle_member), thu/áp dữ liệu vách cho JSON
-(_collect_wall/_apply_wall), và điều phối CHECK ở chế độ Vách.
+Gồm: frame nhập liệu vách (mục 2/3/4 khi ở chế độ Vách), chuyển đổi
+loại cấu kiện Cột <-> Vách (_toggle_member), thu/áp dữ liệu vách cho
+JSON (_collect_wall/_apply_wall), và điều phối CHECK ở chế độ Vách.
 
 Lát 1: CHECK tay theo TCVN chạy engine vách (rc_column/wall_engine)
 qua hàm duy nhất _tcvn_wall_calculate_full, kết quả lưu ở
@@ -10,6 +10,15 @@ self._tcvn_wall_full và hiển thị ở tab Kết quả/Chi tiết từ đúng
 đó. ACI/EC2 vách (lát 2), batch Pier Forces (lát 5) và PDF vách
 (lát 6) vẫn báo rõ chưa hỗ trợ — tuyệt đối không chạy engine cột cho
 dữ liệu vách. Thiết kế: THIET_KE_TICH_HOP_VACH_GD1.md §2, §6, §8.
+
+Từ 2026-10-23: mục 2/3/4 theo format công cụ web Vietcons "Kiểm tra
+vách BTCT" — mục 2 (loại tiết diện + xoay + Lw/tw), mục 3 (2 chế độ
+thép dọc: chu vi / tập trung vùng biên + khối số đọc trực tiếp), mục 4
+(bảng P–δ 2 phương X/Y, ψ tự điền theo LK như bên cột, L0 chỉ hiển
+thị). Các ô GĐ1 ngoài phạm vi web (thép ngang, đai vùng biên, kháng
+chấn) gom vào frame "Bổ sung GĐ1". Mặt cắt vách có DIM từng khoảng
+(tổng Lw/tw + Lb/đoạn giữa/Lb ở chế độ vùng biên) và vùng nén khi đã
+CHECK — cùng hàm vẽ cho preview và kết quả.
 """
 
 import math
@@ -28,17 +37,33 @@ except Exception:
 from rc_column.lang import T
 from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                  ConcreteMaterial, SteelMaterial)
+from rc_column.stability import BOUNDARY_NAMES
 from rc_column.wall_engine import wall_tcvn_full
-from rc_column.wall_input import WALL_DEFAULTS, wall_from_dict
-from rc_column.wall_section import build_wall_section
+from rc_column.wall_input import (WALL_DEFAULTS, normalize_wall_dict,
+                                  wall_from_dict)
+from rc_column.wall_section import build_wall_section, wall_readouts
 
 _DIAS = ["10", "12", "14", "16", "18", "20", "22", "25", "28", "32"]
+# Danh mục đường kính theo format web (mục 3): d10..d40
+_DIAS_WEB = ["10", "12", "14", "16", "18", "20", "22", "25", "28", "32",
+             "36", "40"]
 _STORY_POS = [("base", "Chân vách"), ("mid", "Đốt giữa"), ("top", "Đốt trên")]
 _L0_OPTS = [("Khớp – Khớp (hệ số 1.0)", 1.0),
             ("Ngàm – Khớp (hệ số 0.7)", 0.7),
             ("Ngàm – Ngàm (hệ số 0.5)", 0.5),
             ("Ngàm – Tự do (hệ số 2.0)", 2.0)]
 _ACI_CLASS = [("special", "Đặc biệt (Ch.18)"), ("ordinary", "Thường (Ch.11)")]
+# Mục 2 (web): 6 loại tiết diện — GĐ1 chỉ loại đầu hoạt động
+_SECTYPES = ["Vách phẳng chữ nhật", "Vách mở rộng hai đầu (Barbell)",
+             "Vách chữ T", "Vách chữ L", "Lõi chữ C", "Lõi chữ U"]
+# Mục 3 (web): 2 chế độ bố trí thép dọc
+_STEEL_MODES = [("perimeter", "Phân bố đều theo chu vi"),
+                ("boundary", "Tập trung vùng biên")]
+_NT_OPTS = [(2, "2 hàng (2 mặt)"), (3, "3 hàng"), (4, "4 hàng")]
+_BE_LAYOUTS = [("chuvi", "Chu vi"), ("grid", "Lưới đặc")]
+# Mục 4 (web): phương pháp xét uốn dọc (P–δ)
+_PD_OPTS = [("tcvn", "Xét uốn dọc theo TCVN 5574:2018"),
+            ("none", "Không xét bổ sung uốn dọc")]
 
 
 def _code_of(pairs, label, default):
@@ -77,28 +102,53 @@ def _l0_label(factor):
 #    2500mm, co 4% làm thanh biên lệch tới 50mm khỏi vị trí thật;
 #    thép vách đã lùi khỏi mép >= cover+đai+dia/2 nên không chạm viền).
 # ---------------------------------------------------------------------
-def _wall_section_spans(sec):
-    """Giới hạn trục (x_lo, x_hi, y_lo, y_hi) cho hình mặt cắt vách."""
+def _wall_section_spans(sec, n_seg=0):
+    """Giới hạn trục (x_lo, x_hi, y_lo, y_hi) cho hình mặt cắt vách.
+
+    n_seg > 0 (chế độ vùng biên): chừa thêm 1 hàng DIM phân đoạn
+    (Lb | đoạn giữa | Lb) bên dưới hàng DIM tổng.
+    """
     cx, cy = float(sec.cx), float(sec.cy)
+    y_lo = -cy / 2 - (2.15 * cy if n_seg else 1.25 * cy)
     return (-cx / 2 - 0.10 * cx, cx / 2 + 0.05 * cx,
-            -cy / 2 - 1.05 * cy, cy / 2 + 1.55 * cy)
+            y_lo, cy / 2 + 1.55 * cy)
 
 
-def _wall_section_figsize(sec):
+def _wall_section_figsize(sec, n_seg=0):
     """Cỡ figure khớp tỉ lệ span dữ liệu -> aspect 'equal' không bóp
     dẹt hình và không chừa dải trống lớn quanh mặt cắt."""
-    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec)
+    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, n_seg)
     ratio = (x_hi - x_lo) / max(1e-9, y_hi - y_lo)
     w = 5.5
     h = w / max(ratio, 0.55) * 0.94
     return (w, min(3.3, max(2.0, h)))
 
 
-def draw_wall_section_ax(ax, sec):
+def _dim_h(ax, x1, x2, y, text, text_dy=0.30, fs=8):
+    """DIM ngang kiểu bản vẽ: đường dim + 2 mũi tên vào trong + số
+    ở giữa phía trên đường (text_dy theo đơn vị dữ liệu)."""
+    ax.annotate("", xy=(x1, y), xytext=(x2, y),
+                arrowprops=dict(arrowstyle="<->", color="black", lw=0.8,
+                                shrinkA=0, shrinkB=0), zorder=4)
+    if text:
+        ax.text((x1 + x2) / 2.0, y + text_dy, text, fontsize=fs,
+                weight="bold", ha="center", va="bottom", zorder=4)
+
+
+def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
+                         show_compression=False):
     """Vẽ mặt cắt vách (tiết diện luôn là rect từ build_wall_section)
-    lên axes có sẵn — dùng chung cho hình sau CHECK và live preview."""
+    lên axes có sẵn — dùng chung cho hình sau CHECK và live preview.
+
+    meta (từ build_wall_section): dim_segments -> hàng DIM phân đoạn
+    Lb | đoạn giữa | Lb ở chế độ vùng biên. na_info +
+    show_compression=True (sau CHECK): tô vùng nén xanh + đường
+    trung hòa đỏ đứt — cùng quy ước/hàm ý như draw_compression_zone_ax
+    của cột (Sutherland–Hodgman theo nửa mặt phẳng nén exact).
+    """
     import matplotlib.patches as mpatches
     from matplotlib.lines import Line2D
+    from matplotlib.patches import Polygon as MplPolygon
     ax.set_aspect("equal", adjustable="box")
     cx, cy = float(sec.cx), float(sec.cy)
     DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
@@ -109,6 +159,53 @@ def draw_wall_section_ax(ax, sec):
     ax.add_patch(mpatches.Rectangle(
         (-cx / 2, -cy / 2), cx, cy, fill=True, facecolor="#F4F7FB",
         edgecolor="black", lw=2.0, zorder=2))
+    # --- Vùng nén + đường trung hòa (chỉ khi đã CHECK và có na_info) ---
+    if show_compression and na_info is not None \
+            and na_info.get("found") and na_info.get("yp_na") is not None:
+        _st, _ct, _yp = na_info["st"], na_info["ct"], na_info["yp_na"]
+
+        def _naval(_x, _y):
+            return -_x * _st + _y * _ct - _yp
+        _rect = [(-cx / 2, -cy / 2), (cx / 2, -cy / 2),
+                 (cx / 2, cy / 2), (-cx / 2, cy / 2)]
+        _pts = []
+        for _i in range(len(_rect)):
+            _cur = _rect[_i]
+            _prv = _rect[_i - 1]
+            _vc, _vp = _naval(*_cur), _naval(*_prv)
+            _ci, _pi = _vc >= -1e-9, _vp >= -1e-9
+            if _ci != _pi:
+                _t = abs(_vp) / (abs(_vp) + abs(_vc))
+                _pts.append((_prv[0] + _t * (_cur[0] - _prv[0]),
+                             _prv[1] + _t * (_cur[1] - _prv[1])))
+            if _ci:
+                _pts.append(_cur)
+        if len(_pts) >= 3:
+            ax.add_patch(MplPolygon(_pts, closed=True, fill=True,
+                                    facecolor="#BFDBFE",
+                                    edgecolor="#2563EB", lw=1.5,
+                                    zorder=3, alpha=0.7))
+        _ints = []
+        _edges = [(_rect[i], _rect[(i + 1) % 4]) for i in range(4)]
+        for (_x1, _y1), (_x2, _y2) in _edges:
+            _v1, _v2 = _naval(_x1, _y1), _naval(_x2, _y2)
+            if _v1 * _v2 < 0:
+                _t = abs(_v1) / (abs(_v1) + abs(_v2))
+                _ints.append((_x1 + _t * (_x2 - _x1),
+                              _y1 + _t * (_y2 - _y1)))
+        if len(_ints) >= 2:
+            _ints.sort(key=lambda p: p[0] * _ct + p[1] * _st)
+            ax.plot([_ints[0][0], _ints[-1][0]],
+                    [_ints[0][1], _ints[-1][1]],
+                    "--", color="#DC2626", linewidth=1.5, zorder=4)
+    # Tô phân biệt vùng biên ở chế độ vùng biên (nền xám nhạt 2 đầu)
+    _segs = (meta or {}).get("dim_segments") or []
+    if _segs:
+        for _x1, _x2, _lab in (_segs[0], _segs[-1]):
+            ax.add_patch(mpatches.Rectangle(
+                (_x1, -cy / 2), _x2 - _x1, cy, fill=True,
+                facecolor="#E0E7FF", edgecolor="none", zorder=2.5,
+                alpha=0.55))
     # Chấm thép theo (layer, dia) — marker cố định theo điểm ảnh
     groups = {}
     for r in sec.rebars:
@@ -152,27 +249,34 @@ def draw_wall_section_ax(ax, sec):
             weight="bold", va="center", ha="left", zorder=6)
     ax.text(0, a3 + 0.16 * cy, "t3", fontsize=8, color="#1D4ED8",
             weight="bold", va="bottom", ha="center", zorder=6)
-    # Dim t3 (dưới đáy) / t2 (bên trái): đường mảnh + chữ sát mép,
-    # khoảng lùi tính theo phương của chính chiều đó
-    doff = 0.34 * cy
-    ax.plot([-cx / 2, cx / 2], [-cy / 2 - doff] * 2,
-            color="black", lw=0.8)
-    for xx in (-cx / 2, cx / 2):
-        ax.plot([xx, xx], [-cy / 2 - doff - 0.14 * cy,
-                           -cy / 2 - doff + 0.14 * cy],
-                color="black", lw=0.8)
-    ax.text(0, -cy / 2 - 0.60 * cy, f"t3 = {cx:.0f} mm", fontsize=8,
-            weight="bold", ha="center", va="top")
-    doffx = 0.035 * cx
-    ax.plot([-cx / 2 - doffx] * 2, [-cy / 2, cy / 2],
-            color="black", lw=0.8)
-    for yy in (-cy / 2, cy / 2):
-        ax.plot([-cx / 2 - doffx - 0.012 * cx,
-                 -cx / 2 - doffx + 0.012 * cx], [yy, yy],
-                color="black", lw=0.8)
-    ax.text(-cx / 2 - 0.062 * cx, 0, f"t2 = {cy:.0f} mm", fontsize=8,
+    # --- DIM từng khoảng (format web 2026-10-23) ---
+    # Hàng 1 (dưới đáy): kích thước tổng Lw, đường gióng từ 2 mép.
+    _y_tot = -cy / 2 - 0.62 * cy
+    for _xx in (-cx / 2, cx / 2):
+        ax.plot([_xx, _xx], [-cy / 2 - 0.10 * cy, _y_tot - 0.16 * cy],
+                color="black", lw=0.7)
+    _dim_h(ax, -cx / 2, cx / 2, _y_tot, f"Lw = {cx:.0f} mm",
+           text_dy=-0.52 * cy)
+    # Hàng 2: phân đoạn Lb | đoạn giữa | Lb (chỉ chế độ vùng biên).
+    if _segs:
+        _y_seg = -cy / 2 - 1.70 * cy
+        for _x1, _x2, _lab in _segs:
+            for _xx in (_x1, _x2):
+                ax.plot([_xx, _xx],
+                        [-cy / 2 - 0.10 * cy, _y_seg - 0.16 * cy],
+                        color="black", lw=0.7)
+            _dim_h(ax, _x1, _x2, _y_seg, _lab, text_dy=0.14 * cy)
+    # DIM đứng bên trái: kích thước tổng tw.
+    _x_dim = -cx / 2 - 0.045 * cx
+    for _yy in (-cy / 2, cy / 2):
+        ax.plot([-cx / 2 - 0.012 * cx, _x_dim - 0.008 * cx], [_yy, _yy],
+                color="black", lw=0.7)
+    ax.annotate("", xy=(_x_dim, cy / 2), xytext=(_x_dim, -cy / 2),
+                arrowprops=dict(arrowstyle="<->", color="black", lw=0.8,
+                                shrinkA=0, shrinkB=0), zorder=4)
+    ax.text(_x_dim - 0.018 * cx, 0, f"tw = {cy:.0f} mm", fontsize=8,
             weight="bold", ha="right", va="center", rotation=90)
-    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec)
+    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, len(_segs))
     ax.set_xlim(x_lo, x_hi)
     ax.set_ylim(y_lo, y_hi)
     ax.set_xticks([])
@@ -191,127 +295,406 @@ class WallMixin:
 
     # ---------------- Frame nhập liệu vách ----------------
     def _sec_wall(self):
-        """Dựng frame '2. Vách — tiết diện & cốt thép' (ẩn ở chế độ Cột)."""
-        f = self._frame(T("2. Vách — tiết diện & cốt thép"))
-        self.frm_wall = f
-        r = 0
+        """Dựng các frame nhập liệu vách (ẩn ở chế độ Cột):
+        '2. Tiết diện' + '3. Bố trí cốt thép dọc' + '4. Chiều dài tính
+        toán & Uốn dọc' theo format web Vietcons, và frame 'Bổ sung
+        GĐ1' giữ các ô ngoài phạm vi web (thép ngang, đai vùng biên,
+        kháng chấn) để không mất plumbing các lát sau."""
+        f2 = self._frame(T("2. Tiết diện"))
+        self.frm_wall = f2
+        f3 = self._frame(T("3. Bố trí cốt thép dọc"))
+        self.frm_wall_rebar = f3
+        f4 = self._frame(T("4. Chiều dài tính toán & Uốn dọc"))
+        self.frm_wall_len = f4
+        fx = self._frame(T("Bổ sung GĐ1 — thép ngang, đai vùng biên, "
+                           "kháng chấn"))
+        self.frm_wall_extra = fx
+        self._wall_frames = (f2, f3, f4, fx)
+        D = WALL_DEFAULTS
 
-        def _hdr(text):
-            nonlocal r
-            ttk.Label(f, text=text, font=("", 10, "bold")).grid(
-                row=r, column=0, columnspan=2, sticky=tk.W,
-                padx=4, pady=(8, 2))
-            r += 1
-
-        def _entry(default):
-            e = ttk.Entry(f, width=12)
+        def _entry(parent, default, width=12):
+            e = ttk.Entry(parent, width=width)
             e.insert(0, str(default))
             return e
 
-        def _combo(values, default):
-            cb = ttk.Combobox(f, values=values, state="readonly", width=16)
+        def _combo(parent, values, default, width=16):
+            cb = ttk.Combobox(parent, values=values, state="readonly",
+                              width=width)
             cb.set(str(default))
             return cb
 
-        D = WALL_DEFAULTS
-        # --- Hình học ---
-        _hdr("Hình học")
-        self.w_en_Lw = _entry(D["Lw"])
-        self._row(f, "Chiều dài vách Lw (mm)", self.w_en_Lw, r); r += 1
-        self.w_en_tw = _entry(D["tw"])
-        self._row(f, "Chiều dày vách tw (mm)", self.w_en_tw, r); r += 1
-        self.w_en_hstory = _entry(D["h_story"])
-        self._row(f, "Chiều cao đốt (mm)", self.w_en_hstory, r); r += 1
-        self.w_en_htotal = _entry(D["h_total"])
-        self._row(f, "Tổng chiều cao vách (mm)", self.w_en_htotal, r); r += 1
-        self.w_cb_pos = _combo([lab for _, lab in _STORY_POS],
-                               _label_of(_STORY_POS, D["story_pos"], "Chân vách"))
-        self._row(f, "Vị trí đốt", self.w_cb_pos, r); r += 1
-        self.w_en_cover = _entry(D["cover"])
-        self._row(f, "Lớp bảo vệ thép phân bố (mm)", self.w_en_cover, r); r += 1
-        self.w_cb_l0 = _combo([lab for lab, _ in _L0_OPTS],
-                              _l0_label(float(D["l0_out_factor"])))
-        self._row(f, "Liên kết 2 đầu đốt (ngoài MP)", self.w_cb_l0, r); r += 1
+        def _hdr(parent, text, r, span=2):
+            ttk.Label(parent, text=text, font=("", 10, "bold")).grid(
+                row=r, column=0, columnspan=span, sticky=tk.W,
+                padx=4, pady=(8, 2))
+            return r + 1
 
-        # --- Thép phân bố ---
-        _hdr("Thép phân bố")
-        self.w_cb_dia_v = _combo(_DIAS, D["dia_v"])
-        self._row(f, "Thép đứng: đường kính (mm)", self.w_cb_dia_v, r); r += 1
-        self.w_en_s_v = _entry(D["s_v"])
-        self._row(f, "Thép đứng: khoảng cách s (mm)", self.w_en_s_v, r); r += 1
-        self.w_cb_layers_v = _combo(["1", "2"], D["layers_v"])
-        self._row(f, "Thép đứng: số lớp lưới", self.w_cb_layers_v, r); r += 1
-        self.w_cb_dia_h = _combo(_DIAS, D["dia_h"])
-        self._row(f, "Thép ngang: đường kính (mm)", self.w_cb_dia_h, r); r += 1
-        self.w_en_s_h = _entry(D["s_h"])
-        self._row(f, "Thép ngang: khoảng cách s (mm)", self.w_en_s_h, r); r += 1
-        self.w_cb_layers_h = _combo(["1", "2"], D["layers_h"])
-        self._row(f, "Thép ngang: số lớp lưới", self.w_cb_layers_h, r); r += 1
+        def sv(v):
+            try:
+                fv = float(v)
+            except Exception:
+                return str(v)
+            return str(int(fv)) if fv.is_integer() else str(fv)
 
-        # --- Vùng biên ---
-        _hdr("Vùng biên (thép tập trung 2 đầu)")
-        self.w_en_Lb_l = _entry(D["Lb_left"])
-        self._row(f, "Chiều dài vùng biên trái Lb (mm)", self.w_en_Lb_l, r); r += 1
-        self.w_en_Lb_r = _entry(D["Lb_right"])
-        self._row(f, "Chiều dài vùng biên phải Lb (mm)", self.w_en_Lb_r, r); r += 1
+        # ===== Mục 2. Tiết diện (web) =====
+        r = 0
+        self.w_cb_sectype = _combo(f2, _SECTYPES, _SECTYPES[0], width=24)
+        self._row(f2, "Loại tiết diện vách / lõi", self.w_cb_sectype, r)
+        r += 1
+        rot_fr = ttk.Frame(f2)
+        self.w_rot_var = tk.StringVar(value="0°")
+        ttk.Label(rot_fr, textvariable=self.w_rot_var, width=5).pack(
+            side=tk.LEFT)
+        ttk.Button(rot_fr, text="Xoay +90°",
+                   command=self._rotate_wall).pack(side=tk.LEFT, padx=4)
+        self._wall_rot_deg = 0
+        self._row(f2, "Xoay tiết diện", rot_fr, r)
+        r += 1
+        self.w_en_Lw = _entry(f2, D["Lw"])
+        self._row(f2, "Lw (mm)", self.w_en_Lw, r); r += 1
+        self.w_en_tw = _entry(f2, D["tw"])
+        self._row(f2, "tw (mm)", self.w_en_tw, r); r += 1
+        ttk.Label(
+            f2, foreground="gray", wraplength=520,
+            text="GĐ1 chỉ hỗ trợ 'Vách phẳng chữ nhật' — 5 loại còn "
+                 "lại thuộc giai đoạn sau. Xoay 90°/270° hoán đổi vai "
+                 "trò Lw/tw khi dựng hình và tính toán.").grid(
+                     row=r, column=0, columnspan=2, padx=4, pady=(2, 4),
+                     sticky=tk.W)
+
+        # ===== Mục 3. Bố trí cốt thép dọc (web) =====
+        r = 0
+        self.w_cb_steel_mode = _combo(
+            f3, [lab for _, lab in _STEEL_MODES],
+            _label_of(_STEEL_MODES, D["steel_mode"],
+                      "Phân bố đều theo chu vi"), width=24)
+        self._row(f3, "Chế độ bố trí thép", self.w_cb_steel_mode, r)
+        r += 1
+        self.w_en_cover = _entry(f3, D["cover"])
+        self._row(f3, "Lớp bảo vệ c (mm)", self.w_en_cover, r); r += 1
+        # -- Khung con (a): phân bố đều theo chu vi --
+        self.w_frm_per = ttk.Frame(f3)
+        self.w_frm_per.grid(row=r, column=0, columnspan=2, sticky=tk.EW)
+        r += 1
+        rr = 0
+        self.w_cb_per_dia = _combo(self.w_frm_per, _DIAS_WEB,
+                                   sv(D["per_dia"]))
+        self._row(self.w_frm_per, "Đường kính d", self.w_cb_per_dia, rr)
+        rr += 1
+        self.w_en_per_s = _entry(self.w_frm_per, D["per_s"])
+        self._row(self.w_frm_per, "Khoảng cách s (mm)", self.w_en_per_s,
+                  rr)
+        # -- Khung con (b): tập trung vùng biên --
+        self.w_frm_be = ttk.Frame(f3)
+        self.w_frm_be.grid(row=r, column=0, columnspan=2, sticky=tk.EW)
+        r += 1
+        rr = 0
+        rr = _hdr(self.w_frm_be, "Cốt thép vùng biên (2 đầu vách)", rr)
+        lay_fr = ttk.Frame(self.w_frm_be)
+        self.w_var_be_layout = tk.StringVar(
+            value=_label_of(_BE_LAYOUTS, D["be_layout"], "Chu vi"))
+        for _lab in ("Chu vi", "Lưới đặc"):
+            tk.Radiobutton(lay_fr, text=_lab, value=_lab,
+                           variable=self.w_var_be_layout, bg="white",
+                           activebackground="white",
+                           highlightthickness=0).pack(
+                               side=tk.LEFT, padx=(0, 10))
+        self._row(self.w_frm_be, "Kiểu bố trí", lay_fr, rr); rr += 1
+        self.w_en_be_Lb = _entry(self.w_frm_be, D["be_Lb"])
+        self._row(self.w_frm_be, "Chiều dài Lb (mm)", self.w_en_be_Lb,
+                  rr); rr += 1
+        self.w_cb_be_dia = _combo(self.w_frm_be, _DIAS_WEB,
+                                  sv(D["be_dia"]))
+        self._row(self.w_frm_be, "Đường kính db", self.w_cb_be_dia, rr)
+        rr += 1
+        self.w_en_be_nL = _entry(self.w_frm_be, D["be_nL"])
+        self._row(self.w_frm_be, "Số vị trí dọc nL", self.w_en_be_nL, rr)
+        rr += 1
+        self.w_cb_be_nT = _combo(self.w_frm_be,
+                                 [lab for _, lab in _NT_OPTS],
+                                 _label_of(_NT_OPTS, D["be_nT"],
+                                           "2 hàng (2 mặt)"))
+        self._row(self.w_frm_be, "Số hàng thép nT", self.w_cb_be_nT, rr)
+        rr += 1
+        rr = _hdr(self.w_frm_be, "Thép phân bố thân vách", rr)
+        self.w_cb_web_dia = _combo(self.w_frm_be, _DIAS_WEB,
+                                   sv(D["web_dia"]))
+        self._row(self.w_frm_be, "Đường kính d", self.w_cb_web_dia, rr)
+        rr += 1
+        self.w_en_web_s = _entry(self.w_frm_be, D["web_s"])
+        self._row(self.w_frm_be, "Khoảng cách s (mm)", self.w_en_web_s,
+                  rr); rr += 1
+        ttk.Label(
+            self.w_frm_be, foreground="gray", wraplength=520,
+            text="GĐ1: 'Chu vi' và 'Lưới đặc' sinh cùng lưới nL x nT "
+                 "(chưa phân biệt hình học).").grid(
+                     row=rr, column=0, columnspan=2, padx=4, pady=(2, 2),
+                     sticky=tk.W)
+        # -- Khối số đọc trực tiếp (web) --
+        r = _hdr(f3, "Số đọc trực tiếp", r)
+        self.w_readout = tk.Text(f3, height=8, font=("Consolas", 9),
+                                 wrap="none", bg="#F9FAFB", relief="solid",
+                                 borderwidth=1)
+        self.w_readout.grid(row=r, column=0, columnspan=2, sticky=tk.EW,
+                            padx=4, pady=(2, 4))
+        self.w_readout.configure(state="disabled")
+
+        # ===== Mục 4. Chiều dài tính toán & Uốn dọc (web) =====
+        self.w_cb_pd = _combo(
+            f4, [lab for _, lab in _PD_OPTS],
+            _label_of(_PD_OPTS, D["pd_method"],
+                      "Xét uốn dọc theo TCVN 5574:2018"), width=30)
+        self._row(f4, "Phương pháp xét uốn dọc (P–δ)", self.w_cb_pd, 0)
+        bn = list(BOUNDARY_NAMES.values())
+        for c, h in enumerate(("", "Phương X (trong mặt phẳng)",
+                               "Phương Y (ngoài mặt phẳng)")):
+            ttk.Label(f4, text=h, font=("", 9, "bold")).grid(
+                row=1, column=c, padx=4, pady=2, sticky=tk.W)
+        f4.columnconfigure(1, weight=1)
+        f4.columnconfigure(2, weight=1)
+        self.w_en_Lx_m = _entry(f4, D["Lx_m"])
+        self.w_en_Ly_m = _entry(f4, D["Ly_m"])
+        self.w_cb_lk_tx = _combo(f4, bn, "Ngàm nửa cứng")
+        self.w_cb_lk_ty = _combo(f4, bn, "Ngàm nửa cứng")
+        self.w_cb_lk_bx = _combo(f4, bn, "Ngàm nửa cứng")
+        self.w_cb_lk_by = _combo(f4, bn, "Ngàm nửa cứng")
+        self.w_en_psi_x = _entry(f4, D["psi_x"])
+        self.w_en_psi_y = _entry(f4, D["psi_y"])
+        self.w_L0_var_x = tk.StringVar(value="—")
+        self.w_L0_var_y = tk.StringVar(value="—")
+        _rows4 = [
+            ("Chiều cao thông thủy vách L (m)", self.w_en_Lx_m,
+             self.w_en_Ly_m),
+            ("Liên kết đầu trên", self.w_cb_lk_tx, self.w_cb_lk_ty),
+            ("Liên kết đầu dưới", self.w_cb_lk_bx, self.w_cb_lk_by),
+            ("Hệ số ψ (tự điền theo LK)", self.w_en_psi_x,
+             self.w_en_psi_y),
+        ]
+        for i, (lab, wx, wy) in enumerate(_rows4, start=2):
+            ttk.Label(f4, text=lab, width=self._LBL_WIDTH,
+                      anchor=tk.W).grid(row=i, column=0, sticky=tk.W,
+                                        padx=4, pady=2)
+            wx.grid(row=i, column=1, padx=4, pady=2, sticky=tk.EW)
+            wy.grid(row=i, column=2, padx=4, pady=2, sticky=tk.EW)
+        ttk.Label(f4, text="Chiều cao tính toán L₀ = ψ·L (m)",
+                  width=self._LBL_WIDTH, anchor=tk.W).grid(
+                      row=6, column=0, sticky=tk.W, padx=4, pady=2)
+        ttk.Label(f4, textvariable=self.w_L0_var_x,
+                  font=("", 9, "bold")).grid(row=6, column=1, padx=4,
+                                              pady=2, sticky=tk.W)
+        ttk.Label(f4, textvariable=self.w_L0_var_y,
+                  font=("", 9, "bold")).grid(row=6, column=2, padx=4,
+                                              pady=2, sticky=tk.W)
+        ttk.Label(
+            f4, foreground="gray", wraplength=520,
+            text="L₀ chỉ suy ra lúc tính, không lưu riêng. Phương X "
+                 "hiện chỉ dùng cho độ lệch tâm ngẫu nhiên — mô men "
+                 "trong mặt phẳng không phóng đại (thiết kế lát 1)."
+            ).grid(row=7, column=0, columnspan=3, padx=4, pady=(2, 4),
+                   sticky=tk.W)
+
+        # ===== Bổ sung GĐ1 (ngoài format web) =====
+        r = 0
+        r = _hdr(fx, "Thép phân bố ngang (chỉ dùng cho cắt — lát 4)", r)
+        self.w_cb_dia_h = _combo(fx, _DIAS, D["dia_h"])
+        self._row(fx, "Thép ngang: đường kính (mm)", self.w_cb_dia_h, r)
+        r += 1
+        self.w_en_s_h = _entry(fx, D["s_h"])
+        self._row(fx, "Thép ngang: khoảng cách s (mm)", self.w_en_s_h, r)
+        r += 1
+        self.w_cb_layers_h = _combo(fx, ["1", "2"], D["layers_h"])
+        self._row(fx, "Thép ngang: số lớp lưới", self.w_cb_layers_h, r)
+        r += 1
+        r = _hdr(fx, "Đai vùng biên & vị trí đốt", r)
+        self.w_cb_tie_dia = _combo(fx, _DIAS, D["tie_dia_be"])
+        self._row(fx, "Đai vùng biên: đường kính (mm)", self.w_cb_tie_dia,
+                  r); r += 1
+        self.w_en_tie_s = _entry(fx, D["tie_s_be"])
+        self._row(fx, "Đai vùng biên: khoảng cách s (mm)", self.w_en_tie_s,
+                  r); r += 1
+        self.w_en_tie_legs = _entry(fx, D["tie_legs_be"])
+        self._row(fx, "Đai vùng biên: số nhánh", self.w_en_tie_legs, r)
+        r += 1
+        self.w_en_hstory = _entry(fx, D["h_story"])
+        self._row(fx, "Chiều cao đốt (mm)", self.w_en_hstory, r); r += 1
+        self.w_en_htotal = _entry(fx, D["h_total"])
+        self._row(fx, "Tổng chiều cao vách (mm)", self.w_en_htotal, r)
+        r += 1
+        self.w_cb_pos = _combo(
+            fx, [lab for _, lab in _STORY_POS],
+            _label_of(_STORY_POS, D["story_pos"], "Chân vách"))
+        self._row(fx, "Vị trí đốt", self.w_cb_pos, r); r += 1
         self.w_var_lb_auto = tk.BooleanVar(value=bool(D["lb_auto"]))
         tk.Checkbutton(
-            f, text="Tự lấy Lb theo yêu cầu khi vùng biên bắt buộc (kèm cảnh báo)",
+            fx, text="Tự lấy Lb theo yêu cầu khi vùng biên bắt buộc "
+                     "(kèm cảnh báo)",
             variable=self.w_var_lb_auto, bg="white",
             activebackground="white", highlightthickness=0).grid(
                 row=r, column=0, columnspan=2, sticky=tk.W, padx=4, pady=4)
         r += 1
-        self.w_cb_dia_be = _combo(_DIAS, D["dia_be"])
-        self._row(f, "Thép biên: đường kính (mm)", self.w_cb_dia_be, r); r += 1
-        self.w_en_n_be = _entry(D["n_be"])
-        self._row(f, "Thép biên: số thanh / vùng", self.w_en_n_be, r); r += 1
-        self.w_cb_tie_dia = _combo(_DIAS, D["tie_dia_be"])
-        self._row(f, "Đai vùng biên: đường kính (mm)", self.w_cb_tie_dia, r); r += 1
-        self.w_en_tie_s = _entry(D["tie_s_be"])
-        self._row(f, "Đai vùng biên: khoảng cách s (mm)", self.w_en_tie_s, r); r += 1
-        self.w_en_tie_legs = _entry(D["tie_legs_be"])
-        self._row(f, "Đai vùng biên: số nhánh", self.w_en_tie_legs, r); r += 1
-
-        # --- Kháng chấn ---
-        _hdr("Kháng chấn")
+        r = _hdr(fx, "Kháng chấn", r)
         self.w_cb_aci_class = _combo(
-            [lab for _, lab in _ACI_CLASS],
+            fx, [lab for _, lab in _ACI_CLASS],
             _label_of(_ACI_CLASS, D["seismic_class"], "Đặc biệt (Ch.18)"))
         self.w_lbl_aci_class = self._row(
-            f, "Loại vách (ACI 318-19)", self.w_cb_aci_class, r); r += 1
+            fx, "Loại vách (ACI 318-19)", self.w_cb_aci_class, r); r += 1
         self.w_var_seismic = tk.BooleanVar(value=bool(D["seismic_on"]))
         self.w_chk_seismic = tk.Checkbutton(
-            f, text="Kháng chấn DCM (TCVN 9386:2012)",
+            fx, text="Kháng chấn DCM (TCVN 9386:2012)",
             variable=self.w_var_seismic, bg="white",
             activebackground="white", highlightthickness=0)
         self.w_chk_seismic.grid(
             row=r, column=0, columnspan=2, sticky=tk.W, padx=4, pady=4)
         r += 1
         self._toggle_wall_seismic()
-        ttk.Label(f, foreground="gray", wraplength=560,
-                  text="Lát 1: đã hỗ trợ kiểm tra N–M vách theo TCVN "
-                       "(nhập tay ở mục 5: N / M2 = mô men ngoài mặt phẳng / "
-                       "M3 = mô men trong mặt phẳng / Q2 = cắt trong mặt "
-                       "phẳng / Q3 = cắt ngoài mặt phẳng). ACI/EC2, vùng "
-                       "biên, cắt và Pier Forces thuộc các lát sau."
-                  ).grid(row=r, column=0, columnspan=2, padx=4, pady=(6, 2),
-                         sticky=tk.W)
-        # Live preview mặt cắt vách khi đổi nhập liệu
-        for _w in (self.w_en_Lw, self.w_en_tw, self.w_en_hstory,
-                   self.w_en_htotal, self.w_en_cover, self.w_en_s_v,
-                   self.w_en_s_h, self.w_en_Lb_l, self.w_en_Lb_r,
-                   self.w_en_n_be, self.w_en_tie_s, self.w_en_tie_legs):
+        ttk.Label(
+            fx, foreground="gray", wraplength=560,
+            text="Lát 1: đã hỗ trợ kiểm tra N–M vách theo TCVN (nhập "
+                 "tay ở mục 5: N / M2 = mô men ngoài mặt phẳng / M3 = "
+                 "mô men trong mặt phẳng / Q2 = cắt trong mặt phẳng / "
+                 "Q3 = cắt ngoài mặt phẳng). ACI/EC2, vùng biên, cắt "
+                 "và Pier Forces thuộc các lát sau.").grid(
+                     row=r, column=0, columnspan=2, padx=4, pady=(6, 2),
+                     sticky=tk.W)
+        # Khởi tạo hiển thị theo chế độ thép + ψ/L0
+        self._on_wall_steel_mode()
+        self._auto_psi_wall()
+        # Ẩn ngay các frame phụ (frame mục 2 do build_mixin pack_forget)
+        for _fr in (f3, f4, fx):
+            _fr.pack_forget()
+        # ---- Live preview / số đọc khi đổi nhập liệu ----
+        for _w in (self.w_en_Lw, self.w_en_tw, self.w_en_cover,
+                   self.w_en_per_s, self.w_en_be_Lb, self.w_en_be_nL,
+                   self.w_en_web_s, self.w_en_hstory, self.w_en_htotal,
+                   self.w_en_s_h, self.w_en_tie_s, self.w_en_tie_legs):
             _w.bind("<FocusOut>", lambda e: self._refresh_wall_preview())
-        for _cb in (self.w_cb_pos, self.w_cb_l0, self.w_cb_dia_v,
-                    self.w_cb_layers_v, self.w_cb_dia_h,
-                    self.w_cb_layers_h, self.w_cb_dia_be,
-                    self.w_cb_tie_dia, self.w_cb_aci_class):
+        for _w in (self.w_en_Lx_m, self.w_en_Ly_m, self.w_en_psi_x,
+                   self.w_en_psi_y):
+            _w.bind("<FocusOut>",
+                    lambda e: (self._update_wall_L0_labels(),
+                               self._refresh_wall_preview()))
+        for _cb in (self.w_cb_per_dia, self.w_cb_be_dia,
+                    self.w_cb_be_nT, self.w_cb_web_dia, self.w_cb_pd,
+                    self.w_cb_dia_h, self.w_cb_layers_h,
+                    self.w_cb_tie_dia, self.w_cb_aci_class,
+                    self.w_cb_pos):
             _cb.bind("<<ComboboxSelected>>",
                      lambda e: self._refresh_wall_preview())
+        self.w_cb_sectype.bind("<<ComboboxSelected>>",
+                               lambda e: self._on_wall_sectype())
+        self.w_cb_steel_mode.bind("<<ComboboxSelected>>",
+                                  lambda e: self._on_wall_steel_mode())
+        for _cb in (self.w_cb_lk_tx, self.w_cb_lk_bx, self.w_cb_lk_ty,
+                    self.w_cb_lk_by):
+            _cb.bind("<<ComboboxSelected>>",
+                     lambda e: self._auto_psi_wall())
         self.w_var_lb_auto.trace_add(
             "write", lambda *a: self._refresh_wall_preview())
         self.w_var_seismic.trace_add(
             "write", lambda *a: self._refresh_wall_preview())
+        self.w_var_be_layout.trace_add(
+            "write", lambda *a: self._refresh_wall_preview())
+
+    # ---------------- Mục 2/3/4 (web): handler ----------------
+    def _rotate_wall(self):
+        """Nút 'Xoay +90°': quay ngược chiều kim đồng hồ theo chu kỳ
+        0 -> 90 -> 180 -> 270 -> 0 (90/270 hoán đổi Lw/tw khi tính)."""
+        self._wall_rot_deg = (int(getattr(self, "_wall_rot_deg", 0))
+                              + 90) % 360
+        self.w_rot_var.set(f"{self._wall_rot_deg}°")
+        self._refresh_wall_preview()
+
+    def _on_wall_sectype(self):
+        if self.w_cb_sectype.get() != _SECTYPES[0]:
+            messagebox.showinfo(
+                "Chế độ Vách",
+                "Loại tiết diện này thuộc giai đoạn sau — GĐ1 chỉ hỗ "
+                "trợ 'Vách phẳng chữ nhật'.")
+            self.w_cb_sectype.set(_SECTYPES[0])
+        self._refresh_wall_preview()
+
+    def _on_wall_steel_mode(self):
+        """Hiện đúng khung con của chế độ thép đang chọn ở mục 3."""
+        mode = _code_of(_STEEL_MODES, self.w_cb_steel_mode.get(),
+                        "perimeter")
+        if mode == "perimeter":
+            self.w_frm_be.grid_remove()
+            self.w_frm_per.grid()
+        else:
+            self.w_frm_per.grid_remove()
+            self.w_frm_be.grid()
+        self._refresh_wall_preview()
+
+    def _auto_psi_wall(self):
+        """Tự điền ψ theo cặp liên kết 2 đầu (cùng cơ chế _auto_psi
+        của cột: PSI_TABLE; người dùng vẫn sửa tay được sau đó)."""
+        from rc_column.stability import PSI_TABLE
+        rev = {v: k for k, v in BOUNDARY_NAMES.items()}
+        for cb_t, cb_b, en in (
+                (self.w_cb_lk_tx, self.w_cb_lk_bx, self.w_en_psi_x),
+                (self.w_cb_lk_ty, self.w_cb_lk_by, self.w_en_psi_y)):
+            t = rev.get(cb_t.get(), "")
+            b = rev.get(cb_b.get(), "")
+            p = PSI_TABLE.get((t, b), PSI_TABLE.get((b, t), 1.0))
+            en.delete(0, tk.END)
+            en.insert(0, f"{p:g}")
+        self._update_wall_L0_labels()
+        self._refresh_wall_preview()
+
+    def _update_wall_L0_labels(self):
+        """Hàng L0 = ψ·L ở mục 4 — chỉ HIỂN THỊ, không lưu riêng."""
+        for en_L, en_p, var in (
+                (self.w_en_Lx_m, self.w_en_psi_x, self.w_L0_var_x),
+                (self.w_en_Ly_m, self.w_en_psi_y, self.w_L0_var_y)):
+            try:
+                L = float(str(en_L.get()).strip().replace(",", "."))
+                p = float(str(en_p.get()).strip().replace(",", "."))
+                var.set(f"{p * L:.2f} m")
+            except Exception:
+                var.set("—")
+
+    def _update_wall_readouts(self, sec=None, meta=None):
+        """Khối SỐ ĐỌC ở mục 3 — tính từ đúng (sec, meta) của
+        build_wall_section (không suy lại ở nơi khác)."""
+        txt = getattr(self, "w_readout", None)
+        if txt is None:
+            return
+        try:
+            winp = wall_from_dict(self._collect_wall())
+            if sec is None:
+                conc, steel, _m = self._wall_tcvn_materials()
+                sec, meta = build_wall_section(winp, conc, steel)
+            ro = wall_readouts(winp, sec, meta)
+            lines = []
+            if (meta or {}).get("steel_mode") == "boundary":
+                for z in ro["zones"]:
+                    lines.append(
+                        f"{z['name']}: {z['n']} thanh d{z['dia']:.0f} — "
+                        f"As = {z['As']:.0f} mm² (µ = {z['mu'] * 100:.2f}%)")
+            lines.append(f"{ro['n_bars']} thanh — {ro['summary']}")
+            lines.append(f"Tổng As = {ro['As']:.0f} mm²   •   "
+                         f"Hàm lượng µ = {ro['mu'] * 100:.2f}%")
+            lines.append(f"Diện tích Ac = {ro['Ac_m2']:.3f} m²")
+            lines.append(f"Quán tính Ix = {ro['Ix_m4']:.4g} m⁴   •   "
+                         f"Iy = {ro['Iy_m4']:.4g} m⁴")
+            if ro["sclear_min"] is not None:
+                lines.append(
+                    f"Khoảng hở thông thủy sclear,min = "
+                    f"{ro['sclear_min']:.1f} mm")
+                lines.append(
+                    f"Khoảng cách tim smax = {ro['smax']:.1f} mm "
+                    f"(min: {ro['s_step_min']:.1f})")
+            body = "\n".join(lines)
+        except Exception as ex:
+            body = f"(chưa tính được số đọc: {ex})"
+        try:
+            txt.configure(state="normal")
+            txt.delete("1.0", tk.END)
+            txt.insert("1.0", body)
+            txt.configure(state="disabled")
+        except Exception:
+            pass
+
 
     # ---------------- Kháng chấn: lọc option theo tiêu chuẩn ----------------
     def _toggle_wall_seismic(self):
@@ -348,14 +731,17 @@ class WallMixin:
         wall = self.is_wall()
         cols = (self.frm_sec_section, self.frm_sec_rebar,
                 self.frm_sec_stability)
+        frames = getattr(self, "_wall_frames", (self.frm_wall,))
         if wall:
             for fr in cols:
                 fr.pack_forget()
-            self.frm_wall.pack(fill=tk.X, padx=8, pady=8,
-                               before=self.frm_loads)
+            for fr in frames:
+                fr.pack(fill=tk.X, padx=8, pady=8,
+                        before=self.frm_loads)
             self._refresh_wall_preview()
         else:
-            self.frm_wall.pack_forget()
+            for fr in frames:
+                fr.pack_forget()
             for fr in cols:
                 fr.pack(fill=tk.X, padx=8, pady=8, before=self.frm_loads)
             self._wall_view_active = False
@@ -370,12 +756,15 @@ class WallMixin:
 
     # ---------------- Thu / áp dữ liệu vách (JSON) ----------------
     def _collect_wall(self) -> dict:
-        """Đọc các ô vách thành dict đúng khóa của WallInput (§4.2)."""
+        """Đọc các ô vách thành dict đúng khóa của WallInput (§4.2).
+
+        Gồm khóa format web (mục 2/3/4) lẫn khóa cũ được GƯƠNG từ
+        trạng thái mới (dia_v/s_v <- thép phân bố của chế độ đang
+        chọn; Lb_left/Lb_right <- be_Lb; l0_out_factor <- psi_y) để
+        JSON luôn nhất quán giữa hai format.
+        """
         if not hasattr(self, "w_en_Lw"):
             return dict(WALL_DEFAULTS)
-
-        def ev(e):
-            return e.get()
 
         def num(e, default):
             try:
@@ -392,31 +781,72 @@ class WallMixin:
             return int(v) if float(v).is_integer() else v
 
         D = WALL_DEFAULTS
+        mode = _code_of(_STEEL_MODES, self.w_cb_steel_mode.get(),
+                        "perimeter")
+        rev_bn = {v: k for k, v in BOUNDARY_NAMES.items()}
+        psi_y = num(self.w_en_psi_y, D["psi_y"])
+        be_Lb = num(self.w_en_be_Lb, D["be_Lb"])
+        be_nT = int(_code_of(_NT_OPTS, self.w_cb_be_nT.get(), 2))
+        if mode == "perimeter":
+            dia_v = cnum(self.w_cb_per_dia, D["per_dia"])
+            s_v = num(self.w_en_per_s, D["per_s"])
+        else:
+            dia_v = cnum(self.w_cb_web_dia, D["web_dia"])
+            s_v = num(self.w_en_web_s, D["web_s"])
         return {
             "Lw": num(self.w_en_Lw, D["Lw"]),
             "tw": num(self.w_en_tw, D["tw"]),
             "h_story": num(self.w_en_hstory, D["h_story"]),
             "h_total": num(self.w_en_htotal, D["h_total"]),
-            "story_pos": _code_of(_STORY_POS, self.w_cb_pos.get(), "base"),
+            "story_pos": _code_of(_STORY_POS, self.w_cb_pos.get(),
+                                  "base"),
             "cover": num(self.w_en_cover, D["cover"]),
-            "l0_out_factor": dict(_L0_OPTS).get(self.w_cb_l0.get(), 1.0),
-            "dia_v": cnum(self.w_cb_dia_v, D["dia_v"]),
-            "s_v": num(self.w_en_s_v, D["s_v"]),
-            "layers_v": int(cnum(self.w_cb_layers_v, D["layers_v"])),
+            "l0_out_factor": psi_y,
+            "dia_v": dia_v,
+            "s_v": s_v,
+            "layers_v": 2,
             "dia_h": cnum(self.w_cb_dia_h, D["dia_h"]),
             "s_h": num(self.w_en_s_h, D["s_h"]),
             "layers_h": int(cnum(self.w_cb_layers_h, D["layers_h"])),
-            "Lb_left": num(self.w_en_Lb_l, D["Lb_left"]),
-            "Lb_right": num(self.w_en_Lb_r, D["Lb_right"]),
+            "Lb_left": be_Lb,
+            "Lb_right": be_Lb,
             "lb_auto": bool(self.w_var_lb_auto.get()),
-            "dia_be": cnum(self.w_cb_dia_be, D["dia_be"]),
-            "n_be": int(num(self.w_en_n_be, D["n_be"])),
+            "dia_be": cnum(self.w_cb_be_dia, D["be_dia"]),
+            "n_be": int(num(self.w_en_be_nL, D["be_nL"])) * be_nT,
             "tie_dia_be": cnum(self.w_cb_tie_dia, D["tie_dia_be"]),
             "tie_s_be": num(self.w_en_tie_s, D["tie_s_be"]),
             "tie_legs_be": int(num(self.w_en_tie_legs, D["tie_legs_be"])),
-            "seismic_class": _code_of(_ACI_CLASS, self.w_cb_aci_class.get(),
+            "seismic_class": _code_of(_ACI_CLASS,
+                                      self.w_cb_aci_class.get(),
                                       "special"),
             "seismic_on": bool(self.w_var_seismic.get()),
+            # --- Format web (2026-10-23) ---
+            "section_type": "rect",
+            "rot_deg": int(getattr(self, "_wall_rot_deg", 0)) % 360,
+            "steel_mode": mode,
+            "per_dia": cnum(self.w_cb_per_dia, D["per_dia"]),
+            "per_s": num(self.w_en_per_s, D["per_s"]),
+            "be_layout": _code_of(_BE_LAYOUTS,
+                                  self.w_var_be_layout.get(), "chuvi"),
+            "be_Lb": be_Lb,
+            "be_dia": cnum(self.w_cb_be_dia, D["be_dia"]),
+            "be_nL": int(num(self.w_en_be_nL, D["be_nL"])),
+            "be_nT": be_nT,
+            "web_dia": cnum(self.w_cb_web_dia, D["web_dia"]),
+            "web_s": num(self.w_en_web_s, D["web_s"]),
+            "pd_method": _code_of(_PD_OPTS, self.w_cb_pd.get(), "tcvn"),
+            "Lx_m": num(self.w_en_Lx_m, D["Lx_m"]),
+            "psi_x": num(self.w_en_psi_x, D["psi_x"]),
+            "lk_top_x": rev_bn.get(self.w_cb_lk_tx.get(),
+                                   "ngam_nua_cung"),
+            "lk_bot_x": rev_bn.get(self.w_cb_lk_bx.get(),
+                                   "ngam_nua_cung"),
+            "Ly_m": num(self.w_en_Ly_m, D["Ly_m"]),
+            "psi_y": psi_y,
+            "lk_top_y": rev_bn.get(self.w_cb_lk_ty.get(),
+                                   "ngam_nua_cung"),
+            "lk_bot_y": rev_bn.get(self.w_cb_lk_by.get(),
+                                   "ngam_nua_cung"),
             # Nội lực vách lấy từ mục 5 dùng chung khi CHECK
             # (_collect_wall_loads); trong JSON giữ 0 như WallInput
             # mặc định (nội lực thật nằm ở các khóa mục 5 của file).
@@ -425,12 +855,14 @@ class WallMixin:
         }
 
     def _apply_wall(self, w: dict):
-        """Đổ dict vách (khóa thiếu -> mặc định) vào các ô nhập."""
+        """Đổ dict vách vào các ô nhập (khóa thiếu -> mặc định; dict
+        cũ được dịch trước qua normalize_wall_dict)."""
         if not hasattr(self, "w_en_Lw"):
             return
         d = dict(WALL_DEFAULTS)
         if isinstance(w, dict):
-            d.update({k: v for k, v in w.items() if k in d})
+            d.update({k: v for k, v in normalize_wall_dict(w).items()
+                      if k in d})
 
         def se(e, v):
             e.delete(0, tk.END)
@@ -443,34 +875,66 @@ class WallMixin:
                 return str(v)
             return str(int(fv)) if fv.is_integer() else str(fv)
 
-        se(self.w_en_Lw, d["Lw"])
-        se(self.w_en_tw, d["tw"])
-        se(self.w_en_hstory, d["h_story"])
-        se(self.w_en_htotal, d["h_total"])
-        self.w_cb_pos.set(_label_of(_STORY_POS, d["story_pos"], "Chân vách"))
-        se(self.w_en_cover, d["cover"])
+        # Mục 2
+        self.w_cb_sectype.set(_SECTYPES[0])
         try:
-            _f0 = float(d["l0_out_factor"])
+            rot = int(float(d["rot_deg"])) % 360
         except Exception:
-            _f0 = 1.0
-        self.w_cb_l0.set(_l0_label(_f0))
-        self.w_cb_dia_v.set(sv(d["dia_v"]))
-        se(self.w_en_s_v, d["s_v"])
-        self.w_cb_layers_v.set(sv(d["layers_v"]))
+            rot = 0
+        if rot not in (0, 90, 180, 270):
+            rot = 0
+        self._wall_rot_deg = rot
+        self.w_rot_var.set(f"{rot}°")
+        se(self.w_en_Lw, sv(d["Lw"]))
+        se(self.w_en_tw, sv(d["tw"]))
+        # Mục 3
+        self.w_cb_steel_mode.set(_label_of(
+            _STEEL_MODES, d["steel_mode"], "Phân bố đều theo chu vi"))
+        se(self.w_en_cover, sv(d["cover"]))
+        self.w_cb_per_dia.set(sv(d["per_dia"]))
+        se(self.w_en_per_s, sv(d["per_s"]))
+        self.w_var_be_layout.set(_label_of(_BE_LAYOUTS, d["be_layout"],
+                                           "Chu vi"))
+        se(self.w_en_be_Lb, sv(d["be_Lb"]))
+        self.w_cb_be_dia.set(sv(d["be_dia"]))
+        se(self.w_en_be_nL, sv(d["be_nL"]))
+        self.w_cb_be_nT.set(_label_of(_NT_OPTS, d["be_nT"],
+                                      "2 hàng (2 mặt)"))
+        self.w_cb_web_dia.set(sv(d["web_dia"]))
+        se(self.w_en_web_s, sv(d["web_s"]))
+        # Mục 4
+        self.w_cb_pd.set(_label_of(
+            _PD_OPTS, d["pd_method"], "Xét uốn dọc theo TCVN 5574:2018"))
+        se(self.w_en_Lx_m, sv(d["Lx_m"]))
+        se(self.w_en_Ly_m, sv(d["Ly_m"]))
+        self.w_cb_lk_tx.set(BOUNDARY_NAMES.get(d["lk_top_x"],
+                                               "Ngàm nửa cứng"))
+        self.w_cb_lk_bx.set(BOUNDARY_NAMES.get(d["lk_bot_x"],
+                                               "Ngàm nửa cứng"))
+        self.w_cb_lk_ty.set(BOUNDARY_NAMES.get(d["lk_top_y"],
+                                               "Ngàm nửa cứng"))
+        self.w_cb_lk_by.set(BOUNDARY_NAMES.get(d["lk_bot_y"],
+                                               "Ngàm nửa cứng"))
+        se(self.w_en_psi_x, sv(d["psi_x"]))
+        se(self.w_en_psi_y, sv(d["psi_y"]))
+        # Bổ sung GĐ1
         self.w_cb_dia_h.set(sv(d["dia_h"]))
-        se(self.w_en_s_h, d["s_h"])
+        se(self.w_en_s_h, sv(d["s_h"]))
         self.w_cb_layers_h.set(sv(d["layers_h"]))
-        se(self.w_en_Lb_l, d["Lb_left"])
-        se(self.w_en_Lb_r, d["Lb_right"])
-        self.w_var_lb_auto.set(bool(d["lb_auto"]))
-        self.w_cb_dia_be.set(sv(d["dia_be"]))
-        se(self.w_en_n_be, d["n_be"])
         self.w_cb_tie_dia.set(sv(d["tie_dia_be"]))
-        se(self.w_en_tie_s, d["tie_s_be"])
-        se(self.w_en_tie_legs, d["tie_legs_be"])
+        se(self.w_en_tie_s, sv(d["tie_s_be"]))
+        se(self.w_en_tie_legs, sv(d["tie_legs_be"]))
+        se(self.w_en_hstory, sv(d["h_story"]))
+        se(self.w_en_htotal, sv(d["h_total"]))
+        self.w_cb_pos.set(_label_of(_STORY_POS, d["story_pos"],
+                                    "Chân vách"))
+        self.w_var_lb_auto.set(bool(d["lb_auto"]))
         self.w_cb_aci_class.set(_label_of(_ACI_CLASS, d["seismic_class"],
                                           "Đặc biệt (Ch.18)"))
         self.w_var_seismic.set(bool(d["seismic_on"]))
+        self._update_wall_L0_labels()
+        self._on_wall_steel_mode()
+
 
     # ---------------- Thông báo phần chưa tới lát ----------------
     def _wall_notice(self, action, slice_name=None):
@@ -594,10 +1058,12 @@ class WallMixin:
         except Exception:
             _to_top()
 
-    def _build_wall_section_cell(self, parent, sec):
+    def _build_wall_section_cell(self, parent, sec, meta=None,
+                                 na_info=None, show_compression=False):
         """Ô MẶT CẮT TIẾT DIỆN (box viền như cột): tiêu đề + hình mặt
-        cắt vách + hàng thẻ thống kê thép dùng chung với cột.
-        Trả về frame của ô (chưa đặt vào lưới — nơi gọi tự grid)."""
+        cắt vách (có DIM từng khoảng; tô vùng nén khi show_compression
+        và có na_info sau CHECK) + hàng thẻ thống kê thép dùng chung
+        với cột. Trả về frame của ô (chưa đặt — nơi gọi tự grid)."""
         f = tk.Frame(parent, bg="white", highlightbackground="#D1D5DB",
                      highlightcolor="#D1D5DB", highlightthickness=1,
                      takefocus=0)
@@ -607,10 +1073,12 @@ class WallMixin:
                  font=("", 11, "bold"), bg="white").pack(
                      side=tk.TOP, fill=tk.X)
         if HAS_MPL:
+            _nseg = len((meta or {}).get("dim_segments") or [])
             fig, canvas = self._new_wall_fig(
-                f, _wall_section_figsize(sec))
+                f, _wall_section_figsize(sec, _nseg))
             ax = fig.add_subplot(111)
-            draw_wall_section_ax(ax, sec)
+            draw_wall_section_ax(ax, sec, meta=meta, na_info=na_info,
+                                 show_compression=show_compression)
             try:
                 fig.tight_layout()
             except Exception:
@@ -648,7 +1116,7 @@ class WallMixin:
         self._sec_card_vars = self._build_section_cards(f, sec)
         return f
 
-    def _show_wall_preview(self, sec, winp):
+    def _show_wall_preview(self, sec, winp, meta=None):
         """View xem trước mặt cắt vách (chưa CHECK) ở tab Kết quả —
         cùng lưới với view kết quả: ô hướng dẫn trái, ô mặt cắt phải."""
         for w in self._sum_inner.winfo_children():
@@ -675,7 +1143,8 @@ class WallMixin:
                  "KIỂM TRA KHẢ NĂNG CHỊU LỰC. Lát 1 hỗ trợ TCVN; "
                  "ACI/EC2 vách thuộc lát 2.").pack(
                      anchor="nw", padx=10, pady=10)
-        f_sec = self._build_wall_section_cell(self._sum_inner, sec)
+        f_sec = self._build_wall_section_cell(self._sum_inner, sec,
+                                              meta=meta)
         f_sec.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self._finish_wall_sum_layout()
 
@@ -686,14 +1155,16 @@ class WallMixin:
         try:
             winp = wall_from_dict(self._collect_wall())
             conc, steel, _model = self._wall_tcvn_materials()
-            sec, _meta = build_wall_section(winp, conc, steel)
+            sec, meta = build_wall_section(winp, conc, steel)
         except Exception:
+            self._update_wall_readouts()
             return
+        self._update_wall_readouts(sec, meta)
         ax = getattr(self, "_sec_ax", None)
         if getattr(self, "_wall_view_active", False) and ax is not None:
             try:
                 ax.clear()
-                draw_wall_section_ax(ax, sec)
+                draw_wall_section_ax(ax, sec, meta=meta)
                 self._sec_fig.tight_layout()
                 self._sec_canvas.draw_idle()
                 varmap = getattr(self, "_sec_card_vars", None)
@@ -705,7 +1176,7 @@ class WallMixin:
                 return
             except Exception:
                 pass
-        self._show_wall_preview(sec, winp)
+        self._show_wall_preview(sec, winp, meta)
 
     # ---------------- Hiển thị kết quả CHECK vách TCVN ----------------
     def _show_wall_result(self, full):
@@ -736,7 +1207,9 @@ class WallMixin:
         f_tr.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
         self._build_wall_param_table(f_tr, full)
         # ===== Ô trên-phải: mặt cắt tiết diện + thẻ thép =====
-        f_tl = self._build_wall_section_cell(self._sum_inner, full["sec"])
+        f_tl = self._build_wall_section_cell(
+            self._sum_inner, full["sec"], meta=full.get("meta"),
+            na_info=full.get("na_info"), show_compression=True)
         f_tl.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         # ===== Ô dưới-trái: biểu đồ N–Mα =====
         f_bl = tk.Frame(self._sum_inner, bg="white",
@@ -847,7 +1320,7 @@ class WallMixin:
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
         tree = ttk.Treeview(parent, columns=cols, show="headings",
-                            height=17, style="Param.Treeview")
+                            height=20, style="Param.Treeview")
         tree.heading("sym", text="Ký hiệu")
         tree.heading("desc", text="Thông số")
         tree.heading("val", text="Giá trị")
@@ -876,6 +1349,10 @@ class WallMixin:
             ("L0", "Chiều dài tính toán ngoài mặt phẳng",
              f"{sl['l0_out'] / 1000.0:.2f} m"),
             ("λ", "Độ mảnh ngoài mặt phẳng", f"{sl['lambda_out']:.1f}"),
+            ("L0x", "Chiều dài tính toán trong mặt phẳng (mục 4)",
+             f"{sl.get('l0_in', 0.0) / 1000.0:.2f} m"),
+            ("λx", "Độ mảnh trong mặt phẳng (không phóng đại)",
+             f"{sl.get('lambda_in', 0.0):.1f}"),
             ("e0", "Độ lệch tâm ban đầu ngoài mặt phẳng",
              f"{full['e0_out']:.1f} mm"),
             ("φL", "Hệ số φL", f"{full['phi_L']:.2f}"),

@@ -5,11 +5,27 @@ Lát 0: chỉ mô hình dữ liệu + mặc định cho round-trip JSON chung v�
 N-M, vùng biên, cắt...) thuộc các lát sau — xem
 THIET_KE_TICH_HOP_VACH_GD1.md §4.
 
+Từ 2026-10-23: mục 2/3/4 của panel vách theo format công cụ web
+Vietcons "Kiểm tra vách BTCT" (TCVN 5574:2018):
+- Mục 2: loại tiết diện (GĐ1 chỉ "Vách phẳng chữ nhật" hoạt động) +
+  xoay tiết diện theo chu kỳ 0/90/180/270 (90/270 hoán đổi vai trò
+  Lw/tw khi dựng hình và tính toán — xem wall_section.wall_dims).
+- Mục 3: 2 chế độ thép dọc — "perimeter" (phân bố đều theo chu vi)
+  và "boundary" (tập trung vùng biên 2 đầu + thép phân bố thân vách).
+- Mục 4: phương pháp P–δ ("tcvn" | "none") + bảng 2 phương X (trong
+  mặt phẳng, theo Lw) / Y (ngoài mặt phẳng, theo tw): L, liên kết 2
+  đầu, ψ (tự điền theo LK, sửa tay được); L0 = ψ·L chỉ suy ra lúc tính,
+  không lưu/không ghi ngược (đúng quy tắc L của app).
+Các khóa cũ (h_story, l0_out_factor, dia_v, Lb_left...) GIỮ để tương
+thích ngược; file JSON cũ thiếu khóa mới được dịch sang format mới
+bằng normalize_wall_dict (giữ nguyên L0 ngoài mặt phẳng cũ).
+
 Vật liệu KHÔNG nhân bản ở đây: vách đọc cùng các ô vật liệu hiện có của
 3 tiêu chuẩn (TCVN: concrete/steel/sw_steel; ACI: aci_fc/aci_fy/aci_fyt;
 EC2: ec2_conc/ec2_steel/ec2_phi) trong dict dữ liệu chung.
 """
 
+import math
 from dataclasses import dataclass, fields
 
 
@@ -56,6 +72,38 @@ class WallInput:
     V_out: float = 0.0          # kN, ngoài mặt phẳng (V3 của pier)
     T: float = 0.0              # kN·m — GĐ1 chỉ lưu/cảnh báo, không kiểm xoắn
 
+    # --- Mục 2 theo format web (2026-10-23) ---
+    section_type: str = "rect"  # GĐ1: chỉ vách phẳng chữ nhật
+    rot_deg: int = 0            # xoay tiết diện: 0 | 90 | 180 | 270
+
+    # --- Mục 3 theo format web: chế độ bố trí thép dọc ---
+    steel_mode: str = "perimeter"   # "perimeter" | "boundary"
+    # (a) Phân bố đều theo chu vi
+    per_dia: float = 12.0       # đường kính d
+    per_s: float = 200.0        # khoảng cách s (bước thực <= s)
+    # (b) Tập trung vùng biên (đối xứng 2 đầu) + thép phân bố thân vách
+    be_layout: str = "chuvi"    # "chuvi" | "grid" (GĐ1: sinh cùng lưới)
+    be_Lb: float = 500.0        # chiều dài vùng biên mỗi đầu (mm)
+    be_dia: float = 20.0        # đường kính db vùng biên
+    be_nL: int = 4              # số vị trí dọc trong Lb
+    be_nT: int = 2              # số hàng ngang theo tw (2 = 2 mặt)
+    web_dia: float = 12.0       # thép phân bố thân vách: đường kính
+    web_s: float = 200.0        # thép phân bố thân vách: khoảng cách
+
+    # --- Mục 4 theo format web: chiều dài tính toán & uốn dọc ---
+    # Phương X = trong mặt phẳng (theo Lw); Phương Y = ngoài mặt phẳng
+    # (theo tw) — khẳng định bằng độ mảnh của web: λx = 6.4 (quán tính
+    # trong mặt phẳng), λy = 45.5 (ngoài mặt phẳng) ở ca mẫu.
+    pd_method: str = "tcvn"     # "tcvn" | "none" (η = 1 hai phương)
+    Lx_m: float = 5.75          # chiều cao thông thủy phương X (m)
+    psi_x: float = 0.8          # hệ số ψ phương X (tự điền theo LK)
+    lk_top_x: str = "ngam_nua_cung"
+    lk_bot_x: str = "ngam_nua_cung"
+    Ly_m: float = 5.75          # chiều cao thông thủy phương Y (m)
+    psi_y: float = 0.8          # hệ số ψ phương Y (tự điền theo LK)
+    lk_top_y: str = "ngam_nua_cung"
+    lk_bot_y: str = "ngam_nua_cung"
+
 
 def _clean(v):
     """Số nguyên dạng float (2500.0) -> int cho JSON gọn, khớp dàn ý §4.2."""
@@ -69,13 +117,58 @@ def wall_to_dict(w: WallInput) -> dict:
     return {f.name: _clean(getattr(w, f.name)) for f in fields(w)}
 
 
+def normalize_wall_dict(d) -> dict:
+    """Điền/dịch khóa format web (2026-10-23) cho dict vách bất kỳ.
+
+    File JSON cũ (lát 0–1.5) không có các khóa mới -> dịch từ khóa cũ,
+    GIỮ NGUYÊN hành vi số học cũ ở mức tối đa:
+    - Chế độ thép mặc định cũ là vùng biên + bụng: steel_mode="boundary",
+      be_Lb <- Lb_left, be_dia <- dia_be, be_nL <- ceil(n_be/2),
+      be_nT <- 2, web_dia/web_s <- dia_v/s_v.
+    - L0 ngoài mặt phẳng cũ = l0_out_factor x h_story: Ly_m <- h_story/1000,
+      psi_y <- l0_out_factor (phương X lấy cùng giá trị — trước đây
+      trong mặt phẳng không dùng L0 riêng).
+    Dict đã có khóa mới (kể cả từ _collect_wall) được giữ nguyên.
+    """
+    d = dict(d) if isinstance(d, dict) else {}
+    if "steel_mode" not in d:
+        d["steel_mode"] = "boundary"
+        if "be_Lb" not in d and "Lb_left" in d:
+            d["be_Lb"] = d["Lb_left"]
+        if "be_dia" not in d and "dia_be" in d:
+            d["be_dia"] = d["dia_be"]
+        if "be_nL" not in d and "n_be" in d:
+            try:
+                d["be_nL"] = max(1, math.ceil(float(d["n_be"]) / 2.0))
+            except Exception:
+                pass
+        if "be_nT" not in d:
+            d["be_nT"] = 2
+        if "web_dia" not in d and "dia_v" in d:
+            d["web_dia"] = d["dia_v"]
+        if "web_s" not in d and "s_v" in d:
+            d["web_s"] = d["s_v"]
+    if "Ly_m" not in d and "h_story" in d:
+        try:
+            hs = float(d["h_story"]) / 1000.0
+            d["Ly_m"] = hs
+            d.setdefault("Lx_m", hs)
+            fac = float(d.get("l0_out_factor", 1.0))
+            d["psi_y"] = fac
+            d.setdefault("psi_x", fac)
+        except Exception:
+            pass
+    return d
+
+
 def wall_from_dict(d) -> WallInput:
-    """Dict JSON -> WallInput; khóa thiếu lạ bỏ qua, thiếu khóa lấy mặc định."""
+    """Dict JSON -> WallInput; khóa lạ bỏ qua, thiếu khóa lấy mặc định
+    (dict cũ được dịch trước qua normalize_wall_dict)."""
     w = WallInput()
     if not isinstance(d, dict):
         return w
     names = {f.name for f in fields(w)}
-    for k, v in d.items():
+    for k, v in normalize_wall_dict(d).items():
         if k in names:
             setattr(w, k, v)
     return w
