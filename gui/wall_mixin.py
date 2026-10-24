@@ -337,7 +337,11 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
                 closed=True, fill=True,
                 facecolor="#E0E7FF", edgecolor="none", zorder=2.5,
                 alpha=0.55))
-    # Chấm thép theo (layer, dia) — marker cố định theo điểm ảnh
+    # Thép theo (layer, dia) — hình tròn trong KHÔNG GIAN DỮ LIỆU
+    # (bán kính đúng dia/2, đơn vị mm) thay cho marker scatter theo
+    # điểm ảnh: zoom/pan thì thép scale cùng mặt cắt, ở home thì cỡ
+    # điểm khớp tỉ lệ thật với cạnh tiết diện. Phép xoay R bảo toàn
+    # hình tròn nên tâm xoay cứng như mọi phần tử khác.
     groups = {}
     for r in sec.rebars:
         groups.setdefault((r.layer, r.dia), []).append(r)
@@ -349,11 +353,12 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        dot_s = (max(4.0, dia * 0.22)) ** 2
-        _rp = [R(p.x, p.y) for p in pts]
-        ax.scatter([q[0] for q in _rp], [q[1] for q in _rp],
-                   s=dot_s, c=color, zorder=5,
-                   edgecolors="white", linewidths=0.8)
+        for p in pts:
+            _qx, _qy = R(p.x, p.y)
+            ax.add_patch(mpatches.Circle(
+                (_qx, _qy), dia / 2.0,
+                fill=True, facecolor=color, edgecolor="white",
+                linewidth=0.8, zorder=5))
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white",
