@@ -17,6 +17,7 @@ import math
 
 from .checker import section_inertia
 from .interaction import BiaxialCapacity, neutral_axis_at_N
+from .materials import STEEL_GRADES, SteelMaterial
 from .stability import (LongTermLoads, buckling_factors, eccentricities,
                         phi_L, slenderness)
 from .wall_m2m3 import build_wall_m2m3
@@ -33,11 +34,16 @@ PENDING_DETAIL = "Chưa kiểm ở lát 1 (cấu tạo/ρmin: lát 3)"
 
 def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                    loads: dict = None, case_info: dict = None,
-                   mesh_step: float = None, n_angles: int = 24) -> dict:
+                   mesh_step: float = None, n_angles: int = 24,
+                   steel_sw=None) -> dict:
     """Kiểm tra N–M vách theo TCVN cho 1 tổ hợp (engine thuần, không GUI).
 
     winp: WallInput; conc/steel: ConcreteMaterial/SteelMaterial (TCVN);
     loads: dict {N, M_in, M_out, V_in, V_out, T} — None thì lấy từ winp.
+    steel_sw: vật liệu thép ngang RIÊNG của vách (phần 3/7) — khi None,
+    engine tự suy từ winp.sw_steel_grade nếu là cấp hợp lệ (cùng γs với
+    thép dọc, như đai cột), ngược lại fallback về steel (thép dọc) —
+    đúng hành vi cũ cho file JSON cũ không có khóa sw_steel_grade.
     Đơn vị: kN, kN·m, mm, MPa. N nén dương.
     """
     if loads is None:
@@ -206,8 +212,17 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                 "note": "Cắt trong mặt phẳng: lỗi khi tính (xem chi tiết)"}
     shear_lines = []
     try:
+        # Thép ngang RIÊNG (phần 3/7): ưu tiên steel_sw do caller (GUI)
+        # truyền; nếu không có, suy từ winp.sw_steel_grade (file mới);
+        # cấp lạ/None -> fallback thép dọc (file cũ, hành vi cũ).
+        _sw_grade = getattr(winp, "sw_steel_grade", None)
+        if steel_sw is None and isinstance(_sw_grade, str) \
+                and _sw_grade in STEEL_GRADES:
+            steel_sw = SteelMaterial(STEEL_GRADES[_sw_grade],
+                                     float(getattr(steel, "gamma_s", 1.0)))
         shear_in = check_wall_shear_in_plane(winp, conc, steel, V_in, N,
-                                             Lw=Lw, tw=tw)
+                                             Lw=Lw, tw=tw,
+                                             steel_sw=steel_sw)
         _p = shear_in["parts"]
         _dc_txt = (f"{shear_in['dc']:.3f}" if shear_in["dc"] is not None
                    and math.isfinite(shear_in["dc"]) else "∞")

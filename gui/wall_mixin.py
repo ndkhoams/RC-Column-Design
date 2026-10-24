@@ -736,6 +736,30 @@ class WallMixin:
         self.w_cb_layers_h = _combo(fx, ["1", "2"], D["layers_h"])
         self._row(fx, "Thép ngang: số lớp lưới", self.w_cb_layers_h, r)
         r += 1
+        # Cấp thép ngang RIÊNG của vách (phần 3/7): quyết định Rsw cho
+        # kiểm tra cắt trong mặt phẳng — KHÔNG dùng ô thép đai của cột
+        # và KHÔNG lấy theo cấp thép dọc nữa. Mặc định CB400-V (theo
+        # quy ước ô thép đai của cột); preset web chỉ đổi thép DỌC
+        # sang CB500-V, không chạm ô này (xem _wall_web_preset_enter).
+        self.w_cb_sw_steel = _combo(fx, list(STEEL_GRADES), "CB400-V")
+        _lbl_sw = self._row(fx, "Thép ngang: cấp thép (Rsw cắt vách)",
+                            self.w_cb_sw_steel, r)
+        r += 1
+        try:
+            from gui.build_mixin import _ToolTip as _WallToolTip
+            _WallToolTip(
+                _lbl_sw,
+                "Cấp thép ngang của VÁCH — quyết định Rsw cho kiểm tra "
+                "cắt trong mặt phẳng (TCVN §8.1.3, qua qsw = Rsw·Asw/s).\n"
+                "CB400-V → Rsw = 280 MPa; CB500-V → Rsw = 300 MPa.\n"
+                "Khác với thép dọc (ô vật liệu dùng chung) và khác ô "
+                "'Cấp độ bền thép đai' của chế độ Cột.")
+            _WallToolTip(
+                self.w_cb_sw_steel,
+                "Cấp thép ngang của VÁCH — quyết định Rsw cho kiểm tra "
+                "cắt trong mặt phẳng (TCVN §8.1.3, qua qsw = Rsw·Asw/s).")
+        except Exception:
+            pass
         r = _hdr(fx, "Đai vùng biên & vị trí đốt", r)
         self.w_cb_tie_dia = _combo(fx, _DIAS, D["tie_dia_be"])
         self._row(fx, "Đai vùng biên: đường kính (mm)", self.w_cb_tie_dia,
@@ -807,6 +831,7 @@ class WallMixin:
         for _cb in (self.w_cb_per_dia, self.w_cb_be_dia,
                     self.w_cb_be_nT, self.w_cb_web_dia, self.w_cb_pd,
                     self.w_cb_dia_h, self.w_cb_layers_h,
+                    self.w_cb_sw_steel,
                     self.w_cb_tie_dia, self.w_cb_aci_class,
                     self.w_cb_pos):
             _cb.bind("<<ComboboxSelected>>",
@@ -983,7 +1008,12 @@ class WallMixin:
         (B30/CB500-V; N=2528.65, M2=275.23, M3=202.86) để CHECK đối
         chiếu ngay. Giá trị trước khi áp được cất (_wall_preset_stash)
         để trả lại khi quay về Cột. Chỉ áp 1 lần — user đã sửa bất kỳ
-        ô nào trong nhóm này thì không áp nữa."""
+        ô nào trong nhóm này thì không áp nữa.
+        LƯU Ý (phần 3/7): preset KHÔNG chạm ô cấp thép ngang riêng
+        của vách (w_cb_sw_steel) — CB500-V ở đây chỉ là thép DỌC.
+        Ô thép ngang giữ mặc định CB400-V của nó, nên CHECK preset
+        dùng Rsw = 280 MPa (không phải 300 MPa của thép dọc).
+        """
         if getattr(self, "_data_loaded", False):
             return
         if getattr(self, "_wall_preset_stash", None) is not None:
@@ -1106,6 +1136,12 @@ class WallMixin:
             "dia_h": cnum(self.w_cb_dia_h, D["dia_h"]),
             "s_h": num(self.w_en_s_h, D["s_h"]),
             "layers_h": int(cnum(self.w_cb_layers_h, D["layers_h"])),
+            # Cấp thép ngang RIÊNG của vách (phần 3/7) — khóa JSON mới
+            # "sw_steel_grade" trong dict "wall"; luôn ghi tường minh
+            # (cấp lạ -> CB400-V), không bao giờ để None khi lưu từ GUI.
+            "sw_steel_grade": (self.w_cb_sw_steel.get()
+                               if self.w_cb_sw_steel.get() in STEEL_GRADES
+                               else "CB400-V"),
             "Lb_left": be_Lb,
             "Lb_right": be_Lb,
             "lb_auto": bool(self.w_var_lb_auto.get()),
@@ -1154,12 +1190,19 @@ class WallMixin:
 
     def _apply_wall(self, w: dict):
         """Đổ dict vách vào các ô nhập (khóa thiếu -> mặc định; dict
-        cũ được dịch trước qua normalize_wall_dict)."""
+        cũ được dịch trước qua normalize_wall_dict).
+        RIÊNG sw_steel_grade (phần 3/7): file mới có khóa -> khôi phục
+        đúng cấp đã chọn; file cũ KHÔNG có khóa (hoặc cấp lạ) ->
+        fallback về cấp thép dọc hiện tại (cb_steel, đã được _apply_data
+        set trước khi gọi tới đây) để kết quả cũ tái hiện từng chữ số.
+        normalize_wall_dict cố tình KHÔNG điền khóa này (xem wall_input).
+        """
         if not hasattr(self, "w_en_Lw"):
             return
         d = dict(WALL_DEFAULTS)
+        _raw = normalize_wall_dict(w) if isinstance(w, dict) else {}
         if isinstance(w, dict):
-            d.update({k: v for k, v in normalize_wall_dict(w).items()
+            d.update({k: v for k, v in _raw.items()
                       if k in d})
 
         def se(e, v):
@@ -1219,6 +1262,15 @@ class WallMixin:
         self.w_cb_dia_h.set(sv(d["dia_h"]))
         se(self.w_en_s_h, sv(d["s_h"]))
         self.w_cb_layers_h.set(sv(d["layers_h"]))
+        # Cấp thép ngang riêng (phần 3/7): có khóa hợp lệ -> dùng nó;
+        # file cũ thiếu khóa -> fallback cấp thép dọc (cb_steel đã set).
+        _sw_raw = _raw.get("sw_steel_grade")
+        if _sw_raw in STEEL_GRADES:
+            self.w_cb_sw_steel.set(_sw_raw)
+        elif self.cb_steel.get() in STEEL_GRADES:
+            self.w_cb_sw_steel.set(self.cb_steel.get())
+        else:
+            self.w_cb_sw_steel.set("CB400-V")
         self.w_cb_tie_dia.set(sv(d["tie_dia_be"]))
         se(self.w_en_tie_s, sv(d["tie_s_be"]))
         se(self.w_en_tie_legs, sv(d["tie_legs_be"]))
@@ -1275,6 +1327,16 @@ class WallMixin:
         model = "3line" if self.cb_model.get().startswith("3") else "2line"
         return conc, steel, model
 
+    def _wall_sw_material(self):
+        """Vật liệu thép ngang RIÊNG của vách (phần 3/7): cấp từ ô
+        w_cb_sw_steel, γs lấy cùng ô γs dùng chung như đai cột
+        (cấp lạ -> CB400-V). Thép dọc (cb_steel) không dùng ở đây."""
+        _grade = self.w_cb_sw_steel.get()
+        if _grade not in STEEL_GRADES:
+            _grade = "CB400-V"
+        return SteelMaterial(STEEL_GRADES[_grade],
+                             self._f(self.en_gs, 1.0))
+
     def _collect_wall_loads(self) -> dict:
         """Nội lực nhập tay (mục 5 dùng chung) ánh xạ sang hệ vách:
         M2 (Mx) -> M_out, M3 (My) -> M_in, Q2 -> V_in, Q3 -> V_out
@@ -1287,10 +1349,14 @@ class WallMixin:
 
     # ---------------- Hàm tính vách TCVN duy nhất (lát 1) ----------------
     def _tcvn_wall_calculate_full(self, winp, conc, steel, model,
-                                  loads=None, case_info=None):
-        """Tính 1 lần bằng engine vách; tab/PDF chỉ đọc dict trả về."""
+                                  loads=None, case_info=None,
+                                  steel_sw=None):
+        """Tính 1 lần bằng engine vách; tab/PDF chỉ đọc dict trả về.
+        steel_sw: vật liệu thép ngang riêng (phần 3/7); None -> engine
+        tự suy từ winp.sw_steel_grade rồi fallback thép dọc."""
         return wall_tcvn_full(winp, conc, steel, model=model,
-                              loads=loads, case_info=case_info)
+                              loads=loads, case_info=case_info,
+                              steel_sw=steel_sw)
 
     def _check_wall_tcvn(self):
         try:
@@ -1298,7 +1364,8 @@ class WallMixin:
             loads = self._collect_wall_loads()
             conc, steel, model = self._wall_tcvn_materials()
             full = self._tcvn_wall_calculate_full(
-                winp, conc, steel, model, loads=loads)
+                winp, conc, steel, model, loads=loads,
+                steel_sw=self._wall_sw_material())
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
             return
