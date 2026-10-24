@@ -81,17 +81,48 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
 
 
 def draw_m2m3_ax(ax, sec, inp, res):
-    # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
+    # Biểu đồ M2-M3 tại N = BN (dùng điểm B song trục)
+    # — KHÔNG còn tại N tải như trước. Chỉ lát cắt tại BN mới đi
+    # đúng qua B, vì theo định nghĩa tia D/C:
+    # moment_capacity(BN, α) = |B| (cùng hướng sửa vách ở
+    # rc_column/wall_m2m3.py, head 0db783e). Điểm A vẫn là mô men
+    # thiết kế ở N tải nên có thể không còn nằm trên bao mới —
+    # đúng bản chất (A ở N tải, bao ở BN), không phải lỗi vẽ.
     # Style theo mẫu: đường xanh dương, fill nhạt
     # Trục như ETABS (user chốt 2026-10-22): hoành = M3, tung = M2.
     # mx_my_curve trả (M2, M3) nên x lấy p[1], y lấy p[0]; điểm A/B
     # và tia O-A-B chuyển vị tương ứng: (x, y) = (M3, M2).
     BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
     GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
+    try:
+        _BN = float(getattr(res, "BN", res.N))
+        if not math.isfinite(_BN):
+            _BN = float(res.N)
+    except Exception:
+        _BN = float(res.N)
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
-    pts = cap.mx_my_curve(res.N)
-    xs = [p[1] for p in pts] + [pts[0][1]]
-    ys = [p[0] for p in pts] + [pts[0][0]]
+    pts = cap.mx_my_curve(_BN)
+    # mx_my_curve đã khép kín (điểm cuối = điểm đầu): bỏ điểm cuối
+    # để chèn B rồi khép lại, tránh trùng điểm cuối.
+    _samples = pts[:-1] if len(pts) > 1 else pts
+    xs = [p[1] for p in _samples]
+    ys = [p[0] for p in _samples]
+    # Chèn điểm B đúng góc α của nó vào polyline (như vách): B là
+    # điểm thật của đường cong tại BN nên việc chèn chỉ thay một
+    # dây cung bằng hai dây cung qua điểm thật, không bịa số; nhờ
+    # đó B nằm đúng trên bao vẽ dù lưới quét chỉ 15°.
+    _bmag = math.hypot(res.Bx, res.By)
+    if _bmag > 1e-12 and len(xs) >= 2:
+        _alpha_b = math.degrees(math.atan2(res.Bx, res.By)) % 360.0
+        _step = 360.0 / len(xs)
+        _k = int(_alpha_b // _step)
+        _nearest = min(abs(_alpha_b - _k * _step),
+                       abs(_alpha_b - ((_k + 1) % len(xs)) * _step))
+        if _nearest > 1e-9:
+            xs.insert(_k + 1, res.By)
+            ys.insert(_k + 1, res.Bx)
+    xs = xs + [xs[0]]
+    ys = ys + [ys[0]]
     ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
     # Nét đứt đỏ từ tâm qua A tới B
@@ -109,6 +140,7 @@ def draw_m2m3_ax(ax, sec, inp, res):
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
     ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_title(f"M2–M3 (tại N = {_BN:,.0f} kN)", fontsize=11)
 
     from matplotlib.lines import Line2D
     leg_elems = [

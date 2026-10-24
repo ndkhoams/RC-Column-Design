@@ -123,21 +123,49 @@ def draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res,
 
 def draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res,
                      N_kN, M2_kNm, M3_kNm):
-    # Biểu đồ M2-M3 theo EC2 tại N cố định
+    # Biểu đồ M2-M3 theo EC2 tại N = BN (lực dọc của điểm giới hạn
+    # B trên tia D/C) — KHÔNG còn tại N tải như trước. Chỉ lát cắt
+    # tại BN mới đi đúng qua B, vì theo định nghĩa tia D/C:
+    # moment_capacity(BN, α) = |B| (cùng hướng sửa vách ở
+    # rc_column/wall_m2m3.py). Điểm A vẫn là mô men thiết kế ở N
+    # tải nên có thể không còn nằm trên bao mới — đúng bản chất.
     # Style Y HỆT chart_draw.draw_m2m3_ax
     BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
     GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
     # Dựng đường bao bằng cách quét các góc 0-360° (mỗi 15°):
-    # vết các trạng thái exact tại N_kN (cùng nguồn với D/C)
+    # vết các trạng thái exact tại BN (cùng nguồn với D/C).
+    # N_kN chỉ là fallback khi dict kết quả chưa có BN.
+    _BN = N_kN
+    try:
+        if isinstance(ec2_res, dict) and ec2_res.get("BN") is not None:
+            _v = float(ec2_res["BN"])
+            if math.isfinite(_v):
+                _BN = _v
+    except Exception:
+        pass
     from .ec2_checker import EC2Capacity
     _cap = EC2Capacity(sec, conc, steel)
     xs, ys = [], []
     for deg in range(0, 360, 15):
-        Md = _cap.moment_capacity(N_kN, float(deg))
+        Md = _cap.moment_capacity(_BN, float(deg))
         th = math.radians(deg)
         # Trục như ETABS (2026-10-22): hoành = M3, tung = M2
         xs.append(Md * math.cos(th))  # M3 = Md cosθ (trục hoành)
         ys.append(Md * math.sin(th))  # M2 = Md sinθ (trục tung)
+    # Chèn điểm B đúng góc α của nó vào polyline (như vách): B là
+    # điểm thật của đường cong tại BN nên việc chèn chỉ thay một
+    # dây cung bằng hai dây cung qua điểm thật, không bịa số.
+    _Bx = ec2_res.get("Bx", 0.0) if isinstance(ec2_res, dict) else 0.0
+    _By = ec2_res.get("By", 0.0) if isinstance(ec2_res, dict) else 0.0
+    if math.hypot(_Bx, _By) > 1e-12 and len(xs) >= 2:
+        _alpha_b = math.degrees(math.atan2(_Bx, _By)) % 360.0
+        _step = 360.0 / len(xs)
+        _k = int(_alpha_b // _step)
+        _nearest = min(abs(_alpha_b - _k * _step),
+                       abs(_alpha_b - ((_k + 1) % len(xs)) * _step))
+        if _nearest > 1e-9:
+            xs.insert(_k + 1, _By)
+            ys.insert(_k + 1, _Bx)
     xs.append(xs[0])
     ys.append(ys[0])
     ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
@@ -158,6 +186,7 @@ def draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res,
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
     ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
+    ax.set_title(f"M2–M3 (tại N = {_BN:,.0f} kN)", fontsize=11)
 
     from matplotlib.lines import Line2D
     leg_elems = [
