@@ -45,6 +45,7 @@ class Ec2Mixin:
         - dc, fs, ok: từ check_column_ec2
         - N_Rd_max: từ check_column_ec2
         - shear2, shear3: dict từ ec2_shear_check
+        - fyk_sw: cường độ thép đai đã dùng cho cắt (thuyết minh đọc hiển thị)
         - sec, conc, steel, method: objects để vẽ biểu đồ/PDF
         """
         from rc_column.ec2_checker import (ec2_design_moment, check_column_ec2,
@@ -57,6 +58,7 @@ class Ec2Mixin:
             "N": N, "M2_orig": M2, "M3_orig": M3,
             "Q2": Q2, "Q3": Q3, "V2": abs(Q2), "V3": abs(Q3),
             "sec": sec, "conc": conc, "steel": steel, "method": method,
+            "fyk_sw": fyk_sw,
         }
 
         # 1. Hình học theo từng phương

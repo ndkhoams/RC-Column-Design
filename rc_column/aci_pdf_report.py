@@ -106,7 +106,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
     P = Paragraph
 
     sections = generate_aci_report_sections_v2(inp, aci_res, mm_res, shear_res,
-                                               conc, steel, sec, tied)
+                                               conc, steel, sec, tied,
+                                               fyt_MPa=aci_res.get("fyt"))
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,

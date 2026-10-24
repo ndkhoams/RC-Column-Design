@@ -42,7 +42,8 @@ class AciMixin:
         - delta2, delta3, M2_mag, M3_mag: hệ số và mô men đã phóng đại
         - beta_dns, beta_src
         - dc, fs, phi, ok, Bx, By, BN: từ check_column_aci
-        - N_cap: phi_Pn,max
+        - N_cap: phi_Pn,max (lấy thẳng từ engine qua check_column_aci)
+        - fyt: cường độ thép đai đã dùng cho cắt (để tab/PDF hiển thị đúng)
         - shear2, shear3: dict từ aci_shear_check
         - sec, conc, steel, tied: objects để vẽ biểu đồ/PDF
         """
@@ -55,6 +56,7 @@ class AciMixin:
             "N": N, "M2_orig": M2, "M3_orig": M3, "Q2": Q2, "Q3": Q3,
             "beta_dns": beta_dns, "beta_src": beta_src,
             "sec": sec, "conc": conc, "steel": steel, "tied": tied,
+            "fyt": fyt,
         }
 
         # 1. Độ mảnh & phóng đại mô men (ACI 6.6.4)
@@ -128,21 +130,16 @@ class AciMixin:
         except Exception as ex:
             res.update({"dc": float("nan"), "ok": False, "error": str(ex)})
 
-        # 2b. N_cap (phi_Pn,max)
-        try:
-            _Ag = sec.cx * sec.cy
-            _Ast = 0.0
-            _bars = getattr(sec, 'rebars', None) or getattr(sec, 'bars', None) or []
-            for _b in _bars:
-                _d = getattr(_b, 'dia', 0) or 0
-                _a = getattr(_b, 'area', 0) or (math.pi * _d**2 / 4)
-                _Ast += _a
-            _fc = getattr(conc, 'fc_MPa', fc)
-            _fy = getattr(steel, 'fy_MPa', 400)
-            _Pnmax = 0.80 * (0.85 * _fc * (_Ag - _Ast) + _fy * _Ast) / 1000
-            _phi = 0.65 if tied else 0.75
-            res["N_cap"] = _phi * _Pnmax
-        except Exception:
+        # 2b. N_cap (phi_Pn,max): KHÔNG tính lại ở GUI. Bước 2
+        # (check_column_aci) đã trả "N_cap" = ACICapacity.N_cap — đúng
+        # giá trị engine dùng cho mặt tương tác/D/C: (0.80 tied / 0.85
+        # spiral) * phi_c * Po với fy/f'c thật và Ag/Ast thật của tiết
+        # diện. Bản cũ tính lại bằng getattr(steel, 'fy_MPa', 400):
+        # ACISteel không có thuộc tính fy_MPa nên luôn fallback fy=400
+        # → hiển thị sai mọi ca fy != 400 (chưa kể Ag = cx*cy chỉ đúng
+        # tiết diện chữ nhật — tròn lệch tới +23% — và hệ số 0.80 cứng
+        # sai cho spiral). Chỉ đặt 0.0 khi bước 2 lỗi (không có N_cap).
+        if "N_cap" not in res:
             res["N_cap"] = 0.0
 
         # 3. Cắt 2 phương (dùng đai thật từ inp, không hardcode)
@@ -468,7 +465,7 @@ class AciMixin:
             "section": sec,
             "section_cards": section_cards,
             "comp_zone": {"N": _BN, "M2": _Bx, "M3": _By,
-                          "Nmax": aci_res.get("phiPn_max", abs(_BN)*2),
+                          "Nmax": aci_res.get("N_cap", abs(_BN)*2),
                           "na_info": _aci_na_info},
             "draw_nm": _draw_nm,
             "draw_m2m3": _draw_m2m3,

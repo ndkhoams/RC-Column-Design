@@ -35,6 +35,9 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     """Tạo 7 mục thuyết minh theo mẫu TCVN cho EC2."""
     fck = conc.fck
     fyk = steel.fyk
+    fyk_sw = ec2_res.get("fyk_sw")
+    if fyk_sw is None:
+        fyk_sw = fyk
 
     NEd = getattr(inp, "N", 0.0) or 0.0
     MEd2 = getattr(inp, "Mx", 0.0) or 0.0
@@ -64,7 +67,7 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                 ""),
             _mk("Cốt thép đai",
                 "EC2 3.2",
-                [f"fyk,đai = {_fm(getattr(steel, 'fyk_sw', fyk))} MPa",
+                [f"fyk,đai = {_fm(fyk_sw)} MPa",
                  "Es = 200000 MPa"],
                 ""),
         ],

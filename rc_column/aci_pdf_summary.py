@@ -323,7 +323,9 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _fs = 1.0 / _dc
         _ok_txt = "<b>ĐẠT</b>" if aci_res.get("ok") else "<b>KHÔNG ĐẠT</b>"
         tie_txt = "Đai rời (tied)" if tied else "Đai xoắn (spiral)"
-        _fyt = getattr(inp, "fyt", None) or getattr(steel, "fyt", steel.fy)
+        _fyt = aci_res.get("fyt")
+        if _fyt is None:
+            _fyt = getattr(inp, "fyt", None) or steel.fy
 
         # ===== Cột trái (dan y user chot 2026-10-21, khung nhu TCVN) =====
         left_flow = []
