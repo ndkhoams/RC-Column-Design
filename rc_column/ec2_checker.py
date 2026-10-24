@@ -200,8 +200,9 @@ def ec2_balanced_point(sec: Section, conc: EC2Concrete, steel: EC2Steel,
 class _EC2Exact:
     """Lưới trạng thái exact + nội suy contour tại mức N (cho 1 tiết diện)."""
 
-    N_GAMMA = 120        # bước gamma 3 độ
-    N_PTS = 96           # số điểm theo chiều sâu trục trung hòa (dày hơn curve cũ 48 để nội suy contour chính xác)
+    N_GAMMA = 360        # số hướng gamma (bước 1 độ, PA-A 2026-10-24)
+    GAMMA_STEP = 1.0     # bước gamma (độ) — dùng ở MỌI điểm sinh lưới
+    N_PTS = 384          # số điểm theo chiều sâu trục trung hòa (PA-A: 96→384, diệt sai số nội suy vùng sát cap)
 
     def __init__(self, sec, conc, steel):
         self.conc = conc
@@ -216,7 +217,8 @@ class _EC2Exact:
         self.lam_b = conc.lam
         self.f_block = conc.f_block
         eps_s_max = max(0.01, 10.0 * steel.eps_yd)
-        gam = [math.radians(3.0 * i) for i in range(self.N_GAMMA)]
+        gam = [math.radians(self.GAMMA_STEP * i)
+               for i in range(self.N_GAMMA)]
         self.gammas = gam
         # Danh sách eps_far dùng chung (như ec2_interaction_curve)
         self._eps_far = []
@@ -877,7 +879,7 @@ class _EC2Exact:
             px, py = math.cos(th), -math.sin(th)
             ux, uy = math.sin(th), math.cos(th)
             ga = self.gammas[r["gi_a"]]
-            gb = ga + math.radians(3.0)
+            gb = ga + math.radians(self.GAMMA_STEP)
             sta = self._fine_state_hint(ga, N, r["na"])
             stb = self._fine_state_hint(gb % (2.0 * math.pi), N, r["na"])
             if sta is not None and stb is not None:

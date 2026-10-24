@@ -193,7 +193,8 @@ def capacity_at_N(curve: List[Tuple[float, float]], N: float) -> float:
 class _TCVNExact:
     """Lưới trạng thái exact + nội suy contour tại mức N (cho 1 tiết diện)."""
 
-    N_GAMMA = 120        # bước gamma 3 độ
+    N_GAMMA = 360        # số hướng gamma (bước 1 độ, PA-A 2026-10-24)
+    GAMMA_STEP = 1.0     # bước gamma (độ) — dùng ở MỌI điểm sinh lưới
     N_PTS = 96           # số điểm theo chiều sâu trục trung hòa (dày hơn lưới cũ để nội suy contour chính xác)
 
     def __init__(self, fs: FiberSection, model: str = "3line"):
@@ -205,7 +206,8 @@ class _TCVNExact:
         fy = np.array([f.y for f in fs.sec.fibers], dtype=float)
         self._fx, self._fy = fx, fy
         eps_s_max = min(0.9 * EPS_S2, 10.0 * fs.eps_y)
-        gam = [math.radians(3.0 * i) for i in range(self.N_GAMMA)]
+        gam = [math.radians(self.GAMMA_STEP * i)
+               for i in range(self.N_GAMMA)]
         self.gammas = gam
         self._eps_far = []
         for i in range(self.N_PTS):
@@ -898,7 +900,7 @@ class _TCVNExact:
             px, py = math.cos(th), -math.sin(th)
             ux, uy = math.sin(th), math.cos(th)
             ga = self.gammas[r["gi_a"]]
-            gb = ga + math.radians(3.0)
+            gb = ga + math.radians(self.GAMMA_STEP)
             sta = self._fine_state_hint(ga, N, r["na"])
             stb = self._fine_state_hint(gb % (2.0 * math.pi), N, r["na"])
             if sta is not None and stb is not None:

@@ -190,8 +190,9 @@ def _interp_on_curve(curve: List[Tuple], N: float, idx: int) -> float:
 class _ACIExact:
     """Lưới trạng thái exact (đã nhân phi) + nội suy contour tại mức N."""
 
-    N_GAMMA = 120        # bước gamma 3 độ
-    N_PTS = 96           # số điểm theo chiều sâu trục trung hòa (dày hơn curve cũ 48 để nội suy contour chính xác)
+    N_GAMMA = 360        # số hướng gamma (bước 1 độ, PA-A 2026-10-24)
+    GAMMA_STEP = 1.0     # bước gamma (độ) — dùng ở MỌI điểm sinh lưới
+    N_PTS = 384          # số điểm theo chiều sâu trục trung hòa (PA-A: 96→384, diệt sai số nội suy vùng sát cap)
 
     def __init__(self, sec, conc, steel, tied=True):
         self.conc = conc
@@ -212,7 +213,8 @@ class _ACIExact:
         phi_c = PHI_TIED if tied else PHI_SPIRAL
         self.N_cap = max_axial_phi(tied) * phi_c * Po_nom
         eps_s_max = max(0.01, 10.0 * steel.eps_y)
-        gam = [math.radians(3.0 * i) for i in range(self.N_GAMMA)]
+        gam = [math.radians(self.GAMMA_STEP * i)
+               for i in range(self.N_GAMMA)]
         self.gammas = gam
         self._eps_far = []
         for i in range(self.N_PTS):
@@ -254,11 +256,23 @@ class _ACIExact:
             # khớp ngữ nghĩa nội suy "qua điểm đầu tiên" của đường cong cũ
             kN, kM2, kM3, kNA, kET = [], [], [], [], []
             last = None
+            exit_plateau = None
             for N, M2, M3, na, et in zip(Ns, M2s, M3s, NAs, ETs):
+                if N >= self.N_cap - 1e-9:
+                    exit_plateau = (M2, M3, na, et)
                 if last is None or N < last - 1e-9:
                     kN.append(N); kM2.append(M2); kM3.append(M3)
                     kNA.append(na); kET.append(et)
                     last = N
+            # Neo cap (PA-A): các trạng thái plateau Nd = N_cap sụp về
+            # điểm đầu (N_cap, M≈0 — nén đúng tâm) nên nội suy trong vỏ
+            # (Nd1, N_cap) bị dây cung kéo sụp về 0 (capacity tại
+            # 0.986·N_cap từng lệch −38%). Thay M/NA/ET của neo bằng
+            # trạng thái CẮT cap (trạng thái cuối plateau, tại na*) —
+            # điểm bề mặt thật, cũng là điểm bản fine hội tụ tới.
+            if exit_plateau is not None and len(kN) >= 2 \
+                    and abs(kN[0] - self.N_cap) <= 1e-9:
+                kM2[0], kM3[0], kNA[0], kET[0] = exit_plateau
             self.sweeps.append({
                 "N": np.array(kN), "M2": np.array(kM2),
                 "M3": np.array(kM3), "NA": np.array(kNA),
@@ -897,7 +911,7 @@ class _ACIExact:
             px, py = math.cos(th), -math.sin(th)
             ux, uy = math.sin(th), math.cos(th)
             ga = self.gammas[r["gi_a"]]
-            gb = ga + math.radians(3.0)
+            gb = ga + math.radians(self.GAMMA_STEP)
             sta = self._fine_state_hint(ga, N, r["na"])
             stb = self._fine_state_hint(gb % (2.0 * math.pi), N, r["na"])
             if sta is not None and stb is not None:
