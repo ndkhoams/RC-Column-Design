@@ -5,6 +5,8 @@ from tkinter import ttk, messagebox
 
 from rc_column.checker import build_section
 
+from gui.dialog_center import center_dialog
+
 
 class DxfMixin:
     """Các method nhập/xuất tiết diện DXF."""
@@ -327,5 +329,8 @@ class DxfMixin:
             ttk.Label(win, text="\n".join(dxf.warnings),
                       foreground="#92400E", wraplength=480,
                       justify=tk.LEFT).pack(padx=8, pady=4)
+        # Quy tắc chung: mọi popup đều mở ở giữa màn hình
+        # (giữ nguyên geometry 520x560 đã đặt ở trên, chỉ đổi vị trí).
+        center_dialog(win)
         self.wait_window(win)
         return result["ok"]

@@ -23,6 +23,7 @@ from rc_column.materials import CONCRETE_GRADES, STEEL_GRADES
 from rc_column.sections import clear_spacing, bar_area
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
 from rc_column.lang import T
+from gui.dialog_center import center_dialog
 class PdfMixin:
     def _pdf_show_compression(self) -> bool:
         """Đọc trạng thái checkbox 'Hiển thị vùng nén' (mặc định True)."""
@@ -353,11 +354,9 @@ class PdfMixin:
         dlg.transient(self)
         dlg.grab_set()
         dlg.configure(bg="white")
-        # Căn giữa màn hình
-        _w, _h = 440, 190
-        _x = (dlg.winfo_screenwidth() // 2) - (_w // 2)
-        _y = (dlg.winfo_screenheight() // 2) - (_h // 2)
-        dlg.geometry(f"{_w}x{_h}+{_x}+{_y}")
+        # Kích thước cố định như trước; vị trí căn giữa màn hình
+        # qua helper dùng chung (gọi cuối, trước wait_window).
+        dlg.geometry("440x190")
         # Header xanh lá với icon check
         _header = _tk.Frame(dlg, bg="#059669", height=52)
         _header.pack(fill=_tk.X)
@@ -399,6 +398,7 @@ class PdfMixin:
                    fg="#374151", bg="#F3F4F6", activebackground="#E5E7EB",
                    relief="flat", padx=20, pady=6, cursor="hand2",
                    command=dlg.destroy).pack(side="left", padx=6)
+        center_dialog(dlg)
         dlg.wait_window()
 
     def _embed_report_images(self, sec, inp, res):

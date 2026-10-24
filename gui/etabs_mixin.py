@@ -15,6 +15,7 @@ except Exception:
     HAS_MPL = False
 
 from tkinter import ttk, messagebox
+from gui.dialog_center import center_dialog
 import math
 from rc_column.checker import ColumnInput, build_section, check_column
 from rc_column.report import generate_report_sections
@@ -155,6 +156,7 @@ class EtabsMixin:
             try:
                 if _old_top.winfo_exists():
                     _old_top.lift()
+                    center_dialog(_old_top)
                     return
             except Exception:
                 pass
@@ -263,6 +265,8 @@ class EtabsMixin:
                        side=tk.LEFT, padx=4)
         ttk.Button(btn_row, text="Đóng",
                    command=top.destroy).pack(side=tk.RIGHT)
+        # Quy tắc chung: mọi popup đều mở ở giữa màn hình.
+        center_dialog(top)
 
     def on_delete_forces(self):
         """Xóa toàn bộ nội lực đã import (cả dữ liệu gốc lẫn lựa chọn động đất)."""
