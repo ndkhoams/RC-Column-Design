@@ -7,9 +7,11 @@ JSON (_collect_wall/_apply_wall), và điều phối CHECK ở chế độ Vách
 Lát 1: CHECK tay theo TCVN chạy engine vách (rc_column/wall_engine)
 qua hàm duy nhất _tcvn_wall_calculate_full, kết quả lưu ở
 self._tcvn_wall_full và hiển thị ở tab Kết quả/Chi tiết từ đúng dict
-đó. ACI/EC2 vách (lát 2), batch Pier Forces (lát 5) và PDF vách
-(lát 6) vẫn báo rõ chưa hỗ trợ — tuyệt đối không chạy engine cột cho
-dữ liệu vách. Thiết kế: THIET_KE_TICH_HOP_VACH_GD1.md §2, §6, §8.
+đó. ACI/EC2 vách (lát 2) và batch Pier Forces (lát 5) vẫn báo rõ
+chưa hỗ trợ — tuyệt đối không chạy engine cột cho dữ liệu vách.
+PDF vách TCVN (tóm tắt 1 trang + chi tiết cards) đã hỗ trợ từ
+rc_column/wall_pdf_summary.py / wall_pdf_report.py qua
+gui/pdf_mixin.py. Thiết kế: THIET_KE_TICH_HOP_VACH_GD1.md §2, §6, §8.
 
 Từ 2026-10-23: mục 2/3/4 theo format công cụ web Vietcons "Kiểm tra
 vách BTCT" — mục 2 (loại tiết diện + xoay + Lw/tw), mục 3 (2 chế độ
@@ -2113,22 +2115,44 @@ class WallMixin:
         tree.pack(fill=tk.X, padx=2)
 
     def _render_wall_detail(self, full):
-        """Tab Chi tiết (lát 1): thuyết minh dạng text từ dict kết quả."""
+        """Tab Chi tiết vách: các mục đánh số theo format web
+        Vietcons (tiêu đề mục + căn cứ điều khoản góc phải, thẻ 2
+        cột X/Y song song, công thức → thay số → kết quả + badge),
+        dựng từ CÙNG builder với PDF chi tiết
+        (rc_column.wall_detail.build_wall_detail_sections) nên số
+        tab/PDF khớp nhau từng chữ số — chỉ đọc dict kết quả đã
+        lưu, không tính lại. X = trong mặt phẳng, Y = ngoài mặt
+        phẳng (xem ghi chú đảo nhãn web ở mục 4)."""
         for w in self._calc_inner.winfo_children():
             w.destroy()
-        t = tk.Text(self._calc_inner, wrap="word", font=("Consolas", 10),
-                    height=42)
-        t.pack(fill=tk.BOTH, expand=True)
-        lines = ["THUYẾT MINH KIỂM TRA VÁCH — TCVN 5574:2018 (lát 1)",
-                 f"N = {full['N']:+.1f} kN, M3 (trong MP) = "
-                 f"{full['M_in']:.1f} kN·m, M2 (ngoài MP) = "
-                 f"{full['M_out']:.1f} kN·m, "
-                 f"V2 = {full['V_in']:.1f} kN, V3 = {full['V_out']:.1f} kN",
-                 ""]
-        lines += full["details"]
-        lines += ["", "Chưa kiểm: vùng biên (lát 3), trượt mạch ngừng, cấu tạo (lát 3). Cắt trong mặt phẳng đã kiểm — xem các dòng cắt trong thuyết minh trên; bảng chi tiết cắt đầy đủ theo combo/vị trí thuộc phần tab Chi tiết sau (batch pier chưa có ở lát này). PDF vách thuộc lát 6."]
-        t.insert(tk.END, "\n".join(lines))
-        t.configure(state="disabled")
+        try:
+            from rc_column.report_widgets import render_report_sections
+            from rc_column.wall_detail import (
+                build_wall_detail_sections, wall_detail_header)
+            hdr = wall_detail_header(full)
+            tk.Label(
+                self._calc_inner, text=hdr["title"],
+                font=("", 12, "bold"), bg="white").pack(
+                    fill=tk.X, padx=4, pady=(6, 2))
+            tk.Label(
+                self._calc_inner, text=hdr["loads"],
+                font=("", 9), fg="#374151", bg="white").pack(
+                    fill=tk.X, padx=4, pady=(0, 4))
+            sections = build_wall_detail_sections(full)
+            render_report_sections(self._calc_inner, sections)
+        except Exception as ex:
+            # Fallback: thuyết minh text cũ nếu builder/render lỗi —
+            # không để tab Chi tiết trắng sau CHECK.
+            t = tk.Text(self._calc_inner, wrap="word",
+                        font=("Consolas", 10), height=42)
+            t.pack(fill=tk.BOTH, expand=True)
+            lines = ["THUYẾT MINH KIỂM TRA VÁCH — TCVN 5574:2018",
+                     f"(Lỗi dựng thẻ chi tiết: {ex} — hiển thị "
+                     f"dạng text dự phòng)",
+                     ""]
+            lines += full["details"]
+            t.insert(tk.END, "\n".join(lines))
+            t.configure(state="disabled")
         self._calc_inner.update_idletasks()
         self._calc_canvas.configure(
             scrollregion=self._calc_canvas.bbox("all"))
