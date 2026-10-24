@@ -427,7 +427,18 @@ class DataMixin:
         try:
             with open(path, encoding="utf-8") as f:
                 d = json.load(f)
-            self._apply_data(d)
+            # Cờ chặn preset ca mẫu web của chế độ Vách: mở file thì
+            # giá trị trong file thắng tuyệt đối — không preset nào
+            # được áp/gỡ trong lúc nạp (xem gui/wall_mixin.py).
+            self._applying_data = True
+            try:
+                self._apply_data(d)
+            finally:
+                self._applying_data = False
+            self._data_loaded = True
+            # Đã có file: preset vách (nếu từng áp) hết hiệu lực —
+            # trạng thái từ nay do file/user quyết định.
+            self._wall_preset_stash = None
             # Khôi phục nội lực đã lưu trong file (không cần file Excel)
             forces_data = d.get("etabs_forces", [])
             if d.get("load_mode") == "etabs" and forces_data:

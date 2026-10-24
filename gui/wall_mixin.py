@@ -65,6 +65,18 @@ _BE_LAYOUTS = [("chuvi", "Chu vi"), ("grid", "Lưới đặc")]
 _PD_OPTS = [("tcvn", "Xét uốn dọc theo TCVN 5574:2018"),
             ("none", "Không xét bổ sung uốn dọc")]
 
+# Preset ca mẫu của web Vietcons cho các ô DÙNG CHUNG (mục 1 vật
+# liệu TCVN + mục 5 nội lực nhập tay) khi vào chế độ Vách trong
+# phiên mới tinh (chưa mở file, các ô còn nguyên mặc định app mới):
+# mở app -> chuyển Vách -> CHECK là đối chiếu ngay với web. Mục
+# 2/3/4 của vách đã mặc định sẵn theo web trong WALL_DEFAULTS.
+# (N, Mx=M2, My=M3, bê tông, thép dọc, γb, γs) — thứ tự tuple dùng
+# chung cho cả 2 bộ dưới đây.
+_WALL_FRESH_SHARED = ("1500", "80", "60", "B25", "CB400-V",
+                      "0.85", "1.0")
+_WALL_WEB_SHARED = ("2528.65", "275.23", "202.86", "B30", "CB500-V",
+                    "0.85", "1.0")
+
 
 def _code_of(pairs, label, default):
     for code, lab in pairs:
@@ -219,7 +231,13 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     def RP(pts):
         return [R(px, py) for px, py in pts]
 
-    ax.set_aspect("equal", adjustable="box")
+    # adjustable="datalim": giữ tỉ lệ đơn vị 2 trục bằng nhau nhưng
+    # GIÃN giới hạn dữ liệu ở phương không khống chế để vùng vẽ lấp
+    # đầy khung figure (ô mặt cắt ở tab Kết quả bị lưới kéo cao theo
+    # bảng thông số — với "box" axes bị co thành một dải mỏng giữa
+    # ô, chừa dải trắng chết phía dưới). Khung home của zoom là span
+    # gốc do _wall_section_spans trả (xem _build_wall_section_cell).
+    ax.set_aspect("equal", adjustable="datalim")
     cx, cy = float(sec.cx), float(sec.cy)
     DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
                   "#BE123C", "#CA8A04", "#0F766E", "#4D7C0F"]
@@ -821,6 +839,65 @@ class WallMixin:
                 text="Kháng chấn DCM (EN 1998)" if code.startswith("EC2")
                 else "Kháng chấn DCM (TCVN 9386:2012)")
 
+    # ---------------- Preset ca mẫu web khi vào Vách ----------------
+    def _shared_mat_load_values(self):
+        """(N, Mx, My, bê tông, thép, γb, γs) hiện tại của các ô dùng
+        chung mục 1 (TCVN) + mục 5 (nhập tay)."""
+        return (self.en_N.get().strip(), self.en_Mx.get().strip(),
+                self.en_My.get().strip(), self.cb_conc.get(),
+                self.cb_steel.get(), self.en_gb.get().strip(),
+                self.en_gs.get().strip())
+
+    def _set_shared_mat_load_values(self, vals):
+        def _se(e, v):
+            e.delete(0, tk.END)
+            e.insert(0, v)
+        _se(self.en_N, vals[0])
+        _se(self.en_Mx, vals[1])
+        _se(self.en_My, vals[2])
+        self.cb_conc.set(vals[3])
+        self.cb_steel.set(vals[4])
+        _se(self.en_gb, vals[5])
+        _se(self.en_gs, vals[6])
+
+    def _wall_web_preset_enter(self):
+        """Vào chế độ Vách trong phiên mới tinh (chưa từng mở file,
+        các ô dùng chung còn nguyên mặc định app mới): áp ca mẫu web
+        (B30/CB500-V; N=2528.65, M2=275.23, M3=202.86) để CHECK đối
+        chiếu ngay. Giá trị trước khi áp được cất (_wall_preset_stash)
+        để trả lại khi quay về Cột. Chỉ áp 1 lần — user đã sửa bất kỳ
+        ô nào trong nhóm này thì không áp nữa."""
+        if getattr(self, "_data_loaded", False):
+            return
+        if getattr(self, "_wall_preset_stash", None) is not None:
+            return
+        try:
+            cur = self._shared_mat_load_values()
+        except Exception:
+            return
+        if cur != _WALL_FRESH_SHARED:
+            return
+        self._wall_preset_stash = cur
+        try:
+            self._set_shared_mat_load_values(_WALL_WEB_SHARED)
+        except Exception:
+            self._wall_preset_stash = None
+
+    def _wall_web_preset_leave(self):
+        """Rời chế độ Vách: nếu preset web đã áp và user chưa sửa các
+        ô đó trong lúc ở Vách, trả lại bộ giá trị đã cất (mặc định
+        app mới) — mặc định chế độ Cột không bị preset vách làm đổi.
+        User đã sửa thì giữ nguyên giá trị của user."""
+        stash = getattr(self, "_wall_preset_stash", None)
+        if stash is None:
+            return
+        self._wall_preset_stash = None
+        try:
+            if self._shared_mat_load_values() == _WALL_WEB_SHARED:
+                self._set_shared_mat_load_values(stash)
+        except Exception:
+            pass
+
     # ---------------- Chuyển đổi Cột <-> Vách ----------------
     def _toggle_member(self):
         """Ẩn frame cột 2/3/4, hiện frame vách (hoặc ngược lại).
@@ -833,6 +910,8 @@ class WallMixin:
                 self.frm_sec_stability)
         frames = getattr(self, "_wall_frames", (self.frm_wall,))
         if wall:
+            if not getattr(self, "_applying_data", False):
+                self._wall_web_preset_enter()
             for fr in cols:
                 fr.pack_forget()
             for fr in frames:
@@ -840,6 +919,8 @@ class WallMixin:
                         before=self.frm_loads)
             self._refresh_wall_preview()
         else:
+            if not getattr(self, "_applying_data", False):
+                self._wall_web_preset_leave()
             for fr in frames:
                 fr.pack_forget()
             for fr in cols:
@@ -1243,6 +1324,13 @@ class WallMixin:
             canvas.draw()
             self._sec_fig, self._sec_canvas, self._sec_ax = fig, canvas, ax
             self._sec_zoom_setup(fig, canvas, ax, _zst)
+            # Home của zoom = span dữ liệu gốc (trước khi axes giãn
+            # theo khung — adjustable="datalim"): Reset đặt lại lims
+            # này rồi lần vẽ kế tự giãn đầy khung, nên hình sau Reset
+            # trùng hình mới vẽ ở mọi cỡ cửa sổ; mốc kẹp zoom cũng
+            # theo span thật của tiết diện + dim.
+            _sp = _wall_section_spans(sec, _nseg, _rot)
+            _zst["home"] = ((_sp[0], _sp[1]), (_sp[2], _sp[3]))
             # Ô bị lưới kéo co khác cỡ figure gốc: chạy lại
             # tight_layout khi kích thước canvas đã ổn định để box
             # legend bên phải luôn nằm trọn trong figure (legend có
@@ -1464,9 +1552,14 @@ class WallMixin:
                 self._sec_fig.tight_layout()
                 self._sec_canvas.draw_idle()
                 # Vẽ lại xong: view zoom về khung gốc của dữ liệu mới
+                # (home = span gốc như ở _build_wall_section_cell)
                 _zst = getattr(self, "_sec_zoom", None)
                 if _zst is not None and _zst.get("ax") is ax:
-                    _zst["home"] = (ax.get_xlim(), ax.get_ylim())
+                    _sp = _wall_section_spans(
+                        secD,
+                        len((metaD or {}).get("dim_segments") or []),
+                        _rotD)
+                    _zst["home"] = ((_sp[0], _sp[1]), (_sp[2], _sp[3]))
                 varmap = getattr(self, "_sec_card_vars", None)
                 if varmap:
                     vals = self._section_card_values(secD)
