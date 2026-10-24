@@ -356,18 +356,43 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
 
 
 def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
-    """Biểu đồ tương tác M2-M3 tại N."""
+    """Biểu đồ tương tác M2-M3 tại N = BN (lực dọc của điểm giới
+    hạn B trên tia D/C) — KHÔNG còn tại N tải như trước; chỉ lát
+    cắt tại BN mới đi đúng qua B (moment_capacity(BN, α) = |B|,
+    cùng hướng sửa vách ở rc_column/wall_m2m3.py). Điểm A vẫn là
+    mô men thiết kế ở N tải nên có thể không còn nằm trên bao mới."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(width_in, width_in))
     from .interaction import BiaxialCapacity
+    import math as _m
+    try:
+        _BN = float(getattr(res, "BN", res.N))
+        if not _m.isfinite(_BN):
+            _BN = float(res.N)
+    except Exception:
+        _BN = float(res.N)
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
-    pts = cap.mx_my_curve(res.N)
+    pts = cap.mx_my_curve(_BN)
+    _samples = pts[:-1] if len(pts) > 1 else pts
+    xs = [p[1] for p in _samples]
+    ys = [p[0] for p in _samples]
+    # Chèn điểm B đúng góc α của nó vào polyline (như vách): B là
+    # điểm thật của đường cong tại BN nên việc chèn chỉ thay một
+    # dây cung bằng hai dây cung qua điểm thật, không bịa số.
+    if _m.hypot(res.Bx, res.By) > 1e-12 and len(xs) >= 2:
+        _alpha_b = _m.degrees(_m.atan2(res.Bx, res.By)) % 360.0
+        _step = 360.0 / len(xs)
+        _k = int(_alpha_b // _step)
+        _nearest = min(abs(_alpha_b - _k * _step),
+                       abs(_alpha_b - ((_k + 1) % len(xs)) * _step))
+        if _nearest > 1e-9:
+            xs.insert(_k + 1, res.By)
+            ys.insert(_k + 1, res.Bx)
+    xs = xs + [xs[0]]
+    ys = ys + [ys[0]]
     BLUE, GREEN, RED, ORANGE = "#2563EB", "#059669", "#DC2626", "#F97316"
-    # Trục như ETABS (2026-10-22): hoành = M3, tung = M2
-    xs = [p[1] for p in pts] + [pts[0][1]]
-    ys = [p[0] for p in pts] + [pts[0][0]]
     ax.plot(xs, ys, color=BLUE, lw=2.2, zorder=3)
     ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
     ax.plot([0, res.By * 1.18], [0, res.Bx * 1.18], color=RED,
@@ -384,6 +409,7 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.set_xlabel("M3 (kN×m)", fontsize=10, fontweight="bold")
     ax.set_ylabel("M2 (kN×m)", fontsize=10, fontweight="bold")
+    ax.set_title(f"M2–M3 (tại N = {_BN:,.0f} kN)", fontsize=11)
     ax.tick_params(labelsize=8)
     from matplotlib.lines import Line2D as _L2D2
     _leg2 = [
@@ -927,7 +953,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
             if isinstance(_m2m3_png, bytes):
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b> (N = {res.N:+.1f} kN)",
+                    f"<b>Mặt cắt M2-M3</b> (N = {getattr(res, 'BN', res.N):+.1f} kN)",
                     st_chart_title))
                 _blkC.append(_centered_img(_m2m3_png, _IW))
         except Exception as e:
