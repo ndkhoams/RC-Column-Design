@@ -7,6 +7,9 @@ Mỗi tiêu chuẩn chỉ cung cấp DATA, không tự vẽ layout.
 import tkinter as tk
 from tkinter import ttk
 
+from gui.section_zoom import zoom_reset as _col_zoom_reset
+from gui.section_zoom import zoom_step as _col_zoom_step
+
 try:
     import matplotlib
     matplotlib.use("TkAgg")
@@ -154,13 +157,30 @@ def render_result_tab(app, config):
     f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
     _hdr = tk.Frame(f_tl, bg="white")
     _hdr.pack(fill=tk.X, pady=(2, 2))
-    tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
-             font=("", 11, "bold"), bg="white").pack(side=tk.TOP, fill=tk.X)
+    # Nút zoom/pan ô mặt cắt (cùng quy ước ô vách: −/+/Reset ở góc
+    # phải tiêu đề). Checkbox chuyển sang pack RIGHT để không đè nút.
+    _col_zst = {}
+    _zbtns = tk.Frame(_hdr, bg="white")
+    _zbtns.pack(side=tk.RIGHT, padx=(0, 4))
+    tk.Button(_zbtns, text="−", font=("", 9, "bold"), width=2,
+              bg="white", relief=tk.GROOVE,
+              command=lambda: _col_zoom_step(_col_zst, 1.25)
+              ).pack(side=tk.LEFT, padx=1)
+    tk.Button(_zbtns, text="+", font=("", 9, "bold"), width=2,
+              bg="white", relief=tk.GROOVE,
+              command=lambda: _col_zoom_step(_col_zst, 0.8)
+              ).pack(side=tk.LEFT, padx=1)
+    tk.Button(_zbtns, text="Reset", font=("", 8), width=5,
+              bg="white", relief=tk.GROOVE,
+              command=lambda: _col_zoom_reset(_col_zst)
+              ).pack(side=tk.LEFT, padx=1)
     tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
                    font=("", 8), fg="#374151",
                    variable=app._show_compression,
-                   command=lambda: redraw_section_figure(app)).place(
-                       relx=1.0, rely=0.5, anchor="e", x=-4)
+                   command=lambda: redraw_section_figure(app)).pack(
+                       side=tk.RIGHT, padx=(0, 4))
+    tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
+             font=("", 11, "bold"), bg="white").pack(side=tk.TOP, fill=tk.X)
     fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
     a1 = fig_sec.add_subplot(111)
     from rc_column.pdf_export import draw_compression_zone_ax
@@ -329,6 +349,15 @@ def render_result_tab(app, config):
     try:
         app._bind_wheel(app._sum_inner, app._sum_canvas)
     except:
+        pass
+
+    # Zoom/pan ô mặt cắt — gắn SAU _bind_wheel (bind thường ghi đè
+    # cuộn tab trên chính widget canvas; cùng quy ước ô vách).
+    try:
+        from gui.section_zoom import attach_section_zoom
+        attach_section_zoom(cv_sec, a1, _col_zst)
+        app._col_zoom = _col_zst
+    except Exception:
         pass
 
     # Vẽ 3 canvas SAU khi layout ổn định (after_idle): nếu draw ngay

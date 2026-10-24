@@ -104,12 +104,15 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        # Cỡ chấm theo dot_scale (app=1.5, PDF=0.8)
-        dot_s = (max(4.0, dia * 0.22 * dot_scale)) ** 2
-        # Co vào trong 4% để không chạm viền
-        ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
-                   s=dot_s, c=color, zorder=4,
-                   edgecolors="white", linewidths=0.8)
+        # Thép vẽ bằng hình tròn trong KHÔNG GIAN DỮ LIỆU (bán kính
+        # đúng dia/2, đơn vị mm) — dot_scale chỉ còn ảnh hưởng glyph
+        # legend (không còn phóng/thu cỡ chấm). Co tim vào trong 4%
+        # để không chạm viền (giữ nguyên vị trí cũ).
+        for p in pts:
+            ax.add_patch(mpatches.Circle(
+                (p.x * 0.96, p.y * 0.96), dia / 2.0,
+                fill=True, facecolor=color, edgecolor="white",
+                linewidth=0.8, zorder=4))
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white", markersize=max(4.0, dia * 0.22 * dot_scale),
@@ -547,10 +550,16 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        dot_s = (max(4.0, dia * 0.22)) ** 2
-        ax.scatter([p.x * 0.96 for p in pts], [p.y * 0.96 for p in pts],
-                   s=dot_s, c=color, zorder=5,
-                   edgecolors="white", linewidths=0.8)
+        # Thép vẽ bằng hình tròn trong KHÔNG GIAN DỮ LIỆU (bán kính
+        # đúng dia/2, đơn vị mm) thay cho marker scatter theo điểm
+        # ảnh — zoom/pan thì thép scale cùng mặt cắt, ở home thì cỡ
+        # điểm khớp tỉ lệ thật với cạnh tiết diện. Vị trí tim giữ
+        # nguyên hệ số co 0.96 cũ (tránh chạm viền).
+        for p in pts:
+            ax.add_patch(mpatches.Circle(
+                (p.x * 0.96, p.y * 0.96), dia / 2.0,
+                fill=True, facecolor=color, edgecolor="white",
+                linewidth=0.8, zorder=5))
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white", markersize=max(4.0, dia * 0.22),
