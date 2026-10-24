@@ -238,6 +238,35 @@ class _TCVNExact:
             _tail.append(_tail_floor)
         self._eps_far = sorted(set(self._eps_far) | set(_tail),
                                reverse=True)
+        # ---- Họ kéo sâu (2026-10-24, nối sau điểm nối họ cũ) ----
+        # Họ cũ giữ mép nén ở eps_cu, mép kia (eps_far) giảm tới sàn
+        # -0.9*EPS_S2: trục trung hòa không nhỏ hơn
+        # eps_cu/(eps_cu + 0.9*EPS_S2) * h_s ≈ 0.135*h_s nên lưới dừng
+        # ở N_min >> kéo thuần và capacity rơi thẳng đứng về 0.
+        # Họ mới giữ mép kéo ở sàn cũ (eps_far = -0.9*EPS_S2, thép
+        # chưa đứt vì |eps| <= EPS_S2) và hạ dần mép nén eps_top từ
+        # eps_cu về -0.01: trục trung hòa thu về 0 rồi ra ngoài tiết
+        # diện, khối nén bê tông triệt tiêu dần, tới kéo thuần
+        # (mọi thép chảy kéo, bê tông không chịu kéo — mô hình phi
+        # tuyến TCVN 5574:2018 §8.1.2.7, giới hạn eps_b2 = 0.0035 và
+        # eps_s2 = 0.025 của chính mô hình này; trạng thái giới hạn
+        # là khi một trong hai vật liệu đạt giới hạn của nó — ở họ
+        # này là thép đạt sàn, bê tông dưới eps_b2).
+        # Điểm nối là trạng thái chung (eps_cu, -0.9*EPS_S2) nên
+        # capacity liên tục qua điểm nối; các điểm sau khi N đã đạt
+        # kéo thuần (-As*Rs, M = 0) bị bộ lọc đơn điệu loại bỏ.
+        self._deep_floor = _tail_floor
+        self._deep_eps_top = (
+            [self.eps_cu * _r for _r in
+             (0.92, 0.84, 0.76, 0.68, 0.60, 0.52, 0.44, 0.36, 0.28,
+              0.20, 0.14, 0.09, 0.05, 0.02, 0.0)]
+            + [-0.0005, -0.001, -0.002, -0.005, -0.01])
+        # Thứ tự quét: họ cũ (eps_top = eps_cu, eps_far giảm dần)
+        # rồi họ kéo sâu (eps_far = sàn, eps_top giảm dần).
+        self._state_params = ([(self.eps_cu, _ef)
+                               for _ef in self._eps_far]
+                              + [(_et, _tail_floor)
+                                 for _et in self._deep_eps_top])
         self.sweeps = []
         n_all = []
         for g in gam:
@@ -345,26 +374,43 @@ class _TCVNExact:
         return pts
 
     def _states_batch(self, gamma_rad: float, s_max: float, h_s: float):
-        """Toàn bộ trạng thái của 1 gamma (theo _eps_far) tính BATCH.
+        """Toàn bộ trạng thái của 1 gamma (theo _state_params) tính BATCH.
 
         Cùng biểu thức, cùng thứ tự phép tính từng phần tử như vòng lặp
         _state -> FiberSection.forces/concrete_stress/steel_stress, và
         tổng theo axis=1 khớp np.sum 1D từng bit (đã kiểm chứng) — kết
         quả lưới identical, chỉ khác là numpy chạy trên ma trận
         (n_state x n_fiber) thay vì từng trạng thái một.
-        Trả (Ns, M2s, M3s, NAs) dạng list, đúng thứ tự _eps_far.
+        Trả (Ns, M2s, M3s, NAs) dạng list, đúng thứ tự _state_params.
+        Các điểm họ cũ giữ đúng công thức na/kappa cũ từng bit;
+        điểm họ kéo sâu dùng kappa = (eps_top - eps_far)/h_s và
+        na = eps_top/kappa (âm khi eps_top < 0: trục trung hòa đã ra
+        ngoài tiết diện phía nén — đúng ý nghĩa hình học).
         """
         fs = self.fs
+        eps_tops = []
+        eps_fars = []
         nas = []
-        for eps_far in self._eps_far:
-            if eps_far >= self.eps_cu - 1e-15:
-                nas.append(float("inf"))
+        for eps_top, eps_far in self._state_params:
+            eps_tops.append(eps_top)
+            eps_fars.append(eps_far)
+            if eps_top >= self.eps_cu - 1e-15:
+                if eps_far >= self.eps_cu - 1e-15:
+                    nas.append(float("inf"))
+                else:
+                    nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
             else:
-                nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
+                _kap = (eps_top - eps_far) / h_s
+                nas.append(eps_top / _kap if _kap > 0 else float("inf"))
+        eps_top_arr = np.array(eps_tops, dtype=float)
+        eps_far_arr = np.array(eps_fars, dtype=float)
         na_arr = np.array(nas, dtype=float)
-        kappa = self.eps_cu / na_arr          # na=inf -> 0.0 (như _state)
+        _old = eps_top_arr >= self.eps_cu - 1e-15
+        kappa = np.empty(len(nas), dtype=float)
+        kappa[_old] = self.eps_cu / na_arr[_old]  # na=inf -> 0.0 (như _state)
+        kappa[~_old] = ((eps_top_arr[~_old] - eps_far_arr[~_old]) / h_s)
         cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
-        eps0 = self.eps_cu - kappa * s_max
+        eps0 = eps_top_arr - kappa * s_max
         kx = kappa * sg
         ky = kappa * cg
         n = len(nas)
@@ -486,6 +532,56 @@ class _TCVNExact:
         # forces trả sẵn (N kN, Mx kN·m, My kN·m) với Mx = ΣσA·y ≡ M2
         # của app, My = ΣσA·x ≡ M3 của app
         return self.fs.forces(eps0, kx, ky, self.model)
+
+    def _deep_state(self, gamma_rad: float, eps_top: float,
+                    _smax=None, _hs=None):
+        """Trạng thái họ kéo sâu (gamma, eps_top) -> (N, M2, M3, na,
+        eps_top, kappa): mép kéo giữ ở sàn _deep_floor, mép nén ở
+        eps_top (< eps_cu). Cùng FiberSection.forces như _state nên
+        mô hình vật liệu TCVN không đổi."""
+        cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
+        if _smax is None or _hs is None:
+            s_f = self._fx * cg + self._fy * sg
+            s_max = float(s_f.max()) if len(s_f) else 0.0
+            s_min = float(s_f.min()) if len(s_f) else 0.0
+            h_s = max(s_max - s_min, 1e-9)
+            if _smax is not None:
+                s_max = _smax
+            if _hs is not None:
+                h_s = _hs
+        else:
+            s_max, h_s = _smax, _hs
+        kappa = (eps_top - self._deep_floor) / h_s
+        eps0 = eps_top - kappa * s_max
+        kx, ky = kappa * sg, kappa * cg
+        N, M2, M3 = self.fs.forces(eps0, kx, ky, self.model)
+        na = eps_top / kappa if kappa > 0 else float("inf")
+        return (N, M2, M3, na, eps_top, kappa)
+
+    def _deep_state_at_N(self, gamma_rad: float, N_target: float):
+        """Trạng thái họ kéo sâu tại (gamma, N_target): chặt đôi
+        eps_top trên [deep_min, eps_cu] (N đơn điệu tăng theo
+        eps_top trên họ này — đã đo trên tròn/chữ nhật). Trả tuple
+        như _deep_state hoặc None nếu N_target ngoài [kéo thuần,
+        N tại điểm nối] của gamma này."""
+        cg, sg = math.cos(gamma_rad), math.sin(gamma_rad)
+        s_f = self._fx * cg + self._fy * sg
+        s_max = float(s_f.max()) if len(s_f) else 0.0
+        s_min = float(s_f.min()) if len(s_f) else 0.0
+        h_s = max(s_max - s_min, 1e-9)
+        lo = self._deep_eps_top[-1]
+        hi = self.eps_cu
+        n_lo = self._deep_state(gamma_rad, lo, s_max, h_s)[0]
+        n_hi = self._deep_state(gamma_rad, hi, s_max, h_s)[0]
+        if N_target > n_hi or N_target < n_lo - 1e-9:
+            return None
+        for _ in range(40):
+            mid = 0.5 * (lo + hi)
+            if self._deep_state(gamma_rad, mid, s_max, h_s)[0] < N_target:
+                lo = mid
+            else:
+                hi = mid
+        return self._deep_state(gamma_rad, 0.5 * (lo + hi), s_max, h_s)
 
     def _sweep_at_N(self, gi: int, N: float):
         sw = self.sweeps[gi]
@@ -771,8 +867,15 @@ class _TCVNExact:
                 nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
         vals = [self._state(gamma_rad, na, s_max) for na in nas]
         Ns = [v[0] for v in vals]
-        if N_target > Ns[0] or N_target < Ns[-1]:
+        if N_target > Ns[0]:
             return None
+        if N_target < Ns[-1]:
+            # Miền kéo sâu: họ cũ (eps_cu cố định) không với tới —
+            # giải bằng họ kéo sâu (chặt đôi eps_top).
+            _d = self._deep_state_at_N(gamma_rad, N_target)
+            if _d is None:
+                return None
+            return (_d[0], _d[1], _d[2], _d[3])
         for i in range(len(Ns) - 1):
             if Ns[i] >= N_target >= Ns[i + 1]:
                 lo, hi = nas[i + 1], nas[i]
@@ -789,6 +892,12 @@ class _TCVNExact:
                 na = 0.5 * (lo + hi)
                 N, M2, M3 = self._state(gamma_rad, na, s_max)
                 return (N, M2, M3, na)
+        # Không kẹp được trong họ cũ (N không đơn điệu tuyệt đối
+        # trên lưới thô ở một số tiết diện): thử họ kéo sâu trước
+        # khi kết luận không có trạng thái tại mức N này.
+        _d = self._deep_state_at_N(gamma_rad, N_target)
+        if _d is not None:
+            return (_d[0], _d[1], _d[2], _d[3])
         return None
 
     def _fine_scan_roots(self, N: float, theta_deg: float):
@@ -913,43 +1022,109 @@ class _TCVNExact:
         if not roots:
             return None
         r = min(roots, key=lambda x: x["capacity"])
+        # Nhận diện miền kéo sâu: na họ cũ luôn >= na tại điểm nối
+        # eps_cu*h_s/(eps_cu - sàn); na nhỏ hơn ngưỡng đó chỉ có ở
+        # họ kéo sâu (na thu về 0 rồi âm khi trục trung hòa ra ngoài).
+        _is_deep = False
         try:
-            th = math.radians(theta_deg)
-            px, py = math.cos(th), -math.sin(th)
-            ux, uy = math.sin(th), math.cos(th)
-            ga = self.gammas[r["gi_a"]]
-            gb = ga + math.radians(self.GAMMA_STEP)
-            sta = self._fine_state_hint(ga, N, r["na"])
-            stb = self._fine_state_hint(gb % (2.0 * math.pi), N, r["na"])
-            if sta is not None and stb is not None:
-                fa = sta[1] * px + sta[2] * py
-                fb = stb[1] * px + stb[2] * py
-                if fa * fb < 0.0:
-                    hint = r["na"]
-                    for _ in range(25):
-                        gm = 0.5 * (ga + gb)
-                        stm = self._fine_state_hint(
-                            gm % (2.0 * math.pi), N, hint)
-                        if stm is None:
-                            break
-                        hint = stm[3]
-                        pm = stm[1] * px + stm[2] * py
-                        if fa * pm <= 0.0:
-                            gb = gm
-                        else:
-                            ga, fa = gm, pm
-                    gm = 0.5 * (ga + gb)
-                    stm = self._fine_state_hint(gm % (2.0 * math.pi), N, hint)
-                    if stm is not None:
-                        r = {"gamma_deg": math.degrees(gm) % 360.0,
-                             "capacity": stm[1] * ux + stm[2] * uy,
-                             "na": stm[3], "M2": stm[1], "M3": stm[2]}
+            _gr = math.radians(r["gamma_deg"])
+            _sf = self._fx * math.cos(_gr) + self._fy * math.sin(_gr)
+            _hs = max(float(_sf.max()) - float(_sf.min()), 1e-9) \
+                if len(_sf) else 1e-9
+            _na_j = self.eps_cu * _hs / (self.eps_cu - self._deep_floor)
+            _is_deep = math.isfinite(r["na"]) and r["na"] < _na_j
         except Exception:
-            pass
+            _is_deep = False
+        if _is_deep:
+            # Tinh chỉnh bằng họ kéo sâu (chặt đôi gamma + eps_top),
+            # không dùng _fine_state_hint (chặt đôi na với eps_cu cố
+            # định — không với tới miền này).
+            try:
+                th = math.radians(theta_deg)
+                px, py = math.cos(th), -math.sin(th)
+                ux, uy = math.sin(th), math.cos(th)
+                ga = self.gammas[r["gi_a"]]
+                gb = ga + math.radians(self.GAMMA_STEP)
+                sta = self._deep_state_at_N(ga, N)
+                stb = self._deep_state_at_N(gb % (2.0 * math.pi), N)
+                if sta is not None and stb is not None:
+                    fa = sta[1] * px + sta[2] * py
+                    fb = stb[1] * px + stb[2] * py
+                    if fa * fb < 0.0:
+                        for _ in range(25):
+                            gm = 0.5 * (ga + gb)
+                            stm = self._deep_state_at_N(
+                                gm % (2.0 * math.pi), N)
+                            if stm is None:
+                                break
+                            pm = stm[1] * px + stm[2] * py
+                            if fa * pm <= 0.0:
+                                gb = gm
+                            else:
+                                ga, fa = gm, pm
+                        gm = 0.5 * (ga + gb)
+                        stm = self._deep_state_at_N(
+                            gm % (2.0 * math.pi), N)
+                        if stm is not None:
+                            r = {"gamma_deg": math.degrees(gm) % 360.0,
+                                 "capacity": stm[1] * ux + stm[2] * uy,
+                                 "na": stm[3], "M2": stm[1], "M3": stm[2],
+                                 "eps_top": stm[4], "kappa": stm[5]}
+            except Exception:
+                pass
+        else:
+            try:
+                th = math.radians(theta_deg)
+                px, py = math.cos(th), -math.sin(th)
+                ux, uy = math.sin(th), math.cos(th)
+                ga = self.gammas[r["gi_a"]]
+                gb = ga + math.radians(self.GAMMA_STEP)
+                sta = self._fine_state_hint(ga, N, r["na"])
+                stb = self._fine_state_hint(gb % (2.0 * math.pi), N, r["na"])
+                if sta is not None and stb is not None:
+                    fa = sta[1] * px + sta[2] * py
+                    fb = stb[1] * px + stb[2] * py
+                    if fa * fb < 0.0:
+                        hint = r["na"]
+                        for _ in range(25):
+                            gm = 0.5 * (ga + gb)
+                            stm = self._fine_state_hint(
+                                gm % (2.0 * math.pi), N, hint)
+                            if stm is None:
+                                break
+                            hint = stm[3]
+                            pm = stm[1] * px + stm[2] * py
+                            if fa * pm <= 0.0:
+                                gb = gm
+                            else:
+                                ga, fa = gm, pm
+                        gm = 0.5 * (ga + gb)
+                        stm = self._fine_state_hint(gm % (2.0 * math.pi), N, hint)
+                        if stm is not None:
+                            r = {"gamma_deg": math.degrees(gm) % 360.0,
+                                 "capacity": stm[1] * ux + stm[2] * uy,
+                                 "na": stm[3], "M2": stm[1], "M3": stm[2]}
+            except Exception:
+                pass
         g = math.radians(r["gamma_deg"])
         s_f = self._fx * math.cos(g) + self._fy * math.sin(g)
         r["s_max"] = float(s_f.max()) if len(s_f) else 0.0
         r["s_min"] = float(s_f.min()) if len(s_f) else 0.0
+        # Ghi thêm (eps_top, kappa) để neutral_axis_at_N tái dựng
+        # đúng mặt phẳng biến dạng cả ở miền kéo sâu (ở đó eps_top
+        # != eps_cu nên công thức cũ kappa = eps_cu/na là sai).
+        # Họ kéo sâu: na = eps_top*h_s/(eps_top - sàn) ->
+        # eps_top = na*sàn/(na - h_s).
+        if "eps_top" not in r and math.isfinite(r["na"]):
+            _hs2 = max(r["s_max"] - r["s_min"], 1e-9)
+            _na_j2 = self.eps_cu * _hs2 / (self.eps_cu - self._deep_floor)
+            if r["na"] < _na_j2 and r["na"] != _hs2:
+                _et = r["na"] * self._deep_floor / (r["na"] - _hs2)
+                r["eps_top"] = _et
+                r["kappa"] = (_et - self._deep_floor) / _hs2
+            else:
+                r["eps_top"] = self.eps_cu
+                r["kappa"] = self.eps_cu / r["na"] if r["na"] != 0 else 0.0
         return r
 
 
@@ -1189,7 +1364,12 @@ def neutral_axis_at_N(fs, N_target_kN: float, theta_deg: float,
     Trả về dict cùng định dạng bản cũ. Hệ trục yp được chọn trùng hướng
     gradient gamma (yp ≡ s = x·cosγ + y·sinγ, tức
     st = −cosγ, ct = sinγ) nên: yp_na = s_max − na (vị trí strain = 0),
-    eps = eps0 + kx_p·yp với kx_p = eps_cu/na, eps0 = eps_cu − kx_p·s_max.
+    eps = eps0 + kx_p·yp với kx_p = kappa, eps0 = eps_top − kx_p·s_max.
+    Họ cũ: eps_top = eps_cu, kappa = eps_cu/na. Họ kéo sâu:
+    boundary_fine ghi sẵn (eps_top, kappa); nếu thiếu (nghiệm chưa
+    tinh chỉnh) thì suy từ na theo na = eps_top*h_s/(eps_top − sàn).
+    Khi eps_top < 0, yp_na nằm ngoài tiết diện phía nén nên hàm vẽ
+    sẽ không tô vùng nén — đúng vật lý (toàn tiết diện chịu kéo).
     """
     eng = _get_tcvn_exact(fs, model)
     b = eng.boundary_fine(float(N_target_kN), float(theta_deg))
@@ -1213,8 +1393,12 @@ def neutral_axis_at_N(fs, N_target_kN: float, theta_deg: float,
                 'ct': ct, 'st': st, 'y_top': s_max, 'y_bot': s_min,
                 'eps0': EPS_B2, 'kx_p': 0.0,
                 'gamma_deg': b["gamma_deg"], 'na_depth': na}
-    kappa = EPS_B2 / na
+    if "eps_top" in b and "kappa" in b:
+        eps_top, kappa = b["eps_top"], b["kappa"]
+    else:
+        kappa = EPS_B2 / na if na != 0 else 0.0
+        eps_top = EPS_B2
     return {'found': True, 'yp_na': s_max - na, 'theta_deg': theta_deg,
             'ct': ct, 'st': st, 'y_top': s_max, 'y_bot': s_min,
-            'eps0': EPS_B2 - kappa * s_max, 'kx_p': kappa,
+            'eps0': eps_top - kappa * s_max, 'kx_p': kappa,
             'gamma_deg': b["gamma_deg"], 'na_depth': na}
