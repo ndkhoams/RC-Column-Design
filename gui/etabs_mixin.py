@@ -75,6 +75,32 @@ class EtabsMixin:
         self.etabs_file = "<clipboard>"
         self._fill_etabs_table([(f, None) for f in self.etabs_forces])
 
+    def on_merge_combo_max_min(self):
+        """Gộp các cặp combo max/min trong bảng nội lực thành 1 dòng.
+
+        Quy tắc bao theo trị tuyệt đối từng thành phần (xem
+        rc_column.etabs_import.merge_combo_max_min). Dòng gộp là dòng
+        thường trong bảng: lưu JSON, mở lại và CHECK/batch đều bình
+        thường; cột D/C được xóa để tính lại sau khi gộp.
+        """
+        from rc_column.etabs_import import merge_combo_max_min
+        forces = list(getattr(self, "etabs_forces", []) or [])
+        if not forces:
+            messagebox.showinfo("Gộp Combo max/min",
+                                "Bảng nội lực đang trống.")
+            return
+        merged, n_pairs = merge_combo_max_min(forces)
+        if n_pairs == 0:
+            messagebox.showinfo("Gộp Combo max/min",
+                                "Không tìm thấy cặp max/min nào để gộp.")
+            return
+        self.etabs_forces = merged
+        self._fill_etabs_table([(f, None) for f in merged])
+        self.etabs_info.set(
+            f"Đã gộp {n_pairs} cặp max/min thành {n_pairs} combo "
+            f"(còn {len(merged)} dòng) — Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' "
+            f"để tính lại D/C.")
+
     def on_delete_forces(self):
         """Xóa toàn bộ nội lực đã import."""
         from tkinter import messagebox

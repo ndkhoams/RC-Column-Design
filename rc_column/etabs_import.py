@@ -522,3 +522,86 @@ def parse_etabs_clipboard(text: str,
     if not forces:
         raise ValueError("Không đọc được dòng nội lực nào từ clipboard.")
     return forces
+
+
+def _max_min_suffix(case: str):
+    """Tách hậu tố max/min của ETABS khỏi tên combo.
+
+    ETABS gắn Step Type vào tên tổ hợp ("ULS17max", "ENV SLSmin").
+    Trả về (tên gốc, hậu tố "max"/"min") hoặc None nếu tên không có
+    hậu tố hợp lệ (tên gốc rỗng cũng tính là không hợp lệ). Hậu tố
+    nhận dạng không phân biệt hoa thường; tên gốc giữ nguyên cách viết.
+    """
+    name = case.strip()
+    low = name.lower()
+    for suf in ("max", "min"):
+        if low.endswith(suf) and len(name) > len(suf):
+            return name[:-len(suf)].rstrip(), suf
+    return None
+
+
+def merge_combo_max_min(forces):
+    """Gộp các cặp combo max/min trong bảng nội lực thành 1 dòng.
+
+    Theo chỉ dẫn ETABS về phân tích phổ phản ứng: max/min là biên thống
+    kê ± của từng đại lượng riêng lẻ, KHÔNG tương ứng đồng thời giữa các
+    thành phần — nên dòng gộp lấy bao theo trị tuyệt đối từng thành phần.
+
+    Quy tắc:
+    - Chỉ gộp khi cùng một nhóm (Story, Label, Station) tồn tại cả 2 dòng
+      có tên Combo chỉ khác nhau bởi hậu tố max/min (xem _max_min_suffix).
+    - Dòng gộp: Combo = tên gốc đã bỏ hậu tố; mỗi thành phần (N, V2, V3,
+      Mx, My) lấy giá trị có |giá trị| lớn nhất trong 2 dòng, giữ nguyên
+      dấu của giá trị đó; hòa trị tuyệt đối thì lấy giá trị của dòng max.
+      Story/Label/Station/case_type lấy từ dòng đầu tiên của cặp trong
+      bảng gốc; dòng gộp đứng ở vị trí dòng đó.
+    - Dòng không có cặp, combo thường và mọi dòng TX_* giữ nguyên (kể cả
+      dạng TX_*max/min — bỏ qua cho an toàn).
+    - Nhóm có hơn 1 dòng max hoặc hơn 1 dòng min không gộp.
+    - Lũy đẳng: dòng đã gộp không còn hậu tố nên gộp lại không đổi gì.
+
+    Hàm thuần túy (không chạm GUI), trả về (danh sách mới, số cặp đã gộp).
+    """
+    groups = {}
+    order = []
+    for idx, f in enumerate(forces):
+        name = f.case.strip()
+        if name.startswith("TX_"):
+            continue
+        split = _max_min_suffix(name)
+        if split is None:
+            continue
+        base, suf = split
+        key = (f.story.strip(), f.column.strip(), round(f.station, 6), base)
+        if key not in groups:
+            groups[key] = {}
+            order.append(key)
+        groups[key].setdefault(suf, []).append(idx)
+    merged_row = {}  # vị trí dòng đầu của cặp -> dòng gộp
+    consumed = set()  # vị trí các dòng gốc đã gộp (bỏ khỏi bảng mới)
+    for key, by_suf in groups.items():
+        maxs = by_suf.get("max", [])
+        mins = by_suf.get("min", [])
+        if len(maxs) != 1 or len(mins) != 1:
+            continue
+        f_max = forces[maxs[0]]
+        f_min = forces[mins[0]]
+        first = forces[min(maxs[0], mins[0])]
+        base = _max_min_suffix(first.case)[0]
+        vals = {}
+        for field in ("N", "Q2", "Q3", "Mx", "My"):
+            v_max = getattr(f_max, field)
+            v_min = getattr(f_min, field)
+            vals[field] = v_max if abs(v_max) >= abs(v_min) else v_min
+        merged_row[min(maxs[0], mins[0])] = EtabsForce(
+            story=first.story, column=first.column, case=base,
+            case_type=first.case_type, station=first.station, **vals)
+        consumed.add(maxs[0])
+        consumed.add(mins[0])
+    out = []
+    for idx, f in enumerate(forces):
+        if idx in merged_row:
+            out.append(merged_row[idx])
+        elif idx not in consumed:
+            out.append(f)
+    return out, len(merged_row)

@@ -17,6 +17,16 @@ _COVER_TIP = (
     "  (vd ETABS cover đai 40, đai Ø10 → nhập app c = 50)."
 )
 
+_MERGE_TIP = (
+    "Gộp các cặp combo max/min thành 1 combo duy nhất\n"
+    "(vd ULS17max + ULS17min → ULS17).\n"
+    "Theo chỉ dẫn ETABS về phổ phản ứng: max/min là biên thống kê ±\n"
+    "của từng thành phần riêng lẻ, không đồng thời — nên mỗi thành\n"
+    "phần (N, V2, V3, M2, M3) lấy giá trị có |giá trị| lớn nhất\n"
+    "trong 2 dòng, giữ nguyên dấu.\n"
+    "Dòng không có cặp và dòng TX_* giữ nguyên. Bấm lại không đổi."
+)
+
 
 class _ToolTip:
     """Tooltip hiện khi di chuột lên widget (ghi chú định nghĩa cover)."""
@@ -805,15 +815,24 @@ class BuildMixin:
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
-        # Ghi chú về tổ hợp TX_ (in nghiêng, căn phải, cỡ chữ thường)
-        ttk.Label(mode_bar,
+        # Nút gộp cặp combo max/min (chỉ có nghĩa ở chế độ ETABS;
+        # _toggle_load_mode sẽ disable nó khi ở chế độ nhập tay)
+        self.btn_merge_combo = ttk.Button(
+            mode_bar, text="Gộp Combo max/min",
+            command=self.on_merge_combo_max_min)
+        self.btn_merge_combo.pack(side=tk.RIGHT, padx=(6, 2))
+        _ToolTip(self.btn_merge_combo, _MERGE_TIP)
+
+        # Ghi chú về tổ hợp TX_ — dòng riêng dưới hàng radio (in nghiêng)
+        ttk.Label(f,
                   text="TX_*: tổ hợp tải trọng thường xuyên để tính các tham số (không kiểm tra D/C)",
-                  font=("", 9, "italic"), foreground="black").pack(side=tk.RIGHT,
-                                                                   padx=(6, 6))
+                  font=("", 9, "italic"), foreground="black").grid(
+                      row=1, column=0, columnspan=2, sticky=tk.W,
+                      padx=(10, 4), pady=(0, 2))
 
         # ---- Chế độ nhập tay ----
         self.manual_frame = ttk.Frame(f)
-        self.manual_frame.grid(row=1, column=0, columnspan=2, sticky=tk.EW)
+        self.manual_frame.grid(row=2, column=0, columnspan=2, sticky=tk.EW)
         self.en_N = ttk.Entry(self.manual_frame, width=18)
         self.en_N.insert(0, "1500")
         self._row(self.manual_frame, "Lực dọc N (kN)",
@@ -859,9 +878,9 @@ class BuildMixin:
 
         # ---- Chế độ import Excel ----
         self.etabs_frame = ttk.Frame(f)
-        self.etabs_frame.grid(row=1, column=0, columnspan=2, sticky=tk.NSEW)
+        self.etabs_frame.grid(row=2, column=0, columnspan=2, sticky=tk.NSEW)
         self.etabs_frame.grid_remove()
-        f.grid_rowconfigure(1, weight=1)
+        f.grid_rowconfigure(2, weight=1)
         # 3 nút Import từ Etabs: giãn đều theo cửa sổ như SAVE/SAVE AS/OPEN
         btn_row = ttk.Frame(self.etabs_frame)
         btn_row.grid(row=0, column=0, columnspan=3, sticky=tk.EW,
@@ -927,6 +946,12 @@ class BuildMixin:
         else:
             self.etabs_frame.grid_remove()
             self.manual_frame.grid()
+        # Nút gộp chỉ có nghĩa khi có bảng nội lực ETABS
+        _btn = getattr(self, "btn_merge_combo", None)
+        if _btn is not None:
+            _btn.config(state=tk.NORMAL
+                        if self.var_load_mode.get() == "etabs"
+                        else tk.DISABLED)
 
     def _toggle_lt(self):
         if self.var_lt.get():
