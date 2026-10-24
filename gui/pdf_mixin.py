@@ -65,9 +65,12 @@ class PdfMixin:
                     return
             # Tab đang chọn
             is_summary = (self._current_tab == "sum")
-            # Tên file mặc định:
-            #   KẾT QUẢ: TMTT-[TC]-TênCK.pdf
-            #   CHI TIẾT: TMTT-FULL-[TC]-TênCK.pdf
+            # Tên file mặc định (quy ước 2026-10-25, phân biệt đúng
+            # chức năng — xem rc_column/pdf_naming.py):
+            #   CỘT tóm tắt: TMTT-COT-[TC]-TênCK.pdf
+            #   CỘT chi tiết: TMTT-FULL-COT-[TC]-TênCK.pdf
+            #   VÁCH tóm tắt: TMTT-VACH-[TC]-TênCK.pdf
+            #   VÁCH chi tiết: TMTT-FULL-VACH-[TC]-TênCK.pdf
             _ck = ""
             if hasattr(self, "member_var"):
                 _ck = self.member_var.get().strip().upper()
@@ -82,8 +85,9 @@ class PdfMixin:
                 _std = "EC2"
             else:
                 _std = "TCVN"
-            _full = "" if is_summary else "-FULL"
-            _def = f"TMTT{_full}-{_std}-{_ck}.pdf" if _ck else f"TMTT{_full}-{_std}.pdf"
+            from rc_column.pdf_naming import default_pdf_filename
+            _def = default_pdf_filename(
+                "vach" if _is_wall else "cot", _std, _ck, is_summary)
             path = filedialog.asksaveasfilename(
                 title="Xuất PDF",
                 defaultextension=".pdf",
@@ -298,7 +302,10 @@ class PdfMixin:
             messagebox.showerror("Xuất PDF EC2", str(ex))
 
     def on_export_pdf(self):
-        """Xuất thuyết minh ra PDF."""
+        """Xuất thuyết minh ra PDF (đường legacy — hiện không còn
+        caller; xuất cột chi tiết live đi qua _export_pdf). Đổi tên
+        mặc định theo cùng quy ước COT/VACH để không sót đường nào.
+        """
         if not getattr(self, "_pdf_inp", None):
             messagebox.showinfo("Xuất PDF", "Hãy kiểm tra trước khi xuất PDF.")
             return
@@ -308,7 +315,8 @@ class PdfMixin:
         _p = getattr(self, "current_save_path", "") or ""
         if _p:
             _ck = _os.path.splitext(_os.path.basename(_p))[0].upper()
-        _def = f"TMTT-{_ck}.pdf" if _ck else "TMTT.pdf"
+        from rc_column.pdf_naming import default_pdf_filename
+        _def = default_pdf_filename("cot", "TCVN", _ck, False)
         path = filedialog.asksaveasfilename(
             title="Lưu thuyết minh PDF",
             defaultextension=".pdf",

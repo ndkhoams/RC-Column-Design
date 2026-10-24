@@ -172,8 +172,12 @@ def test_pdfs_no_banner_q1_and_conclusions_under_blocks():
     assert "Kết luận chung" not in txt
     assert "Kết luận N–M" in txt
     assert "Kết luận độ mảnh" in txt
-    assert "Diễn giải M2–M3" in txt
-    assert "cùng kết luận N–M" in txt
+    # Tóm tắt KHÔNG còn caption dưới biểu đồ (ghi chú user
+    # 2026-10-25 gạch bỏ cả dòng "Kết luận N–M" dưới N–Mα và
+    # caption "Diễn giải M2–M3"): kết luận N–M chỉ còn ở bảng
+    # KẾT QUẢ; PDF chi tiết (txt2 dưới đây) vẫn giữ caption.
+    assert "Diễn giải M2–M3" not in txt
+    assert "cùng kết luận N–M" not in txt
     assert "CHƯA KIỂM" in txt
     pages2, txt2 = _pdf_text(export_wall_pdf_cards, full)
     assert "Q1" not in txt2 and "banner" not in txt2.lower()

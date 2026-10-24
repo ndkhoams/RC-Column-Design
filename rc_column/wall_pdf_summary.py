@@ -16,7 +16,6 @@ import io
 import math
 import os
 
-from .cover_migration import cover_long
 
 
 def _fm(x):
@@ -194,9 +193,11 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
          f"{float(sec.cx):.0f} × {float(sec.cy):.0f} mm"),
         ("Diện tích bê tông, A<sub>g</sub>",
          f"{float(sec.cx) * float(sec.cy):,.0f} mm²"),
+        # Hàng cover chỉ còn c (ghi chú user 2026-10-25 gạch bỏ
+        # "(c_dọc = ...)" ở PDF tóm tắt vách; c_dọc vẫn do engine
+        # tự tính và vẫn hiện ở PDF chi tiết/tab Chi tiết).
         ("Lớp bảo vệ cốt đai, c",
-         f"{float(winp.cover):.0f} mm (c_dọc = "
-         f"{cover_long(float(winp.cover), float(getattr(winp, 'dia_h', 0.0) or 0.0)):.0f} mm)"),
+         f"{float(winp.cover):.0f} mm"),
     ]))
     _parts = []
     from collections import Counter
@@ -280,12 +281,9 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
             f"<b>Biểu đồ tương tác N–Mα</b> "
             f"(α = {float(full['alpha_deg']):.1f}°)", st_chart))
         right_flow.append(centered_img(wall_nm_alpha_png(full), img_w))
-        # Kết luận N–M NGAY DƯỚI biểu đồ N–Mα (không còn kết
-        # luận chung phía trên).
-        right_flow.append(Paragraph(
-            f"Kết luận N–M: D/C = {float(full['dc']):.3f} "
-            f"({fs_txt}) — {'ĐẠT' if ok_nm else 'KHÔNG ĐẠT'}",
-            st_chart))
+        # KHÔNG còn dòng kết luận dưới biểu đồ N–Mα (ghi chú user
+        # 2026-10-25 gạch bỏ): kết luận N–M vẫn ở bảng KẾT QUẢ
+        # bên trái (hàng "Kết luận N–M").
     except Exception as ex:
         right_flow.append(Paragraph(
             f"(Không vẽ được N–Mα: {ex})", st_cell))
@@ -298,16 +296,10 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
                 st_chart))
             right_flow.append(centered_img(
                 wall_m2m3_figure(full), img_w))
-            # Diễn giải M2–M3 NGAY DƯỚI biểu đồ: chỉ diễn giải
-            # lại kết luận N–M cùng D/C, không phải kết luận
-            # độc lập.
-            right_flow.append(Paragraph(
-                f"Diễn giải M2–M3: cùng kết luận N–M — "
-                f"D/C = {float(full['dc']):.3f} — "
-                f"{'ĐẠT' if ok_nm else 'KHÔNG ĐẠT'} "
-                f"(không phải kết luận độc lập; lát cắt tại "
-                f"N = BN của cùng khả năng N–M)",
-                st_chart))
+            # KHÔNG còn caption diễn giải dưới biểu đồ M2–M3
+            # (ghi chú user 2026-10-25 gạch bỏ cùng với dòng kết
+            # luận N–Mα): biểu đồ M2–M3 vẫn giữ nguyên, chỉ là
+            # lát cắt tại N = BN của cùng khả năng N–M.
         except Exception as ex:
             right_flow.append(Paragraph(
                 f"(Không vẽ được M2–M3: {ex})", st_cell))
@@ -330,77 +322,107 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
         "(TCVN 5574:2018 — vách chữ nhật đặc, GĐ1)", st_sub))
     story.append(t_main)
     story.append(Spacer(1, 4))
-    # Bảng cắt full-width: trong MP (V2) + ngoài MP (V3, Qsw = 0).
+    # Bảng cắt full-width, 3 cột (ghi chú user 2026-10-25: "check 2
+    # cột trong và ngoài riêng"): [Hạng mục | Trong MP | Ngoài MP]
+    # thay cho 2 cột với các hàng trong/ngoài xếp chồng dọc. Chỉ
+    # đổi trình bày — mọi số lấy từ cùng dict sh/shp (trong) và
+    # sho/shop (ngoài); hàng nào tóm tắt trước đây không có số
+    # ngoài MP thì ô ngoài là "—". Tóm tắt chỉ hiện giá trị;
+    # công thức → thay số → kết luận riêng ở PDF chi tiết.
+    st_cell_c = ParagraphStyle("cc", parent=st_cell,
+                               alignment=TA_CENTER)
+    st_cell_bc = ParagraphStyle("ccb", parent=st_cell_b,
+                                alignment=TA_CENTER)
+    st_lbl_note = ParagraphStyle("lblnote", parent=st_cell,
+                                 fontSize=6, leading=7.5,
+                                 textColor=HexColor("#555555"))
     sw_data = [[Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>",
                           st_hdr_left),
-                Paragraph("<b>Trong + ngoài mặt phẳng</b>", st_hdr)]]
-    if sh.get("V_cap") is not None:
-        _dc_sh = sh.get("dc")
-        _dc_sh_txt = (f"{_dc_sh:.3f}" if _dc_sh is not None
-                      and math.isfinite(float(_dc_sh)) else "∞")
-        sw_rows = [
-            ("Thép ngang bố trí", shp.get("sw_txt", "—")),
-            ("Lực cắt tính toán, V2",
-             (f"{float(sh.get('V_d', full['V_in'])):.1f} kN "
-              f"(1,5×{float(full['V_in']):.1f}, 9386-1:2025 §5.4.2.4(7) DCM)"
-              if sh.get("seismic_applied")
-              else f"{float(full['V_in']):.1f} kN")),
-            ("Kích thước tiết diện, b × h<sub>0</sub>",
-             f"{shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm"),
-            ("A<sub>sw</sub>", f"{shp.get('Asw', 0):,.0f} mm²"),
-            ("q<sub>sw</sub> được kể",
-             f"{shp.get('qsw', 0):.1f} N/mm"),
-            ("Hệ số φ<sub>n</sub> (§8.1.3.3.2)",
-             f"{shp.get('phi_n', 0):.3f}"),
-            ("[Q]<sub>1</sub> (dải nén xiên, (88))",
-             f"{shp.get('Qcap1', 0):,.1f} kN"),
-            ("Q<sub>b</sub> (vết nứt xiên)",
-             f"{shp.get('Qb', 0):,.1f} kN"),
-            ("Q<sub>sw</sub> (vết nứt xiên)",
-             f"{shp.get('Qsw', 0):,.1f} kN"),
-            ("[Q]<sub>2</sub> (vết nứt xiên)",
-             f"{shp.get('Qcap2', 0):,.1f} kN"),
-            ("Khả năng chịu cắt trong MP, V<sub>cap</sub>",
-             f"{float(sh['V_cap']):,.1f} kN"),
-            ("Tỉ số sử dụng cắt trong MP, D/C",
-             f"{_dc_sh_txt} — "
-             f"{'ĐẠT' if sh.get('ok') else 'KHÔNG ĐẠT'}"),
-        ]
-    else:
-        sw_rows = [("Khả năng chịu cắt trong mặt phẳng",
-                    "— (chưa tính được)")]
-    # Hàng giá trị cắt ngoài MP (tóm tắt chỉ hiện giá trị, như trong
-    # MP; công thức → thay số → kết luận riêng ở PDF chi tiết).
-    if sho.get("V_cap") is not None:
-        _dc_sho = sho.get("dc")
-        _dc_sho_txt = (f"{_dc_sho:.3f}" if _dc_sho is not None
-                       and math.isfinite(float(_dc_sho)) else "∞")
-        sw_rows += [
-            ("Lực cắt tính toán, V3",
-             f"{float(full['V_out']):.1f} kN "
-             f"(không phóng đại; Qsw = 0 — chưa có giằng xuyên dày)"),
-            ("Kích thước tiết diện ngoài MP, b × h<sub>0</sub>",
-             f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} mm"),
-            ("[Q]<sub>1</sub> ngoài MP (dải nén xiên, (88))",
-             f"{shop.get('Qcap1', 0):,.1f} kN"),
-            ("Q<sub>b</sub> ngoài MP (Q<sub>sw</sub> = 0)",
-             f"{shop.get('Qb', 0):,.1f} kN"),
-            ("Khả năng chịu cắt ngoài MP, V<sub>cap</sub>",
-             f"{float(sho['V_cap']):,.1f} kN"),
-            ("Tỉ số sử dụng cắt ngoài MP, D/C",
-             f"{_dc_sho_txt} — "
-             f"{'ĐẠT' if sho.get('ok') else 'KHÔNG ĐẠT'}"),
-        ]
-    else:
-        sw_rows += [("Khả năng chịu cắt ngoài mặt phẳng",
-                     "— (chưa tính được)")]
-    for a, b in sw_rows:
-        sw_data.append([Paragraph(a, st_lbl),
-                        Paragraph(b, st_cell_b if "Tỉ số" in a
-                                  else st_cell)])
-    for i in range(1, len(sw_data)):
-        sw_data[i][1].style.alignment = TA_CENTER
-    t_sw = Table(sw_data, colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
+                Paragraph("<b>Trong mặt phẳng</b>", st_hdr),
+                Paragraph("<b>Ngoài mặt phẳng</b>", st_hdr)]]
+    _in_ok = sh.get("V_cap") is not None
+    _out_ok = sho.get("V_cap") is not None
+    _dc_sh = sh.get("dc") if _in_ok else None
+    _dc_sh_txt = (f"{_dc_sh:.3f}" if _dc_sh is not None
+                  and math.isfinite(float(_dc_sh)) else "∞")
+    _dc_sho = sho.get("dc") if _out_ok else None
+    _dc_sho_txt = (f"{_dc_sho:.3f}" if _dc_sho is not None
+                   and math.isfinite(float(_dc_sho)) else "∞")
+    # Hàng V_Ed: ô giá trị chỉ còn số trơn; ghi chú DCM đặt trong
+    # ô nhãn (ghi chú user "ghi chú vào đây" đúng ô nhãn hàng V2,
+    # không phải footnote dưới bảng) — cùng quy ước với bảng cắt
+    # tab Kết quả (build_wall_shear_rows: ghi chú ở ô nhãn, ô giá
+    # trị trơn, không hiện V_raw).
+    _v_lbl = [Paragraph("Lực cắt tính toán, V2 / V3", st_lbl)]
+    if _in_ok and sh.get("seismic_applied"):
+        _v_lbl.append(Paragraph(
+            f"Ghi chú: V2 đã phóng đại 1,5× theo TCVN 9386-1:2025 "
+            f"§5.4.2.4(7) (DCM): {float(full['V_in']):.1f} → "
+            f"{float(sh.get('V_d', full['V_in'])):.1f} kN",
+            st_lbl_note))
+    _v_in = (f"{float(sh.get('V_d', full['V_in'])):.1f} kN"
+             if _in_ok else "— (chưa tính được)")
+    _v_out = (f"{float(full['V_out']):.1f} kN "
+              f"(không phóng đại; Qsw = 0 — chưa có giằng xuyên dày)"
+              if _out_ok else "— (chưa tính được)")
+    _dash = "—"
+    # Mỗi hàng: (nhãn, trong MP, ngoài MP, in đậm 2 ô giá trị?).
+    sw_rows = [
+        ("Thép ngang bố trí",
+         shp.get("sw_txt", "—") if _in_ok else _dash, _dash, False),
+        (_v_lbl, _v_in, _v_out, False),
+        ("Kích thước tiết diện, b × h<sub>0</sub>",
+         (f"{shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm"
+          if _in_ok else _dash),
+         (f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} mm"
+          if _out_ok else _dash),
+         False),
+        ("A<sub>sw</sub>",
+         (f"{shp.get('Asw', 0):,.0f} mm²" if _in_ok else _dash),
+         _dash, False),
+        ("q<sub>sw</sub> được kể",
+         (f"{shp.get('qsw', 0):.1f} N/mm" if _in_ok else _dash),
+         _dash, False),
+        ("Hệ số φ<sub>n</sub> (§8.1.3.3.2)",
+         (f"{shp.get('phi_n', 0):.3f}" if _in_ok else _dash),
+         _dash, False),
+        ("[Q]<sub>1</sub> (dải nén xiên, (88))",
+         (f"{shp.get('Qcap1', 0):,.1f} kN" if _in_ok else _dash),
+         (f"{shop.get('Qcap1', 0):,.1f} kN" if _out_ok else _dash),
+         False),
+        ("Q<sub>b</sub> (vết nứt xiên)",
+         (f"{shp.get('Qb', 0):,.1f} kN" if _in_ok else _dash),
+         (f"{shop.get('Qb', 0):,.1f} kN" if _out_ok else _dash),
+         False),
+        ("Q<sub>sw</sub> (vết nứt xiên)",
+         (f"{shp.get('Qsw', 0):,.1f} kN" if _in_ok else _dash),
+         _dash, False),
+        ("[Q]<sub>2</sub> (vết nứt xiên)",
+         (f"{shp.get('Qcap2', 0):,.1f} kN" if _in_ok else _dash),
+         _dash, False),
+        ("Khả năng chịu cắt, V<sub>cap</sub>",
+         (f"{float(sh['V_cap']):,.1f} kN" if _in_ok
+          else "— (chưa tính được)"),
+         (f"{float(sho['V_cap']):,.1f} kN" if _out_ok
+          else "— (chưa tính được)"),
+         False),
+        ("Tỉ số sử dụng, D/C",
+         (f"{_dc_sh_txt} — "
+          f"{'ĐẠT' if sh.get('ok') else 'KHÔNG ĐẠT'}"
+          if _in_ok else _dash),
+         (f"{_dc_sho_txt} — "
+          f"{'ĐẠT' if sho.get('ok') else 'KHÔNG ĐẠT'}"
+          if _out_ok else _dash),
+         True),
+    ]
+    for _lab, _bi, _bo, _bold in sw_rows:
+        _cell_lab = _lab if isinstance(_lab, list) \
+            else Paragraph(_lab, st_lbl)
+        _sty = st_cell_bc if _bold else st_cell_c
+        sw_data.append([_cell_lab, Paragraph(_bi, _sty),
+                        Paragraph(_bo, _sty)])
+    t_sw = Table(sw_data, colWidths=[68 * mm, 56 * mm, 56 * mm],
+                 hAlign="CENTER")
     sw_style = [
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), pad),
@@ -416,19 +438,22 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
                              HexColor("#F2F2F2")))
     t_sw.setStyle(TableStyle(sw_style))
     story.append(KeepTogether(t_sw))
+    # Ghi chú phạm vi soát lại sau ghi chú user 2026-10-25 (nét
+    # gạch phủ toàn bộ ghi chú cũ): bỏ mệnh đề "M2–M3 diễn giải
+    # lại kết luận N–M" (caption M2–M3 đã bị xóa) và bỏ câu DCM
+    # (thông tin phóng đại nay nằm ở ghi chú hàng V2 trong bảng
+    # cắt; cắt ngoài MP không phóng đại vẫn ghi ở ô giá trị V3).
+    # Giữ: "không có kết luận chung", "kết luận riêng ở bảng cắt",
+    # "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM" và câu
+    # "chưa kể phóng đại" cho trường hợp không áp DCM.
     story.append(Paragraph(
         ("Phạm vi: không có kết luận chung — N–M kết luận ở khối "
-         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, M2–M3 diễn "
-         "giải lại kết luận N–M (không phải kết luận độc lập), "
+         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, "
          "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
-         "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM. "
-         "Cắt trong MP đã phóng đại kháng chấn TCVN 9386-1:2025 "
-         "§5.4.2.4(7) DCM (1,5×) trong lần tính này; cắt ngoài MP "
-         "không phóng đại."
+         "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM."
          if sh.get("seismic_applied") else
          "Phạm vi: không có kết luận chung — N–M kết luận ở khối "
-         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, M2–M3 diễn "
-         "giải lại kết luận N–M (không phải kết luận độc lập), "
+         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, "
          "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
          "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM. "
          "Cắt chưa kể phóng đại kháng chấn TCVN 9386-1:2025 trong lần "

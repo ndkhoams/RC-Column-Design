@@ -180,9 +180,11 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     - trên: nhãn 't3' neo ở cy/2 + 1.01cy, đỉnh chữ ~+0.21cy nữa
       (chiều cao chữ theo đơn vị dữ liệu ở tỉ lệ vẽ thường) = 1.72cy;
       chừa tới cy/2 + 1.27cy.
-    - dưới: thấp nhất là đáy chữ 'Lw = ...' ở -cy/2 - 2.22cy
-      (hàng tổng luôn ở dưới cùng, cả khi không có hàng phân
-      đoạn); chừa thêm 0.07cy tới -cy/2 - 2.29cy.
+    - dưới: thấp nhất là đường dim tổng Lw ở -cy/2 - 1.70cy cộng
+      đoạn gióng chìa qua tới -cy/2 - 1.86cy (nhãn 'Lw = ...' từ
+      2026-10-25 nằm TRÊN đường dim nên không còn quyết định đáy);
+      giữ đáy span cũ -cy/2 - 2.29cy để hình không đổi tỉ lệ/vị
+      trí (đệm dưới thêm ~0.43cy, vô hại vì adjustable='box').
     rot_deg: span hiển thị = bao hình của 4 góc span canonical đã
     xoay (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
@@ -488,11 +490,17 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
                  ((_x1 + _x2) / 2.0, _y_seg + 0.14 * cy),
                  0, "center", "bottom")
     # Hàng 2 (dưới cùng): kích thước tổng Lw, đường gióng từ 2 mép.
+    # Nhãn Lw ở TRÊN đường dim (quyết user 2026-10-25, theo ghi chú
+    # trên PDF tóm tắt: "ghi phía trên dim" / "chuyển lên trên
+    # đường dim") — nằm trong khoảng giữa hàng phân đoạn và đường
+    # dim tổng, cùng mẫu anchor +0.14cy/va="bottom" như nhãn phân
+    # đoạn. Đường dim vẫn ở dưới cùng, chỉ text đổi phía; span đáy
+    # (-cy/2 - 2.29cy) giữ nguyên nên hình không đổi tỉ lệ/vị trí.
     _y_tot = -cy / 2 - 1.70 * cy
     for _xx in (-cx / 2, cx / 2):
         _ext((_xx, -cy / 2 - 0.10 * cy), (_xx, _y_tot - 0.16 * cy))
     _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), f"Lw = {cx:.0f} mm",
-         (0.0, _y_tot - 0.52 * cy), 0, "center", "bottom")
+         (0.0, _y_tot + 0.14 * cy), 0, "center", "bottom")
     # DIM đứng bên trái: kích thước tổng tw.
     _x_dim = -cx / 2 - 0.045 * cx
     for _yy in (-cy / 2, cy / 2):
