@@ -259,9 +259,13 @@ class DataMixin:
             "etabs_comb": True,
             # Lưu luôn nội lực đã import (không cần link lại file Excel).
             # LƯU DỮ LIỆU GỐC (không phải bảng hiển thị đang gộp) +
-            # lựa chọn gộp + trạng thái nút chọn — mở lại khôi phục
-            # đúng dạng gộp. File cũ không có 2 khóa mới -> mở lên
-            # nút chọn TẮT, bảng như cũ (tương thích ngược).
+            # lựa chọn động đất — mở lại khôi phục đúng dạng gộp theo
+            # tập động đất. Khóa gộp legacy (merge_combo_enabled /
+            # merge_combo_selected) từ nay KHÔNG ghi lại: file cũ có
+            # chúng thì khi mở bị bỏ qua (gộp chỉ theo tập động đất),
+            # và lưu lại sẽ không còn chúng — không tự đổi tập gộp cũ
+            # thành tập động đất (gộp ≠ động đất; tự đổi sẽ áp nhầm
+            # phóng đại 1.5×).
             "etabs_forces": [
                 {"story": f.story, "column": f.column, "case": f.case,
                  "case_type": f.case_type, "station": f.station,
@@ -270,14 +274,9 @@ class DataMixin:
                 for f in (getattr(self, "etabs_forces_orig", None)
                           or getattr(self, "etabs_forces", []))
             ],
-            "merge_combo_enabled": bool(
-                getattr(self, "merge_combo_var", None) is not None
-                and self.merge_combo_var.get()),
-            "merge_combo_selected": sorted(
-                getattr(self, "merge_combo_selected", set()) or set()),
-            # Phần 5/7: lựa chọn combo động đất (lớp riêng, tương
-            # thích ngược — file cũ không có khóa -> không combo nào
-            # là động đất, hành vi như trước).
+            # Lựa chọn combo động đất (tương thích ngược — file cũ
+            # không có khóa -> không combo nào là động đất, hành vi
+            # như trước).
             "seismic_combo_selected": sorted(
                 getattr(self, "seismic_combo_selected", set()) or set()),
             # Vách (GĐ1): namespace riêng, ghi cả khi đang ở chế độ Cột để
@@ -470,23 +469,18 @@ class DataMixin:
             # trạng thái từ nay do file/user quyết định.
             self._wall_preset_stash = None
             # Khôi phục nội lực đã lưu trong file (không cần file Excel):
-            # nạp vào dữ liệu GỐC, khôi phục lựa chọn + trạng thái nút
-            # chọn gộp, rồi suy ra lại bảng hiển thị (file cũ không có
-            # 2 khóa mới -> nút TẮT, bảng = gốc như trước).
+            # nạp vào dữ liệu GỐC, khôi phục lựa chọn động đất, rồi suy
+            # ra lại bảng hiển thị. Khóa gộp legacy (merge_combo_*)
+            # nếu có trong file cũ thì BỊ BỎ QUA: gộp chỉ theo tập động
+            # đất, không tự đổi tập gộp cũ thành tập động đất.
             forces_data = d.get("etabs_forces", [])
             if d.get("load_mode") == "etabs":
                 from rc_column.etabs_import import EtabsForce
                 self.etabs_forces_orig = [EtabsForce(**fd)
                                           for fd in forces_data]
-                mv = getattr(self, "merge_combo_var", None)
-                if mv is not None:
-                    mv.set(bool(d.get("merge_combo_enabled", False)))
-                self.merge_combo_selected = set(
-                    d.get("merge_combo_selected", []) or [])
-                # Phần 5/7: khôi phục lựa chọn động đất TRƯỚC khi suy
-                # lại bảng hiển thị (để gộp động đất có hiệu lực ngay,
-                # kể cả khi nút gộp đang TẮT). File cũ thiếu khóa ->
-                # tập rỗng, hành vi như trước.
+                # Khôi phục lựa chọn động đất TRƯỚC khi suy lại bảng
+                # hiển thị (để gộp động đất có hiệu lực ngay). File cũ
+                # thiếu khóa -> tập rỗng, hành vi như trước.
                 self.seismic_combo_selected = set(
                     d.get("seismic_combo_selected", []) or [])
                 self._refresh_merge_display()

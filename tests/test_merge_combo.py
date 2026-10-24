@@ -1,13 +1,14 @@
-"""Kiểm chứng gộp combo max/min (mục 5 — nút chọn "Gộp Combo max/min"
-+ popup "Chọn combo gộp…" theo TÊN combo gốc).
+"""Kiểm chứng gộp combo max/min (mục 5 — tập gộp hiệu dụng = tập động
+đất từ popup "Chọn combo động đất…", theo TÊN combo gốc).
 
 Quy tắc (theo chỉ dẫn ETABS về phổ phản ứng: max/min là biên thống kê
 ± từng thành phần, không đồng thời): dòng gộp lấy mỗi thành phần có
 |giá trị| lớn nhất trong 2 dòng, giữ nguyên dấu; hòa trị tuyệt đối lấy
 giá trị của dòng max. Dòng không có cặp, combo thường và TX_* giữ nguyên.
-Cơ chế mới (không hủy diệt): merge_combo_max_min(forces, selected_bases)
-chỉ gộp các cặp thuộc tên gốc được tick; popup liệt kê tên gốc qua
-combo_merge_options (TX_* loại khỏi danh sách).
+Cơ chế (không hủy diệt): merge_combo_max_min(forces, selected_bases)
+chỉ gộp các cặp thuộc tên gốc được tick; popup động đất liệt kê tên
+gốc qua combo_merge_options (TX_* loại khỏi danh sách);
+effective_merge_bases(seismic_selected) trả đúng tập động đất.
 """
 
 import os
@@ -16,7 +17,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from rc_column.etabs_import import (
-    EtabsForce, merge_combo_max_min, combo_merge_options)
+    EtabsForce, merge_combo_max_min, combo_merge_options,
+    effective_merge_bases)
 
 
 def _f(case, station=0.0, N=0.0, Mx=0.0, My=0.0, Q2=0.0, Q3=0.0,
@@ -150,6 +152,13 @@ def test_selected_base_merges_all_stories_stations():
     assert [f.case for f in out] == ["ULS17", "ULS17", "ULS17"]
     assert [(f.story, f.station, f.N) for f in out] == [
         ("S1", 0.0, 100), ("S1", 3.0, -250), ("S2", 0.0, 400)]
+
+
+def test_effective_merge_bases_is_seismic_set():
+    """Tập gộp hiệu dụng = tập động đất, không còn tập gộp riêng."""
+    assert effective_merge_bases({"ULS17", "ULS18"}) == {"ULS17", "ULS18"}
+    assert effective_merge_bases(set()) == set()
+    assert effective_merge_bases(None) == set()
 
 
 def test_combo_merge_options():

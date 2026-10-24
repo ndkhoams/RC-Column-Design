@@ -566,7 +566,7 @@ def _group_max_min(forces):
 
 
 def combo_merge_options(forces):
-    """Danh sách tên combo cho popup "Chọn combo gộp…".
+    """Danh sách tên combo cho popup "Chọn combo động đất…".
 
     Trả về [(tên gốc, có_cặp, số_cặp)] theo thứ tự xuất hiện đầu tiên
     trong bảng:
@@ -597,25 +597,15 @@ def combo_merge_options(forces):
     return [(b, hp, n) for b, hp, n in options]
 
 
-def effective_merge_bases(merge_enabled, merge_selected,
-                          seismic_selected):
-    """Tập tên gốc được gộp khi hiển thị bảng nội lực (phần 5/7).
+def effective_merge_bases(seismic_selected):
+    """Tập tên gốc được gộp khi hiển thị bảng nội lực.
 
-    Hai lớp gộp ĐỘC LẬP, lớp động đất phủ lên trên (không phụ thuộc
-    nút chọn gộp):
-    - lớp gộp thường: chỉ có hiệu lực khi checkbutton "Gộp Combo
-      max/min" đang BẬT;
-    - lớp động đất: tên gốc trong seismic_selected LUÔN được gộp,
-      kể cả khi checkbutton gộp đang TẮT (gộp là hệ quả của việc
-      là combo động đất, xem popup "Chọn combo động đất…").
-    Trả về hợp của 2 lớp. Popup gộp hiển thị tên động đất đã tick +
-    mờ (không sửa được ở đó) để 2 popup không bao giờ mâu thuẫn:
-    muốn bỏ gộp một tên động đất thì bỏ tick nó ở popup động đất.
+    Tập gộp hiệu dụng = tập động đất: tên gốc được tick trong popup
+    "Chọn combo động đất…" thì cặp max/min của nó tự gộp (gộp là hệ
+    quả của việc là combo động đất); không còn tập gộp riêng hay nút
+    chọn gộp. Bỏ tick thì tên đó không gộp nữa.
     """
-    eff = set(seismic_selected or set())
-    if merge_enabled:
-        eff |= set(merge_selected or set())
-    return eff
+    return set(seismic_selected or set())
 
 
 def merge_combo_max_min(forces, selected_bases=None):

@@ -59,7 +59,7 @@ class EtabsMixin:
             from tkinter import messagebox
             messagebox.showerror("Lỗi đọc clipboard", str(ex))
             return
-        # Ghi THÊM vào dữ liệu GỐC (dòng mới mặc định chưa tick gộp),
+        # Ghi THÊM vào dữ liệu GỐC (dòng mới mặc định chưa tick động đất),
         # rồi suy ra lại bảng hiển thị theo lựa chọn còn hiệu lực.
         _old_orig = list(getattr(self, "etabs_forces_orig", None) or [])
         if _old_orig:
@@ -84,16 +84,16 @@ class EtabsMixin:
         """Đồng bộ bảng hiển thị từ dữ liệu gốc + lựa chọn gộp.
 
         self.etabs_forces LUÔN là bảng đang hiển thị — mọi đường CHECK/
-        batch/bảng đọc nó như trước nên CHECK khi nút chọn BẬT tự tính
-        trên các dòng đã gộp, khi TẮT tính trên dòng gốc. Dữ liệu gốc
-        nằm ở etabs_forces_orig và không bao giờ bị ghi đè bởi việc
-        gộp. Mỗi lần đổi dạng hiển thị, bảng được vẽ lại với D/C trống
-        (chờ CHECK lại) để không còn số D/C cũ sai bám lại.
+        batch/bảng đọc nó như trước nên CHECK tự tính trên các dòng đã
+        gộp của combo động đất. Dữ liệu gốc nằm ở etabs_forces_orig và
+        không bao giờ bị ghi đè bởi việc gộp. Mỗi lần đổi dạng hiển
+        thị, bảng được vẽ lại với D/C trống (chờ CHECK lại) để không
+        còn số D/C cũ sai bám lại.
 
-        Phần 5/7 — 2 lớp gộp (xem effective_merge_bases): lớp gộp
-        thường (chỉ khi checkbutton BẬT) + lớp động đất (LUÔN gộp,
-        kể cả khi checkbutton TẮT). Tên gốc không còn dòng nào trong
-        bảng thì tự rơi khỏi cả 2 tập lựa chọn.
+        Tập gộp hiệu dụng = tập động đất (xem effective_merge_bases):
+        tên gốc được tick là combo động đất thì cặp max/min của nó tự
+        gộp; bỏ tick thì về dòng gốc. Tên gốc không còn dòng nào trong
+        bảng thì tự rơi khỏi tập lựa chọn.
         """
         from rc_column.etabs_import import (merge_combo_max_min,
                                             _max_min_suffix,
@@ -107,15 +107,10 @@ class EtabsMixin:
                 continue
             split = _max_min_suffix(name)
             present.add(split[0] if split else name)
-        sel = set(getattr(self, "merge_combo_selected", set()) or set())
-        sel &= present
-        self.merge_combo_selected = sel
         sei = set(getattr(self, "seismic_combo_selected", set()) or set())
         sei &= present
         self.seismic_combo_selected = sei
-        var = getattr(self, "merge_combo_var", None)
-        eff = effective_merge_bases(
-            bool(var is not None and var.get()), sel, sei)
+        eff = effective_merge_bases(sei)
         if eff:
             disp, _n = merge_combo_max_min(orig, eff)
         else:
@@ -134,236 +129,16 @@ class EtabsMixin:
             return f", hiển thị {n_disp} dòng sau gộp"
         return ""
 
-    def on_toggle_merge_combo(self):
-        """Bật/tắt hiển thị dạng gộp (Checkbutton ở hàng radio mục 5).
-
-        BẬT: bảng hiển thị dạng đã gộp theo lựa chọn ở popup "Chọn
-        combo gộp…". TẮT: bảng trở về đúng các dòng gốc ban đầu
-        (thứ tự + giá trị nguyên vẹn). Dữ liệu gốc không bị thay đổi.
-        """
-        self._refresh_merge_display()
-        var = getattr(self, "merge_combo_var", None)
-        if var is not None and var.get():
-            n_merged = len(getattr(self, "_merge_merged_ids", set()))
-            if n_merged == 0:
-                self.etabs_info.set(
-                    "Chưa chọn combo gộp nào — bấm 'Chọn combo gộp…' "
-                    "để chọn tên combo cần gộp.")
-            else:
-                self.etabs_info.set(
-                    f"Đang hiển thị dạng gộp: {n_merged} cặp max/min "
-                    f"({len(self.etabs_forces)} dòng) — Bấm 'KIỂM TRA "
-                    f"KHẢ NĂNG CHỊU LỰC' để tính lại D/C.")
-        else:
-            self.etabs_info.set(
-                f"Đã trở về bảng gốc ({len(self.etabs_forces)} dòng) — "
-                f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính lại D/C.")
-
-    def on_pick_merge_combo(self):
-        """Mở popup "Chọn combo gộp…" (nút bên cạnh nút chọn gộp).
-
-        Popup tổng hợp và chỉ liệt kê TÊN các combo (không liệt kê
-        từng dòng): mỗi tên một dòng, các biến thể max/min gộp về tên
-        gốc. Tick một tên gốc = gộp mọi cặp max/min của tên đó (mọi
-        Story/Station). Tên không có cặp max/min hiển thị mờ, không
-        tick được; shift-click chọn đoạn liên tục chỉ tác động lên
-        các dòng tick được trong đoạn. Đổi lựa chọn khi nút chọn đang
-        BẬT thì bảng cập nhật ngay.
-        """
-        from rc_column.etabs_import import combo_merge_options
-        orig = list(getattr(self, "etabs_forces_orig", None) or [])
-        if not orig:
-            messagebox.showinfo("Chọn combo gộp",
-                                "Bảng nội lực đang trống.")
-            return
-        # Popup đã mở thì đưa lên trước, không mở trùng.
-        _old_top = getattr(self, "_merge_pick_top", None)
-        if _old_top is not None:
-            try:
-                if _old_top.winfo_exists():
-                    _old_top.lift()
-                    return
-            except Exception:
-                pass
-        options = combo_merge_options(orig)
-        top = tk.Toplevel(self)
-        top.title("Chọn combo gộp")
-        top.transient(self)
-        top.grab_set()
-        top.minsize(320, 240)
-        ttk.Label(
-            top,
-            text="Tick một tên combo = gộp mọi cặp max/min của tên đó "
-                 "(mọi Story/Station).\nChỉ combo có cặp max/min mới "
-                 "tick được; tên không có cặp hiển thị mờ.\nTên động đất "
-                 "hiển thị đã tick + mờ (tự gộp theo popup 'Chọn combo "
-                 "động đất…' — muốn bỏ gộp thì bỏ tick ở đó).",
-            font=("", 9, "italic"), wraplength=420, justify=tk.LEFT).pack(
-                anchor=tk.W, padx=10, pady=(10, 6))
-        # Khung cuộn chứa các checkbutton (1 dòng / tên combo)
-        canvas = tk.Canvas(top, highlightthickness=0)
-        sb = ttk.Scrollbar(top, orient=tk.VERTICAL, command=canvas.yview)
-        inner = ttk.Frame(canvas)
-        inner.bind("<Configure>",
-                   lambda e: canvas.configure(
-                       scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=inner, anchor="nw")
-        canvas.configure(yscrollcommand=sb.set)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
-                    padx=(10, 0), pady=4)
-        sb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=4)
-
-        def _wheel(ev):
-            if ev.num in (4, 5):
-                canvas.yview_scroll(-1 if ev.num == 4 else 1, "units")
-            else:
-                canvas.yview_scroll(-1 if ev.delta > 0 else 1, "units")
-        canvas.bind("<MouseWheel>", _wheel)
-        canvas.bind("<Button-4>", _wheel)
-        canvas.bind("<Button-5>", _wheel)
-
-        # anchor = chỉ số dòng của lần click trước (tính trên TOÀN bộ
-        # danh sách, kể cả dòng mờ); press_shift = Shift có giữ lúc nhấn
-        # chuột (ghi ở ButtonPress, đọc ở command sau khi toggle).
-        # Để ở attribute (thay vì closure) để cổng kiểm mô phỏng được.
-        self._merge_pick_anchor = None
-        self._merge_pick_press_shift = False
-        rows = []  # (tên gốc, BooleanVar|None, Checkbutton, tick_được?)
-        for base, has_pair, n_pairs in options:
-            if has_pair:
-                # Master tường minh = popup (không dùng default root).
-                var = tk.BooleanVar(
-                    top, value=base in getattr(self, "merge_combo_selected",
-                                               set()))
-                txt = f"{base} — {n_pairs} cặp"
-            else:
-                var = None
-                txt = f"{base} — không có cặp max/min"
-            cb = tk.Checkbutton(inner, text=txt, variable=var,
-                                bg="white", activebackground="white",
-                                highlightthickness=0, anchor=tk.W,
-                                justify=tk.LEFT)
-            if not has_pair:
-                cb.config(state=tk.DISABLED)
-            cb.pack(fill=tk.X, padx=4, pady=1)
-            rows.append((base, var, cb, has_pair))
-
-        def _sync():
-            # Tên động đất KHÔNG vào tập gộp thường: chúng được gộp
-            # qua lớp động đất (luôn gộp) — tránh 2 tập chồng chéo
-            # gây mâu thuẫn khi bỏ tick động đất sau này.
-            _sei = set(getattr(self, "seismic_combo_selected",
-                               set()) or set())
-            sel = {b for b, v, _c, ok in rows
-                   if ok and v is not None and v.get()
-                   and b not in _sei}
-            self.merge_combo_selected = sel
-            var = getattr(self, "merge_combo_var", None)
-            if var is not None and var.get():
-                self._refresh_merge_display()
-
-        def _make_press(idx):
-            def _press(ev):
-                self._merge_pick_press_shift = bool(ev.state & 0x0001)
-            return _press
-
-        def _make_cmd(idx, base, var):
-            def _cmd():
-                anchor = self._merge_pick_anchor
-                if self._merge_pick_press_shift and anchor is not None:
-                    # Shift-click: áp giá trị SAU toggle của ô vừa bấm
-                    # cho cả đoạn [anchor..idx], chỉ các dòng tick được
-                    # và KHÔNG phải tên động đất (mờ, thuộc lớp khác).
-                    new_val = var.get()
-                    _sei2 = set(getattr(self, "seismic_combo_selected",
-                                        set()) or set())
-                    lo = min(anchor, idx)
-                    hi = max(anchor, idx)
-                    for j in range(lo, hi + 1):
-                        _b, v2, _c2, ok2 = rows[j]
-                        if ok2 and v2 is not None and _b not in _sei2:
-                            v2.set(new_val)
-                self._merge_pick_anchor = idx
-                _sync()
-            return _cmd
-
-        for idx, (base, var, cb, ok) in enumerate(rows):
-            if not ok:
-                continue
-            cb.bind("<ButtonPress-1>", _make_press(idx))
-            cb.config(command=_make_cmd(idx, base, var))
-
-        # Móc cho cổng kiểm (không ảnh hưởng hành vi): cổng tìm popup
-        # và các dòng tick qua các thuộc tính này thay vì dò widget.
-        self._merge_pick_top = top
-        self._merge_pick_rows = rows
-        # Lớp động đất phủ lên popup gộp: tên động đất hiện đã tick
-        # + mờ (xem _apply_seismic_overlay_to_merge_popup).
-        self._apply_seismic_overlay_to_merge_popup()
-
-        def _set_all(val):
-            # Bỏ qua tên động đất (mờ): chọn/bỏ chọn tất cả ở popup
-            # này không được động vào lớp động đất.
-            _sei3 = set(getattr(self, "seismic_combo_selected",
-                                set()) or set())
-            for _b, v, _c, ok in rows:
-                if ok and v is not None and _b not in _sei3:
-                    v.set(val)
-            # Chọn tất cả / bỏ chọn: xóa mốc để shift-click tiếp theo
-            # bắt đầu từ lần click thường mới.
-            self._merge_pick_anchor = None
-
-        btn_row = ttk.Frame(top)
-        btn_row.pack(fill=tk.X, padx=10, pady=(4, 10))
-        ttk.Button(btn_row, text="Chọn tất cả",
-                   command=lambda: (_set_all(True), _sync())).pack(
-                       side=tk.LEFT, padx=(0, 4))
-        ttk.Button(btn_row, text="Bỏ chọn tất cả",
-                   command=lambda: (_set_all(False), _sync())).pack(
-                       side=tk.LEFT, padx=4)
-        ttk.Button(btn_row, text="Đóng",
-                   command=top.destroy).pack(side=tk.RIGHT)
-
-    def _apply_seismic_overlay_to_merge_popup(self):
-        """Áp lớp động đất lên popup gộp đang mở (nếu có).
-
-        Tên động đất: var = True + widget DISABLED (không sửa được
-        ở popup này). Tên thường: var theo merge_combo_selected +
-        NORMAL. Popup gộp đóng rồi thì không còn gì để áp.
-        """
-        top = getattr(self, "_merge_pick_top", None)
-        rows = getattr(self, "_merge_pick_rows", None)
-        if top is None or rows is None:
-            return
-        try:
-            if not top.winfo_exists():
-                return
-        except Exception:
-            return
-        sei = set(getattr(self, "seismic_combo_selected", set()) or set())
-        sel = set(getattr(self, "merge_combo_selected", set()) or set())
-        for base, var, cb, ok in rows:
-            if var is None:
-                continue
-            if base in sei:
-                var.set(True)
-                cb.config(state=tk.DISABLED)
-            elif ok:
-                var.set(base in sel)
-                cb.config(state=tk.NORMAL)
-
     def on_pick_seismic_combo(self):
         """Mở popup "Chọn combo động đất…" (phần 5/7).
 
-        Liệt kê mọi TÊN GỐC (không phải từng dòng) theo đúng pattern
-        popup gộp: checkbox từng tên, shift-chọn đoạn, chọn tất/bỏ
-        chọn tất; TX_* loại khỏi danh sách như popup gộp. Ngữ nghĩa
-        tick (ghi rõ ở đầu popup + tooltip nút):
+        Liệt kê mọi TÊN GỐC (không phải từng dòng): checkbox từng tên,
+        shift-chọn đoạn, chọn tất/bỏ chọn tất; TX_* loại khỏi danh
+        sách. Ngữ nghĩa tick (ghi rõ ở đầu popup + tooltip nút):
         - tên có cặp max/min: tick = combo động đất -> TỰ GỘP cặp
-          đó ngay cả khi checkbutton "Gộp Combo max/min" đang TẮT,
-          VÀ chịu phóng đại cắt kháng chấn khi kiểm tra vách;
+          đó, VÀ chịu phóng đại cắt kháng chấn khi kiểm tra vách;
         - tên không có cặp: tick chỉ có nghĩa phóng đại (không có
-          gì để gộp) — vẫn liệt kê, vẫn tick được (khác popup gộp).
+          gì để gộp) — vẫn liệt kê, vẫn tick được.
         Phóng đại: TCVN 9386-1:2012 §5.4.2.4(7) DCM, V_Ed = 1,5 ×
         V'_Ed, CHỈ cắt trong mặt phẳng vách; cắt ngoài mặt phẳng
         không phóng đại. Đường nhập tay của vách (không có tên
@@ -392,9 +167,8 @@ class EtabsMixin:
         ttk.Label(
             top,
             text="Tick một tên combo = combo ĐỘNG ĐẤT của tên đó "
-                 "(mọi Story/Station).\n• Có cặp max/min: TỰ GỘP cặp đó ngay cả khi "
-                 "'Gộp Combo max/min' đang TẮT, và chịu phóng đại cắt "
-                 "khi kiểm tra vách.\n• Không có cặp: tick chỉ có nghĩa phóng đại "
+                 "(mọi Story/Station).\n• Có cặp max/min: TỰ GỘP cặp đó, và chịu "
+                 "phóng đại cắt khi kiểm tra vách.\n• Không có cặp: tick chỉ có nghĩa phóng đại "
                  "(không có gì để gộp).\nPhóng đại cắt: TCVN 9386-1:2012 §5.4.2.4(7) "
                  "DCM — V_Ed = 1,5 × V'_Ed, CHỈ trong mặt phẳng vách.",
             font=("", 9, "italic"), wraplength=440, justify=tk.LEFT).pack(
@@ -443,10 +217,8 @@ class EtabsMixin:
             sel = {b for b, v, _c, _ok in rows
                    if v is not None and v.get()}
             self.seismic_combo_selected = sel
-            # Gộp động đất có hiệu lực ngay, không chờ nút gộp.
+            # Gộp động đất có hiệu lực ngay.
             self._refresh_merge_display()
-            # Popup gộp đang mở (nếu có) cập nhật lớp phủ ngay.
-            self._apply_seismic_overlay_to_merge_popup()
 
         def _make_press(idx):
             def _press(ev):
@@ -493,7 +265,7 @@ class EtabsMixin:
                    command=top.destroy).pack(side=tk.RIGHT)
 
     def on_delete_forces(self):
-        """Xóa toàn bộ nội lực đã import (cả dữ liệu gốc lẫn lựa chọn gộp)."""
+        """Xóa toàn bộ nội lực đã import (cả dữ liệu gốc lẫn lựa chọn động đất)."""
         from tkinter import messagebox
         orig = list(getattr(self, "etabs_forces_orig", None) or [])
         if not orig:
@@ -502,7 +274,6 @@ class EtabsMixin:
         if messagebox.askyesno("Xóa nội lực",
                                f"Xóa toàn bộ {len(orig)} dòng nội lực?"):
             self.etabs_forces_orig = []
-            self.merge_combo_selected = set()
             self.seismic_combo_selected = set()
             self._refresh_merge_display()
             self.etabs_file = ""
@@ -587,21 +358,14 @@ class EtabsMixin:
             return
         # Dòng gộp là đối tượng suy ra, không phải dòng gốc: chặn sửa
         # trực tiếp (sửa sẽ mất khi vẽ lại và không lan về cặp gốc).
-        # Phần 5/7: dòng gộp động đất cũng bị chặn — chúng tồn tại
-        # ngay cả khi checkbutton gộp đang TẮT nên không được xét
-        # điều kiện var nữa, chỉ xét identity trong _merge_merged_ids.
+        # Dòng gộp chỉ tồn tại khi tên gốc của nó được tick là combo
+        # động đất — xét identity trong _merge_merged_ids.
         if id(tgt) in getattr(self, "_merge_merged_ids", set()):
-            _is_sei = (str(tgt.case).strip() in
-                       set(getattr(self, "seismic_combo_selected",
-                                   set()) or set()))
             messagebox.showinfo(
                 "Dòng gộp",
                 "Đây là dòng gộp từ cặp max/min — bỏ tick tên này "
-                "ở popup 'Chọn combo động đất…' (nếu là combo động "
-                "đất) hoặc tắt 'Gộp Combo max/min' để sửa các dòng "
-                "gốc." if _is_sei else
-                "Đây là dòng gộp từ cặp max/min — tắt 'Gộp Combo "
-                "max/min' để sửa các dòng gốc.")
+                "ở popup 'Chọn combo động đất…' để sửa các dòng "
+                "gốc.")
             return
         entry = tk.Entry(t, font=("", 9))
         entry.insert(0, vals[col_idx])

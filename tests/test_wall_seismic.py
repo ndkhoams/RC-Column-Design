@@ -153,13 +153,10 @@ def test_detail_builder_shows_seismic_line():
     assert "Không phóng đại cắt kháng chấn" in txt0
 
 
-def test_effective_merge_bases_seismic_layer_on_top():
-    """Luật 2 lớp gộp: động đất luôn gộp (kể cả khi nút gộp TẮT);
-    gộp thường chỉ khi nút BẬT; hợp của 2 lớp, không trùng lặp."""
-    assert effective_merge_bases(False, set(), set()) == set()
-    assert effective_merge_bases(False, {"ULS17"}, set()) == set()
-    assert effective_merge_bases(False, set(), {"ULS17"}) == {"ULS17"}
-    assert effective_merge_bases(True, {"ULS17"}, {"EQ1"}) == {
-        "ULS17", "EQ1"}
-    assert effective_merge_bases(True, {"ULS17"}, {"ULS17"}) == {"ULS17"}
-    assert effective_merge_bases(False, {"ULS17"}, {"ULS17"}) == {"ULS17"}
+def test_effective_merge_bases_is_seismic_set():
+    """Tập gộp hiệu dụng = tập động đất (không còn tập gộp riêng hay
+    nút chọn gộp): tên động đất tự gộp, tên khác không gộp."""
+    assert effective_merge_bases(set()) == set()
+    assert effective_merge_bases(None) == set()
+    assert effective_merge_bases({"ULS17"}) == {"ULS17"}
+    assert effective_merge_bases({"ULS17", "EQ1"}) == {"ULS17", "EQ1"}

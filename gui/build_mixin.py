@@ -19,39 +19,15 @@ _COVER_TIP = (
     "→ Nhập đúng số cover đai của ETABS, không cộng tay thêm."
 )
 
-_MERGE_TIP = (
-    "Bật: bảng hiển thị dạng đã gộp theo lựa chọn ở nút\n"
-    "'Chọn combo gộp…' (vd ULS17max + ULS17min → ULS17).\n"
-    "Tắt: bảng trở về đúng các dòng gốc ban đầu.\n"
-    "Dữ liệu gốc không bao giờ bị thay đổi bởi việc gộp.\n"
-    "Theo chỉ dẫn ETABS về phổ phản ứng: max/min là biên thống kê ±\n"
-    "của từng thành phần riêng lẻ, không đồng thời — nên mỗi thành\n"
-    "phần (N, V2, V3, M2, M3) lấy giá trị có |giá trị| lớn nhất\n"
-    "trong 2 dòng, giữ nguyên dấu.\n"
-    "Dòng không có cặp và dòng TX_* giữ nguyên."
-)
-
-_PICK_TIP = (
-    "Chọn tên combo cần gộp (mỗi tên một dòng).\n"
-    "Tick một tên = gộp mọi cặp max/min của tên đó\n"
-    "(mọi Story/Station).\n"
-    "Chỉ combo có cặp max/min mới tick được;\n"
-    "tên không có cặp hiển thị mờ.\n"
-    "Tên động đất hiển thị đã tick + mờ (xem nút\n"
-    "'Chọn combo động đất…').\n"
-    "Shift-click: chọn đoạn liên tục (chỉ tính các dòng tick được)."
-)
-
 _SEISMIC_TIP = (
     "Chọn combo ĐỘNG ĐẤT (mỗi tên một dòng).\n"
     "Tick một tên = combo động đất: TỰ GỘP cặp max/min của\n"
-    "tên đó ngay cả khi 'Gộp Combo max/min' đang TẮT, và\n"
-    "chịu phóng đại cắt khi kiểm tra vách.\n"
+    "tên đó, và chịu phóng đại cắt khi kiểm tra vách.\n"
+    "Bỏ tick = về dòng gốc, không gộp, không phóng đại.\n"
     "Tên không có cặp: tick chỉ có nghĩa phóng đại.\n"
     "Phóng đại: TCVN 9386-1:2012 §5.4.2.4(7) DCM —\n"
     "V_Ed = 1,5 × V'_Ed, CHỈ cắt trong mặt phẳng vách.\n"
-    "Trong popup gộp, tên động đất hiện đã tick + mờ;\n"
-    "muốn bỏ gộp thì bỏ tick ở popup này."
+    "Hiện tại chỉ combo động đất mới gộp max/min."
 )
 
 
@@ -842,30 +818,11 @@ class BuildMixin:
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
-        # Nút CHỌN gộp cặp combo max/min (giữ trạng thái, không hủy
-        # diệt dữ liệu gốc — như cách chọn phương pháp nhập nội lực;
-        # _toggle_load_mode sẽ disable cả 2 khi ở chế độ nhập tay).
-        # Pack RIGHT theo thứ tự: checkbutton ở phải cùng, nút chọn
-        # popup nằm ngay bên trái nó.
-        # Master tường minh = root App (không dùng default root: nếu tiến
-        # trình có nhiều cửa sổ Tk thì var không master sẽ bám nhầm root).
-        self.merge_combo_var = tk.BooleanVar(self, value=False)
-        self.chk_merge_combo = tk.Checkbutton(
-            mode_bar, text="Gộp Combo max/min",
-            variable=self.merge_combo_var,
-            command=self.on_toggle_merge_combo,
-            bg="white", activebackground="white", highlightthickness=0,
-            font=("", 9))
-        self.chk_merge_combo.pack(side=tk.RIGHT, padx=(6, 2))
-        _ToolTip(self.chk_merge_combo, _MERGE_TIP)
-        self.btn_pick_merge_combo = ttk.Button(
-            mode_bar, text="Chọn combo gộp…",
-            command=self.on_pick_merge_combo)
-        self.btn_pick_merge_combo.pack(side=tk.RIGHT, padx=(6, 2))
-        _ToolTip(self.btn_pick_merge_combo, _PICK_TIP)
-        # Nút chọn combo động đất (phần 5/7): pack RIGHT sau nút gộp
-        # nên nằm ngay bên TRÁI nút gộp (thứ tự trái→phải: động đất,
-        # gộp, checkbutton). Disable ở nhập tay như 2 nút gộp.
+        # Nút chọn combo động đất: combo động đất TỰ GỘP cặp max/min
+        # (hiện tại chỉ combo động đất mới gộp) + chịu phóng đại cắt
+        # vách. 2 nút gộp riêng ("Chọn combo gộp…" + checkbutton "Gộp
+        # Combo max/min") đã bỏ vì thừa. _toggle_load_mode sẽ disable
+        # nút này khi ở chế độ nhập tay.
         self.btn_pick_seismic_combo = ttk.Button(
             mode_bar, text="Chọn combo động đất…",
             command=self.on_pick_seismic_combo)
@@ -987,9 +944,9 @@ class BuildMixin:
         # Dữ liệu gốc (source of truth): etabs_forces chỉ là BẢNG HIỂN
         # THỊ suy ra từ gốc + lựa chọn gộp (xem _refresh_merge_display).
         self.etabs_forces_orig = []
-        self.merge_combo_selected = set()  # tập tên gốc được tick
-        # Phần 5/7: tập tên gốc được tick là combo động đất (lớp gộp
-        # riêng, luôn gộp + chịu phóng đại cắt vách; xem etabs_mixin).
+        # Tập tên gốc được tick là combo động đất: tự gộp cặp max/min
+        # + chịu phóng đại cắt vách (xem etabs_mixin). Đây là tập gộp
+        # hiệu dụng duy nhất — không còn tập gộp riêng.
         self.seismic_combo_selected = set()
         self._merge_merged_ids = set()  # id() các dòng gộp đang hiển thị
         self.current_save_path = None
@@ -1003,10 +960,8 @@ class BuildMixin:
         else:
             self.etabs_frame.grid_remove()
             self.manual_frame.grid()
-        # Nút chọn gộp / động đất chỉ có nghĩa khi có bảng nội lực ETABS
-        for _w in (getattr(self, "chk_merge_combo", None),
-                   getattr(self, "btn_pick_merge_combo", None),
-                   getattr(self, "btn_pick_seismic_combo", None)):
+        # Nút chọn combo động đất chỉ có nghĩa khi có bảng nội lực ETABS
+        for _w in (getattr(self, "btn_pick_seismic_combo", None),):
             if _w is not None:
                 _w.config(state=tk.NORMAL
                           if self.var_load_mode.get() == "etabs"
