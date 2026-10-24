@@ -16,6 +16,7 @@ import io
 import math
 import os
 
+from .cover_migration import cover_long
 
 def _fm(x):
     try:
@@ -192,7 +193,9 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
          f"{float(sec.cx):.0f} × {float(sec.cy):.0f} mm"),
         ("Diện tích bê tông, A<sub>g</sub>",
          f"{float(sec.cx) * float(sec.cy):,.0f} mm²"),
-        ("Lớp bảo vệ, c", f"{float(winp.cover):.0f} mm"),
+        ("Lớp bảo vệ cốt đai, c",
+         f"{float(winp.cover):.0f} mm (c_dọc = "
+         f"{cover_long(float(winp.cover), float(getattr(winp, 'dia_h', 0.0) or 0.0)):.0f} mm)"),
     ]))
     _parts = []
     from collections import Counter

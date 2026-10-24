@@ -12,6 +12,7 @@ from tkinter import ttk
 
 from .checker import ColumnInput, CheckResult
 from .checker import build_section
+from .cover_migration import cover_long
 from .materials import STEEL_GRADES, EPS_B1, EPS_B2, EPS_S2
 
 def _full_case_w(d):
@@ -187,11 +188,15 @@ def _build_sec2(g, inp: ColumnInput, res: CheckResult, sec):
                      f"= {sec.gross_area:,.0f} mm² "
                      f"(= {_f(sec.gross_area / 1e6, 4)} m²)"])
     c.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-    # c
-    c = _param_card(grid, "Lớp bê tông bảo vệ cốt dọc c", "",
-                    [f"c = {inp.cover:.0f} mm",
-                     "Chiều dày lớp bê tông bảo vệ",
-                     f"= {inp.cover:.0f} mm"])
+    # c: lớp bảo vệ cốt đai (tới mặt ngoài đai bao); c_dọc do engine
+    # tự tính = c + d_đai (đai bao sw_dia) — in cả 2 số, số c = đúng ô nhập.
+    _sw = getattr(inp, "sw_dia", 0.0) or 0.0
+    _c_long = cover_long(inp.cover, _sw)
+    c = _param_card(grid, "Lớp bảo vệ cốt đai, c", "",
+                    [f"c = {inp.cover:.0f} mm (tới mặt ngoài đai bao)",
+                     f"c_dọc = c + d_đai = {_c_long:.0f} mm "
+                     f"(tới mặt cốt dọc; đai bao Ø{_sw:.0f} mm)",
+                     f"tâm cốt dọc cách mép = c_dọc + d_dọc/2"])
     c.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
     # I2 = Ix = Cx*Cy^3/12 ; I3 = Iy = Cy*Cx^3/12 (theo report.py)
     c = _param_card(grid, "Mô men quán tính trục 2 (I2)", "",

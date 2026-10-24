@@ -26,6 +26,7 @@ QUY TẮC (theo AGENTS.md + spec detail_format_spec.md §4/§4b/§4c):
 
 import math
 
+from .cover_migration import cover_long
 
 def _f(x, nd=1):
     try:
@@ -257,7 +258,9 @@ def build_wall_detail_sections(full):
         f"{tw_eff * Lw_eff ** 3 / 12.0 / 1e12:.4g} m⁴",
         f"Iy (ngoài MP) = Lw × tw³ / 12 = "
         f"{Lw_eff * tw_eff ** 3 / 12.0 / 1e12:.4g} m⁴",
-        f"Lớp bảo vệ c = {float(winp.cover):.0f} mm",
+        f"Lớp bảo vệ cốt đai, c = {float(winp.cover):.0f} mm "
+        f"(c_dọc = c + dia_h = "
+        f"{cover_long(float(winp.cover), float(getattr(winp, 'dia_h', 0.0) or 0.0)):.0f} mm)",
     ]
     steel2_lines = [f"Chế độ: {mode_txt}"]
     layout_txt = meta.get("layout_text")
