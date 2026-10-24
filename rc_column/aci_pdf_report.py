@@ -268,12 +268,19 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 from .aci_chart_draw import (aci_interaction_image,
                                              aci_m2m3_image)
                 _N = float(getattr(inp, "N", 0) or 0)
-                # Dùng mô men đã phóng đại (từ mm_res) để điểm A nằm trên tia
+                # Dùng mô men đã phóng đại (từ mm_res) để điểm A nằm trên tia;
+                # fallback là M2_mag/M3_mag của ACI (cũng là Mc2/Mc3 có dấu),
+                # cuối cùng mới là mô men gốc.
                 _mm = mm_res or {}
-                _M2 = float(_mm.get("Mc2") or getattr(inp, "Mx", 0)
-                            or getattr(inp, "M2", 0) or 0)
-                _M3 = float(_mm.get("Mc3") or getattr(inp, "My", 0)
-                            or getattr(inp, "M3", 0) or 0)
+                _ar = aci_res if isinstance(aci_res, dict) else {}
+                _M2 = float(_mm.get("Mc2") if _mm.get("Mc2") is not None
+                            else (_ar.get("M2_mag") if _ar.get("M2_mag") is not None
+                                  else (getattr(inp, "Mx", 0)
+                                        or getattr(inp, "M2", 0) or 0)))
+                _M3 = float(_mm.get("Mc3") if _mm.get("Mc3") is not None
+                            else (_ar.get("M3_mag") if _ar.get("M3_mag") is not None
+                                  else (getattr(inp, "My", 0)
+                                        or getattr(inp, "M3", 0) or 0)))
                 _pngs = (aci_interaction_image(sec, conc, steel, aci_res,
                                                _N, _M2, _M3, tied=tied),
                          aci_m2m3_image(sec, conc, steel, aci_res,

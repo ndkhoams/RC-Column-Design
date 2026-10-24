@@ -213,12 +213,11 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 from .ec2_chart_draw import (ec2_interaction_image,
                                              ec2_m2m3_image)
                 _N = float(getattr(inp, "N", 0) or 0)
-                # Dùng mô men thiết kế (đã gồm bậc 2) để điểm A nằm trên tia
-                _er = ec2_res if isinstance(ec2_res, dict) else {}
-                _M2 = float(_er.get("M2_mag") or getattr(inp, "Mx", 0)
-                            or getattr(inp, "M2", 0) or 0)
-                _M3 = float(_er.get("M3_mag") or getattr(inp, "My", 0)
-                            or getattr(inp, "M3", 0) or 0)
+                # Điểm A là mô men thiết kế CÓ DẤU để nằm trên tia:
+                # M2_mag/M3_mag là trị không dấu (vẽ A lật dấu M2).
+                from .ec2_chart_draw import ec2_signed_design_moments
+                _M2, _M3 = ec2_signed_design_moments(
+                    ec2_res if isinstance(ec2_res, dict) else {}, inp)
                 _pngs = (ec2_interaction_image(sec, conc, steel, ec2_res,
                                                _N, _M2, _M3),
                          ec2_m2m3_image(sec, conc, steel, ec2_res,

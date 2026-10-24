@@ -40,8 +40,11 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         fyk_sw = fyk
 
     NEd = getattr(inp, "N", 0.0) or 0.0
-    MEd2 = getattr(inp, "Mx", 0.0) or 0.0
-    MEd3 = getattr(inp, "My", 0.0) or 0.0
+    # MEd2/MEd3 ở §5/§6 là mô men THIẾT KẾ đã gồm bậc 2 và CÓ DẤU
+    # (không phải mô men gốc inp.Mx/My — gốc cho α = 286.7°/Mα = 208.8
+    # trong khi tia kiểm tra D/C dùng mô men thiết kế 285.4°/244.4).
+    from .ec2_chart_draw import ec2_signed_design_moments
+    MEd2, MEd3 = ec2_signed_design_moments(ec2_res, inp)
     VEd2 = abs(getattr(inp, "Q2", 0.0) or 0.0)
     VEd3 = abs(getattr(inp, "Q3", 0.0) or 0.0)
 

@@ -91,8 +91,10 @@ def _ec2_charts_png(sec, conc, steel, ec2_res, inp):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     out = []
-    _m2 = ec2_res.get("M2_mag", inp.Mx) if isinstance(ec2_res, dict) else inp.Mx
-    _m3 = ec2_res.get("M3_mag", inp.My) if isinstance(ec2_res, dict) else inp.My
+    # Điểm A ở cả 2 biểu đồ là mô men thiết kế CÓ DẤU — M2_mag/M3_mag
+    # là trị không dấu, vẽ A lật dấu M2 (lên trên trục, ngoài tia).
+    from .ec2_chart_draw import ec2_signed_design_moments
+    _m2, _m3 = ec2_signed_design_moments(ec2_res, inp)
     for draw_fn in (draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax):
         fig = plt.figure(figsize=(3.2, 3.2))
         ax = fig.add_subplot(111)

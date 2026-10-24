@@ -92,8 +92,14 @@ def _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     out = []
-    _m2 = mc2 if mc2 is not None else inp.Mx
-    _m3 = mc3 if mc3 is not None else inp.My
+    # Fallback: M2_mag/M3_mag của ACI là mô men đã phóng đại CÓ DẤU
+    # (Mc2 = d2*M2) — không rơi thẳng về mô men gốc inp.Mx/My.
+    _m2 = mc2 if mc2 is not None else (
+        aci_res.get("M2_mag") if isinstance(aci_res, dict)
+        and aci_res.get("M2_mag") is not None else inp.Mx)
+    _m3 = mc3 if mc3 is not None else (
+        aci_res.get("M3_mag") if isinstance(aci_res, dict)
+        and aci_res.get("M3_mag") is not None else inp.My)
     for draw_fn in (draw_aci_nm_alpha_ax, draw_aci_m2m3_ax):
         fig = plt.figure(figsize=(3.2, 3.2))
         ax = fig.add_subplot(111)
@@ -481,8 +487,9 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                                                        show_compression=show_compression)
             _blkA.append(_centered_img(_sec_png, _IW))
             # 2 biểu đồ ACI (có tiêu đề)
-            _alpha_aci = _m.degrees(_m.atan2(inp.Mx, inp.My)) % 360.0 \
-                if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
+            # Tiêu đề dùng góc của tia kiểm tra (mô men đã phóng đại,
+            # _alpha_r ở bảng kết quả) — không dùng góc mô men gốc.
+            _alpha_aci = _alpha_r
             _mm = mm_res or {}
             _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
                                     mc2=_mm.get("Mc2"), mc3=_mm.get("Mc3"))

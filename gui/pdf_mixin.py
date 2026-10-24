@@ -206,7 +206,7 @@ class PdfMixin:
             if not is_summary:
                 try:
                     from rc_column.ec2_pdf_summary import _ec2_charts_png
-                    # _ec2_charts_png tự lấy M2_mag/M3_mag từ ec2_res
+                    # _ec2_charts_png tự lấy mô men thiết kế có dấu từ ec2_res
                     # (đã lưu trong _ec2_full, tương thích ngược qua _ec2_res)
                     pngs = _ec2_charts_png(
                         self._ec2_sec, self._ec2_conc, self._ec2_steel,
@@ -260,7 +260,7 @@ class PdfMixin:
             if not is_summary:
                 try:
                     from rc_column.ec2_pdf_summary import _ec2_charts_png
-                    # _ec2_charts_png tự lấy M2_mag/M3_mag từ ec2_res
+                    # _ec2_charts_png tự lấy mô men thiết kế có dấu từ ec2_res
                     # (đã lưu trong _ec2_full, tương thích ngược qua _ec2_res)
                     pngs = _ec2_charts_png(
                         self._ec2_sec, self._ec2_conc, self._ec2_steel,

@@ -416,9 +416,14 @@ class AciMixin:
                 _Mc3 = _Ma * math.cos(_rad)
             draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res, inp.N, _Mc2, _Mc3, tied=tied)
 
-        # Hàm vẽ M2-M3
+        # Hàm vẽ M2-M3 — điểm A là mô men đã phóng đại CÓ DẤU (Mc2/Mc3
+        # từ _aci_mm, như notes bên dưới), không phải mô men gốc
+        # inp.Mx/My (sai độ lớn, lệch khỏi tia kiểm tra).
         def _draw_m2m3(ax):
-            draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res, inp.N, inp.Mx, inp.My, tied=tied)
+            _mm = getattr(self, "_aci_mm", None) or {}
+            draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res, inp.N,
+                             _mm.get("Mc2", inp.Mx), _mm.get("Mc3", inp.My),
+                             tied=tied)
 
         # Notes đầy đủ như TCVN
         import math

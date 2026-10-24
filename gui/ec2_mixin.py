@@ -174,6 +174,14 @@ class Ec2Mixin:
             res.update(ec2_res)
             res["M2_mag"] = MEd2
             res["M3_mag"] = MEd3
+            # Mô men thiết kế CÓ DẤU — nguồn duy nhất cho điểm A/α ở
+            # mọi đường hiển thị (GUI, tóm tắt, chi tiết). MEd2/MEd3 là
+            # trị tuyệt đối do ec2_design_moment trả abs(...); khôi phục
+            # dấu theo mô men bậc 1 gốc (cùng dấu dùng khi gọi check).
+            # M2_mag/M3_mag giữ nguyên là trị không dấu (chỉ dùng nơi
+            # cần độ lớn, vd N-Mα khi chưa có góc xem).
+            res["MEd2_signed"] = (1.0 if M2 >= 0 else -1.0) * MEd2
+            res["MEd3_signed"] = (1.0 if M3 >= 0 else -1.0) * MEd3
             # Tính alpha 1 lần từ M thiết kế (dùng chung)
             # Góc theo dấu M2, M3 gốc (quy ước ETABS: đo từ trục M3),
             # chuẩn hoá 0-360° như ETABS (user chốt 2026-10-22,
@@ -337,8 +345,10 @@ class Ec2Mixin:
     def _get_ec2_param_rows(self, inp, ec2_res, slend):
         """Trả về rows data cho bảng thông số EC2."""
         import math
-        M2m = ec2_res.get("M2_mag", inp.Mx)
-        M3m = ec2_res.get("M3_mag", inp.My)
+        # Hàng MEd2/MEd3 phải là mô men thiết kế CÓ DẤU (không phải
+        # M2_mag/M3_mag trị không dấu) — khớp bảng PDF tóm tắt.
+        from rc_column.ec2_chart_draw import ec2_signed_design_moments
+        M2m, M3m = ec2_signed_design_moments(ec2_res, inp)
         alpha_deg = (ec2_res["alpha_deg"] if isinstance(ec2_res, dict) and "alpha_deg" in ec2_res
                      else math.degrees(math.atan2(M2m, M3m)) % 360.0 if abs(M2m) + abs(M3m) > 1e-9 else 0.0)
         Ma = math.hypot(M2m, M3m)
@@ -398,8 +408,11 @@ class Ec2Mixin:
         section_cards = {"n": vals["n"], "as": vals["as"], "ab": vals["ab"], "mu": vals["mu"]}
 
         def _draw_nm(ax):
-            _M2m = ec2_res.get("M2_mag", inp.Mx)
-            _M3m = ec2_res.get("M3_mag", inp.My)
+            # Dùng mô men thiết kế CÓ DẤU: draw_ec2_nm_alpha_ax suy góc
+            # đường cong từ atan2(M2, M3) — trị không dấu cho góc sai
+            # với tiết diện bất đối xứng (vd 74.6° thay vì 285.4°).
+            from rc_column.ec2_chart_draw import ec2_signed_design_moments
+            _M2m, _M3m = ec2_signed_design_moments(ec2_res, inp)
             _view_angle = getattr(self, "_ec2_nm_view_angle", None)
             if _view_angle is not None:
                 import math
@@ -410,7 +423,12 @@ class Ec2Mixin:
             draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res, inp.N, _M2m, _M3m)
 
         def _draw_m2m3(ax):
-            draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
+            # Điểm A phải là mô men thiết kế CÓ DẤU — không phải mô men
+            # gốc inp.Mx/My (sai độ lớn, lệch tia 1.3° ở ca mẫu), cũng
+            # không phải M2_mag/M3_mag (trị không dấu, lật dấu M2).
+            from rc_column.ec2_chart_draw import ec2_signed_design_moments
+            _M2s, _M3s = ec2_signed_design_moments(ec2_res, inp)
+            draw_ec2_m2m3_ax(ax, sec, conc, steel, ec2_res, inp.N, _M2s, _M3s)
 
         import math
         _ok = ec2_res['ok']
@@ -425,8 +443,8 @@ class Ec2Mixin:
             _st_txt = f"@{_st:.2f}" if isinstance(_st, (int, float)) else ""
             _parts.append(f"{_case.get('case')}{_st_txt}")
         _combo_txt = f" [{', '.join(_parts)}]" if _parts else ""
-        _M2m = ec2_res.get("M2_mag", inp.Mx)
-        _M3m = ec2_res.get("M3_mag", inp.My)
+        from rc_column.ec2_chart_draw import ec2_signed_design_moments as _ec2_sdm
+        _M2m, _M3m = _ec2_sdm(ec2_res, inp)
         _BN = ec2_res.get("BN", 0)
         _Bx = ec2_res.get("Bx", 0)
         _By = ec2_res.get("By", 0)
@@ -881,15 +899,16 @@ class Ec2Mixin:
             steel = getattr(self, "_ec2_steel", None)
             if not all([sec, inp, ec2_res, conc, steel]):
                 return (None, None, None)
-            M2m = ec2_res.get("M2_mag", inp.Mx)
-            M3m = ec2_res.get("M3_mag", inp.My)
+            # Điểm A ở cả 2 biểu đồ đều là mô men thiết kế CÓ DẤU.
+            from rc_column.ec2_chart_draw import ec2_signed_design_moments
+            M2m, M3m = ec2_signed_design_moments(ec2_res, inp)
             fig1 = Figure(figsize=(5.2, 3.9), dpi=100)
             ax1 = fig1.add_subplot(111)
             draw_ec2_nm_alpha_ax(ax1, sec, conc, steel, ec2_res, inp.N, M2m, M3m)
             fig1.tight_layout()
             fig2 = Figure(figsize=(5.2, 3.9), dpi=100)
             ax2 = fig2.add_subplot(111)
-            draw_ec2_m2m3_ax(ax2, sec, conc, steel, ec2_res, inp.N, inp.Mx, inp.My)
+            draw_ec2_m2m3_ax(ax2, sec, conc, steel, ec2_res, inp.N, M2m, M3m)
             fig2.tight_layout()
             return (fig1, fig2)
         except Exception as e:

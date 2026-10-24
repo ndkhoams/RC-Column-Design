@@ -11,6 +11,34 @@ import math
 from .ec2_checker import ec2_interaction_curve
 
 
+def ec2_signed_design_moments(ec2_res, inp):
+    """Trả về (MEd2, MEd3) là mô men thiết kế ĐÃ GỒM bậc 2 và CÓ DẤU.
+
+    Nguồn duy nhất: _ec2_calculate_full lưu MEd2_signed/MEd3_signed
+    (khôi phục dấu theo mô men bậc 1 gốc, vì ec2_design_moment trả
+    trị tuyệt đối). Fallback cho dict cũ: dấu(M2_orig/M3_orig) ×
+    M2_mag/M3_mag; cuối cùng là mô men gốc inp.Mx/My.
+    Mọi đường hiển thị điểm A/α (GUI, tóm tắt, chi tiết) đều phải
+    dùng cặp này — KHÔNG dùng M2_mag/M3_mag (trị không dấu, vẽ A
+    lật dấu M2) và KHÔNG dùng inp.Mx/My (mô men gốc, sai độ lớn).
+    """
+    er = ec2_res if isinstance(ec2_res, dict) else {}
+    m2 = er.get("MEd2_signed")
+    m3 = er.get("MEd3_signed")
+    if m2 is None or m3 is None:
+        mag2 = er.get("M2_mag")
+        mag3 = er.get("M3_mag")
+        org2 = er.get("M2_orig", getattr(inp, "Mx", 0) or 0)
+        org3 = er.get("M3_orig", getattr(inp, "My", 0) or 0)
+        if m2 is None:
+            m2 = ((1.0 if org2 >= 0 else -1.0) * abs(mag2)
+                  if mag2 is not None else (getattr(inp, "Mx", 0) or 0))
+        if m3 is None:
+            m3 = ((1.0 if org3 >= 0 else -1.0) * abs(mag3)
+                  if mag3 is not None else (getattr(inp, "My", 0) or 0))
+    return float(m2), float(m3)
+
+
 def _design_curve(sec, conc, steel, theta_deg, n_points=48):
     """Đường cong thiết kế EC2 (hệ số riêng phần đã trong vật liệu).
 
