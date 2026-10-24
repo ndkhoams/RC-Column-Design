@@ -354,8 +354,9 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
              f"{shp.get('phi_n', 0):.3f}"),
             ("[Q]<sub>1</sub> (dải nén xiên, (88))",
              f"{shp.get('Qcap1', 0):,.1f} kN"),
-            ("Q<sub>b</sub> + Q<sub>sw</sub>",
-             f"{shp.get('Qb', 0):,.1f} + "
+            ("Q<sub>b</sub> (vết nứt xiên)",
+             f"{shp.get('Qb', 0):,.1f} kN"),
+            ("Q<sub>sw</sub> (vết nứt xiên)",
              f"{shp.get('Qsw', 0):,.1f} kN"),
             ("[Q]<sub>2</sub> (vết nứt xiên)",
              f"{shp.get('Qcap2', 0):,.1f} kN"),
@@ -377,9 +378,13 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
         sw_rows += [
             ("Lực cắt tính toán, V3",
              f"{float(full['V_out']):.1f} kN "
-             f"(Qsw = 0 — chưa có giằng xuyên dày)"),
+             f"(không phóng đại; Qsw = 0 — chưa có giằng xuyên dày)"),
             ("Kích thước tiết diện ngoài MP, b × h<sub>0</sub>",
              f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} mm"),
+            ("[Q]<sub>1</sub> ngoài MP (dải nén xiên, (88))",
+             f"{shop.get('Qcap1', 0):,.1f} kN"),
+            ("Q<sub>b</sub> ngoài MP (Q<sub>sw</sub> = 0)",
+             f"{shop.get('Qb', 0):,.1f} kN"),
             ("Khả năng chịu cắt ngoài MP, V<sub>cap</sub>",
              f"{float(sho['V_cap']):,.1f} kN"),
             ("Tỉ số sử dụng cắt ngoài MP, D/C",

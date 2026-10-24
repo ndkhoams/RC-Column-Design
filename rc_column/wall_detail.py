@@ -594,18 +594,53 @@ def build_wall_detail_sections(full):
         else:
             sh_lines.append(
                 "Không phóng đại cắt kháng chấn (combo không phải "
-                "động đất / cờ DCM đang tắt): V_Ed = V2.")
+                "động đất / cờ DCM đang tắt): "
+                f"V_Ed = V2 = {_f(float(sh.get('V_d', V_in)), 1)} kN.")
+        # Phần 2/7: mở rộng thẻ trong MP cho ĐỦ số trung gian như
+        # bảng tab Kết quả (cùng dict shear, khớp từng chữ số):
+        # cấp thép, ĐK (96) luôn hiện (không chỉ khi hỏng),
+        # Asw/s yêu cầu + bố trí. Hàng (98) vẫn không có hàng riêng
+        # theo quy ước cột (engine vẫn kiểm; qsw dưới đây đã trừ
+        # nhóm vi phạm, chỉ ghi chú thêm khi có nhóm bị loại).
+        _rsw = float(shp.get("Rsw", 0.0) or 0.0)
+        _qmin = float(shp.get("qsw_min96", 0.0) or 0.0)
+        _sh_s = float(shp.get("s_h", 0.0) or 0.0)
+        _sh_asw = float(shp.get("Asw", 0.0) or 0.0)
+        _req_txt = (f"{_qmin / _rsw:.3f} mm²/mm" if _rsw > 0
+                    else "— (không có thép)")
+        _prov_txt = (f"{_sh_asw / _sh_s:.3f} mm²/mm" if _sh_s > 0
+                     else "—")
+        if shp.get("qb_mode") == "NONE":
+            _c96_txt = "— (không có thép)"
+        elif shp.get("cond96_ok"):
+            _c96_txt = (f"ĐẠT (qsw được kể "
+                        f"{shp.get('qsw', 0):.1f} ≥ tối thiểu "
+                        f"{_qmin:.1f} N/mm)")
+        else:
+            _c96_txt = (f"KHÔNG ĐẠT (qsw được kể "
+                        f"{shp.get('qsw', 0):.1f} < tối thiểu "
+                        f"{_qmin:.1f} N/mm) → Qb theo (97), thép "
+                        f"ngang vẫn được kể")
         sh_lines += [
             f"b × h0 = {shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm;  "
             f"thép ngang: {shp.get('sw_txt', '—')}",
-            f"b × h0 = {shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm;  "
-            f"thép ngang: {shp.get('sw_txt', '—')}",
             f"Asw = {shp.get('Asw', 0):,.0f} mm²;  "
-            f"Rsw = {shp.get('Rsw', 0):.0f} MPa",
+            f"Rsw = {shp.get('Rsw', 0):.0f} MPa"
+            + (f" (cấp {shp.get('steel_grade')})"
+               if shp.get("steel_grade") else ""),
             f"qsw bố trí = {shp.get('qsw_arr', 0):.1f} N/mm;  "
-            f"qsw được kể = {shp.get('qsw', 0):.1f} N/mm",
+            f"qsw được kể = {shp.get('qsw', 0):.1f} N/mm"
+            + (" (đã loại nhóm vi phạm (98))"
+               if shp.get("dropped98") else ""),
             f"φn = {shp.get('phi_n', 0):.3f} "
             f"(§8.1.3.3.2 — chỉ nhân số hạng bê tông)",
+            f"ĐK (96): qsw ≥ 0,25 × Rbt × b → {_c96_txt}",
+            f"Asw/s yêu cầu (tối thiểu theo (96)) = "
+            f"qsw_min96 / Rsw = {_qmin:.1f} / {_rsw:.0f} = "
+            f"{_req_txt} (phép đổi đơn vị từ số đã có trong dict "
+            f"shear, không tính lại khả năng cắt)",
+            f"Asw/s bố trí = Asw / s_h = {_sh_asw:.0f} / "
+            f"{_sh_s:.0f} = {_prov_txt}",
             f"ĐK1 (88) dải nén xiên: [Q]1 = "
             f"{shp.get('Qcap1', 0):,.1f} kN → "
             f"{'ĐẠT' if shp.get('ok1') else 'KHÔNG ĐẠT'}",
@@ -620,10 +655,6 @@ def build_wall_detail_sections(full):
                 f"ĐK (98) KHÔNG thỏa: s_h = {shp.get('s_h', 0):.0f} mm > "
                 f"s_max = {shp.get('s_max', 0):.0f} mm → thép ngang "
                 f"không được kể, Qsw = 0")
-        if not shp.get("cond96_ok", True):
-            sh_lines.append(
-                f"ĐK (96) KHÔNG thỏa: qsw < 0,25 × Rbt × b → Qb theo "
-                f"(97), thép ngang vẫn được kể")
         sh_dc = sh.get("dc")
         sh_dc_txt = (_f(sh_dc, 3) if sh_dc is not None
                      and math.isfinite(float(sh_dc)) else "∞")
@@ -655,6 +686,9 @@ def build_wall_detail_sections(full):
         _o_lines = [
             f"V3 = {_f(V_out, 1)} kN (lực cắt ngoài mặt phẳng — "
             f"Q3 nhập tay / V3 pier)",
+            f"V_Ed = V3 = {_f(float(sho.get('V_d', V_out)), 1)} kN "
+            f"(không phóng đại — TCVN 9386-1:2012 §5.4.2.4(7) chỉ "
+            f"áp cho cắt trong mặt phẳng)",
             f"b × h0 = Lw × (tw − cover − dia_v − dia_h/2) = "
             f"{_f(shop.get('Lw', 0), 0)} × "
             f"({_f(shop.get('tw', 0), 0)} − "
@@ -664,8 +698,13 @@ def build_wall_detail_sections(full):
             f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} mm",
             "Giằng xuyên dày: CHƯA CÓ ô nhập — không bịa thép "
             "giằng, không tự thêm thép: Qsw = 0 (chỉ tính Qb)",
+            f"qsw = {shop.get('qsw', 0):.1f} N/mm (không có giằng)",
             f"φn = {shop.get('phi_n', 0):.3f} "
             f"(§8.1.3.3.2 — chỉ nhân số hạng bê tông)",
+            "ĐK (96): qsw ≥ 0,25 × Rbt × b → — (không có thép)",
+            "Asw/s yêu cầu (tối thiểu theo (96)): — (không có "
+            "giằng)",
+            "Asw/s bố trí: — (không có giằng)",
             f"ĐK1 (88) dải nén xiên: [Q]1 = φn × 0,3 × Rb × b × h0 "
             f"= {shop.get('phi_n', 0):.3f} × 0,3 × {_fm(conc.Rb)} × "
             f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} / 1000 "

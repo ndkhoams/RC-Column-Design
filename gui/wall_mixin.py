@@ -518,6 +518,128 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
         pass
 
 
+def build_wall_shear_rows(full):
+    """Dựng các hàng bảng cắt vách từ dict kết quả đã tính 1 lần.
+
+    full: dict wall_tcvn_full. Mỗi hàng là (nhãn, trong MP, ngoài
+    MP) dạng chuỗi đã format sẵn để _build_wall_shear_table chỉ việc
+    vẽ. Hàng (98) KHÔNG có hàng riêng (quy ước cột: engine vẫn kiểm
+    (98), qsw dưới đây đã là giá trị sau khi loại nhóm vi phạm;
+    khi có nhóm bị loại thì ghi chú ngay ở hàng qsw)."""
+    full = full or {}
+
+    def _dc_txt(sh):
+        dc = sh.get("dc")
+        if dc is None:
+            return "—"
+        try:
+            v = float(dc)
+        except Exception:
+            return "—"
+        return f"{v:.3f}" if math.isfinite(v) else "∞"
+
+    def _col(sh, in_plane):
+        """Một cột (trong hoặc ngoài MP) dạng dict nhãn -> chuỗi."""
+        parts = (sh or {}).get("parts") or {}
+        pending = (sh or {}).get("V_cap") is None
+        if pending:
+            return None
+        if in_plane:
+            v_d = sh.get("V_d")
+            if sh.get("seismic_applied"):
+                v_raw = sh.get("V_raw", parts.get("V_raw"))
+                if v_raw is not None:
+                    v_txt = (f"{float(v_d):.1f} kN (×1.5 DCM — "
+                             f"TCVN 9386-1:2012 §5.4.2.4(7), "
+                             f"V_raw {float(v_raw):.1f} kN)")
+                else:
+                    v_txt = (f"{float(v_d):.1f} kN (×1.5 DCM — "
+                             f"TCVN 9386-1:2012 §5.4.2.4(7))")
+            else:
+                v_txt = f"{float(v_d):.1f} kN"
+            sw = parts.get("sw_txt", "—")
+            grade = parts.get("steel_grade") or ""
+            sw_txt = f"{sw} ({grade})" if grade else sw
+            asw_txt = f"{float(parts.get('Asw', 0.0)):.0f} mm²"
+            qsw = float(parts.get("qsw", 0.0) or 0.0)
+            qsw_txt = f"{qsw:.1f} N/mm"
+            if parts.get("dropped98"):
+                qsw_txt += " (đã loại nhóm vi phạm (98))"
+            rsw = float(parts.get("Rsw", 0.0) or 0.0)
+            qmin = float(parts.get("qsw_min96", 0.0) or 0.0)
+            req_txt = (f"{qmin / rsw:.3f} mm²/mm" if rsw > 0
+                       else "— (không có thép)")
+            s_h = float(parts.get("s_h", 0.0) or 0.0)
+            asw = float(parts.get("Asw", 0.0) or 0.0)
+            prov_txt = (f"{asw / s_h:.3f} mm²/mm" if s_h > 0
+                        else "—")
+        else:
+            v_d = sh.get("V_d")
+            v_txt = f"{float(v_d):.1f} kN (không phóng đại)"
+            sw_txt = parts.get("sw_txt", "—")
+            asw_txt = "0 mm² (không có giằng xuyên dày)"
+            qsw_txt = (f"{float(parts.get('qsw', 0.0) or 0.0):.1f} "
+                       f"N/mm (không có giằng)")
+            req_txt = "— (không có giằng)"
+            prov_txt = "—"
+        if parts.get("qb_mode") == "NONE":
+            c96_txt = "— (không có thép)"
+        elif parts.get("cond96_ok"):
+            c96_txt = "✓ Đạt"
+        else:
+            c96_txt = "✗ Không đạt → Qb theo CT (97)"
+        ok = sh.get("ok")
+        concl = (("✓ ĐẠT" if ok else "✗ KHÔNG ĐẠT")
+                 + f" (D/C {_dc_txt(sh)})")
+        return {
+            "Thép bố trí": sw_txt,
+            "Lực cắt tính toán, V_Ed": v_txt,
+            "Kích thước tiết diện, bw × d":
+                f"{float(parts.get('b', 0.0)):.0f} × "
+                f"{float(parts.get('h0', 0.0)):.0f} mm",
+            "Asw": asw_txt,
+            "qsw = Rsw × Asw/s": qsw_txt,
+            "Hệ số φn (§8.1.3.3.2)":
+                f"{float(parts.get('phi_n', 0.0)):.3f}",
+            "Điều kiện (96): qsw ≥ 0.25×Rbt×b": c96_txt,
+            "Độ bền trên dải nén xiên, [Q]1":
+                f"{float(parts.get('Qcap1', 0.0)):.1f} kN",
+            "Qb": f"{float(parts.get('Qb', 0.0)):.1f} kN",
+            "Qsw": f"{float(parts.get('Qsw', 0.0)):.1f} kN",
+            "Độ bền trên vết nứt xiên, [Q] = Qb + Qsw":
+                f"{float(parts.get('Qcap2', 0.0)):.1f} kN",
+            "Chiều dài hình chiếu vết nứt xiên, C":
+                f"{float(parts.get('C_opt', 0.0)):.0f} mm",
+            "Asw/s yêu cầu (tối thiểu theo (96))": req_txt,
+            "Asw/s bố trí": prov_txt,
+            "Kết luận": concl,
+        }
+
+    labels = ["Thép bố trí",
+              "Lực cắt tính toán, V_Ed",
+              "Kích thước tiết diện, bw × d",
+              "Asw",
+              "qsw = Rsw × Asw/s",
+              "Hệ số φn (§8.1.3.3.2)",
+              "Điều kiện (96): qsw ≥ 0.25×Rbt×b",
+              "Độ bền trên dải nén xiên, [Q]1",
+              "Qb",
+              "Qsw",
+              "Độ bền trên vết nứt xiên, [Q] = Qb + Qsw",
+              "Chiều dài hình chiếu vết nứt xiên, C",
+              "Asw/s yêu cầu (tối thiểu theo (96))",
+              "Asw/s bố trí",
+              "Kết luận"]
+    col_in = _col(full.get("shear_in") or {}, True)
+    col_out = _col(full.get("shear_out") or {}, False)
+    rows = []
+    for lab in labels:
+        in_txt = col_in[lab] if col_in is not None else "CHƯA KIỂM"
+        out_txt = col_out[lab] if col_out is not None else "CHƯA KIỂM"
+        rows.append((lab, in_txt, out_txt))
+    return rows
+
+
 class WallMixin:
     """Các method của chế độ Vách: frame nhập, toggle, JSON, chặn lát 0."""
 
@@ -1957,6 +2079,81 @@ class WallMixin:
         self._show_wall_preview(sec, winp, meta)
 
     # ---------------- Hiển thị kết quả CHECK vách TCVN ----------------
+    def _build_wall_shear_table(self, parent, full):
+        """Bảng kiểm tra cắt vách ở tab Kết quả (phần 2/7).
+
+        Dựng TƯƠNG TỰ bảng cắt cột
+        (gui/tcvn_mixin._build_stirrup_summary: 3 cột, hàng xen kẽ
+        trắng/xám, header xám #F3F4F6) nhưng KHÔNG tái dùng trực
+        tiếp hàm đó: hàm cột là method mixin cột, đọc cols cột
+        (shear_cols với khóa '2'/'3' + đối tượng sh của cột) và gắn
+        với full_res cột — không đọc được dict shear vách
+        (shear_in/shear_out + parts, ánh xạ b/h0 và V_Ed DCM riêng
+        của vách). Vì vậy bảng vách có builder riêng ở đây, dùng
+        chung duy nhất hàm pure build_wall_shear_rows ở trên để
+        test không cần Tk. Chỉ vẽ, không tính lại."""
+        rows = build_wall_shear_rows(full)
+        tf = tk.Frame(parent, bg="white",
+                      highlightbackground="#D1D5DB",
+                      highlightcolor="#D1D5DB", highlightthickness=1,
+                      takefocus=0)
+        tf.grid(row=3, column=0, columnspan=2, sticky="nsew",
+                padx=4, pady=4)
+        headers = ["KIỂM TRA KHẢ NĂNG CHỊU CẮT "
+                   "(TCVN 5574:2018 §8.1.3)",
+                   "Trong MP (V2)", "Ngoài MP (V3)"]
+        for j, h in enumerate(headers):
+            tk.Label(tf, text=h, font=("", 9, "bold"), bg="#F3F4F6",
+                     fg="#111827", anchor="w" if j == 0 else "center",
+                     padx=6, pady=7).grid(row=0, column=j,
+                                          sticky="nsew")
+            tf.columnconfigure(j, weight=2 if j == 0 else 1,
+                               uniform="sw")
+        for i, (label, v_in, v_out) in enumerate(rows, start=1):
+            _bg = "#F9FAFB" if i % 2 == 0 else "white"
+            _bold = (label == "Kết luận")
+            tk.Label(tf, text=label, font=("", 9, "bold" if _bold
+                                          else ""), bg=_bg,
+                     fg="#111827", anchor="w", padx=6,
+                     pady=4).grid(row=i, column=0, sticky="nsew")
+            for j, v in enumerate((v_in, v_out), start=1):
+                _fg = "#111827"
+                if label == "Kết luận":
+                    if v.startswith("✓"):
+                        _fg = "#065F46"
+                    elif v.startswith("✗"):
+                        _fg = "#991B1B"
+                # wraplength: chuỗi V_Ed khi phóng đại DCM dài
+                # (~70 ký tự, kèm số điều khoản bắt buộc) vượt bề
+                # rộng cột giá trị (~1/4 bề rộng bảng) nên phải
+                # ngắt dòng thay vì tràn/kẹp — các ô khác ngắn nên
+                # không bị ảnh hưởng.
+                tk.Label(tf, text=v, font=("", 9, "bold" if _bold
+                                          else ""), bg=_bg, fg=_fg,
+                         anchor="center", padx=6, wraplength=280,
+                         pady=4).grid(row=i, column=j, sticky="nsew")
+        # Footnote: căn cứ + ánh xạ + định nghĩa Asw/s yêu cầu +
+        # quy ước hàng (98) ẩn (engine vẫn kiểm, xem hàng qsw).
+        tk.Label(
+            tf, foreground="gray", wraplength=950, justify=tk.LEFT,
+            bg="white",
+            text="Căn cứ: TCVN 5574:2018 §8.1.3 (công thức cắt cấu "
+                 "kiện qua check_shear); ánh xạ vách — trong MP: "
+                 "b = tw, h0 = Lw − cover − dia_h − dia_v/2; ngoài "
+                 "MP: b = Lw, h0 = tw − cover − dia_v − dia_h/2, "
+                 "Qsw = 0 (chưa có giằng xuyên dày). Phóng đại DCM "
+                 "1,5× (TCVN 9386-1:2012 §5.4.2.4(7)) chỉ áp cho "
+                 "cắt trong MP khi combo động đất/DCM bật. "
+                 "Asw/s yêu cầu = qsw_min96 / Rsw: chỉ là phép đổi "
+                 "đơn vị từ qsw tối thiểu theo (96) đã có trong "
+                 "dict shear, không tính lại khả năng cắt. Hàng "
+                 "(98) ẩn khỏi hiển thị theo quy ước cột (engine "
+                 "vẫn kiểm; qsw trên đã là giá trị sau khi loại "
+                 "nhóm vi phạm).").grid(
+                     row=len(rows) + 1, column=0, columnspan=3,
+                     sticky="ew", padx=6, pady=(2, 4))
+        return tf
+
     def _wall_result_conclusion(self, full):
         """Chuỗi kết luận từng phần cho tab Kết quả vách (chỉ đọc
         dict kết quả, không tính lại). KHÔNG có kết luận chung:
@@ -2165,7 +2362,9 @@ class WallMixin:
             tk.Label(_box, text=_txt, font=("TkFixedFont", 9),
                      fg=_col, bg="white", wraplength=1200,
                      justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
-        # row 3: bảng cắt vách (phần 2)
+        # ===== Bảng kiểm tra cắt (full-width, row 3) =====
+        self._sum_inner.rowconfigure(3, weight=0)
+        self._build_wall_shear_table(self._sum_inner, full)
         # ===== Ghi chú phạm vi (full-width, row 4) =====
         tk.Label(
             self._sum_inner, foreground="gray", wraplength=1150,
