@@ -584,7 +584,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                     st_chart_title))
                 _blkB.append(_centered_img(_pngs[0], _IW))
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b> (NEd = {inp.N:+.1f} kN)",
+                    f"<b>Mặt cắt M2-M3</b> (NEd = {_BN:+.1f} kN)",
                     st_chart_title))
                 _blkC.append(_centered_img(_pngs[1], _IW))
             elif chart_pngs and len(chart_pngs) >= 2:
@@ -593,7 +593,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                     st_chart_title))
                 _blkB.append(_centered_img(chart_pngs[0], _IW))
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b> (NEd = {inp.N:+.1f} kN)",
+                    f"<b>Mặt cắt M2-M3</b> (NEd = {_BN:+.1f} kN)",
                     st_chart_title))
                 _blkC.append(_centered_img(chart_pngs[1], _IW))
         except Exception as e:
