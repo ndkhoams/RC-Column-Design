@@ -324,7 +324,7 @@ class TcvnMixin:
         left.pack(side=tk.LEFT)
         tk.Label(left, text="\u25cf M\u1eb7t c\u1eaft M2-M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
-        tk.Label(left, text=f"  N = {res.N:+.1f} kN  ",
+        tk.Label(left, text=f"  N = {getattr(res, 'BN', res.N):+.1f} kN  ",
                  font=("", 8, "bold"), fg="#1D4ED8",
                  bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
 
@@ -710,7 +710,7 @@ class TcvnMixin:
             "nm_title": "Biểu đồ tương tác N-Mα",
             "nm_alpha_text": f"α = {alpha_deg:.1f}°",
             "m2m3_title": "Mặt cắt M2-M3",
-            "m2m3_n_text": f"N = {res.N:+.1f} kN",
+            "m2m3_n_text": f"N = {getattr(res, 'BN', res.N):+.1f} kN",
             "notes_nm": notes,
             "on_nm_angle_change": lambda sel: self._on_tcvn_angle_unified(sel),
             "shear_builder": lambda parent: self._build_stirrup_summary(
@@ -833,16 +833,40 @@ class TcvnMixin:
                 ax.spines[sp].set_color("#9CA3AF")
 
         def _m2m3_ax(ax):
-            # Biểu đồ M2-M3 tại N (dùng điểm B song trục)
+            # Biểu đồ M2-M3 tại N = BN (lực dọc của điểm giới hạn B)
+            # — KHÔNG còn tại N tải như trước; chỉ lát cắt tại BN
+            # mới đi đúng qua B (moment_capacity(BN, α) = |B|, cùng
+            # hướng sửa vách wall_m2m3.py). Điểm A vẫn là mô men
+            # thiết kế ở N tải nên có thể không còn nằm trên bao
+            # mới — đúng bản chất, không phải lỗi vẽ.
             # Style theo mẫu: đường xanh dương, fill nhạt
             # Trục như ETABS (2026-10-22): hoành = M3, tung = M2 —
             # đồng bộ chart_draw.draw_m2m3_ax (x = p[1], y = p[0]).
             BLUE, BLUE_LT = "#2563EB", "#DBEAFE"
             GREEN, RED, ORANGE = "#059669", "#DC2626", "#F97316"
+            try:
+                _BN = float(getattr(res, "BN", res.N))
+                if not math.isfinite(_BN):
+                    _BN = float(res.N)
+            except Exception:
+                _BN = float(res.N)
             cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=24)
-            pts = cap.mx_my_curve(res.N)
-            xs = [p[1] for p in pts] + [pts[0][1]]
-            ys = [p[0] for p in pts] + [pts[0][0]]
+            pts = cap.mx_my_curve(_BN)
+            _samples = pts[:-1] if len(pts) > 1 else pts
+            xs = [p[1] for p in _samples]
+            ys = [p[0] for p in _samples]
+            # Chèn điểm B đúng góc α của nó vào polyline (như vách).
+            if math.hypot(res.Bx, res.By) > 1e-12 and len(xs) >= 2:
+                _alpha_b = math.degrees(math.atan2(res.Bx, res.By)) % 360.0
+                _step = 360.0 / len(xs)
+                _k = int(_alpha_b // _step)
+                _nearest = min(abs(_alpha_b - _k * _step),
+                               abs(_alpha_b - ((_k + 1) % len(xs)) * _step))
+                if _nearest > 1e-9:
+                    xs.insert(_k + 1, res.By)
+                    ys.insert(_k + 1, res.Bx)
+            xs = xs + [xs[0]]
+            ys = ys + [ys[0]]
             ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
             ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
             # Nét đứt đỏ từ tâm qua A tới B: (x, y) = (M3, M2)
@@ -860,6 +884,7 @@ class TcvnMixin:
             ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
             ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
             ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
+            ax.set_title(f"M2–M3 (tại N = {_BN:,.0f} kN)", fontsize=11)
 
             from matplotlib.lines import Line2D
             leg_elems = [
