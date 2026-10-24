@@ -108,11 +108,12 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
         # Thép vẽ bằng hình tròn trong KHÔNG GIAN DỮ LIỆU (bán kính
         # đúng dia/2, đơn vị mm) — dot_scale chỉ còn ảnh hưởng glyph
-        # legend (không còn phóng/thu cỡ chấm). Co tim vào trong 4%
-        # để không chạm viền (giữ nguyên vị trí cũ).
+        # legend (không còn phóng/thu cỡ chấm). Tim thép tại tọa độ
+        # thật từ engine (không co 0.96: thép đã lùi khỏi mép
+        # cover + sw_dia nên không chạm viền).
         for p in pts:
             ax.add_patch(mpatches.Circle(
-                (p.x * 0.96, p.y * 0.96), dia / 2.0,
+                (p.x, p.y), dia / 2.0,
                 fill=True, facecolor=color, edgecolor="white",
                 linewidth=0.8, zorder=4))
         legend_handles.append(Line2D(
@@ -581,11 +582,12 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         # Thép vẽ bằng hình tròn trong KHÔNG GIAN DỮ LIỆU (bán kính
         # đúng dia/2, đơn vị mm) thay cho marker scatter theo điểm
         # ảnh — zoom/pan thì thép scale cùng mặt cắt, ở home thì cỡ
-        # điểm khớp tỉ lệ thật với cạnh tiết diện. Vị trí tim giữ
-        # nguyên hệ số co 0.96 cũ (tránh chạm viền).
+        # điểm khớp tỉ lệ thật với cạnh tiết diện. Tim thép tại tọa
+        # độ thật từ engine (không co 0.96: thép đã lùi khỏi mép
+        # cover + sw_dia nên không chạm viền).
         for p in pts:
             ax.add_patch(mpatches.Circle(
-                (p.x * 0.96, p.y * 0.96), dia / 2.0,
+                (p.x, p.y), dia / 2.0,
                 fill=True, facecolor=color, edgecolor="white",
                 linewidth=0.8, zorder=5))
         legend_handles.append(Line2D(
