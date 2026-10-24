@@ -751,6 +751,7 @@ class TcvnMixin:
         self._sec_ax = None
         self._sec_fig = None
         self._sec_canvas = None
+        self._sec_cv = None  # tránh trỏ canvas ACI/EC2 cũ đã bị destroy
         self._sec_card_vars = {}
         from rc_column.pdf_export import draw_section_ax, _radial_limit
         from rc_column.interaction import (BiaxialCapacity, FiberSection,
@@ -1000,6 +1001,7 @@ class TcvnMixin:
         fig_sec.tight_layout()
         cv_sec.draw()
         self._sec_fig, self._sec_canvas, self._sec_ax = fig_sec, cv_sec, a1
+        self._sec_cv = cv_sec  # cùng tên như result_renderer (ACI/EC2)
         self._sec_card_vars = self._build_section_cards(f_tl, sec, inp)
 
         # ===== Ô trên-trái: bảng thông số tính toán =====
