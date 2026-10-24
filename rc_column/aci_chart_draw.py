@@ -27,7 +27,80 @@ def _design_curve(sec, conc, steel, theta_deg, tied=True, n_points=48):
         N = eng.N_max + (eng.N_min - eng.N_max) * i / (n_lv - 1)
         n_dsgn.append(float(N))
         m_dsgn.append(cap.moment_capacity(float(N), theta_deg))
+    _fix_cap_top(cap, eng, n_dsgn, m_dsgn, theta_deg)
     return n_dsgn, m_dsgn
+
+
+def _fix_cap_top(cap, eng, n_dsgn, m_dsgn, theta_deg):
+    """Sửa đoạn đỉnh cap phi*Pn,max của polyline HIỂN THỊ (chỉ vẽ,
+    không đụng bất kỳ đường tính nào — D/C không đi qua hàm này).
+
+    Cơ chế lỗi: trong mỗi sweep gamma của engine, mọi trạng thái bị
+    kẹp N tại N_cap (plateau phi*Nn >= N_cap, M chạy từ 0 tới M của
+    trạng thái cắt cap) đều sụp về một điểm neo duy nhất (N_cap, M=0)
+    sau bước lọc N giảm nghiêm ngặt. Tại các mức N nằm giữa N_cap và
+    điểm thứ hai của sweep (điểm đầu tiên không bị kẹp), capacity_fast
+    nội suy theo dây cung về điểm neo (N_cap, 0) nên M bị kéo thấp và
+    mất đơn điệu — sinh đoạn "móc" zíc-zắc ở đầu cong (đo thực tế ca
+    600x600 f'c=30: mức ngay dưới cap fast = 203.2 trong khi fine =
+    405.2; mức tại cap fast = 306.6, fine = 376.4). Các mức tại/dưới
+    điểm thứ hai của MỌI sweep đều không bị ảnh hưởng.
+
+    Cách sửa: điểm đỉnh lấy capacity FINE tại N = N_cap — đúng trạng
+    thái cắt cap (phi*Nn = N_cap theo chiều cắt, là đầu mút của đoạn
+    ngang cap như ETABS/CSiCol trình bày). Các mức còn nằm trong vùng
+    sụp (N lớn hơn điểm thứ hai nhỏ nhất của các sweep) được đối chiếu
+    với đường giàn nội suy giữa điểm đỉnh fine và mức sạch đầu tiên
+    bên dưới: mức nào lệch khỏi đường giàn quá 3% (dấu hiệu bị dây
+    cung neo kéo — đo thực tế -49% và -7%) thì thay bằng capacity
+    fine tại chính mức đó; mức nào khớp đường giàn thì giữ nguyên giá
+    trị fast (vốn chỉ lệch fine ~0.5% như phần còn lại của đường
+    cong). Cuối cùng ép đơn điệu tăng dần trong vùng sửa để không bao
+    giờ còn điểm gấp ngược. Nếu mức sạch đầu tiên không cao hơn điểm
+    đỉnh (hiếm), lấy capacity fine tại chính mức đó làm neo dưới.
+    """
+    if len(n_dsgn) < 3:
+        return
+    # Chỉ áp dụng khi đỉnh polyline đúng là mặt cap của engine
+    if abs(n_dsgn[0] - cap.N_cap) > 1e-6 * max(1.0, abs(cap.N_cap)):
+        return
+    n2 = [sw["N"][1] for sw in eng.sweeps if len(sw["N"]) > 1]
+    if not n2:
+        return
+    n2_min = min(n2)
+    j = None
+    for i in range(1, len(n_dsgn)):
+        if n_dsgn[i] <= n2_min:
+            j = i
+            break
+    if j is None:
+        return
+    m_top = cap.exact_capacity(n_dsgn[0], theta_deg)
+    if m_top <= 0.0:
+        return
+    if j == 1:
+        # Không có mức trung gian trong vùng sụp: chỉ thay điểm đỉnh
+        m_dsgn[0] = m_top
+        return
+    m_bot = m_dsgn[j]
+    if m_bot <= m_top:
+        m_bot = cap.exact_capacity(n_dsgn[j], theta_deg)
+        if m_bot <= m_top:
+            return  # Hình dạng bất thường: giữ nguyên như cũ
+        m_dsgn[j] = m_bot
+    n_top, n_bot = n_dsgn[0], n_dsgn[j]
+    m_dsgn[0] = m_top
+    for i in range(1, j):
+        t = (n_top - n_dsgn[i]) / (n_top - n_bot)
+        m_scaf = m_top + t * (m_bot - m_top)
+        if abs(m_dsgn[i] - m_scaf) > 0.03 * max(m_scaf, 1e-9):
+            m_fine = cap.exact_capacity(n_dsgn[i], theta_deg)
+            if m_fine > 0.0:
+                m_dsgn[i] = m_fine
+    # Ép đơn điệu trong vùng sửa (điểm gấp ngược không được quay lại)
+    for i in range(1, j + 1):
+        if m_dsgn[i] < m_dsgn[i - 1]:
+            m_dsgn[i] = m_dsgn[i - 1]
 
 
 def _interp_M_at_N(n_list, m_list, N):
