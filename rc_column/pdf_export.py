@@ -5,6 +5,8 @@ import math
 import os
 from typing import List, Tuple
 
+from .cover_migration import cover_long
+
 # --- Font hỗ trợ tiếng Việt ---
 def _mpl_font(name: str):
     """Đường dẫn font DejaVu Sans của matplotlib (có đủ glyph toán học)."""
@@ -851,8 +853,9 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         else:
             _sec_rows = [("Hình chữ nhật, t2 × t3",
                           f"{_t2:.0f} × {_t3:.0f} mm")]
-        _sec_rows.append(("Lớp bê tông bảo vệ cốt thép dọc, c",
-                          f"{inp.cover:.0f} mm"))
+        _sec_rows.append(("Lớp bảo vệ cốt đai, c",
+                          f"{inp.cover:.0f} mm "
+                          f"(c_dọc = {cover_long(inp.cover, getattr(inp, 'sw_dia', 0.0) or 0.0):.0f} mm)"))
         left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
 
         # BỐ TRÍ CỐT THÉP DỌC

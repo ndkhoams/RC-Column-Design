@@ -15,6 +15,7 @@ import os as _os
 
 from .pdf_export import (_mpl_font, _find_font, _find_font_bold, section_image,
                           draw_section_ax)
+from .cover_migration import cover_long
 from .aci_chart_draw import draw_aci_nm_alpha_ax, draw_aci_m2m3_ax
 
 
@@ -352,8 +353,9 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         else:
             _sec_rows = [("Hình chữ nhật, t2 × t3",
                           f"{_t2:.0f} × {_t3:.0f} mm")]
-        _sec_rows.append(("Lớp bê tông bảo vệ cốt thép dọc, c",
-                          f"{inp.cover:.0f} mm"))
+        _sec_rows.append(("Lớp bảo vệ cốt đai, c",
+                          f"{inp.cover:.0f} mm "
+                          f"(c_dọc = {cover_long(inp.cover, getattr(inp, 'sw_dia', 0.0) or 0.0):.0f} mm)"))
         left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
         left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
             ("Số lượng thép", " + ".join(_parts)),
