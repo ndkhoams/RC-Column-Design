@@ -516,23 +516,201 @@ class _ACIExact:
                                 "gi_a": a[6], "gi_b": b[6]})
         return out
 
+    def _contour_state(self, g_deg, N, ux, uy, px, py):
+        """Điểm contour (g_deg, along, perp, na, M2, M3, eps_t) tại
+        (gamma, N)
+        từ trạng thái thô của chính gamma đó (batch vector hoá, nội
+        suy theo N trên lưới _eps_far — cùng cách _sweep_at_N nội suy
+        sweep đã lọc, nhưng trên trạng thái thô nên không bị cụt ở đầu
+        lọc đơn điệu). None nếu gamma không có trạng thái tại mức N.
+        Dùng cho phục hồi nghiệm (nhanh hơn _state_at_N_fine nhiều)."""
+        g = math.radians(g_deg % 360.0)
+        cg, sg = math.cos(g), math.sin(g)
+        s_f = self.fx * cg + self.fy * sg
+        if len(s_f) == 0:
+            return None
+        s_r = self.rx * cg + self.ry * sg
+        s_max = float(s_f.max())
+        s_min = float(s_f.min())
+        h_s = max(s_max - s_min, 1e-9)
+        Ns, M2s, M3s, NAs, ETs = self._states_batch((s_f, s_r, s_max),
+                                                    h_s)
+        for i in range(len(Ns) - 1):
+            n0, n1 = Ns[i], Ns[i + 1]
+            if abs(n0 - n1) < 1e-9:
+                continue
+            if (n0 - N) * (n1 - N) <= 0.0:
+                t = (n0 - N) / (n0 - n1)
+                na = NAs[i] + t * (NAs[i + 1] - NAs[i])
+                if not math.isfinite(na):
+                    na = NAs[i + 1] if math.isfinite(NAs[i + 1]) \
+                        else NAs[i]
+                M2 = M2s[i] + t * (M2s[i + 1] - M2s[i])
+                M3 = M3s[i] + t * (M3s[i + 1] - M3s[i])
+                et = ETs[i] + t * (ETs[i + 1] - ETs[i])
+                return (g_deg, M2 * ux + M3 * uy, M2 * px + M3 * py,
+                        na, M2, M3, et)
+        return None
+
+    def _span_root(self, N, s0, s1, ux, uy, px, py, gi_a, gi_b):
+        """Nghiệm perp=0 trong khoảng gamma (s0, s1): 2 đầu là điểm
+        (g_deg, along, perp, na, M2, M3) có perp trái dấu. Lấy mẫu phụ
+        theo gamma bằng _contour_state, chặt đôi gamma trên cặp trái
+        dấu hẹp nhất, nội suy tuyến tính theo perp giữa 2 trạng thái
+        kẹp cuối. Trả dict nghiệm như _roots hoặc None."""
+        g0, g1 = s0[0], s1[0]
+        span = g1 - g0
+        if span <= 0.0:
+            return None
+        seq = [s0]
+        K = min(24, max(2, int(span / 0.5)))
+        for k in range(1, K):
+            gd = g0 + span * k / K
+            sm = self._contour_state(gd, N, ux, uy, px, py)
+            if sm is not None:
+                seq.append(sm)
+        seq.append(s1)
+        for t0, t1 in zip(seq, seq[1:]):
+            if t0[2] == 0.0 and t0[1] > 0:
+                return {"gamma_deg": t0[0] % 360.0, "capacity": t0[1],
+                        "na": t0[3], "M2": t0[4], "M3": t0[5],
+                        "eps_t": t0[6], "gi_a": gi_a, "gi_b": gi_b}
+            if t0[2] * t1[2] >= 0.0:
+                continue
+            lo, hi = t0, t1
+            for _ in range(12):
+                gm = 0.5 * (lo[0] + hi[0])
+                sm = self._contour_state(gm, N, ux, uy, px, py)
+                if sm is None:
+                    break
+                if lo[2] * sm[2] <= 0.0:
+                    hi = sm
+                else:
+                    lo = sm
+            t = lo[2] / (lo[2] - hi[2])
+            along = lo[1] + t * (hi[1] - lo[1])
+            if along <= 0:
+                return None
+            if math.isfinite(lo[3]) and math.isfinite(hi[3]):
+                na_r = lo[3] + t * (hi[3] - lo[3])
+            else:
+                na_r = lo[3] if math.isfinite(lo[3]) else hi[3]
+            return {"gamma_deg": (lo[0] + t * (hi[0] - lo[0])) % 360.0,
+                    "capacity": along, "na": na_r,
+                    "M2": lo[4] + t * (hi[4] - lo[4]),
+                    "M3": lo[5] + t * (hi[5] - lo[5]),
+                    "eps_t": lo[6] + t * (hi[6] - lo[6]),
+                    "gi_a": gi_a, "gi_b": gi_b}
+        return None
+
+    def _gap_roots(self, N, pts, ux, uy, px, py):
+        """Nghiệm perp=0 trên vòng điểm quét pts (thứ tự gamma tăng,
+        khép vòng) khi xét cả các cặp LIÊN TIẾP TRONG DANH SÁCH nhưng
+        không kề chỉ số gamma (cặp bắc qua lỗ). Cặp kề chỉ số cho cùng
+        kết quả như _roots nên hàm này chỉ dùng khi _roots rỗng.
+        Các bracket trái dấu perp được tinh chỉnh theo thứ tự along
+        nội suy chord tăng dần (chord là cận dưới của nghiệm trên cung
+        lồi): bỏ qua bracket ngược (chord <= 0) khi đã có bracket
+        dương, dừng khi chord vượt nghiệm tốt nhất đã có."""
+        out = []
+        n = len(pts)
+        if n < 2:
+            return out
+        cands = []
+        for i in range(n):
+            a = pts[i]
+            b = pts[(i + 1) % n]
+            pa, pb = a[2], b[2]
+            if pa == 0.0 and a[1] > 0:
+                out.append({"gamma_deg": a[0], "capacity": a[1],
+                            "na": a[3], "M2": a[4], "M3": a[5],
+                            "eps_t": a[7],
+                            "gi_a": a[6], "gi_b": a[6]})
+                continue
+            if pa * pb >= 0.0:
+                continue
+            span = (b[0] - a[0]) % 360.0
+            if span <= 0.0 or span > 90.0:
+                continue
+            t = pa / (pa - pb)
+            chord = a[1] + t * (b[1] - a[1])
+            cands.append((chord, a, b, span))
+        cands.sort(key=lambda c: c[0])
+        best = None
+        has_pos = any(c[0] > 0 for c in cands)
+        for chord, a, b, span in cands:
+            if chord <= 0 and has_pos:
+                continue
+            if best is not None and chord >= best["capacity"]:
+                break
+            s0 = (a[0], a[1], a[2], a[3], a[4], a[5], a[7])
+            s1 = (a[0] + span, b[1], b[2], b[3], b[4], b[5], b[7])
+            r = self._span_root(N, s0, s1, ux, uy, px, py, a[6], b[6])
+            if r is not None and (best is None
+                                  or r["capacity"] < best["capacity"]):
+                best = r
+        if best is not None:
+            out.append(best)
+        return out
+
+    def _recover_roots(self, N: float, theta_deg: float):
+        """Nghiệm tại (N, theta) khi _roots trên lưới gamma 3° rỗng:
+        bắc cầu khe gamma + tinh chỉnh bằng trạng thái fine. Cache
+        trên engine theo (N, theta) vì biểu đồ gọi lặp cùng mức."""
+        cache = self.__dict__.setdefault("_recover_cache", {})
+        key = (float(N), float(theta_deg))
+        if key in cache:
+            return cache[key]
+        th = math.radians(theta_deg)
+        ux, uy = math.sin(th), math.cos(th)
+        px, py = math.cos(th), -math.sin(th)
+        out = self._gap_roots(N, self._scan_fast(N, theta_deg, True),
+                              ux, uy, px, py)
+        if not out:
+            # Vòng quét quá thưa (mức N sát mút dưới của lưới): tự lấy
+            # mẫu gamma thô bằng _contour_state để dựng lại vòng.
+            pts = []
+            for k in range(24):
+                gd = 15.0 * k
+                s = self._contour_state(gd, N, ux, uy, px, py)
+                if s is None:
+                    continue
+                # gi quy về chỉ số gamma lưới (15° = 5 bước 3°) để
+                # boundary_fine dùng gi_a tra gammas[] vẫn đúng gamma
+                pts.append((s[0], s[1], s[2], s[3], s[4], s[5],
+                            5 * k, s[6]))
+            if len(pts) >= 2:
+                out = self._gap_roots(N, pts, ux, uy, px, py)
+        if len(cache) > 8192:
+            cache.clear()
+        cache[key] = out
+        return out
+
     def capacity_fast(self, N: float, theta_deg: float) -> float:
         """Capacity thiết kế exact tại (N, theta) từ lưới quét (nội suy)."""
         if N > self.N_max or N < self.N_min:
             return 0.0
         pts = self._scan_fast(N, theta_deg, False)
         roots = self._roots(pts)
+        if not roots:
+            roots = self._recover_roots(N, theta_deg)
         if roots:
             return min(r["capacity"] for r in roots)
-        pos = [p[1] for p in pts if p[1] > 0]
-        return max(pos) if pos else 0.0
+        # Không có nghiệm perp=0 thật trên vòng contour (mức N ngoài
+        # bao hoặc suy biến): capacity = 0 như bản fine. (Trước đây
+        # fallback lấy max hình chiếu along trên vòng quét — số bịa ở
+        # vùng vòng quét bị thủng lưới, xem _recover_roots.)
+        return 0.0
 
     def boundary_fast(self, N: float, theta_deg: float):
         """Trạng thái biên tại (N, theta): dict(gamma_deg, na, M2, M3,
         capacity, eps_t) hoặc None."""
         if N > self.N_max or N < self.N_min:
             return None
-        roots = self._roots(self._scan_fast(N, theta_deg, True))
+        pts = self._scan_fast(N, theta_deg, True)
+        roots = self._roots(pts)
+        if not roots:
+            roots = self._recover_roots(N, theta_deg)
         if not roots:
             return None
         return min(roots, key=lambda r: r["capacity"])
@@ -606,12 +784,24 @@ class _ACIExact:
         for i in range(n):
             a = pts[i]
             b = pts[(i + 1) % n]
-            if (i + 1) % n == 0:
-                if not (abs(a[0] - 357.0) < 1e-9 and abs(b[0]) < 1e-9):
-                    continue
-            elif abs(b[0] - a[0] - 3.0) > 1e-9:
-                continue
             pa, pb = a[2], b[2]
+            span = (b[0] - a[0]) % 360.0
+            if span > 3.0 + 1e-9:
+                # Cặp bắc qua gamma không có trạng thái tại mức N (lỗ
+                # lưới ở tiết diện mảnh): tinh chỉnh bằng _span_root
+                # thay cho bỏ qua như trước (trước: mất nghiệm -> 0).
+                if span <= 90.0 and (pa * pb < 0.0
+                                     or (pa == 0.0 and a[1] > 0)):
+                    s1 = (a[0] + span, b[1], b[2], b[3], b[4], b[5],
+                          b[6])
+                    r = self._span_root(N, a, s1, ux, uy, px, py, -1, -1)
+                    if r is not None:
+                        roots.append({"gamma_deg": r["gamma_deg"],
+                                      "capacity": r["capacity"],
+                                      "na": r["na"], "M2": r["M2"],
+                                      "M3": r["M3"],
+                                      "eps_t": r["eps_t"]})
+                continue
             if pa * pb < 0.0:
                 ga, gb = math.radians(a[0]), math.radians(b[0])
                 if gb < ga:
@@ -697,6 +887,8 @@ class _ACIExact:
         if N > self.N_max or N < self.N_min:
             return None
         roots = self._roots(self._scan(N, theta_deg))
+        if not roots:
+            roots = self._recover_roots(N, theta_deg)
         if not roots:
             return None
         r = min(roots, key=lambda x: x["capacity"])

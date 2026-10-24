@@ -115,8 +115,11 @@ def _scan_batch(exact, Ns, ths, full):
 
 def _cap_from_scan(sc):
     """capacity_fast từ kết quả _scan_batch(full=False): min trên các
-    nghiệm perp = 0 (along > 0); không có nghiệm thì max along > 0
-    trên các điểm hợp lệ; không có nữa thì 0.0 — như capacity_fast."""
+    nghiệm perp = 0 (along > 0) của các cặp kề chỉ số gamma. Trả
+    (values, has_root): dòng không có nghiệm kề được đánh dấu
+    has_root=False và tầng trên uỷ quyền cho capacity_fast scalar
+    (bản scalar phục hồi nghiệm bắc qua lỗ lưới gamma, xem
+    _recover_roots trong các engine) để giữ parity từng bit."""
     V = sc["valid"]
     A = sc["along"]
     P = sc["perp"]
@@ -147,11 +150,7 @@ def _cap_from_scan(sc):
                       along_w, np.inf)
     min_root = np.minimum(np.minimum(pair_min, cand0w), cand1w)
     has_root = np.isfinite(min_root)
-    pos = np.where(V & (A > 0), A, -np.inf)
-    max_pos = pos.max(axis=1) if G else np.full(R, -np.inf)
-    has_pos = np.isfinite(max_pos)
-    return np.where(has_root, min_root,
-                    np.where(has_pos, max_pos, 0.0))
+    return np.where(has_root, min_root, 0.0), has_root
 
 
 def capacity_fast_batch(exact, Ns, ths):
@@ -161,9 +160,16 @@ def capacity_fast_batch(exact, Ns, ths):
     out = np.zeros(len(Ns))
     for s in range(0, len(Ns), _CHUNK):
         e = min(len(Ns), s + _CHUNK)
-        cap = _cap_from_scan(_scan_batch(exact, Ns[s:e], ths[s:e], False))
+        cap, has_root = _cap_from_scan(
+            _scan_batch(exact, Ns[s:e], ths[s:e], False))
         nq = Ns[s:e]
-        cap = np.where((nq > exact.N_max) | (nq < exact.N_min), 0.0, cap)
+        inrange = (nq <= exact.N_max) & (nq >= exact.N_min)
+        cap = np.where(inrange, cap, 0.0)
+        # Dòng trong miền nhưng không có nghiệm kề chỉ số: uỷ quyền
+        # scalar (phục hồi nghiệm / 0.0) — hiếm (vùng lưới thủng).
+        for i in np.nonzero(inrange & ~has_root)[0]:
+            cap[i] = exact.capacity_fast(float(nq[i]),
+                                         float(ths[s + i]))
         out[s:e] = cap
     return out
 
@@ -264,6 +270,14 @@ def boundary_fast_batch(exact, Ns, ths):
         e = min(len(Ns), s + _CHUNK)
         sc = _scan_batch(exact, Ns[s:e], ths[s:e], True)
         _fill_boundary(exact, sc, degs, Ns[s:e], res, s)
+        # Dòng trong miền còn None (không nghiệm kề chỉ số): uỷ quyền
+        # scalar như capacity_fast_batch ở trên.
+        nq = Ns[s:e]
+        inrange = (nq <= exact.N_max) & (nq >= exact.N_min)
+        for i in np.nonzero(inrange)[0]:
+            if res[s + i] is None:
+                res[s + i] = exact.boundary_fast(float(nq[i]),
+                                                 float(ths[s + i]))
     return res
 
 
