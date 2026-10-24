@@ -545,18 +545,66 @@ def build_wall_detail_sections(full):
                     "—")
         _nc["full"] = True
         sh_cards.append(_nc)
+    # --- Cắt ngoài mặt phẳng (lát 4 — phần 4): thẻ riêng, cùng
+    # builder với PDF chi tiết nên số tab/PDF khớp nhau; chỉ đọc
+    # dict shear_out đã tính 1 lần ở wall_tcvn_full, không tính lại.
+    sho = full.get("shear_out") or {}
+    shop = sho.get("parts") or {}
+    if sho.get("V_cap") is not None:
+        _o_dc = sho.get("dc")
+        _o_dc_txt = (_f(_o_dc, 3) if _o_dc is not None
+                      and math.isfinite(float(_o_dc)) else "∞")
+        _o_lines = [
+            f"V3 = {_f(V_out, 1)} kN (lực cắt ngoài mặt phẳng — "
+            f"Q3 nhập tay / V3 pier)",
+            f"b × h0 = Lw × (tw − cover − dia_v − dia_h/2) = "
+            f"{_f(shop.get('Lw', 0), 0)} × "
+            f"({_f(shop.get('tw', 0), 0)} − "
+            f"{_f(shop.get('cover', 0), 0)} − "
+            f"{_f(shop.get('dia_v', 0), 0)} − "
+            f"{_f(shop.get('dia_h', 0) / 2.0, 1)}) = "
+            f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} mm",
+            "Giằng xuyên dày: CHƯA CÓ ô nhập — không bịa thép "
+            "giằng, không tự thêm thép: Qsw = 0 (chỉ tính Qb)",
+            f"φn = {shop.get('phi_n', 0):.3f} "
+            f"(§8.1.3.3.2 — chỉ nhân số hạng bê tông)",
+            f"ĐK1 (88) dải nén xiên: [Q]1 = φn × 0,3 × Rb × b × h0 "
+            f"= {shop.get('phi_n', 0):.3f} × 0,3 × {_fm(conc.Rb)} × "
+            f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} / 1000 "
+            f"= {shop.get('Qcap1', 0):,.1f} kN → "
+            f"{'ĐẠT' if shop.get('ok1') else 'KHÔNG ĐẠT'}",
+            f"ĐK2 vết nứt xiên: C = {shop.get('C_opt', 0):.0f} mm, "
+            f"Qb = {shop.get('Qb', 0):,.1f} kN, "
+            f"Qsw = {shop.get('Qsw', 0):,.1f} kN, "
+            f"[Q]2 = {shop.get('Qcap2', 0):,.1f} kN → "
+            f"{'ĐẠT' if shop.get('ok2') else 'KHÔNG ĐẠT'}",
+            f"Vcap = min([Q]1, [Q]2) = {float(sho['V_cap']):,.1f} kN",
+        ]
+        sh_cards.append(_card(
+            "Kiểm tra cắt — Ngoài mặt phẳng (V3)",
+            "§8.1.3 (ánh xạ vách, Qsw = 0)",
+            _o_lines,
+            f"D/C cắt ngoài MP = {_o_dc_txt} — "
+            f"{'ĐẠT' if sho.get('ok') else 'KHÔNG ĐẠT'} "
+            f"(kết luận cắt RIÊNG, không đổi kết luận N–M)"))
+    else:
+        _nc_o = _card("Kiểm tra cắt — Ngoài mặt phẳng (V3)",
+                      "§8.1.3 (ánh xạ vách, Qsw = 0)",
+                      [f"Chưa tính được: {sho.get('note', '—')}"],
+                      "—")
+        _nc_o["full"] = True
+        sh_cards.append(_nc_o)
+    # Trượt mạch ngừng vẫn CHƯA KIỂM (phần riêng, không thuộc lát này).
     sliding_note = (full.get("sliding") or {}).get("note") or ""
-    out_lines = [
-        f"V3 = {_f(V_out, 1)} kN (lực cắt ngoài mặt phẳng)",
-        "Cắt ngoài mặt phẳng: CHƯA KIỂM — chưa xác minh được "
-        "điều khoản TCVN 5574:2018 cho vách nên không mượn công "
-        "thức ma sát cắt ACI/EC2 sang TCVN.",
-        "Trượt mạch ngừng chân vách: CHƯA KIỂM — cùng lý do trên.",
+    slide_lines = [
+        "Trượt mạch ngừng chân vách: CHƯA KIỂM — chưa xác minh "
+        "được điều khoản TCVN 5574:2018 cho vách nên không mượn "
+        "công thức ma sát cắt ACI/EC2 sang TCVN.",
     ]
     if sliding_note:
-        out_lines += _wrap(f"Ghi chú engine: {sliding_note}")
-    sh_cards.append(_card("Cắt ngoài mặt phẳng & trượt mạch ngừng",
-                          "CHƯA KIỂM", out_lines, "CHƯA KIỂM"))
+        slide_lines += _wrap(f"Ghi chú engine: {sliding_note}")
+    sh_cards.append(_card("Trượt mạch ngừng chân vách",
+                          "CHƯA KIỂM", slide_lines, "CHƯA KIỂM"))
     sections.append({
         "num": 8, "title": "KIỂM TRA CẮT",
         "ref": "TCVN 5574:2018 §8.1.3 (ánh xạ vách — xem ghi chú)",
@@ -581,12 +629,14 @@ def build_wall_detail_sections(full):
                   "Q1 đang chờ user chốt",
                   ["Banner/kết luận chung (ok_all) hiện chỉ kết luận "
                    "N–M; cắt hiển thị kết luận RIÊNG, không tự gộp.",
-                   "Cắt trong mặt phẳng chưa kể phóng đại cắt kháng "
-                   "chấn TCVN 9386 (DCM) — nếu bật kháng chấn mà vẫn "
-                   "lấy V_d = V_in thì kết luận cắt là KHÔNG kể "
-                   "phóng đại.",
-                   "Ánh xạ cắt §8.1.3 sang vách (b = tw, h0 theo Lw, "
-                   "qsw từ thép ngang phân bố) là quyết định kỹ thuật "
+                   "Cắt (trong + ngoài mặt phẳng) chưa kể phóng đại "
+                   "cắt kháng chấn TCVN 9386 (DCM) — nếu bật kháng chấn "
+                   "mà vẫn lấy V_d = V_in/V_out thì kết luận cắt là "
+                   "KHÔNG kể phóng đại.",
+                   "Ánh xạ cắt §8.1.3 sang vách (trong MP: b = tw, h0 "
+                   "theo Lw, qsw từ thép ngang phân bố; ngoài MP: "
+                   "b = Lw, h0 theo tw, Qsw = 0 vì chưa có giằng xuyên "
+                   "dày) là quyết định kỹ thuật "
                    "của lát, KHÔNG phải điều khoản riêng cho vách "
                    "trong tiêu chuẩn — cần thẩm tra xác nhận trước "
                    "khi dùng cho thiết kế chính thức."],

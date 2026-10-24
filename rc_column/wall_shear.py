@@ -25,18 +25,20 @@ CĂN CỨ VÀ GIỚI HẠN ÁP DỤNG (đọc kỹ trước khi dùng số này 
   kiểm tra). Lát này KHÔNG áp hệ số phóng đại cắt kháng chấn (TCVN
   9386 DCM, D2) — đó là phần riêng, chưa bật ở đây; nếu bật kháng chấn
   mà vẫn lấy V_d = V_in thì kết luận cắt là KHÔNG kể phóng đại.
-- Cắt NGOÀI mặt phẳng (V_out) và trượt tại mạch ngừng thi công chân
-  vách KHÔNG làm ở lát này (xem ``wall_engine.py``: ``sliding`` vẫn
-  pending): chưa xác minh được điều khoản TCVN 5574:2018 cho hai kiểm
-  tra đó đối với vách, nên không mượn công thức ma sát cắt của ACI
-  (§22.9) hay EC2 (§6.2.5) sang TCVN và không lấp số.
+- Cắt NGOÀI mặt phẳng (V_out): LÀM ở lát 4 phần 4 bằng cùng bộ công
+  thức §8.1.3 qua ``check_shear`` (xem ``check_wall_shear_out_of_plane``
+  cuối file: b = Lw, h0 = tw - cover - dia_v - dia_h/2, Qsw = 0 vì
+  chưa có ô nhập giằng xuyên dày). Trượt tại mạch ngừng thi công
+  chân vách VẪN pending (xem ``wall_engine.py``: ``sliding``): chưa
+  xác minh được điều khoản TCVN 5574:2018 cho kiểm tra đó đối với
+  vách, nên không mượn công thức ma sát cắt của ACI (§22.9) hay
+  EC2 (§6.2.5) sang TCVN và không lấp số.
 
 Đơn vị: kN, kN·m, mm, MPa. N nén dương (quy ước app).
 """
 
 import math
 
-from .materials import STEEL_GRADES, SteelMaterial
 from .sections import bar_area
 from .stirrup import check_shear
 from .wall_section import wall_dims
@@ -68,18 +70,13 @@ def wall_shear_geometry(winp, Lw: float = None, tw: float = None):
 
 
 def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
-                              Lw: float = None, tw: float = None,
-                              steel_sw=None) -> dict:
+                              Lw: float = None, tw: float = None) -> dict:
     """Kiểm tra cắt trong mặt phẳng cho 1 tổ hợp (engine thuần).
 
     winp: WallInput; conc/steel: ConcreteMaterial/SteelMaterial (TCVN).
-    Rsw lấy từ ``steel_sw`` (vật liệu thép ngang RIÊNG của vách, phần
-    3/7) khi được truyền; steel_sw = None -> suy từ winp.sw_steel_grade
-    nếu là cấp hợp lệ (cùng γs với thép dọc, như đai cột), ngược lại
-    fallback về ``steel`` (cấp thép dọc x γs) — đúng hành vi cũ, để
-    file JSON cũ (không có khóa sw_steel_grade) và các caller cũ tái
-    hiện số cũ từng chữ số.
-    Ô "Cấp độ bền thép đai" của chế độ Cột KHÔNG dùng cho vách.
+    Rsw lấy từ ``steel`` — tức thép ngang lấy CÙNG cấp với thép dọc
+    (cấp thép dọc hiện tại x γs); ô "Cấp độ bền thép đai" của chế độ
+    Cột KHÔNG dùng cho vách ở lát này (xem câu hỏi Q2 trong báo cáo).
 
     Thép ngang phân bố quy đổi: một "nhóm" duy nhất
     Asw = layers_h x Ah (Ah = π·dia_h²/4), bước s_h — đúng vai trò
@@ -90,8 +87,6 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
     V_d, V_cap = min([Q]1, [Q]2), dc = |V_d|/V_cap, ok, parts (từng số
     hạng), sh (ShearResult của stirrup — nguồn duy nhất của các số),
     note (căn cứ + giới hạn). V_cap = 0 và |V_d| > 0 -> dc = inf.
-    parts["steel_grade"] = cấp thực dùng cho Rsw; parts["steel_grade_long"]
-    = cấp thép dọc (để đối chiếu khi fallback).
     """
     geom = wall_shear_geometry(winp, Lw, tw)
     b, h0 = geom["b"], geom["h0"]
@@ -102,16 +97,7 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
     except Exception:
         layers_h = 0
     Asw = layers_h * bar_area(dia_h) if dia_h > 0 and layers_h > 0 else 0.0
-    if steel_sw is not None:
-        sw_mat = steel_sw
-    else:
-        _g = getattr(winp, "sw_steel_grade", None)
-        if isinstance(_g, str) and _g in STEEL_GRADES:
-            sw_mat = SteelMaterial(STEEL_GRADES[_g],
-                                   float(getattr(steel, "gamma_s", 1.0)))
-        else:
-            sw_mat = steel
-    Rsw = float(sw_mat.Rsw)
+    Rsw = float(steel.Rsw)
     groups = [(Asw, s_h)] if Asw > 0 and s_h > 0 else []
     qsw_arr = Rsw * Asw / s_h if Asw > 0 and s_h > 0 else 0.0
     A_sec = geom["Lw"] * geom["tw"]
@@ -125,13 +111,9 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
     else:
         dc = 0.0 if abs(V_d) <= 1e-12 else float("inf")
     try:
-        steel_name = sw_mat.grade.name
+        steel_name = steel.grade.name
     except Exception:
         steel_name = ""
-    try:
-        steel_long_name = steel.grade.name
-    except Exception:
-        steel_long_name = ""
     if groups:
         sw_txt = f"{layers_h}φ{dia_h:.0f} a{s_h:.0f}"
     else:
@@ -141,8 +123,7 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
         "cover": geom["cover"], "dia_h": dia_h, "dia_v": geom["dia_v"],
         "s_h": s_h, "layers_h": layers_h, "Asw": Asw,
         "Asw_counted": sh.Asw_counted, "Rsw": Rsw,
-        "steel_grade": steel_name, "sw_steel_grade": steel_name,
-        "steel_grade_long": steel_long_name, "sw_txt": sw_txt,
+        "steel_grade": steel_name, "sw_txt": sw_txt,
         "qsw_arr": qsw_arr, "qsw": sh.qsw,
         "qsw_min96": sh.qsw_min96, "cond96_ok": sh.cond96_ok,
         "qb_mode": sh.qb_mode, "s_max": sh.s_max,
@@ -158,8 +139,100 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
         "ánh xạ vách: b = tw, h0 = Lw - cover - dia_h - dia_v/2, "
         "qsw từ thép ngang phân bố). φn (§8.1.3.3.2) chỉ nhân số hạng "
         "bê tông (ĐK1, Qb). V_d = V_in, chưa kể phóng đại cắt kháng "
-        "chấn 9386. Cắt ngoài mặt phẳng + trượt mạch ngừng: chưa kiểm "
+        "chấn 9386. Cắt ngoài mặt phẳng: xem "
+        "check_wall_shear_out_of_plane; trượt mạch ngừng: chưa kiểm "
         "(pending — xem wall_engine.sliding)."
+    )
+    return {"V_d": V_d, "V_cap": V_cap, "dc": dc, "ok": bool(sh.ok),
+            "parts": parts, "sh": sh, "note": note}
+
+
+# ================= CẮT NGOÀI MẶT PHẲNG (lát 4 — phần 4) =================
+def wall_shear_geometry_out_of_plane(winp, Lw: float = None,
+                                     tw: float = None):
+    """Hình học cắt ngoài mặt phẳng của vách (gương hàm trong MP).
+
+    Lw/tw: kích thước HIỆU DỤNG sau góc xoay (``wall_dims``) — ở
+    90°/270° Lw hiệu dụng là tw gốc và ngược lại, nên b/h0 tự đi
+    đúng phương ngoài mặt phẳng mới.
+    b = Lw; h0 = tw - cover - dia_v - dia_h/2: gương trực tiếp quy
+    ước h0 trong MP (report.py: h0 = h - cover - sw_dia - bar_dia/2),
+    hoán đổi vai trò dia_h/dia_v vì phương uốn đổi từ Lw sang tw.
+    """
+    if Lw is None or tw is None:
+        Lw_eff, tw_eff = wall_dims(winp)
+        Lw = float(Lw_eff) if Lw is None else float(Lw)
+        tw = float(tw_eff) if tw is None else float(tw)
+    else:
+        Lw, tw = float(Lw), float(tw)
+    cover = float(getattr(winp, "cover", 0.0) or 0.0)
+    dia_h = float(getattr(winp, "dia_h", 0.0) or 0.0)
+    dia_v = float(getattr(winp, "dia_v", 0.0) or 0.0)
+    h0 = tw - cover - dia_v - dia_h / 2.0
+    return {"Lw": Lw, "tw": tw, "b": Lw, "h0": max(h0, 1.0),
+            "h0_raw": h0, "cover": cover, "dia_h": dia_h,
+            "dia_v": dia_v}
+
+
+def check_wall_shear_out_of_plane(winp, conc, steel, V_out: float,
+                                  N: float, Lw: float = None,
+                                  tw: float = None) -> dict:
+    """Kiểm tra cắt ngoài mặt phẳng cho 1 tổ hợp (engine thuần).
+
+    winp: WallInput; conc/steel: ConcreteMaterial/SteelMaterial (TCVN).
+    Dùng NGUYÊN VẸN ``stirrup.check_shear`` (§8.1.3) như cắt trong MP,
+    chỉ khác ánh xạ (b = Lw, h0 theo tw) và Qsw = 0:
+    - groups = [] (không nhóm thép nào được kể) vì chưa có ô nhập
+      giằng xuyên dày — thép ngang phân bố (nằm trong mặt phẳng
+      vách) KHÔNG chịu cắt ngoài mặt phẳng nên không được quy đổi
+      thành qsw ở đây; không bịa thép giằng, không tự thêm thép.
+    - ĐK1 (88) φb1 = 0.3; ĐK2 (89)/(90) trên C ∈ [h0, 2h0]; φn
+      (§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb) — tất cả do
+      check_shear thực hiện, hàm này chỉ ánh xạ + đóng gói.
+    Trả về dict cùng khung với cắt trong MP: V_d, V_cap =
+    min([Q]1, [Q]2), dc = |V_d|/V_cap, ok, parts, sh, note.
+    V_cap = 0 và |V_d| > 0 -> dc = inf; V_d = 0 -> dc = 0.
+    """
+    geom = wall_shear_geometry_out_of_plane(winp, Lw, tw)
+    b, h0 = geom["b"], geom["h0"]
+    A_sec = geom["Lw"] * geom["tw"]
+    # Qsw = 0 hiển nhiên: không nhóm thép, Rsw truyền 0 để không còn
+    # đường nào sinh qsw từ thép ngang phân bố.
+    sh = check_shear(float(V_out), b, h0, float(conc.Rb),
+                     float(conc.Rbt), 0.0, 0.0, 0.0,
+                     direction="out", N=float(N), A_sec=A_sec,
+                     groups=[])
+    V_cap = min(sh.Qcap1, sh.Qcap2)
+    V_d = float(V_out)
+    if V_cap > 0:
+        dc = abs(V_d) / V_cap
+    else:
+        dc = 0.0 if abs(V_d) <= 1e-12 else float("inf")
+    parts = {
+        "b": b, "h0": h0, "Lw": geom["Lw"], "tw": geom["tw"],
+        "cover": geom["cover"], "dia_h": geom["dia_h"],
+        "dia_v": geom["dia_v"],
+        "s_h": 0.0, "layers_h": 0, "Asw": 0.0,
+        "Asw_counted": sh.Asw_counted, "Rsw": 0.0,
+        "steel_grade": "",
+        "sw_txt": "không có giằng xuyên dày (Qsw = 0)",
+        "qsw_arr": 0.0, "qsw": sh.qsw,
+        "qsw_min96": sh.qsw_min96, "cond96_ok": sh.cond96_ok,
+        "qb_mode": sh.qb_mode, "s_max": sh.s_max,
+        "cond98_ok": sh.cond98_ok, "dropped98": list(sh.dropped98),
+        "phi_n": sh.phi_n, "sigma_m": sh.sigma_m,
+        "sigma_t": sh.sigma_t, "Qcap1": sh.Qcap1,
+        "Qcap2": sh.Qcap2, "Qb": sh.Qb_opt, "Qsw": sh.Qsw_opt,
+        "C_opt": sh.C_opt, "ok1": sh.ok1, "ok2": sh.ok2,
+    }
+    note = (
+        "TCVN 5574:2018 §8.1.3 (công thức cắt cấu kiện, qua "
+        "rc_column/stirrup.check_shear — cùng bộ công thức của cột; "
+        "ánh xạ vách ngoài mặt phẳng: b = Lw, "
+        "h0 = tw - cover - dia_v - dia_h/2, Qsw = 0 vì chưa có ô "
+        "nhập giằng xuyên dày (không bịa thép giằng). φn "
+        "(§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb). "
+        "V_d = V_out = V3, chưa kể phóng đại cắt kháng chấn 9386."
     )
     return {"V_d": V_d, "V_cap": V_cap, "dc": dc, "ok": bool(sh.ok),
             "parts": parts, "sh": sh, "note": note}

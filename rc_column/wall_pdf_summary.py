@@ -158,6 +158,8 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
                 "boundary": "Tập trung vùng biên"}.get(mode, "Lát 1 cũ")
     sh = full.get("shear_in") or {}
     shp = sh.get("parts") or {}
+    sho = full.get("shear_out") or {}
+    shop = sho.get("parts") or {}
     ok_nm = bool(full["ok"])
     fs_txt = f"{float(full['fs']):.2f}" if math.isfinite(
         float(full["fs"])) else "∞"
@@ -303,17 +305,17 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
         "(TCVN 5574:2018 — vách chữ nhật đặc, GĐ1)", st_sub))
     story.append(t_main)
     story.append(Spacer(1, 4))
-    # Bảng cắt full-width (chỉ trong mặt phẳng; ngoài MP pending).
+    # Bảng cắt full-width: trong MP (V2) + ngoài MP (V3, Qsw = 0).
     sw_data = [[Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>",
                           st_hdr_left),
-                Paragraph("<b>Trong mặt phẳng (V2)</b>", st_hdr)]]
+                Paragraph("<b>Trong + ngoài mặt phẳng</b>", st_hdr)]]
     if sh.get("V_cap") is not None:
         _dc_sh = sh.get("dc")
         _dc_sh_txt = (f"{_dc_sh:.3f}" if _dc_sh is not None
                       and math.isfinite(float(_dc_sh)) else "∞")
         sw_rows = [
             ("Thép ngang bố trí", shp.get("sw_txt", "—")),
-            ("Lực cắt tính toán, V", f"{float(full['V_in']):.1f} kN"),
+            ("Lực cắt tính toán, V2", f"{float(full['V_in']):.1f} kN"),
             ("Kích thước tiết diện, b × h<sub>0</sub>",
              f"{shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm"),
             ("A<sub>sw</sub>", f"{shp.get('Asw', 0):,.0f} mm²"),
@@ -328,15 +330,36 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
              f"{shp.get('Qsw', 0):,.1f} kN"),
             ("[Q]<sub>2</sub> (vết nứt xiên)",
              f"{shp.get('Qcap2', 0):,.1f} kN"),
-            ("Khả năng chịu cắt, V<sub>cap</sub>",
+            ("Khả năng chịu cắt trong MP, V<sub>cap</sub>",
              f"{float(sh['V_cap']):,.1f} kN"),
-            ("Tỉ số sử dụng cắt, D/C",
+            ("Tỉ số sử dụng cắt trong MP, D/C",
              f"{_dc_sh_txt} — "
              f"{'ĐẠT' if sh.get('ok') else 'KHÔNG ĐẠT'}"),
         ]
     else:
         sw_rows = [("Khả năng chịu cắt trong mặt phẳng",
                     "— (chưa tính được)")]
+    # Hàng giá trị cắt ngoài MP (tóm tắt chỉ hiện giá trị, như trong
+    # MP; công thức → thay số → kết luận riêng ở PDF chi tiết).
+    if sho.get("V_cap") is not None:
+        _dc_sho = sho.get("dc")
+        _dc_sho_txt = (f"{_dc_sho:.3f}" if _dc_sho is not None
+                       and math.isfinite(float(_dc_sho)) else "∞")
+        sw_rows += [
+            ("Lực cắt tính toán, V3",
+             f"{float(full['V_out']):.1f} kN "
+             f"(Qsw = 0 — chưa có giằng xuyên dày)"),
+            ("Kích thước tiết diện ngoài MP, b × h<sub>0</sub>",
+             f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} mm"),
+            ("Khả năng chịu cắt ngoài MP, V<sub>cap</sub>",
+             f"{float(sho['V_cap']):,.1f} kN"),
+            ("Tỉ số sử dụng cắt ngoài MP, D/C",
+             f"{_dc_sho_txt} — "
+             f"{'ĐẠT' if sho.get('ok') else 'KHÔNG ĐẠT'}"),
+        ]
+    else:
+        sw_rows += [("Khả năng chịu cắt ngoài mặt phẳng",
+                     "— (chưa tính được)")]
     for a, b in sw_rows:
         sw_data.append([Paragraph(a, st_lbl),
                         Paragraph(b, st_cell_b if "Tỉ số" in a
@@ -361,8 +384,8 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
     story.append(KeepTogether(t_sw))
     story.append(Paragraph(
         "Phạm vi: kết luận trên chỉ kết luận N–M (banner); cắt trong "
-        "mặt phẳng kết luận riêng. Cắt ngoài mặt phẳng, trượt mạch "
-        "ngừng, vùng biên và cấu tạo chưa kiểm (lát 3). Cắt chưa kể "
+        "và ngoài mặt phẳng kết luận riêng. Trượt mạch ngừng, vùng "
+        "biên và cấu tạo chưa kiểm (lát 3). Cắt chưa kể "
         "phóng đại kháng chấn TCVN 9386.",
         st_note))
 
@@ -403,7 +426,12 @@ def export_wall_summary_pdf(full, filepath: str, member_name: str = None,
               (0.8, 58.0, 1.0), (0.6, 54.0, 1.0),
               # Mức sâu cho ca mặt cắt dọc (xoay 90°): ảnh mặt cắt
               # portrait chiếm chiều cao lớn nên phải thu hình thêm.
-              (0.6, 50.0, 1.0), (0.5, 46.0, 1.0)]
+              (0.6, 50.0, 1.0), (0.5, 46.0, 1.0),
+              # Nấc sâu thêm cho 4 hàng cắt ngoài MP (lát 4 — phần 4):
+              # ca xoay 90° + 4 hàng vượt 1 trang ở nấc 46 mm, vừa ở
+              # 42 mm (gap ~39 pt); vòng giãn phía dưới sẽ nở lại
+              # hình/padding trong khi vẫn giữ 1 trang.
+              (0.5, 42.0, 1.0)]
     best = None
     best_params = None
     best_gap = None
