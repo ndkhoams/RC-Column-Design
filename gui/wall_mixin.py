@@ -41,6 +41,7 @@ from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                  ConcreteMaterial, SteelMaterial)
 from rc_column.stability import BOUNDARY_NAMES
 from rc_column.wall_engine import wall_tcvn_full
+from rc_column.wall_shear import qb_formula_sub
 from rc_column.wall_input import (WALL_DEFAULTS, normalize_wall_dict,
                                   wall_from_dict)
 from rc_column.cover_migration import (COVER_SEMANTICS_NEW,
@@ -576,39 +577,36 @@ def build_wall_shear_rows(full):
         if pending:
             return None
         v_note = None
+        v_d = sh.get("V_d")
         if in_plane:
-            v_d = sh.get("V_d")
             # Ô giá trị chỉ còn số trơn; ghi chú DCM chuyển sang ô
             # nhãn hàng (khóa "_v_ed_note" — không phải một hàng,
             # vòng dựng rows dưới đây gắn vào nhãn khi có).
             v_txt = f"{float(v_d):.1f} kN"
             v_note = ("(×1.5 DCM — TCVN 9386-1:2025 §5.4.2.4(7))"
                       if sh.get("seismic_applied") else None)
-            sw = parts.get("sw_txt", "—")
-            grade = parts.get("steel_grade") or ""
-            sw_txt = f"{sw} ({grade})" if grade else sw
-            asw_txt = f"{float(parts.get('Asw', 0.0)):.0f} mm²"
-            qsw = float(parts.get("qsw", 0.0) or 0.0)
-            qsw_txt = f"{qsw:.1f} N/mm"
-            if parts.get("dropped98"):
-                qsw_txt += " (đã loại nhóm vi phạm (98))"
-            rsw = float(parts.get("Rsw", 0.0) or 0.0)
-            qmin = float(parts.get("qsw_min96", 0.0) or 0.0)
-            req_txt = (f"{qmin / rsw:.3f} mm²/mm" if rsw > 0
-                       else "— (không có thép)")
-            s_h = float(parts.get("s_h", 0.0) or 0.0)
-            asw = float(parts.get("Asw", 0.0) or 0.0)
-            prov_txt = (f"{asw / s_h:.3f} mm²/mm" if s_h > 0
-                        else "—")
         else:
-            v_d = sh.get("V_d")
             v_txt = f"{float(v_d):.1f} kN (không phóng đại)"
-            sw_txt = parts.get("sw_txt", "—")
-            asw_txt = "0 mm² (không có giằng xuyên dày)"
-            qsw_txt = (f"{float(parts.get('qsw', 0.0) or 0.0):.1f} "
-                       f"N/mm (không có giằng)")
-            req_txt = "— (không có giằng)"
-            prov_txt = "—"
+        # Thép bố trí + Asw/qsw/req/prov: cùng công thức 2 phương
+        # (ngoài MP mặc định 2 nhánh × φ(dia_h) @ s_h cùng cấp thép
+        # với trong MP — quyết user 2026-10-25; không có thép thì
+        # parts cho sw_txt "không có thép ngang", Asw/qsw = 0).
+        sw = parts.get("sw_txt", "—")
+        grade = parts.get("steel_grade") or ""
+        sw_txt = f"{sw} ({grade})" if grade else sw
+        asw_txt = f"{float(parts.get('Asw', 0.0)):.0f} mm²"
+        qsw = float(parts.get("qsw", 0.0) or 0.0)
+        qsw_txt = f"{qsw:.1f} N/mm"
+        if parts.get("dropped98"):
+            qsw_txt += " (đã loại nhóm vi phạm (98))"
+        rsw = float(parts.get("Rsw", 0.0) or 0.0)
+        qmin = float(parts.get("qsw_min96", 0.0) or 0.0)
+        req_txt = (f"{qmin / rsw:.3f} mm²/mm" if rsw > 0
+                   else "— (không có thép)")
+        s_h = float(parts.get("s_h", 0.0) or 0.0)
+        asw = float(parts.get("Asw", 0.0) or 0.0)
+        prov_txt = (f"{asw / s_h:.3f} mm²/mm" if s_h > 0
+                    else "—")
         if parts.get("qb_mode") == "NONE":
             c96_txt = "— (không có thép)"
         elif parts.get("cond96_ok"):
@@ -669,6 +667,32 @@ def build_wall_shear_rows(full):
             lab = f"{lab} {col_in['_v_ed_note']}"
         rows.append((lab, in_txt, out_txt))
     return rows
+
+
+def wall_qb_formula_note(full):
+    """Ghi chú diễn giải công thức Qb dưới bảng cắt (tab Kết quả).
+
+    1 đoạn gọn: công thức đúng như engine đang tính (TCVN
+    5574:2018 §8.1.3 qua stirrup.check_shear) + thay số thật cho
+    cả 2 phương. Chỉ đọc dict kết quả đã lưu, không tính lại.
+    Trả về "" khi thiếu dữ liệu (cắt pending) để caller bỏ qua.
+    """
+    try:
+        p_in = (full.get("shear_in") or {}).get("parts") or {}
+        p_out = (full.get("shear_out") or {}).get("parts") or {}
+        rbt = float(full["sec"].concrete.Rbt)
+        if not p_in or not p_out:
+            return ""
+        return (
+            "Qb (TCVN 5574:2018 §8.1.3): khảo sát C ∈ [h0, 2h0], "
+            "lấy [Q]2 = Qb + Qsw nhỏ nhất; (90) Qb = "
+            "φn×1,5×Rbt×b×h0²/C khi (96) đạt; (97) Qb = "
+            "φn×4×1,5×h0²×qsw/C khi (96) không đạt; "
+            "Qsw = 0,75×qsw×C; Qb chặn trong [0,5; 2,5]×Rbt×b×h0. "
+            f"Trong MP: {qb_formula_sub(p_in, rbt)} "
+            f"Ngoài MP: {qb_formula_sub(p_out, rbt)}")
+    except Exception:
+        return ""
 
 
 class WallMixin:
@@ -843,17 +867,8 @@ class WallMixin:
         _pair(self.w_frm_be, rr, "Đường kính d", self.w_cb_web_dia,
               "Khoảng cách s (mm)", self.w_en_web_s)
         rr += 1
-        ttk.Label(
-            self.w_frm_be, foreground="gray", wraplength=520,
-            text="Nhập 1 bên, áp y hệt 2 đầu; tất cả thanh cùng db. "
-                 "Mỗi vùng: 2 hàng dọc Lb (trên + dưới, mỗi hàng n_Lb "
-                 "thanh tính cả 2 góc) + mỗi lớp (cột dọc theo tw: "
-                 "L_out cột ngoài từ đầu ngoài vào, L_in cột trong "
-                 "từ hàng trong cùng đi ra) đóng góp n_tw thanh "
-                 "giữa. Tổng/vùng = "
-                 "2×n_Lb + n_tw×(L_out + L_in); L_out + L_in ≤ n_Lb.").grid(
-                     row=rr, column=0, columnspan=4, padx=4, pady=(2, 2),
-                     sticky=tk.W)
+        # (Ghi chú xám dưới khối vùng biên đã bỏ theo ghi chú đỏ của
+        # user 2026-10-25 — chỉ xóa hiển thị, không đổi mô hình.)
         # (Khối "Số đọc trực tiếp" ở panel đã bỏ theo quyết user
         # 2026-10-24 — dữ liệu suy ra vẫn tính bình thường cho ô
         # mặt cắt/thẻ thép qua build_wall_section, chỉ không hiển
@@ -905,13 +920,8 @@ class WallMixin:
         ttk.Label(f4, textvariable=self.w_L0_var_y,
                   font=("", 9, "bold")).grid(row=6, column=2, padx=4,
                                               pady=2, sticky=tk.W)
-        ttk.Label(
-            f4, foreground="gray", wraplength=520,
-            text="L₀ chỉ suy ra lúc tính, không lưu riêng. Phương X "
-                 "dùng cho uốn dọc trong mặt phẳng: "
-                 "M* = N·max(e1, ea = Lw/30)·ηx (bổ sung 2026-10-24)."
-            ).grid(row=7, column=0, columnspan=3, padx=4, pady=(2, 4),
-                   sticky=tk.W)
+        # (Ghi chú xám dưới mục 4 đã bỏ theo ghi chú đỏ của user
+        # 2026-10-25 — chỉ xóa hiển thị, không đổi cách suy L₀.)
 
         # ===== Bổ sung GĐ1 (ngoài format web) =====
         _grid4(fx)
@@ -995,15 +1005,8 @@ class WallMixin:
             row=r, column=0, columnspan=4, sticky=tk.W, padx=4, pady=4)
         r += 1
         self._toggle_wall_seismic()
-        ttk.Label(
-            fx, foreground="gray", wraplength=560,
-            text="Lát 1: đã hỗ trợ kiểm tra N–M vách theo TCVN (nhập "
-                 "tay ở mục 5: N / M2 = mô men ngoài mặt phẳng / M3 = "
-                 "mô men trong mặt phẳng / Q2 = cắt trong mặt phẳng / "
-                 "Q3 = cắt ngoài mặt phẳng). ACI/EC2, vùng biên, cắt "
-                 "và Pier Forces thuộc các lát sau.").grid(
-                     row=r, column=0, columnspan=4, padx=4, pady=(6, 2),
-                     sticky=tk.W)
+        # (Ghi chú xám dưới khối Kháng chấn đã bỏ theo ghi chú đỏ
+        # của user 2026-10-25 — chỉ xóa hiển thị.)
         # Khởi tạo hiển thị theo chế độ thép + ψ/L0
         self._update_wall_rotation_visibility()
         self._on_wall_steel_mode()
@@ -2222,6 +2225,18 @@ class WallMixin:
                                           else ""), bg=_bg, fg=_fg,
                          anchor="center", padx=6, wraplength=280,
                          pady=4).grid(row=i, column=j, sticky="nsew")
+        # Ghi chú diễn giải công thức Qb dưới bảng cắt (ghi chú đỏ
+        # user 2026-10-25): 1 đoạn gọn — công thức + thay số thật
+        # 2 phương, lấy từ wall_qb_formula_note (chỉ đọc dict kết
+        # quả, không tính lại). Đặt ở row 4 của parent (sau bảng
+        # cắt row 3), không chen vào frame tf của bảng.
+        _qb_note = wall_qb_formula_note(full)
+        if _qb_note:
+            tk.Label(parent, text=_qb_note, font=("", 9),
+                     fg="#6B7280", wraplength=1200, justify=tk.LEFT,
+                     anchor="w", padx=4, pady=2).grid(
+                         row=4, column=0, columnspan=2, sticky="ew",
+                         padx=4, pady=(2, 6))
         # (Khối diễn giải dưới bảng — căn cứ §8.1.3 + phạm vi —
         # đã bỏ theo quyết user 2026-10-24; căn cứ đầy đủ vẫn ở
         # tab Chi tiết mục 8 và PDF chi tiết.)
@@ -2364,10 +2379,12 @@ class WallMixin:
             tk.Label(_box, text=_txt, font=("TkFixedFont", 9),
                      fg=_col, bg="white", wraplength=1200,
                      justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
-        # ===== Bảng kiểm tra cắt (full-width, row 3, cuối tab) =====
-        # Khối diễn giải dưới bảng cắt (căn cứ + phạm vi) đã bỏ
-        # theo quyết user 2026-10-24 — tab kết thúc ở hàng Kết luận
-        # của bảng cắt, không để khoảng trống.
+        # ===== Bảng kiểm tra cắt (full-width, row 3) + ghi chú Qb
+        # (row 4) =====
+        # Khối diễn giải chung dưới bảng cắt (căn cứ + phạm vi) đã
+        # bỏ theo quyết user 2026-10-24; ghi chú Qb ở row 4 là yêu
+        # cầu mới rõ ràng của user 2026-10-25 (chỉ 1 đoạn công thức
+        # Qb), không phải khôi phục khối cũ.
         self._sum_inner.rowconfigure(3, weight=0)
         self._build_wall_shear_table(self._sum_inner, full)
         self._finish_wall_sum_layout()
@@ -2411,7 +2428,7 @@ class WallMixin:
                   font=("", 11, "bold")).pack(pady=(2, 6))
         cols = ("sym", "desc", "val")
         tree = ttk.Treeview(parent, columns=cols, show="headings",
-                            height=20, style="Param.Treeview")
+                            height=21, style="Param.Treeview")
         tree.heading("sym", text="Ký hiệu")
         tree.heading("desc", text="Thông số")
         tree.heading("val", text="Giá trị")
@@ -2437,8 +2454,6 @@ class WallMixin:
         c = full["c_neutral"]
         c_txt = (f"{c:.0f} mm" if c is not None and math.isfinite(c)
                  else "—")
-        fs_txt = (f"{full['fs']:.2f}" if math.isfinite(full["fs"])
-                  else "∞")
         # Bỏ 5 hàng Lw/tw/Ab/As/μ (user chốt 2026-10-22): Lw/tw đã có
         # nhãn kích thước trên hình mặt cắt, As/Ab/μ đã có ở hàng thẻ.
         rows = [
@@ -2494,14 +2509,20 @@ class WallMixin:
                             "Lực cắt trong MP đã phóng đại kháng chấn "
                             "(TCVN 9386-1:2025 §5.4.2.4(7) DCM)",
                             f"{_sh['V_d']:.1f} kN"))
+        # Hàng D/C N–M đặt ngay sau hàng α (ghi chú đỏ user
+        # 2026-10-25: trước đây nằm cuối bảng, dưới nếp gấp khi
+        # Treeview chỉ cao 20 hàng nên không nhìn thấy được) — lấy
+        # từ dict kết quả đã lưu, không tính lại; kết luận theo
+        # D/C ≤ 1 như bullets A/B/O dưới biểu đồ.
+        _alpha_idx = next(i for i, r in enumerate(rows) if r[0] == "α")
+        rows.insert(_alpha_idx + 1,
+                    ("D/C", "Kiểm tra N–M (song trục)",
+                     f"{full['dc']:.3f} — "
+                     + ("ĐẠT" if full["ok"] else "KHÔNG ĐẠT")))
         for i, (s, d, v) in enumerate(rows):
             tree.insert("", tk.END, values=(s, d, v),
-                        tags=("odd",) if i % 2 else ())
-        tree.insert("", tk.END,
-                    values=("D/C", "Tỷ số sử dụng khả năng chịu lực (N–M)",
-                            f"{full['dc']:.3f} (FS = {fs_txt})  "
-                            + ("ĐẠT" if full["ok"] else "KHÔNG ĐẠT")),
-                    tags=("dc",))
+                        tags=("dc",) if s == "D/C"
+                        else (("odd",) if i % 2 else ()))
         # --- Kết quả cắt trong mặt phẳng (lát 4): chỉ giá trị, theo
         # quy ước hiển thị cắt đã chốt (chi tiết combo/vị trí thuộc
         # phần tab Chi tiết sau; ở đây dict shear_in đã đủ dữ liệu).
@@ -2549,10 +2570,15 @@ class WallMixin:
                                 + ("ĐẠT" if _sho_ok else "KHÔNG ĐẠT")),
                         tags=("dc_shear_out",) if _sho_ok is not None
                         else ("odd",))
+            _shop = _sho.get("parts") or {}
+            _g_val = (_shop.get("sw_txt", "—")
+                      if _shop.get("Asw", 0) > 0
+                      and _shop.get("s_h", 0) > 0
+                      else "không có — Qsw = 0")
             tree.insert("", tk.END,
                         values=("Giằng xuyên dày",
                                 "Giằng xuyên dày (cắt ngoài MP)",
-                                "không có — Qsw = 0"),
+                                _g_val),
                         tags=("odd",))
         else:
             tree.insert("", tk.END,

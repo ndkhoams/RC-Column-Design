@@ -78,21 +78,26 @@ def test_sample_rows_match_parts():
         "Chiều dài hình chiếu vết nứt xiên, C",
         "Asw/s yêu cầu (tối thiểu theo (96))", "Asw/s bố trí",
         "Kết luận"]
+    # Cột ngoài MP nay có thép mặc định 2 nhánh (quyết user
+    # 2026-10-25, thay P4 cũ Qsw = 0): mọi hàng khớp parts như
+    # cột trong, kể cả (96) hỏng → Qb theo (97).
     assert _row(rows, "Thép bố trí") == ("2φ12 a200 (CB400-V)",
-                                         "không có giằng xuyên dày "
-                                         "(Qsw = 0)")
+                                         "2φ12 a200 (CB400-V)")
     assert _row(rows, "Lực cắt tính toán, V_Ed") == (
         "800.0 kN", "300.0 kN (không phóng đại)")
     assert _row(rows, "Kích thước tiết diện, bw × d") == (
         "350 × 2457 mm", "2500 × 307 mm")
     assert _num(_row(rows, "Asw")[0]) == pytest.approx(pin["Asw"], abs=0.5)
-    assert _row(rows, "Asw")[1].startswith("0 mm²")
+    assert _num(_row(rows, "Asw")[1]) == pytest.approx(pout["Asw"],
+                                                       abs=0.5)
     assert _num(_row(rows, "qsw = Rsw × Asw/s")[0]) == pytest.approx(
         pin["qsw"], abs=0.05)
+    assert _num(_row(rows, "qsw = Rsw × Asw/s")[1]) == pytest.approx(
+        pout["qsw"], abs=0.05)
     assert _row(rows, "Hệ số φn (§8.1.3.3.2)") == (
         f"{pin['phi_n']:.3f}", f"{pout['phi_n']:.3f}")
     assert _row(rows, "Điều kiện (96): qsw ≥ 0.25×Rbt×b") == (
-        "✓ Đạt", "— (không có thép)")
+        "✓ Đạt", "✗ Không đạt → Qb theo CT (97)")
     assert _num(_row(rows, "Độ bền trên dải nén xiên, [Q]1")[0]) == \
         pytest.approx(pin["Qcap1"], abs=0.05)
     assert _num(_row(rows, "Độ bền trên dải nén xiên, [Q]1")[1]) == \
@@ -101,9 +106,12 @@ def test_sample_rows_match_parts():
     assert _num(_row(rows, "Qb")[1]) == pytest.approx(pout["Qb"], abs=0.05)
     assert _num(_row(rows, "Qsw")[0]) == pytest.approx(pin["Qsw"],
                                                        abs=0.05)
-    assert _num(_row(rows, "Qsw")[1]) == 0.0
+    assert _num(_row(rows, "Qsw")[1]) == pytest.approx(pout["Qsw"],
+                                                       abs=0.05)
     assert _num(_row(rows, "Độ bền trên vết nứt xiên, [Q] = Qb + Qsw")[0]) \
         == pytest.approx(pin["Qcap2"], abs=0.05)
+    assert _num(_row(rows, "Độ bền trên vết nứt xiên, [Q] = Qb + Qsw")[1]) \
+        == pytest.approx(pout["Qcap2"], abs=0.05)
     assert _num(_row(rows, "Chiều dài hình chiếu vết nứt xiên, C")[0]) \
         == pytest.approx(pin["C_opt"], abs=0.5)
     assert _num(_row(rows, "Chiều dài hình chiếu vết nứt xiên, C")[1]) \
@@ -112,16 +120,17 @@ def test_sample_rows_match_parts():
     # khả năng cắt); Asw/s bố trí = Asw / s_h.
     assert _num(_row(rows, "Asw/s yêu cầu (tối thiểu theo (96))")[0]) == \
         pytest.approx(pin["qsw_min96"] / pin["Rsw"], abs=0.001)
-    assert _row(rows, "Asw/s yêu cầu (tối thiểu theo (96))")[1] == \
-        "— (không có giằng)"
+    assert _num(_row(rows, "Asw/s yêu cầu (tối thiểu theo (96))")[1]) == \
+        pytest.approx(pout["qsw_min96"] / pout["Rsw"], abs=0.001)
     assert _num(_row(rows, "Asw/s bố trí")[0]) == pytest.approx(
         pin["Asw"] / pin["s_h"], abs=0.001)
-    assert _row(rows, "Asw/s bố trí")[1] == "—"
+    assert _num(_row(rows, "Asw/s bố trí")[1]) == pytest.approx(
+        pout["Asw"] / pout["s_h"], abs=0.001)
     assert _row(rows, "Kết luận") == ("✓ ĐẠT (D/C 0.417)",
-                                      "✓ ĐẠT (D/C 0.426)")
+                                      "✓ ĐẠT (D/C 0.518)")
     # Đối chiếu số tuyệt đối đã đo tươi (bắt drift định dạng/số).
     assert abs(full["shear_in"]["V_cap"] - 1920.4634365847605) < 1e-6
-    assert abs(full["shear_out"]["V_cap"] - 704.5603563025211) < 1e-6
+    assert abs(full["shear_out"]["V_cap"] - 579.077682525225) < 1e-6
 
 
 def test_seismic_rows():
@@ -137,7 +146,7 @@ def test_seismic_rows():
     assert "V_raw" not in lab and "V_raw" not in v_in
     assert v_out == "300.0 kN (không phóng đại)"
     assert _row(rows, "Kết luận") == ("✓ ĐẠT (D/C 0.625)",
-                                      "✓ ĐẠT (D/C 0.426)")
+                                      "✓ ĐẠT (D/C 0.518)")
     assert abs(full["dc"] - 0.45907315723873987) < 1e-12
 
 
@@ -163,7 +172,10 @@ def test_rotated_rows():
         "✗ Không đạt → Qb theo CT (97)"
     cin, cout = _row(rows, "Kết luận")
     assert cin == "✗ KHÔNG ĐẠT (D/C 1.382)"
-    assert cout == "✓ ĐẠT (D/C 0.380)"
+    # Ngoài MP ở 90° = trong MP ở 0° (cùng hình học + thép): Qb
+    # theo (90), [Q]2 = 1920.5 → D/C 0.156 (thay mốc cũ 0.380 thời
+    # Qsw = 0 ngoài MP).
+    assert cout == "✓ ĐẠT (D/C 0.156)"
 
 
 def test_pending_rows():
@@ -210,14 +222,16 @@ def test_detail_section8_matches_table():
     out_txt = "\n".join(cards["Kiểm tra cắt — Ngoài mặt phẳng (V3)"]
                          ["lines"])
     for needle in ("986.8", "933.7", "4,473.4", "3931", "1.200",
-                   "Asw/s yêu cầu", "Asw/s bố trí", "ĐK (96)"):
+                   "Asw/s yêu cầu", "Asw/s bố trí", "ĐK (96)",
+                   "Công thức Qb"):
         assert needle in in_txt, needle
-    for needle in ("704.6", "3,992.5", "614", "không phóng đại",
-                   "Asw/s yêu cầu", "ĐK (96)"):
+    for needle in ("469.7", "109.4", "579.1", "3,992.5", "460",
+                   "không phóng đại", "Asw/s yêu cầu", "ĐK (96)",
+                   "Công thức Qb", "2φ12 a200"):
         assert needle in out_txt, needle
     assert "D/C cắt = 0.417" in \
         cards["Kiểm tra cắt — Trong mặt phẳng (V2)"]["result"]
-    assert "D/C cắt ngoài MP = 0.426" in \
+    assert "D/C cắt ngoài MP = 0.518" in \
         cards["Kiểm tra cắt — Ngoài mặt phẳng (V3)"]["result"]
 
 

@@ -6,8 +6,15 @@
   (kết luận N–M vẫn ở bảng KẾT QUẢ).
 - Bảng cắt 3 cột [Hạng mục | Trong MP | Ngoài MP].
 - V2 trơn + ghi chú DCM trong ô nhãn hàng V2.
-- Ghi chú phạm vi soát lại (bỏ câu DCM trùng + mệnh đề M2–M3).
-Chỉ đổi trình bày — mọi số tính giữ nguyên.
+- Ghi chú 02:05 + 02:11: bỏ 3 hàng THÔNG TIN CHUNG ("Loại vách",
+  "Chế độ thép dọc", "Xoay tiết diện"), bỏ dòng phụ "(TCVN
+  5574:2018 — vách chữ nhật đặc, GĐ1)" (thừa vì đã có ghi tiêu
+  chuẩn bên dưới), bỏ HẲN ghi chú phạm vi cuối trang; bảng cắt
+  neo đáy trang, mặt cắt căn trên, N–Mα căn giữa (2 spacer bằng
+  nhau), M2–M3 chảy tự nhiên.
+- Cột ngoài MP nay có thép mặc định 2 nhánh (quyết user
+  2026-10-25): số cắt ngoài MP đổi theo ([Q]2 657.6 -> 568.0);
+  số N–M/D/C và cắt trong MP không đổi.
 """
 
 import io
@@ -65,23 +72,32 @@ def test_summary_annot_seismic():
     assert "Kết luận N–M: D/C" not in txt
     assert "Diễn giải M2" not in txt
     assert "Kết luận N–M" in txt
-    # 3. Bảng cắt 3 cột + đủ 2 phương, số không đổi.
+    # 3. Bảng cắt 3 cột + đủ 2 phương; cắt trong MP không đổi,
+    # cắt ngoài MP theo thép mặc định 2 nhánh (quyết 2026-10-25).
     assert "Trong mặt phẳng" in txt
     assert "Ngoài mặt phẳng" in txt
     assert "1,828.9 kN" in txt
-    assert "657.6 kN" in txt
+    assert "568.0 kN" in txt
+    assert "657.6 kN" not in txt
+    assert "2φ12 a200" in txt
     assert "0.656" in txt and "0.000" in txt
     # 4. V2 trơn + ghi chú DCM ở hàng V2 (không parenthetical cũ).
     assert "1,5×800.0" not in txt
     assert "800.0 → 1200.0 kN" in txt
     assert "9386-1:2025" in txt
-    # 5. Ghi chú phạm vi: bỏ câu DCM + mệnh đề M2–M3, giữ phần còn
-    # lại.
-    assert "Phạm vi:" in txt
+    # 5. Ghi chú 02:05 + 02:11: bỏ 3 hàng THÔNG TIN CHUNG, bỏ dòng
+    # phụ GĐ1, bỏ HẲN ghi chú phạm vi cuối trang; ghi tiêu chuẩn
+    # bên dưới (hàng "Tiêu chuẩn" + tiêu đề bảng cắt) vẫn còn.
+    assert "Loại vách" not in txt
+    assert "Chế độ thép dọc" not in txt
+    assert "Xoay tiết diện" not in txt
+    assert "vách chữ nhật đặc, GĐ1" not in txt
+    assert "Phạm vi:" not in txt
+    assert "không có kết luận chung" not in txt
+    assert "CHƯA KIỂM" not in txt
+    assert "TCVN 5574:2018" in txt
     assert "M2–M3 diễn" not in txt
     assert "đã phóng đại kháng chấn" not in txt
-    assert "không có kết luận chung" in txt
-    assert "CHƯA KIỂM" in txt
 
 
 def test_summary_annot_non_seismic():
@@ -89,8 +105,10 @@ def test_summary_annot_non_seismic():
     pages, txt = _pdf_text(full)
     assert pages == 1
     # Không áp DCM: V2 = giá trị gốc, không có ghi chú DCM;
-    # ghi chú phạm vi giữ câu "chưa kể phóng đại".
+    # ghi chú phạm vi đã bỏ hẳn (02:11) nên câu "chưa kể phóng
+    # đại" cũng không còn trong tóm tắt (vẫn còn ở PDF chi tiết).
     assert "800.0 kN" in txt
     assert "800.0 → 1200.0 kN" not in txt
-    assert "chưa kể phóng đại" in txt
+    assert "chưa kể phóng đại" not in txt
+    assert "Phạm vi:" not in txt
     assert "M2–M3 diễn" not in txt

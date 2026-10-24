@@ -317,14 +317,18 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     # chỉ kết luận RIÊNG trong thẻ chi tiết + số trong dict.
     # V_out = V3 (Q3 nhập tay / V3 pier —
     # xem _collect_wall_loads + WallInput: V_in = V2 trong MP,
-    # V_out = V3 ngoài MP); Qsw = 0 (chưa có giằng xuyên dày).
+    # V_out = V3 ngoài MP); thép ngang ngoài MP mặc định 2 nhánh ×
+    # φ(dia_h) @ s_h cùng cấp thép với trong MP (quyết user
+    # 2026-10-25, thay thế quyết P4 cũ Qsw = 0) — cùng steel_sw
+    # đã suy cho cắt trong MP.
     shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
                  "ok": None, "parts": {},
                  "note": "Cắt ngoài mặt phẳng: lỗi khi tính (xem chi tiết)"}
     shear_out_lines = []
     try:
         shear_out = check_wall_shear_out_of_plane(winp, conc, steel,
-                                                  V_out, N, Lw=Lw, tw=tw)
+                                                  V_out, N, Lw=Lw, tw=tw,
+                                                  steel_sw=steel_sw)
         _q = shear_out["parts"]
         _dc_o_txt = (f"{shear_out['dc']:.3f}"
                      if shear_out["dc"] is not None
@@ -333,7 +337,10 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             f"Cắt ngoài mặt phẳng (TCVN 5574:2018 §8.1.3, ánh xạ vách): "
             f"V3 = {V_out:.1f} kN; b = Lw = {_q['b']:.0f} mm, "
             f"h0 = {_q['h0']:.0f} mm (tw - cover - dia_v - dia_h/2), "
-            f"giằng xuyên dày: chưa có (Qsw = 0); "
+            f"thép ngang {_q['sw_txt']} "
+            f"(Rsw = {_q['Rsw']:.0f} MPa, Asw = {_q['Asw']:.0f} mm²); "
+            f"qsw bố trí = {_q['qsw_arr']:.1f} N/mm, "
+            f"qsw được kể = {_q['qsw']:.1f} N/mm; "
             f"φn = {_q['phi_n']:.3f}")
         shear_out_lines.append(
             f"  ĐK1 (dải nén xiên, (88)): [Q]1 = φn×0.3×Rb×b×h0 "
@@ -343,6 +350,16 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             f"Qb = {_q['Qb']:.1f} kN, Qsw = {_q['Qsw']:.1f} kN, "
             f"[Q]2 = {_q['Qcap2']:.1f} kN -> "
             f"{'ĐẠT' if _q['ok2'] else 'KHÔNG ĐẠT'}")
+        if not _q["cond98_ok"]:
+            shear_out_lines.append(
+                f"  ĐK (98) KHÔNG thỏa: s_h = {_q['s_h']:.0f} mm > "
+                f"s_max = {_q['s_max']:.0f} mm -> thép ngang không "
+                f"được kể, Qsw = 0")
+        if not _q["cond96_ok"]:
+            shear_out_lines.append(
+                f"  ĐK (96) KHÔNG thỏa: qsw = {_q['qsw']:.1f} < "
+                f"0.25×Rbt×b = {_q['qsw_min96']:.1f} N/mm -> Qb theo "
+                f"(97), thép ngang vẫn được kể")
         shear_out_lines.append(
             f"  V_cap = min([Q]1, [Q]2) = {shear_out['V_cap']:.1f} kN, "
             f"D/C cắt ngoài MP = {_dc_o_txt} -> "

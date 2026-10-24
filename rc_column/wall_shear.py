@@ -29,8 +29,11 @@ CĂN CỨ VÀ GIỚI HẠN ÁP DỤNG (đọc kỹ trước khi dùng số này 
   kết quả là KHÔNG kể phóng đại — caller phải ghi rõ điều đó.
 - Cắt NGOÀI mặt phẳng (V_out): LÀM ở lát 4 phần 4 bằng cùng bộ công
   thức §8.1.3 qua ``check_shear`` (xem ``check_wall_shear_out_of_plane``
-  cuối file: b = Lw, h0 = tw - cover - dia_v - dia_h/2, Qsw = 0 vì
-  chưa có ô nhập giằng xuyên dày). Trượt tại mạch ngừng thi công
+  cuối file: b = Lw, h0 = tw - cover - dia_v - dia_h/2; thép ngang
+  mặc định 2 nhánh × φ(dia_h) @ s_h, cùng cấp thép với trong mặt
+  phẳng, suy từ input thép ngang bổ sung — quyết user 2026-10-25,
+  thay thế quyết P4 cũ Qsw = 0; không có thép bổ sung thì Qsw = 0
+  thật). Trượt tại mạch ngừng thi công
   chân vách VẪN pending (xem ``wall_engine.py``: ``sliding``): chưa
   xác minh được điều khoản TCVN 5574:2018 cho kiểm tra đó đối với
   vách, nên không mượn công thức ma sát cắt của ACI (§22.9) hay
@@ -70,6 +73,49 @@ def wall_shear_geometry(winp, Lw: float = None, tw: float = None):
     return {"Lw": Lw, "tw": tw, "b": tw, "h0": max(h0, 1.0),
             "h0_raw": h0, "cover": cover, "dia_h": dia_h,
             "dia_v": dia_v}
+
+
+def qb_formula_sub(parts, rbt):
+    """Thay số công thức Qb cho 1 phương — đúng nhánh code đang tính.
+
+    parts: dict parts của shear_in/shear_out; rbt: Rbt (MPa) của bê
+    tông. Trả về chuỗi "C = ..., (90)/(97): Qb = ... → ... kN;
+    Qsw = ... → [Q]2 = ... kN". Nhánh (90) khi qb_mode CT90 (ĐK
+    (96) đạt) hoặc NONE (không thép, chỉ bê tông); nhánh (97) khi
+    CT97 (ĐK (96) không đạt). Qb_tt được chặn trong
+    [0,5; 2,5]×Rbt×b×h0 rồi mới nhân φn (§8.1.3.3.2) — nếu chặn
+    có hiệu lực thì ghi rõ bước chặn để thay số không lệch.
+    Dùng chung cho ghi chú Qb tab Kết quả (gui) và thẻ chi tiết
+    (wall_detail) để 2 nơi không lệch nhau.
+    """
+    b = float(parts.get("b", 0.0) or 0.0)
+    h0 = float(parts.get("h0", 0.0) or 0.0)
+    c_opt = float(parts.get("C_opt", 0.0) or 0.0)
+    qsw = float(parts.get("qsw", 0.0) or 0.0)
+    phi_n = float(parts.get("phi_n", 0.0) or 0.0)
+    qmin = 0.5 * rbt * b * h0 / 1000.0
+    qmax = 2.5 * rbt * b * h0 / 1000.0
+    if parts.get("qb_mode") == "CT97":
+        tt = 4 * 1.5 * h0 * h0 * qsw / c_opt / 1000.0 if c_opt else 0.0
+        form = (f"φn×4×1,5×h0²×qsw/C = {phi_n:.3f}×4×1,5×{h0:.0f}²"
+                f"×{qsw:.1f}/{c_opt:.1f}")
+        clause = "(97)"
+    else:
+        tt = 1.5 * rbt * b * h0 * h0 / c_opt / 1000.0 if c_opt else 0.0
+        form = (f"φn×1,5×Rbt×b×h0²/C = {phi_n:.3f}×1,5×{rbt:.2f}"
+                f"×{b:.0f}×{h0:.0f}²/{c_opt:.1f}")
+        clause = "(90)"
+    clamped = min(max(tt, qmin), qmax)
+    if abs(clamped - tt) > 0.05:
+        form += (f" = {tt:.1f} → chặn [{qmin:.1f}; {qmax:.1f}]"
+                 f" → {clamped:.1f} ×φn")
+    # C hiện 1 chữ số thập phân (khác hàng C của bảng hiện số
+    # nguyên) để thay số tái hiện đúng Qb/Qsw tới 0,1 kN.
+    return (f"C = {c_opt:.1f} mm, {clause}: Qb = {form} → "
+            f"{float(parts.get('Qb', 0.0)):.1f} kN; "
+            f"Qsw = 0,75×{qsw:.1f}×{c_opt:.1f} = "
+            f"{float(parts.get('Qsw', 0.0)):.1f} kN → "
+            f"[Q]2 = {float(parts.get('Qcap2', 0.0)):.1f} kN")
 
 
 def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
@@ -202,47 +248,81 @@ def wall_shear_geometry_out_of_plane(winp, Lw: float = None,
 
 def check_wall_shear_out_of_plane(winp, conc, steel, V_out: float,
                                   N: float, Lw: float = None,
-                                  tw: float = None) -> dict:
+                                  tw: float = None,
+                                  steel_sw=None) -> dict:
     """Kiểm tra cắt ngoài mặt phẳng cho 1 tổ hợp (engine thuần).
 
     winp: WallInput; conc/steel: ConcreteMaterial/SteelMaterial (TCVN).
     Dùng NGUYÊN VẸN ``stirrup.check_shear`` (§8.1.3) như cắt trong MP,
-    chỉ khác ánh xạ (b = Lw, h0 theo tw) và Qsw = 0:
-    - groups = [] (không nhóm thép nào được kể) vì chưa có ô nhập
-      giằng xuyên dày — thép ngang phân bố (nằm trong mặt phẳng
-      vách) KHÔNG chịu cắt ngoài mặt phẳng nên không được quy đổi
-      thành qsw ở đây; không bịa thép giằng, không tự thêm thép.
+    chỉ khác ánh xạ (b = Lw, h0 theo tw) và thép ngang:
+    - Thép ngang MẶC ĐỊNH 2 nhánh × φ(dia_h) @ s_h, cùng cấp thép
+      (Rsw) với thép ngang trong mặt phẳng — suy trực tiếp từ
+      input thép ngang bổ sung (quyết user 2026-10-25, thay thế
+      quyết P4 cũ Qsw = 0); KHÔNG có ô nhập riêng cho ngoài MP.
+      Một "nhóm" duy nhất Asw = 2 × Ah, bước s_h — đúng vai trò
+      (Asw, s) của một nhóm đai trong ``check_shear``; ĐK (96)/(98)
+      áp đúng luật như trong MP trên chính nhóm này.
+    - Khi không có thép ngang bổ sung (dia_h = 0 hoặc s_h = 0) thì
+      groups = [] và Qsw = 0 thật (không bịa thép).
     - ĐK1 (88) φb1 = 0.3; ĐK2 (89)/(90) trên C ∈ [h0, 2h0]; φn
       (§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb) — tất cả do
       check_shear thực hiện, hàm này chỉ ánh xạ + đóng gói.
+    Rsw lấy từ ``steel_sw`` khi được truyền, ngược lại suy từ
+    winp.sw_steel_grade (cùng γs với thép dọc) rồi fallback về
+    ``steel`` — đúng luật hàm trong MP, để caller cũ tái hiện số.
     Trả về dict cùng khung với cắt trong MP: V_d, V_cap =
     min([Q]1, [Q]2), dc = |V_d|/V_cap, ok, parts, sh, note.
     V_cap = 0 và |V_d| > 0 -> dc = inf; V_d = 0 -> dc = 0.
+    parts["layers_h"] ở đây là SỐ NHÁNH ngoài MP (2 khi có thép,
+    0 khi không có thép), không phải số lớp lưới trong MP.
     """
     geom = wall_shear_geometry_out_of_plane(winp, Lw, tw)
     b, h0 = geom["b"], geom["h0"]
+    dia_h = geom["dia_h"]
+    s_h = float(getattr(winp, "s_h", 0.0) or 0.0)
+    branches = 2
+    Asw = branches * bar_area(dia_h) if dia_h > 0 else 0.0
+    if steel_sw is not None:
+        sw_mat = steel_sw
+    else:
+        _g = getattr(winp, "sw_steel_grade", None)
+        if isinstance(_g, str) and _g in STEEL_GRADES:
+            sw_mat = SteelMaterial(STEEL_GRADES[_g],
+                                   float(getattr(steel, "gamma_s", 1.0)))
+        else:
+            sw_mat = steel
+    Rsw = float(sw_mat.Rsw)
+    groups = [(Asw, s_h)] if Asw > 0 and s_h > 0 else []
+    qsw_arr = Rsw * Asw / s_h if Asw > 0 and s_h > 0 else 0.0
     A_sec = geom["Lw"] * geom["tw"]
-    # Qsw = 0 hiển nhiên: không nhóm thép, Rsw truyền 0 để không còn
-    # đường nào sinh qsw từ thép ngang phân bố.
     sh = check_shear(float(V_out), b, h0, float(conc.Rb),
-                     float(conc.Rbt), 0.0, 0.0, 0.0,
+                     float(conc.Rbt), Asw, Rsw, s_h,
                      direction="out", N=float(N), A_sec=A_sec,
-                     groups=[])
+                     groups=groups)
     V_cap = min(sh.Qcap1, sh.Qcap2)
     V_d = float(V_out)
     if V_cap > 0:
         dc = abs(V_d) / V_cap
     else:
         dc = 0.0 if abs(V_d) <= 1e-12 else float("inf")
+    try:
+        steel_name = sw_mat.grade.name
+    except Exception:
+        steel_name = ""
+    if groups:
+        sw_txt = f"{branches}φ{dia_h:.0f} a{s_h:.0f}"
+    else:
+        sw_txt = "không có thép ngang"
     parts = {
         "b": b, "h0": h0, "Lw": geom["Lw"], "tw": geom["tw"],
         "cover": geom["cover"], "dia_h": geom["dia_h"],
         "dia_v": geom["dia_v"],
-        "s_h": 0.0, "layers_h": 0, "Asw": 0.0,
-        "Asw_counted": sh.Asw_counted, "Rsw": 0.0,
-        "steel_grade": "",
-        "sw_txt": "không có giằng xuyên dày (Qsw = 0)",
-        "qsw_arr": 0.0, "qsw": sh.qsw,
+        "s_h": s_h, "layers_h": branches if groups else 0,
+        "Asw": Asw,
+        "Asw_counted": sh.Asw_counted, "Rsw": Rsw,
+        "steel_grade": steel_name,
+        "sw_txt": sw_txt,
+        "qsw_arr": qsw_arr, "qsw": sh.qsw,
         "qsw_min96": sh.qsw_min96, "cond96_ok": sh.cond96_ok,
         "qb_mode": sh.qb_mode, "s_max": sh.s_max,
         "cond98_ok": sh.cond98_ok, "dropped98": list(sh.dropped98),
@@ -255,8 +335,9 @@ def check_wall_shear_out_of_plane(winp, conc, steel, V_out: float,
         "TCVN 5574:2018 §8.1.3 (công thức cắt cấu kiện, qua "
         "rc_column/stirrup.check_shear — cùng bộ công thức của cột; "
         "ánh xạ vách ngoài mặt phẳng: b = Lw, "
-        "h0 = tw - cover - dia_v - dia_h/2, Qsw = 0 vì chưa có ô "
-        "nhập giằng xuyên dày (không bịa thép giằng). φn "
+        "h0 = tw - cover - dia_v - dia_h/2, thép ngang mặc định "
+        "2 nhánh × φ(dia_h) @ s_h cùng cấp thép với trong mặt phẳng "
+        "(quyết user 2026-10-25). φn "
         "(§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb). "
         "V_d = V_out = V3; cắt ngoài mặt phẳng KHÔNG phóng đại "
         "kháng chấn (TCVN 9386-1:2025 §5.4.2.4(7) chỉ áp cho cắt "

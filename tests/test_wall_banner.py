@@ -144,8 +144,13 @@ def test_section8_seismic_conditional_sentence():
     plain = _full(seis=False)
     txt2 = _text(build_wall_detail_sections(plain))
     assert "CHƯA kể phóng đại" in txt2
-    # Cắt ngoài MP ghi rõ Qsw = 0 trong cả 2 trường hợp.
-    assert "Qsw = 0" in txt and "Qsw = 0" in txt2
+    # Cắt ngoài MP nay có thép mặc định 2 nhánh (quyết user
+    # 2026-10-25, thay P4 cũ Qsw = 0) trong cả 2 trường hợp; không
+    # còn Qsw = 0 dạng kết quả (dòng công thức vẫn chứa
+    # "Qsw = 0,75×..." nên chỉ khẳng định dạng kết quả vắng).
+    assert "2φ12 a200" in txt and "2φ12 a200" in txt2
+    assert "Qsw = 0.0 kN" not in txt and "Qsw = 0.0 kN" not in txt2
+    assert "(Qsw = 0)" not in txt and "(Qsw = 0)" not in txt2
 
 
 def test_ok_all_kept_for_compat_but_not_overall():
@@ -178,7 +183,11 @@ def test_pdfs_no_banner_q1_and_conclusions_under_blocks():
     # KẾT QUẢ; PDF chi tiết (txt2 dưới đây) vẫn giữ caption.
     assert "Diễn giải M2–M3" not in txt
     assert "cùng kết luận N–M" not in txt
-    assert "CHƯA KIỂM" in txt
+    # Ghi chú phạm vi cuối trang đã bỏ hẳn (user 02:11) nên tóm
+    # tắt không còn "CHƯA KIỂM" (mọi khối tóm tắt đều ĐẠT);
+    # "CHƯA KIỂM" vẫn còn ở PDF chi tiết (txt2) qua ghi chú phạm
+    # vi mục 9 — xem assert bên dưới qua "Không có kết luận chung".
+    assert "CHƯA KIỂM" not in txt
     pages2, txt2 = _pdf_text(export_wall_pdf_cards, full)
     assert "Q1" not in txt2 and "banner" not in txt2.lower()
     assert "Kết luận chung" not in txt2

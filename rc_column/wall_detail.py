@@ -31,6 +31,7 @@ QUY TẮC (theo AGENTS.md + spec detail_format_spec.md §4/§4b/§4c):
 import math
 
 from .cover_migration import cover_long
+from .wall_shear import qb_formula_sub
 
 
 def _f(x, nd=1):
@@ -644,6 +645,12 @@ def build_wall_detail_sections(full):
             f"ĐK1 (88) dải nén xiên: [Q]1 = "
             f"{shp.get('Qcap1', 0):,.1f} kN → "
             f"{'ĐẠT' if shp.get('ok1') else 'KHÔNG ĐẠT'}",
+            f"Công thức Qb (§8.1.3): khảo sát C ∈ [h0, 2h0], "
+            f"[Q]2 = Qb + Qsw nhỏ nhất; (90) Qb = "
+            f"φn×1,5×Rbt×b×h0²/C khi (96) đạt, (97) Qb = "
+            f"φn×4×1,5×h0²×qsw/C khi (96) không đạt, "
+            f"Qsw = 0,75×qsw×C, Qb chặn [0,5; 2,5]×Rbt×b×h0 "
+            f"→ thay số: {qb_formula_sub(shp, float(conc.Rbt))}",
             f"ĐK2 vết nứt xiên: C = {shp.get('C_opt', 0):.0f} mm, "
             f"Qb = {shp.get('Qb', 0):,.1f} kN, "
             f"Qsw = {shp.get('Qsw', 0):,.1f} kN, "
@@ -683,6 +690,29 @@ def build_wall_detail_sections(full):
         _o_dc = sho.get("dc")
         _o_dc_txt = (_f(_o_dc, 3) if _o_dc is not None
                       and math.isfinite(float(_o_dc)) else "∞")
+        # Thẻ ngoài MP nay đủ số trung gian như thẻ trong MP (cùng
+        # dict shear, khớp từng chữ số): thép ngang ngoài MP mặc
+        # định 2 nhánh × φ(dia_h) @ s_h cùng cấp thép với trong MP
+        # (quyết user 2026-10-25, thay thế quyết P4 cũ Qsw = 0).
+        _o_rsw = float(shop.get("Rsw", 0.0) or 0.0)
+        _o_qmin = float(shop.get("qsw_min96", 0.0) or 0.0)
+        _o_s = float(shop.get("s_h", 0.0) or 0.0)
+        _o_asw = float(shop.get("Asw", 0.0) or 0.0)
+        _o_req_txt = (f"{_o_qmin / _o_rsw:.3f} mm²/mm" if _o_rsw > 0
+                      else "— (không có thép)")
+        _o_prov_txt = (f"{_o_asw / _o_s:.3f} mm²/mm" if _o_s > 0
+                       else "—")
+        if shop.get("qb_mode") == "NONE":
+            _o_c96_txt = "— (không có thép)"
+        elif shop.get("cond96_ok"):
+            _o_c96_txt = (f"ĐẠT (qsw được kể "
+                          f"{shop.get('qsw', 0):.1f} ≥ tối thiểu "
+                          f"{_o_qmin:.1f} N/mm)")
+        else:
+            _o_c96_txt = (f"KHÔNG ĐẠT (qsw được kể "
+                          f"{shop.get('qsw', 0):.1f} < tối thiểu "
+                          f"{_o_qmin:.1f} N/mm) → Qb theo (97), thép "
+                          f"ngang vẫn được kể")
         _o_lines = [
             f"V3 = {_f(V_out, 1)} kN (lực cắt ngoài mặt phẳng — "
             f"Q3 nhập tay / V3 pier)",
@@ -696,15 +726,33 @@ def build_wall_detail_sections(full):
             f"{_f(shop.get('dia_v', 0), 0)} − "
             f"{_f(shop.get('dia_h', 0) / 2.0, 1)}) = "
             f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} mm",
-            "Giằng xuyên dày: CHƯA CÓ ô nhập — không bịa thép "
-            "giằng, không tự thêm thép: Qsw = 0 (chỉ tính Qb)",
-            f"qsw = {shop.get('qsw', 0):.1f} N/mm (không có giằng)",
+            f"thép ngang ngoài MP (mặc định — quyết user "
+            f"2026-10-25): {shop.get('sw_txt', '—')}"
+            + (f" (cấp {shop.get('steel_grade')})"
+               if shop.get("steel_grade") else ""),
+            f"Asw = {shop.get('Asw', 0):,.0f} mm²;  "
+            f"Rsw = {shop.get('Rsw', 0):.0f} MPa"
+            + (f" (cấp {shop.get('steel_grade')})"
+               if shop.get("steel_grade") else ""),
+            f"qsw bố trí = {shop.get('qsw_arr', 0):.1f} N/mm;  "
+            f"qsw được kể = {shop.get('qsw', 0):.1f} N/mm"
+            + (" (đã loại nhóm vi phạm (98))"
+               if shop.get("dropped98") else ""),
             f"φn = {shop.get('phi_n', 0):.3f} "
             f"(§8.1.3.3.2 — chỉ nhân số hạng bê tông)",
-            "ĐK (96): qsw ≥ 0,25 × Rbt × b → — (không có thép)",
-            "Asw/s yêu cầu (tối thiểu theo (96)): — (không có "
-            "giằng)",
-            "Asw/s bố trí: — (không có giằng)",
+            f"ĐK (96): qsw ≥ 0,25 × Rbt × b → {_o_c96_txt}",
+            f"Asw/s yêu cầu (tối thiểu theo (96)) = "
+            f"qsw_min96 / Rsw = {_o_qmin:.1f} / {_o_rsw:.0f} = "
+            f"{_o_req_txt} (phép đổi đơn vị từ số đã có trong dict "
+            f"shear, không tính lại khả năng cắt)",
+            f"Asw/s bố trí = Asw / s_h = {_o_asw:.0f} / "
+            f"{_o_s:.0f} = {_o_prov_txt}",
+            f"Công thức Qb (§8.1.3): khảo sát C ∈ [h0, 2h0], "
+            f"[Q]2 = Qb + Qsw nhỏ nhất; (90) Qb = "
+            f"φn×1,5×Rbt×b×h0²/C khi (96) đạt, (97) Qb = "
+            f"φn×4×1,5×h0²×qsw/C khi (96) không đạt, "
+            f"Qsw = 0,75×qsw×C, Qb chặn [0,5; 2,5]×Rbt×b×h0 "
+            f"→ thay số: {qb_formula_sub(shop, float(conc.Rbt))}",
             f"ĐK1 (88) dải nén xiên: [Q]1 = φn × 0,3 × Rb × b × h0 "
             f"= {shop.get('phi_n', 0):.3f} × 0,3 × {_fm(conc.Rb)} × "
             f"{shop.get('b', 0):.0f} × {shop.get('h0', 0):.0f} / 1000 "
@@ -715,18 +763,24 @@ def build_wall_detail_sections(full):
             f"Qsw = {shop.get('Qsw', 0):,.1f} kN, "
             f"[Q]2 = {shop.get('Qcap2', 0):,.1f} kN → "
             f"{'ĐẠT' if shop.get('ok2') else 'KHÔNG ĐẠT'}",
-            f"Vcap = min([Q]1, [Q]2) = {float(sho['V_cap']):,.1f} kN",
         ]
+        if not shop.get("cond98_ok", True):
+            _o_lines.append(
+                f"ĐK (98) KHÔNG thỏa: s_h = {shop.get('s_h', 0):.0f} mm > "
+                f"s_max = {shop.get('s_max', 0):.0f} mm → thép ngang "
+                f"không được kể, Qsw = 0")
+        _o_lines.append(
+            f"Vcap = min([Q]1, [Q]2) = {float(sho['V_cap']):,.1f} kN")
         sh_cards.append(_card(
             "Kiểm tra cắt — Ngoài mặt phẳng (V3)",
-            "§8.1.3 (ánh xạ vách, Qsw = 0)",
+            "§8.1.3 (ánh xạ vách)",
             _o_lines,
             f"D/C cắt ngoài MP = {_o_dc_txt} — "
             f"{'ĐẠT' if sho.get('ok') else 'KHÔNG ĐẠT'} "
             f"(kết luận cắt RIÊNG, không đổi kết luận N–M)"))
     else:
         _nc_o = _card("Kiểm tra cắt — Ngoài mặt phẳng (V3)",
-                      "§8.1.3 (ánh xạ vách, Qsw = 0)",
+                      "§8.1.3 (ánh xạ vách)",
                       [f"Chưa tính được: {sho.get('note', '—')}"],
                       "—")
         _nc_o["full"] = True
@@ -780,8 +834,9 @@ def build_wall_detail_sections(full):
                     "mặt phẳng không bao giờ phóng đại."),
                    "Ánh xạ cắt §8.1.3 sang vách (trong MP: b = tw, h0 "
                    "theo Lw, qsw từ thép ngang phân bố; ngoài MP: "
-                   "b = Lw, h0 theo tw, Qsw = 0 vì chưa có giằng xuyên "
-                   "dày) là quyết định kỹ thuật "
+                   "b = Lw, h0 theo tw, thép ngang mặc định 2 nhánh "
+                   "× φ(dia_h) @ s_h cùng cấp thép với trong MP) là "
+                   "quyết định kỹ thuật "
                    "của lát, KHÔNG phải điều khoản riêng cho vách "
                    "trong tiêu chuẩn — cần thẩm tra xác nhận trước "
                    "khi dùng cho thiết kế chính thức."],

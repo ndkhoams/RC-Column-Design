@@ -58,9 +58,23 @@ def _img_from_bytes(png_bytes, w_mm, max_h=None):
     return Image(buf, width=w_mm, height=h_mm)
 
 
-def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
+def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
+          fill_pts=None):
     """Build 1 bản PDF với tham số layout cho trước. Trả về
-    (số trang, khoảng trống cuối trang theo pt, hoặc None)."""
+    (số trang, khoảng trống cuối trang theo pt, hoặc None).
+
+    fill_pts (chỉ bản build cuối, không dùng trong vòng thử
+    ladder/giãn): chiều cao spacer CỘNG THÊM giữa khối chính
+    (t_main) và bảng cắt sao cho bảng cắt — nay là khối cuối trang
+    sau khi ghi chú phạm vi bị bỏ — neo đúng đáy trang (lấp đầy
+    1 trang). Giá trị này do caller tính từ gap ĐO ĐƯỢC của bản
+    build không fill (frame còn trống bao nhiêu thì chèn bấy
+    nhiêu, trừ safety) nên chính xác hơn đo wrap (wrap không tính
+    spaceBefore/spaceAfter của các Paragraph). Neo dọc: mặt cắt
+    CĂN TRÊN (VALIGN TOP của t_main, ngang đỉnh bảng thông tin),
+    N–Mα CĂN GIỮA (2 spacer bằng nhau quanh nó trong right_flow),
+    M2–M3 chảy tự nhiên ở giữa.
+    """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib.colors import HexColor
@@ -150,13 +164,9 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
 
     winp = full["winp"]
     sec = full["sec"]
-    meta = full.get("meta") or {}
     sl = full["slend"]
     conc = sec.concrete
     steel = sec.steel
-    mode = str(meta.get("steel_mode") or "boundary")
-    mode_txt = {"perimeter": "Phân bố đều theo chu vi",
-                "boundary": "Tập trung vùng biên"}.get(mode, "Lát 1 cũ")
     sh = full.get("shear_in") or {}
     shp = sh.get("parts") or {}
     sho = full.get("shear_out") or {}
@@ -166,13 +176,13 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
         float(full["fs"])) else "∞"
 
     left_flow = []
+    # 3 hàng "Loại vách / Chế độ thép dọc / Xoay tiết diện" đã bỏ
+    # khỏi THÔNG TIN CHUNG theo ghi chú đỏ user 2026-10-25 (chỉ PDF
+    # tóm tắt vách, không đụng PDF cột; ghi tiêu chuẩn vẫn còn ở
+    # hàng "Tiêu chuẩn" dưới đây + tiêu đề bảng cắt).
     left_flow.append(sec_table("THÔNG TIN CHUNG", [
         ("Tiêu chuẩn", "TCVN 5574:2018"),
         ("Cấu kiện", (str(member_name).upper() if member_name else "—")),
-        ("Loại vách", "Vách phẳng chữ nhật đặc (GĐ1)"),
-        ("Chế độ thép dọc", mode_txt),
-        ("Xoay tiết diện",
-         f"{int(getattr(winp, 'rot_deg', 0) or 0) % 360}°"),
     ]))
     left_flow.append(sec_table("VẬT LIỆU", [
         ("Bê tông", conc.grade.name),
@@ -318,17 +328,20 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
     story = []
     story.append(Paragraph(
         "KIỂM TRA KHẢ NĂNG CHỊU LỰC VÁCH BÊ TÔNG CỐT THÉP", st_title))
-    story.append(Paragraph(
-        "(TCVN 5574:2018 — vách chữ nhật đặc, GĐ1)", st_sub))
+    # Dòng phụ "(TCVN 5574:2018 — vách chữ nhật đặc, GĐ1)" đã bỏ
+    # theo ghi chú user 2026-10-25 (thừa vì đã có ghi tiêu chuẩn
+    # bên dưới: hàng "Tiêu chuẩn" + tiêu đề bảng cắt); các ghi
+    # tiêu chuẩn còn lại giữ nguyên.
     story.append(t_main)
-    story.append(Spacer(1, 4))
     # Bảng cắt full-width, 3 cột (ghi chú user 2026-10-25: "check 2
     # cột trong và ngoài riêng"): [Hạng mục | Trong MP | Ngoài MP]
     # thay cho 2 cột với các hàng trong/ngoài xếp chồng dọc. Chỉ
     # đổi trình bày — mọi số lấy từ cùng dict sh/shp (trong) và
-    # sho/shop (ngoài); hàng nào tóm tắt trước đây không có số
-    # ngoài MP thì ô ngoài là "—". Tóm tắt chỉ hiện giá trị;
-    # công thức → thay số → kết luận riêng ở PDF chi tiết.
+    # sho/shop (ngoài). Cột ngoài MP nay hiện đủ giá trị thép
+    # (thép ngang mặc định 2 nhánh — quyết user 2026-10-25),
+    # không còn "—" ở các hàng thép/Asw/qsw/φn/Qsw/[Q]2. Tóm tắt
+    # chỉ hiện giá trị; công thức → thay số → kết luận riêng ở
+    # PDF chi tiết.
     st_cell_c = ParagraphStyle("cc", parent=st_cell,
                                alignment=TA_CENTER)
     st_cell_bc = ParagraphStyle("ccb", parent=st_cell_b,
@@ -362,14 +375,20 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
             st_lbl_note))
     _v_in = (f"{float(sh.get('V_d', full['V_in'])):.1f} kN"
              if _in_ok else "— (chưa tính được)")
-    _v_out = (f"{float(full['V_out']):.1f} kN "
-              f"(không phóng đại; Qsw = 0 — chưa có giằng xuyên dày)"
+    _v_out = (f"{float(full['V_out']):.1f} kN (không phóng đại)"
               if _out_ok else "— (chưa tính được)")
     _dash = "—"
+    # Thép bố trí kèm cấp thép (cùng quy ước bảng tab Kết quả);
+    # cột ngoài MP nay có thép thật nên không còn "—".
+    _sw_in = (_dash if not _in_ok else
+              (f"{shp.get('sw_txt', '—')} ({shp.get('steel_grade')})"
+               if shp.get("steel_grade") else shp.get("sw_txt", "—")))
+    _sw_out = (_dash if not _out_ok else
+               (f"{shop.get('sw_txt', '—')} ({shop.get('steel_grade')})"
+                if shop.get("steel_grade") else shop.get("sw_txt", "—")))
     # Mỗi hàng: (nhãn, trong MP, ngoài MP, in đậm 2 ô giá trị?).
     sw_rows = [
-        ("Thép ngang bố trí",
-         shp.get("sw_txt", "—") if _in_ok else _dash, _dash, False),
+        ("Thép ngang bố trí", _sw_in, _sw_out, False),
         (_v_lbl, _v_in, _v_out, False),
         ("Kích thước tiết diện, b × h<sub>0</sub>",
          (f"{shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm"
@@ -379,13 +398,16 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
          False),
         ("A<sub>sw</sub>",
          (f"{shp.get('Asw', 0):,.0f} mm²" if _in_ok else _dash),
-         _dash, False),
+         (f"{shop.get('Asw', 0):,.0f} mm²" if _out_ok else _dash),
+         False),
         ("q<sub>sw</sub> được kể",
          (f"{shp.get('qsw', 0):.1f} N/mm" if _in_ok else _dash),
-         _dash, False),
+         (f"{shop.get('qsw', 0):.1f} N/mm" if _out_ok else _dash),
+         False),
         ("Hệ số φ<sub>n</sub> (§8.1.3.3.2)",
          (f"{shp.get('phi_n', 0):.3f}" if _in_ok else _dash),
-         _dash, False),
+         (f"{shop.get('phi_n', 0):.3f}" if _out_ok else _dash),
+         False),
         ("[Q]<sub>1</sub> (dải nén xiên, (88))",
          (f"{shp.get('Qcap1', 0):,.1f} kN" if _in_ok else _dash),
          (f"{shop.get('Qcap1', 0):,.1f} kN" if _out_ok else _dash),
@@ -396,10 +418,12 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
          False),
         ("Q<sub>sw</sub> (vết nứt xiên)",
          (f"{shp.get('Qsw', 0):,.1f} kN" if _in_ok else _dash),
-         _dash, False),
+         (f"{shop.get('Qsw', 0):,.1f} kN" if _out_ok else _dash),
+         False),
         ("[Q]<sub>2</sub> (vết nứt xiên)",
          (f"{shp.get('Qcap2', 0):,.1f} kN" if _in_ok else _dash),
-         _dash, False),
+         (f"{shop.get('Qcap2', 0):,.1f} kN" if _out_ok else _dash),
+         False),
         ("Khả năng chịu cắt, V<sub>cap</sub>",
          (f"{float(sh['V_cap']):,.1f} kN" if _in_ok
           else "— (chưa tính được)"),
@@ -436,29 +460,19 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
         if i % 2 == 0:
             sw_style.append(("BACKGROUND", (0, i), (-1, i),
                              HexColor("#F2F2F2")))
-    t_sw.setStyle(TableStyle(sw_style))
+    # Spacer giữa khối chính và bảng cắt: mặc định 4pt; ở bản
+    # build cuối (fill_pts) cộng thêm đúng khoảng trống đo được
+    # để bảng cắt — khối cuối trang — neo đáy trang.
+    if fill_pts is not None:
+        story.append(Spacer(1, 4 + max(float(fill_pts), 0.0)))
+    else:
+        story.append(Spacer(1, 4))
     story.append(KeepTogether(t_sw))
-    # Ghi chú phạm vi soát lại sau ghi chú user 2026-10-25 (nét
-    # gạch phủ toàn bộ ghi chú cũ): bỏ mệnh đề "M2–M3 diễn giải
-    # lại kết luận N–M" (caption M2–M3 đã bị xóa) và bỏ câu DCM
-    # (thông tin phóng đại nay nằm ở ghi chú hàng V2 trong bảng
-    # cắt; cắt ngoài MP không phóng đại vẫn ghi ở ô giá trị V3).
-    # Giữ: "không có kết luận chung", "kết luận riêng ở bảng cắt",
-    # "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM" và câu
-    # "chưa kể phóng đại" cho trường hợp không áp DCM.
-    story.append(Paragraph(
-        ("Phạm vi: không có kết luận chung — N–M kết luận ở khối "
-         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, "
-         "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
-         "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM."
-         if sh.get("seismic_applied") else
-         "Phạm vi: không có kết luận chung — N–M kết luận ở khối "
-         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, "
-         "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
-         "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM. "
-         "Cắt chưa kể phóng đại kháng chấn TCVN 9386-1:2025 trong lần "
-         "tính này."),
-        st_note))
+    # Ghi chú phạm vi cuối trang đã BỎ HẲN theo ghi chú user
+    # 2026-10-25 (02:11, chốt ngược suy luận giữ lại trước đó):
+    # bảng cắt nay là khối cuối trang. Chỉ bỏ ở PDF tóm tắt vách
+    # này; ghi chú phạm vi ở nơi khác (tab Chi tiết/PDF chi tiết)
+    # giữ nguyên.
 
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm,
                             rightMargin=15 * mm, topMargin=10 * mm,
@@ -469,13 +483,20 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
     gap = None
     if pages == 1:
         try:
-            gap = doc.frame._y - doc.frame._y1
+            # Khoảng trống KHẢ DỤNG thật: _y là vị trí chèn hiện
+            # tại, _y1p = đáy khung + bottomPadding (6pt mặc định
+            # của Frame) — đo _y − _y1 (không trừ padding) sẽ
+            # phóng đại khoảng trống 6pt và spacer fill theo đó
+            # sẽ tràn sang trang 2 (đã dính: gap báo 7,13pt nhưng
+            # fill 2pt cũng tràn vì khả dụng thật chỉ 1,13pt).
+            gap = doc.frame._y - doc.frame._y1p
         except Exception:
             gap = None
     return pages, gap
 
 
-def _try_impl(full, member_name, show_compression, params):
+def _try_impl(full, member_name, show_compression, params,
+              fill_pts=None):
     """Build thử 1 tham số layout. ReportLab raise LayoutError khi
     bảng chính cao hơn cả khung trang (không tách được) — đó cũng
     chỉ là "tham số này không cho 1 trang", không phải lỗi chết:
@@ -483,7 +504,7 @@ def _try_impl(full, member_name, show_compression, params):
     buf = io.BytesIO()
     try:
         pages, gap = _impl(full, buf, member_name, show_compression,
-                           *params)
+                           *params, fill_pts=fill_pts)
         return pages, gap, buf.getvalue(), None
     except Exception as ex:
         return 999, None, None, ex
@@ -556,6 +577,16 @@ def export_wall_summary_pdf(full, filepath: str, member_name: str = None,
         best = data
         pad, img_w, spacer = nparams
         gap = ngap
+    # Bản build cuối: neo bảng cắt (khối cuối trang) xuống đáy bằng
+    # spacer tính toán từ gap ĐO ĐƯỢC của bản best (gap còn trống
+    # bao nhiêu thì chèn bấy nhiêu, trừ safety 2pt) — chỉ nhận khi
+    # vẫn đúng 1 trang, ngược lại giữ bản best không fill.
+    _fill_pts = max(gap - 2.0, 0.0) if gap is not None else None
+    _fpages, _fgap, _fdata, _ferr = _try_impl(
+        full, member_name, show_compression, (pad, img_w, spacer),
+        fill_pts=_fill_pts)
+    if _ferr is None and _fpages == 1:
+        best = _fdata
     if hasattr(filepath, "write"):
         filepath.write(best)
     else:

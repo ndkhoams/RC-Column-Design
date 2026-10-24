@@ -6,7 +6,10 @@
   - dia_v/2 (wall_shear.check_wall_shear_in_plane).
 - Ngoài MP: V_out = V3 (Q3 nhập tay / V3 pier); b = Lw,
   h0 = tw - cover - dia_v - dia_h/2 (gương hàm trong MP);
-  Qsw = 0 vì chưa có ô nhập giằng xuyên dày (không bịa thép).
+  thép ngang MẶC ĐỊNH 2 nhánh × φ(dia_h) @ s_h, cùng cấp thép
+  với trong MP, suy trực tiếp từ input thép ngang bổ sung —
+  quyết user 2026-10-25, thay thế quyết P4 cũ Qsw = 0 (không có
+  thép bổ sung thì Qsw = 0 thật).
 
 Ca chuẩn: vách 2500x350, cover 25, thép ngang 2φ12 a200, B30
 γb = 0.85 (Rb = 14.45, Rbt = 1.02), thép dọc CB500-V γs = 1.0,
@@ -43,9 +46,16 @@ def _web_loads(V_in, V_out):
 
 
 def _hand_out(V):
-    """Tính tay độc lập cắt ngoài MP (Qsw = 0), số literal §8.1.3."""
+    """Tính tay độc lập cắt ngoài MP (thép mặc định 2 nhánh),
+    số literal §8.1.3. WallInput() mặc định không có
+    sw_steel_grade nên Rsw fallback về thép dọc CB500-V (300 MPa);
+    qsw = 339.3 < qsw_min96 = 637.5 nên (96) hỏng → Qb theo (97),
+    Qb_tt chặn dưới [0,5; 2,5]×Rbt×b×h0 (kink ở C ≈ 491)."""
     Rb, Rbt = 14.45, 1.02
     b, h0 = 2500.0, 307.0  # Lw; tw - cover - dia_v - dia_h/2
+    Asw = 2 * math.pi * 12.0 ** 2 / 4.0
+    Rsw, s_h = 300.0, 200.0
+    qsw = Rsw * Asw / s_h
     sigma = 2528.65 * 1000.0 / (2500.0 * 350.0)
     phi_n = 1.0 + sigma / Rb  # sigma/Rb = 0.2 <= 0.25
     qcap1 = phi_n * 0.3 * Rb * b * h0 / 1000.0
@@ -54,15 +64,18 @@ def _hand_out(V):
     best = None
     for i in range(11):
         C = h0 + (2.0 * h0 - h0) * i / 10.0
-        qb_tt = 1.5 * Rbt * b * h0 * h0 / C / 1000.0
+        qb_tt = 4 * 1.5 * h0 * h0 * qsw / C / 1000.0
         qb = phi_n * min(max(qb_tt, lo), hi)
-        if best is None or qb < best[0]:
-            best = (qb, C)
-    qcap2, C_opt = best[0], best[1]
+        qsw_c = 0.75 * qsw * C / 1000.0
+        tot = qb + qsw_c
+        if best is None or tot < best[0]:
+            best = (tot, qb, qsw_c, C)
+    qcap2, qb_opt, qsw_opt, C_opt = best
     vcap = min(qcap1, qcap2)
     return {"phi_n": phi_n, "Qcap1": qcap1, "Qcap2": qcap2,
-            "Qb": qcap2, "Qsw": 0.0, "C_opt": C_opt,
-            "V_cap": vcap, "dc": abs(V) / vcap}
+            "Qb": qb_opt, "Qsw": qsw_opt, "C_opt": C_opt,
+            "V_cap": vcap, "dc": abs(V) / vcap,
+            "qsw": qsw, "Asw": Asw}
 
 
 def test_geometry_mapping_out_of_plane():
@@ -74,17 +87,34 @@ def test_geometry_mapping_out_of_plane():
     assert g["h0"] == 307.0
 
 
-def test_qsw_zero_despite_horizontal_steel():
-    """Thép ngang phân bố vẫn có nhưng KHÔNG sinh qsw ngoài MP."""
+def test_out_steel_from_horizontal_steel():
+    """Thép ngoài MP = 2 nhánh × φ(dia_h) @ s_h, cùng cấp thép
+    với trong MP (quyết user 2026-10-25, thay P4 cũ Qsw = 0).
+    WallInput() mặc định không có sw_steel_grade nên Rsw fallback
+    thép dọc CB500-V (300 MPa); số nhánh ngoài MP CỐ ĐỊNH = 2,
+    độc lập với layers_h trong MP."""
     conc, steel = _mats()
     w = WallInput()
     assert w.layers_h == 2 and w.dia_h == 12.0  # thép ngang có thật
     res = check_wall_shear_out_of_plane(w, conc, steel, 300.0, 2528.65)
     p = res["parts"]
-    assert p["Asw"] == 0.0 and p["qsw_arr"] == 0.0 and p["qsw"] == 0.0
-    assert p["Qsw"] == 0.0 and p["qb_mode"] == "NONE"
-    assert p["sw_txt"] == "không có giằng xuyên dày (Qsw = 0)"
-    assert p["cond98_ok"] is True  # không nhóm nào để (98) loại
+    assert p["sw_txt"] == "2φ12 a200"
+    assert p["steel_grade"] == "CB500-V" and p["Rsw"] == 300.0
+    assert abs(p["Asw"] - 2 * math.pi * 12.0 ** 2 / 4.0) < 1e-9
+    assert abs(p["qsw_arr"] - 300.0 * p["Asw"] / 200.0) < 1e-9
+    assert p["qb_mode"] == "CT97" and p["cond96_ok"] is False
+    assert p["Qsw"] > 0.0 and p["Qb"] > 0.0
+    # Đổi layers_h trong MP (2 -> 1) không đổi thép ngoài MP.
+    w1 = WallInput(layers_h=1, sw_steel_grade="CB400-V")
+    r1 = check_wall_shear_out_of_plane(w1, conc, steel, 300.0, 2528.65)
+    assert r1["parts"]["sw_txt"] == "2φ12 a200"
+    assert abs(r1["parts"]["Asw"] - p["Asw"]) < 1e-9
+    assert r1["parts"]["steel_grade"] == "CB400-V"
+    # Đổi dia_h/s_h/cấp trong MP thì ngoài MP đổi theo.
+    w2 = WallInput(dia_h=10.0, s_h=150.0, sw_steel_grade="CB500-V")
+    r2 = check_wall_shear_out_of_plane(w2, conc, steel, 300.0, 2528.65)
+    assert r2["parts"]["sw_txt"] == "2φ10 a150"
+    assert abs(r2["parts"]["Asw"] - 2 * math.pi * 10.0 ** 2 / 4.0) < 1e-9
 
 
 def test_hand_calc():
@@ -94,7 +124,8 @@ def test_hand_calc():
                                         300.0, 2528.65)
     h = _hand_out(300.0)
     p = res["parts"]
-    for k in ("phi_n", "Qcap1", "Qcap2", "Qb", "Qsw", "C_opt"):
+    for k in ("phi_n", "Qcap1", "Qcap2", "Qb", "Qsw", "C_opt",
+              "qsw", "Asw"):
         assert abs(p[k] - h[k]) < 1e-6, (k, p[k], h[k])
     assert abs(res["V_cap"] - h["V_cap"]) < 1e-6
     assert abs(res["dc"] - h["dc"]) < 1e-9
@@ -102,16 +133,19 @@ def test_hand_calc():
 
 
 def test_fail_case():
-    """(b) Ca KHÔNG ĐẠT: V_out = 5000 kN vượt cả [Q]1 lẫn [Q]2."""
+    """(b) Ca KHÔNG ĐẠT: V_out = 5000 kN vượt cả [Q]1 lẫn [Q]2.
+    (98) loại nhóm thép (s_max ≈ 48 mm < s_h = 200 mm) nên Qsw = 0
+    sau loại, qb_mode NONE — nhưng ok1 đã sai (5000 > [Q]1) nên
+    kết luận KHÔNG ĐẠT vẫn đúng, không phải do (98) tạo ra."""
     conc, steel = _mats()
     res = check_wall_shear_out_of_plane(WallInput(), conc, steel,
                                         5000.0, 2528.65)
     assert res["ok"] is False and res["dc"] > 1.0
     assert res["parts"]["ok1"] is False  # vượt cả dải nén xiên
     assert res["parts"]["ok2"] is False
-    # Fail thật, không do (98)/(96): không có thép để loại/kích (97).
-    assert res["parts"]["cond98_ok"] is True
+    assert res["parts"]["cond98_ok"] is False
     assert res["parts"]["qb_mode"] == "NONE"
+    assert res["parts"]["Qsw"] == 0.0
 
 
 def test_rotation_swaps_effective_dims():
@@ -132,9 +166,11 @@ def test_rotation_swaps_effective_dims():
     assert (g_out90["b"], g_out90["h0"]) == (g_in0["b"], g_in0["h0"])
     assert (g_out90["b"], g_out90["h0"]) == (350.0, 2457.0)
     r90 = check_wall_shear_out_of_plane(w90, conc, steel, 300.0, 2528.65)
+    _asw90 = 2 * math.pi * 12.0 ** 2 / 4.0
     sh90 = check_shear(300.0, 350.0, 2457.0, conc.Rb, conc.Rbt,
-                       0.0, 0.0, 0.0, direction="out", N=2528.65,
-                       A_sec=350.0 * 2500.0, groups=[])
+                       _asw90, 300.0, 200.0, direction="out",
+                       N=2528.65, A_sec=350.0 * 2500.0,
+                       groups=[(_asw90, 200.0)])
     assert abs(r90["V_cap"] - min(sh90.Qcap1, sh90.Qcap2)) < 1e-9
     assert abs(r90["parts"]["Qb"] - sh90.Qb_opt) < 1e-9
     assert r90["ok"] is True
@@ -162,8 +198,9 @@ def test_engine_integration_nm_and_inplane_unchanged():
 
     MIGRATION COVER: fixture cũ cover 25 (nghĩa mặt thép) -> 13
     (c_đai) để giữ mốc N–M 0.44520; cắt đổi theo h0 mới (trong MP
-    Vcap 1987.2 -> 1996.9, ngoài MP Vcap 704.6 -> 732.1 do h0_out
-    307 -> 319) — số cắt cũ bảo thủ hơn.
+    Vcap 1987.2 -> 1996.9). Ngoài MP nay theo quyết user
+    2026-10-25 (2 nhánh, Rsw fallback thép dọc 300 MPa): Vcap
+    617.9 (thay mốc cũ 732.1 thời Qsw = 0).
     """
     conc, steel = _mats()
     _w_mig = WallInput(cover=13.0)
@@ -177,7 +214,7 @@ def test_engine_integration_nm_and_inplane_unchanged():
     assert abs(sh_in["dc"] - 800.0 / sh_in["V_cap"]) < 1e-12
     sho = full["shear_out"]
     assert sho["ok"] is True and sho["V_d"] == 300.0
-    assert abs(sho["V_cap"] - 732.1) < 0.5
+    assert abs(sho["V_cap"] - 617.9) < 0.5
     assert abs(sho["dc"] - 300.0 / sho["V_cap"]) < 1e-12
     assert "shear_out" in full["checks_included"]
     assert "shear_out" not in full["checks_pending"]
@@ -195,8 +232,10 @@ def test_engine_integration_nm_and_inplane_unchanged():
 
 
 def test_detail_builder_out_card():
-    """Thẻ chi tiết ngoài MP (cùng builder tab/PDF): đủ công thức,
-    Qsw = 0 ghi rõ, kết luận riêng; thẻ trượt chỉ còn trượt."""
+    """Thẻ chi tiết ngoài MP (cùng builder tab/PDF): đủ số trung
+    gian như thẻ trong MP (thép mặc định 2 nhánh, công thức Qb →
+    thay số, ĐK (96), Asw/s) + kết luận riêng; thẻ trượt chỉ còn
+    trượt. Quyết user 2026-10-25 thay P4 cũ Qsw = 0."""
     conc, steel = _mats()
     full = wall_tcvn_full(WallInput(), conc, steel,
                           loads=_web_loads(800.0, 300.0))
@@ -208,10 +247,17 @@ def test_detail_builder_out_card():
     assert "Trượt mạch ngừng chân vách" in titles
     card = [c for c in sec8["cards"]
             if c["title"] == "Kiểm tra cắt — Ngoài mặt phẳng (V3)"][0]
+    assert card["ref"] == "§8.1.3 (ánh xạ vách)"
     txt = "\n".join(card["lines"])
-    assert "Qsw = 0" in txt and "không bịa thép" in txt
+    assert "2φ12 a200" in txt
+    # Không còn Qsw = 0 dạng kết quả (dòng công thức vẫn chứa
+    # "Qsw = 0,75×..." — đó là công thức, không phải kết quả).
+    assert "Qsw = 0.0 kN" not in txt and "(Qsw = 0)" not in txt
+    assert "không bịa thép" not in txt
+    assert "Công thức Qb" in txt and "469.7" in txt
     assert "2500" in txt and "307" in txt  # b × h0
     assert "D/C cắt ngoài MP" in card["result"]
+    assert "D/C cắt ngoài MP = 0.504" in card["result"]
     assert "ĐẠT" in card["result"]
     slide = [c for c in sec8["cards"]
              if c["title"] == "Trượt mạch ngừng chân vách"][0]
