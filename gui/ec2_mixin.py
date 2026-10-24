@@ -459,7 +459,7 @@ class Ec2Mixin:
             "nm_title": "Biểu đồ tương tác N-Mα",
             "nm_alpha_text": f"α = {alpha_deg:.1f}°",
             "m2m3_title": "Mặt cắt M2-M3",
-            "m2m3_n_text": f"N = {inp.N:+.1f} kN",
+            "m2m3_n_text": f"N = {ec2_res.get('BN', inp.N):+.1f} kN",
             "notes_nm": notes,
             "on_nm_angle_change": lambda sel: self._on_ec2_angle_unified(sel),
             "shear_builder": lambda parent: self._build_ec2_shear_summary(
@@ -807,7 +807,7 @@ class Ec2Mixin:
         except Exception:
             pass
 
-    def _build_ec2_m2m3_header(self, parent, inp):
+    def _build_ec2_m2m3_header(self, parent, inp, ec2_res=None):
         """Header trên biểu đồ M2-M3 (EC2)."""
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
@@ -815,7 +815,7 @@ class Ec2Mixin:
         left.pack(side=tk.LEFT)
         tk.Label(left, text="● Mặt cắt M2-M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
-        tk.Label(left, text=f"  N = {inp.N:+.1f} kN  ",
+        tk.Label(left, text=f"  N = {(ec2_res.get('BN', inp.N) if isinstance(ec2_res, dict) else inp.N):+.1f} kN  ",
                  font=("", 8, "bold"), fg="#1D4ED8",
                  bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
 
