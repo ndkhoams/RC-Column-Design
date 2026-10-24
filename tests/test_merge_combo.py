@@ -1,9 +1,13 @@
-"""Kiểm chứng gộp combo max/min (mục 5 — nút "Gộp Combo max/min").
+"""Kiểm chứng gộp combo max/min (mục 5 — nút chọn "Gộp Combo max/min"
++ popup "Chọn combo gộp…" theo TÊN combo gốc).
 
 Quy tắc (theo chỉ dẫn ETABS về phổ phản ứng: max/min là biên thống kê
 ± từng thành phần, không đồng thời): dòng gộp lấy mỗi thành phần có
 |giá trị| lớn nhất trong 2 dòng, giữ nguyên dấu; hòa trị tuyệt đối lấy
 giá trị của dòng max. Dòng không có cặp, combo thường và TX_* giữ nguyên.
+Cơ chế mới (không hủy diệt): merge_combo_max_min(forces, selected_bases)
+chỉ gộp các cặp thuộc tên gốc được tick; popup liệt kê tên gốc qua
+combo_merge_options (TX_* loại khỏi danh sách).
 """
 
 import os
@@ -11,7 +15,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from rc_column.etabs_import import EtabsForce, merge_combo_max_min
+from rc_column.etabs_import import (
+    EtabsForce, merge_combo_max_min, combo_merge_options)
 
 
 def _f(case, station=0.0, N=0.0, Mx=0.0, My=0.0, Q2=0.0, Q3=0.0,
@@ -108,3 +113,63 @@ def test_empty_and_no_pair():
     rows = [_f("DL", N=5), _f("LL", N=6)]
     out, n = merge_combo_max_min(rows)
     assert n == 0 and _sig(out) == _sig(rows)
+
+
+def test_selected_bases_only():
+    """Tick tên gốc = chỉ gộp cặp của tên đó; tên không tick giữ nguyên;
+    tick tên lạ không có tác dụng; tick rỗng = không gộp gì."""
+    rows = [
+        _f("ULS17max", N=100, Mx=50),
+        _f("ULS17min", N=-90, Mx=-60),
+        _f("ULS18max", N=200),
+        _f("ULS18min", N=-250),
+        _f("DL", N=5),
+    ]
+    out, n = merge_combo_max_min(rows, {"ULS17"})
+    assert n == 1
+    assert [f.case for f in out] == ["ULS17", "ULS18max", "ULS18min", "DL"]
+    assert (out[0].N, out[0].Mx) == (100, -60)
+    out, n = merge_combo_max_min(rows, set())
+    assert n == 0 and _sig(out) == _sig(rows)
+    out, n = merge_combo_max_min(rows, {"KHONG_CO"})
+    assert n == 0 and _sig(out) == _sig(rows)
+
+
+def test_selected_base_merges_all_stories_stations():
+    """Một tên gốc được tick gộp mọi cặp của nó (mọi Story/Station)."""
+    rows = [
+        _f("ULS17max", station=0.0, N=100, story="S1"),
+        _f("ULS17min", station=0.0, N=-90, story="S1"),
+        _f("ULS17max", station=3.0, N=200, story="S1"),
+        _f("ULS17min", station=3.0, N=-250, story="S1"),
+        _f("ULS17max", station=0.0, N=400, story="S2"),
+        _f("ULS17min", station=0.0, N=-350, story="S2"),
+    ]
+    out, n = merge_combo_max_min(rows, {"ULS17"})
+    assert n == 3
+    assert [f.case for f in out] == ["ULS17", "ULS17", "ULS17"]
+    assert [(f.story, f.station, f.N) for f in out] == [
+        ("S1", 0.0, 100), ("S1", 3.0, -250), ("S2", 0.0, 400)]
+
+
+def test_combo_merge_options():
+    """Popup: tên gốc theo thứ tự xuất hiện; biến thể max/min gộp về
+    tên gốc; TX_* loại khỏi danh sách; tên không cặp -> có_cặp False."""
+    rows = [
+        _f("DL", N=5),
+        _f("ULS17max", N=100),
+        _f("ULS17min", N=-90),
+        _f("ULS17max", station=3.0, N=200),
+        _f("ULS17min", station=3.0, N=-250),
+        _f("ULS18max", N=300),  # không có min -> không cặp
+        _f("TX_ULS17max", N=800),
+        _f("TX_ULS17min", N=-700),
+        _f("LL", N=6),
+    ]
+    assert combo_merge_options(rows) == [
+        ("DL", False, 0),
+        ("ULS17", True, 2),
+        ("ULS18", False, 0),
+        ("LL", False, 0),
+    ]
+    assert combo_merge_options([]) == []

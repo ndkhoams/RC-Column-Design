@@ -540,27 +540,12 @@ def _max_min_suffix(case: str):
     return None
 
 
-def merge_combo_max_min(forces):
-    """Gộp các cặp combo max/min trong bảng nội lực thành 1 dòng.
+def _group_max_min(forces):
+    """Nhóm các dòng có hậu tố max/min theo (Story, Label, Station, tên gốc).
 
-    Theo chỉ dẫn ETABS về phân tích phổ phản ứng: max/min là biên thống
-    kê ± của từng đại lượng riêng lẻ, KHÔNG tương ứng đồng thời giữa các
-    thành phần — nên dòng gộp lấy bao theo trị tuyệt đối từng thành phần.
-
-    Quy tắc:
-    - Chỉ gộp khi cùng một nhóm (Story, Label, Station) tồn tại cả 2 dòng
-      có tên Combo chỉ khác nhau bởi hậu tố max/min (xem _max_min_suffix).
-    - Dòng gộp: Combo = tên gốc đã bỏ hậu tố; mỗi thành phần (N, V2, V3,
-      Mx, My) lấy giá trị có |giá trị| lớn nhất trong 2 dòng, giữ nguyên
-      dấu của giá trị đó; hòa trị tuyệt đối thì lấy giá trị của dòng max.
-      Story/Label/Station/case_type lấy từ dòng đầu tiên của cặp trong
-      bảng gốc; dòng gộp đứng ở vị trí dòng đó.
-    - Dòng không có cặp, combo thường và mọi dòng TX_* giữ nguyên (kể cả
-      dạng TX_*max/min — bỏ qua cho an toàn).
-    - Nhóm có hơn 1 dòng max hoặc hơn 1 dòng min không gộp.
-    - Lũy đẳng: dòng đã gộp không còn hậu tố nên gộp lại không đổi gì.
-
-    Hàm thuần túy (không chạm GUI), trả về (danh sách mới, số cặp đã gộp).
+    Trả về (groups, order): groups ánh xạ khóa nhóm -> {"max": [idx...],
+    "min": [idx...]}; order là thứ tự xuất hiện đầu tiên của các khóa.
+    Dòng TX_* và dòng không có hậu tố không vào nhóm.
     """
     groups = {}
     order = []
@@ -577,9 +562,74 @@ def merge_combo_max_min(forces):
             groups[key] = {}
             order.append(key)
         groups[key].setdefault(suf, []).append(idx)
+    return groups, order
+
+
+def combo_merge_options(forces):
+    """Danh sách tên combo cho popup "Chọn combo gộp…".
+
+    Trả về [(tên gốc, có_cặp, số_cặp)] theo thứ tự xuất hiện đầu tiên
+    trong bảng:
+    - các biến thể max/min gộp về tên gốc (ULS17max + ULS17min -> "ULS17");
+    - tên thường (không hậu tố) liệt kê với có_cặp=False;
+    - dòng TX_* loại khỏi danh sách (không bao giờ gộp, không phải combo
+      kiểm tra) — popup chỉ liệt kê combo kiểm tra;
+    - có_cặp=True khi tồn tại ít nhất một nhóm (Story, Label, Station)
+      có đúng 1 dòng max + 1 dòng min của tên gốc đó; số_cặp đếm các
+      nhóm như vậy.
+    """
+    options = []
+    pos = {}
+    for f in forces:
+        name = f.case.strip()
+        if name.startswith("TX_"):
+            continue
+        split = _max_min_suffix(name)
+        base = split[0] if split else name
+        if base not in pos:
+            pos[base] = len(options)
+            options.append([base, False, 0])
+    groups, _order = _group_max_min(forces)
+    for (_story, _col, _st, base), by_suf in groups.items():
+        if len(by_suf.get("max", [])) == 1 and len(by_suf.get("min", [])) == 1:
+            options[pos[base]][1] = True
+            options[pos[base]][2] += 1
+    return [(b, hp, n) for b, hp, n in options]
+
+
+def merge_combo_max_min(forces, selected_bases=None):
+    """Gộp các cặp combo max/min trong bảng nội lực thành 1 dòng.
+
+    Theo chỉ dẫn ETABS về phân tích phổ phản ứng: max/min là biên thống
+    kê ± của từng đại lượng riêng lẻ, KHÔNG tương ứng đồng thời giữa các
+    thành phần — nên dòng gộp lấy bao theo trị tuyệt đối từng thành phần.
+
+    Quy tắc:
+    - Chỉ gộp khi cùng một nhóm (Story, Label, Station) tồn tại cả 2 dòng
+      có tên Combo chỉ khác nhau bởi hậu tố max/min (xem _max_min_suffix).
+    - selected_bases=None (mặc định): gộp mọi cặp. Nếu cho tập tên gốc:
+      chỉ gộp các cặp thuộc tên gốc đó (ngữ nghĩa popup "Chọn combo
+      gộp…": tick tên gốc = gộp mọi cặp của tên đó, mọi Story/Station).
+    - Dòng gộp: Combo = tên gốc đã bỏ hậu tố; mỗi thành phần (N, V2, V3,
+      Mx, My) lấy giá trị có |giá trị| lớn nhất trong 2 dòng, giữ nguyên
+      dấu của giá trị đó; hòa trị tuyệt đối thì lấy giá trị của dòng max.
+      Story/Label/Station/case_type lấy từ dòng đầu tiên của cặp trong
+      bảng gốc; dòng gộp đứng ở vị trí dòng đó.
+    - Dòng không có cặp, combo thường và mọi dòng TX_* giữ nguyên (kể cả
+      dạng TX_*max/min — bỏ qua cho an toàn).
+    - Nhóm có hơn 1 dòng max hoặc hơn 1 dòng min không gộp.
+    - Lũy đẳng: dòng đã gộp không còn hậu tố nên gộp lại không đổi gì.
+    - Dòng không gộp giữ nguyên OBJECT gốc (để GUI nhận diện dòng gộp
+      qua identity khi cần, vd chặn sửa trực tiếp dòng gộp).
+
+    Hàm thuần túy (không chạm GUI), trả về (danh sách mới, số cặp đã gộp).
+    """
+    groups, _order = _group_max_min(forces)
     merged_row = {}  # vị trí dòng đầu của cặp -> dòng gộp
     consumed = set()  # vị trí các dòng gốc đã gộp (bỏ khỏi bảng mới)
     for key, by_suf in groups.items():
+        if selected_bases is not None and key[3] not in selected_bases:
+            continue
         maxs = by_suf.get("max", [])
         mins = by_suf.get("min", [])
         if len(maxs) != 1 or len(mins) != 1:
