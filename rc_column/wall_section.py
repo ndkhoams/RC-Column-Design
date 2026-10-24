@@ -152,30 +152,40 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
 
     cover: lớp bảo vệ cốt đai c (tới mặt ngoài thép ngang dia_h,
     thống nhất cho mọi nhóm thép). Vùng biên mỗi đầu, tất cả thanh
-    cùng db, không thanh góc riêng (mô hình 6 ô, user chốt 2026-10-25):
-    - R = 2*L_out + L_in hàng dọc theo Lb, cách đều theo tw từ mặt
-      này sang mặt kia (hàng ngoài tại 2 mặt cách mép
-      c + dia_h + db/2, hàng thêm chia đều ở giữa); mỗi hàng có n_Lb
-      thanh cách đều theo Lb (thanh đầu tại c + dia_h + db/2 từ mặt
-      đầu vách, thanh cuối tại Lb - (c + dia_h + db/2)) — 2 thanh đầu
-      hàng chính là góc, đã tính trong n_Lb.
-    - Mỗi đầu ngắn (2 đầu/vùng) thêm (n_tw - 2) thanh MỚI, cách đều
-      theo tw ở các vị trí trong (không tính 2 mặt — 2 mặt đã là góc);
-      vị trí trùng vị trí thanh đầu hàng (sai số < 1 mm) chỉ giữ 1.
-    Tổng/vùng (không trùng) = R*n_Lb + 2*(n_tw - 2). L_out tính MỖI
-    MẶT, L_in là tổng số hàng ở giữa. Thân vách: 2 mặt trong đoạn
-    giữa (Lw - 2*Lb), quy tắc bước <= ws như cạnh dài chế độ chu vi.
+    cùng db, không thanh góc riêng (mô hình cột dọc, user chốt
+    2026-10-25, thay mô hình hàng ngang 950b4d5):
+    - 2 hàng dọc theo Lb (trên + dưới, tại 2 mặt tw cách mép
+      c + dia_h + db/2); mỗi hàng có n_Lb thanh cách đều theo Lb
+      (thanh đầu tại c + dia_h + db/2 từ mặt đầu vách, thanh cuối
+      tại Lb - (c + dia_h + db/2)) — 2 thanh đầu hàng chính là góc,
+      đã tính trong n_Lb.
+    - LỚP = CỘT DỌC theo chiều tw: mỗi lớp là 1 cột thép tại 1 vị
+      trí thanh của 2 hàng, gồm n_tw thanh Ở GIỮA (không tính 2
+      hàng trên/dưới — thanh trên/dưới của cột TRÙNG thanh của 2
+      hàng nên không đếm thêm, không sinh trùng, không dedupe).
+      Các cột đếm TỪ ĐẦU NGOÀI (đầu vách) vào trong: L_out cột đầu
+      = lớp ngoài, tiếp theo L_in cột = lớp trong; các vị trí hàng
+      còn lại (nếu n_Lb > L_out + L_in) chỉ có thép 2 hàng.
+      Ràng buộc L_out + L_in <= n_Lb (clamp phòng thủ ở đây, panel
+      clamp ở _collect_wall).
+    Tổng/vùng = 2*n_Lb + n_tw*(L_out + L_in). Thân vách: 2 mặt
+    trong đoạn giữa (Lw - 2*Lb), quy tắc bước <= ws như cạnh dài
+    chế độ chu vi.
     Trả về (be_left, be_right, web, runs, extra) với bars (x, y, dia).
-    Migration: mapping cũ (nL, nT) -> (n_Lb=nL, n_tw=2, L_out=1,
-    L_in=nT-2) cho R = nT hàng và 0 thanh tw nên lưới cũ tái hiện
-    từng tọa độ (xem normalize_wall_dict).
+    Migration: file nghĩa cũ 950b4d5 (be_n_tw tính cả 2 góc) được
+    dịch n_tw_mới = max(n_tw_cũ - 2, 0) ở normalize_wall_dict; file
+    tiền-950b4d5 qua mapping cũ rồi áp tiếp quy tắc này (VACH.json
+    nT=2 -> n_tw=0 -> đúng 2 hàng x 4 thanh, cùng tọa độ lưới cũ).
     """
     warnings = []
     be_left: List[Tuple[float, float, float]] = []
     be_right: List[Tuple[float, float, float]] = []
     runs = []
-    n_rows = 2 * int(L_out) + int(L_in)
-    if Lb > 0 and db > 0 and n_Lb > 0 and n_rows > 0:
+    n_Lb = max(1, int(n_Lb))
+    n_tw = max(0, int(n_tw))
+    L_out = max(0, min(int(L_out), n_Lb))
+    L_in = max(0, min(int(L_in), n_Lb - L_out))
+    if Lb > 0 and db > 0:
         inset_b = cover + dia_h + db / 2.0
         if n_Lb == 1:
             ps = [Lb / 2.0]
@@ -187,44 +197,28 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
                 f"({inset_b:.0f}mm): thanh biên xếp cách nhau 1.1*db "
                 "từ mặt đầu vách.")
             ps = [inset_b + k * 1.1 * db for k in range(n_Lb)]
-        if n_rows == 1:
-            ys_be = [0.0]
-        else:
-            ys_be = _linspace(-(tw / 2.0 - inset_b), tw / 2.0 - inset_b,
-                              n_rows)
+        face = tw / 2.0 - inset_b
+        # 2 hàng dọc Lb (dưới + trên — thứ tự y tăng dần như lưới
+        # cũ, để thứ tự thanh trong sec.rebars không đổi khi thép
+        # không đổi, tránh lệch vùng nén/PNG ở mức bit).
         for p in ps:
-            for yy in ys_be:
+            for yy in (-face, face):
                 be_left.append((-Lw / 2.0 + p, yy, db))
                 be_right.append((Lw / 2.0 - p, yy, db))
-        for yy in ys_be:
+        for yy in (-face, face):
             runs.append(([-Lw / 2.0 + p for p in ps], db))
             runs.append(([Lw / 2.0 - p for p in ps], db))
-        # Thanh theo chiều tw ở 2 đầu ngắn mỗi vùng: linspace n_tw điểm
-        # trên cả cạnh tw rồi bỏ 2 đầu (đã là góc trong hàng ngoài).
-        # Đầu ngắn đặt tại 2 mép vùng biên (inset_b từ mặt đầu vách và
-        # Lb - inset_b) — trùng vị trí Lb cực biên của lưới hàng khi
-        # Lb đủ dài; dedupe < 1 mm loại trùng với thanh đầu hàng (vd
-        # hàng giữa trùng thanh tw giữa khi R và n_tw cùng lẻ).
-        n_tw_new = max(0, int(n_tw) - 2)
-        if n_tw_new > 0:
-            face = tw / 2.0 - inset_b
-            ys_tw = _linspace(-face, face, int(n_tw))[1:-1]
-
-            def _add_dedupe(bars, x, y):
-                for (bx, by, _d) in bars:
-                    if (x - bx) ** 2 + (y - by) ** 2 < 1.0:
-                        return
-                bars.append((x, y, db))
-
-            for x_end in (inset_b, Lb - inset_b):
-                for yy in ys_tw:
-                    _add_dedupe(be_left, -Lw / 2.0 + x_end, yy)
-                    _add_dedupe(be_right, Lw / 2.0 - x_end, yy)
-            for _side in range(4):
-                runs.append((list(ys_tw), db))
-    else:
-        n_rows = 0
-        n_tw_new = 0
+        # Cột lớp: ps[0:L_out] = lớp ngoài (từ đầu ngoài vào),
+        # ps[L_out:L_out+L_in] = lớp trong; mỗi cột n_tw thanh giữa
+        # (chia đều giữa 2 hàng, không tính 2 hàng).
+        if n_tw > 0 and (L_out + L_in) > 0:
+            ys_mid = _linspace(-face, face, n_tw + 2)[1:-1]
+            for p in ps[:L_out + L_in]:
+                for yy in ys_mid:
+                    be_left.append((-Lw / 2.0 + p, yy, db))
+                    be_right.append((Lw / 2.0 - p, yy, db))
+            for _side in range(2):
+                runs.append((list(ys_mid), db))
     # Thân vách (2 mặt, đoạn giữa 2 vùng biên)
     web: List[Tuple[float, float, float]] = []
     s_web = None
@@ -250,8 +244,9 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
              ("Bụng vách", len(web), float(wd)),
              ("Đầu 2", len(be_right), float(db))]
     extra = {"zones": zones, "s_web_actual": s_web, "warnings": warnings,
-             "web_a": a, "web_b": b, "be_rows": n_rows,
-             "be_n_tw": int(n_tw)}
+             "web_a": a, "web_b": b, "be_rows": 2,
+             "be_n_Lb": n_Lb, "be_n_tw_mid": n_tw,
+             "be_layers_out": L_out, "be_layers_in": L_in}
     return be_left, be_right, web, runs, extra
 
 
@@ -322,10 +317,6 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
         rebars += [Rebar(x, y, bar_area(d), d, 2) for x, y, d in web]
         sec.rebars = rebars
         smax, smin, sclear = _spacing_stats(runs)
-        # Thanh tw THỰC THÊM mỗi đầu (sau dedupe): tổng/vùng trừ đi
-        # lưới hàng; luôn chẵn vì dedupe xảy ra đối xứng 2 đầu ngắn.
-        n_tw_net = (len(be_l) - extra["be_rows"]
-                    * int(winp.be_n_Lb)) // 2
         meta = dict(base_meta)
         meta.update({
             "n_bars": len(rebars), "n_web": len(web),
@@ -347,8 +338,11 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
             "layout_text":
                 f"Vùng biên: {len(be_l) + len(be_r)} thanh "
                 f"d{float(winp.be_dia):.0f} (mỗi đầu {len(be_l)} = "
-                f"{extra['be_rows']} hàng x {int(winp.be_n_Lb)} thanh"
-                f"{'' if n_tw_net <= 0 else ' + 2x' + str(n_tw_net) + ' đầu ngắn'}, "
+                f"2 hàng × {extra['be_n_Lb']} thanh + "
+                f"{extra['be_layers_out']} lớp ngoài × "
+                f"{extra['be_n_tw_mid']} + "
+                f"{extra['be_layers_in']} lớp trong × "
+                f"{extra['be_n_tw_mid']}, "
                 f"Lb = {Lb:.0f} mm); thân vách: {len(web)} thanh "
                 f"d{float(winp.web_dia):.0f} (bước thực "
                 f"{extra['s_web_actual'] if extra['s_web_actual'] else 0:.0f} mm)",

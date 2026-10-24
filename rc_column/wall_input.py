@@ -104,15 +104,18 @@ class WallInput:
     be_dia: float = 20.0        # đường kính db vùng biên
     be_nL: int = 4              # số vị trí dọc trong Lb (cũ)
     be_nT: int = 2              # số hàng ngang theo tw (cũ, 2 = 2 mặt)
-    # Mô hình vùng biên mới (2026-10-25, user chốt): 6 ô nhập, nhập
-    # 1 bên áp y hệt 2 đầu. n_Lb/n_tw tính CẢ 2 góc (mỗi cạnh gồm 2
-    # góc, góc chung nhau giữa 2 cạnh kề); L_out tính MỖI MẶT,
-    # L_in là tổng số hàng ở giữa. R = 2*L_out + L_in hàng dọc Lb,
-    # tổng/vùng = R*n_Lb + 2*(n_tw - 2) (dedupe trùng < 1 mm).
+    # Mô hình vùng biên cột dọc (2026-10-25, user chốt, thay mô hình
+    # hàng ngang 950b4d5): 6 ô nhập, nhập 1 bên áp y hệt 2 đầu.
+    # Mỗi vùng: 2 hàng dọc Lb (trên + dưới, mỗi hàng n_Lb thanh tính
+    # cả 2 góc ở 2 đầu hàng) + mỗi lớp (cột dọc theo tw, đếm từ đầu
+    # ngoài vào: L_out cột ngoài rồi L_in cột trong) đóng góp n_tw
+    # thanh Ở GIỮA (không tính 2 hàng — thanh trên/dưới của cột
+    # TRÙNG thanh của 2 hàng nên không đếm thêm, không sinh trùng).
+    # Tổng/vùng = 2*n_Lb + n_tw*(L_out + L_in); L_out + L_in <= n_Lb.
     be_n_Lb: int = 4            # số thanh theo chiều Lb (tính cả 2 góc)
-    be_n_tw: int = 2            # số thanh theo chiều tw (tính cả 2 góc)
-    be_L_out: int = 1           # số lớp tw ngoài — tính MỖI MẶT (>= 1)
-    be_L_in: int = 0            # số lớp tw trong — tổng số hàng ở giữa
+    be_n_tw: int = 2            # số thanh Ở GIỮA theo chiều tw / cột
+    be_L_out: int = 1           # số lớp tw ngoài — TỔNG số cột ngoài
+    be_L_in: int = 0            # số lớp tw trong — số cột trong tiếp theo
     web_dia: float = 12.0       # thép phân bố thân vách: đường kính
     web_s: float = 200.0        # thép phân bố thân vách: khoảng cách
 
@@ -164,6 +167,9 @@ def normalize_wall_dict(d) -> dict:
     đổi Rsw của file cũ từ 300 (CB500-V) xuống 280 và làm lệch Vcap.
     """
     d = dict(d) if isinstance(d, dict) else {}
+    # Dict rỗng hoàn toàn (file không có dữ liệu vách) -> giữ mặc
+    # định mới, không áp quy tắc convert file cũ ở cuối hàm.
+    _was_empty = not d
     if "steel_mode" not in d:
         d["steel_mode"] = "boundary"
         if "be_Lb" not in d and "Lb_left" in d:
@@ -197,6 +203,10 @@ def normalize_wall_dict(d) -> dict:
     # đúng lưới cũ (R = 2*1 + (nT-2) = nT hàng, 0 thanh tw) nên thép cũ
     # không đổi số thanh/tọa độ/As/D/C. Chỉ map khi khóa mới chưa có
     # (file mới thắng); khóa be_layout cũ bị bỏ qua.
+    # Dấu vết file cũ PHẢI chụp trước khi điền mặc định be_n_tw ở
+    # dưới (sau khi điền thì "be_n_tw" in d luôn đúng).
+    _had_old_be = any(k in d for k in ("be_n_tw", "be_nL", "be_nT",
+                                       "be_layout"))
     if "be_n_Lb" not in d and "be_nL" in d:
         try:
             d["be_n_Lb"] = int(float(d["be_nL"]))
@@ -214,6 +224,22 @@ def normalize_wall_dict(d) -> dict:
                 d["be_L_in"] = 0
         else:
             d["be_L_in"] = 0
+    # (2026-10-25, mô hình cột dọc) Nghĩa MỚI của be_n_tw: số thanh
+    # Ở GIỮA theo chiều tw (không tính 2 hàng trên/dưới). File nghĩa
+    # cũ 950b4d5 (be_n_tw tính cả 2 góc, KHÔNG có khóa be_model) ->
+    # trừ 2 góc: be_n_tw_mới = max(be_n_tw_cũ - 2, 0). File đã có
+    # be_model="columns" (saver mới luôn ghi) -> dùng thẳng, không
+    # convert lại (idempotent). File tiền-950b4d5 đi qua mapping trên
+    # (cho be_n_tw=2 nghĩa cũ) rồi áp tiếp quy tắc này -> be_n_tw=0.
+    # Dict không có dấu vết file cũ nào (_had_old_be False) -> giữ
+    # mặc định mới 2 thanh giữa/cột.
+    if d.get("be_model") != "columns":
+        if _had_old_be and not _was_empty:
+            try:
+                d["be_n_tw"] = max(0, int(float(d["be_n_tw"])) - 2)
+            except Exception:
+                d["be_n_tw"] = 0
+        d["be_model"] = "columns"
     return d
 
 

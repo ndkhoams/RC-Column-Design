@@ -137,7 +137,10 @@ def test_detail_eta_card_is_honest_app_path():
 
 
 def test_detail_milestones_boundary_and_old():
-    fb = wall_tcvn_full(WallInput(steel_mode="boundary", cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
+    # be_n_tw=0 (nghia moi) de giu hinh hoc 8 thanh/vung cua ky vong
+    # 0.35929 goc; test nay kiem cac moc chi tiet, khong kiem mo
+    # hinh vung bien.
+    fb = wall_tcvn_full(WallInput(steel_mode="boundary", cover=13.0, be_n_tw=0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                         loads=dict(_LOADS))
     assert abs(fb["dc"] - 0.35929) <= 1e-5
     txt_b = _all_text(build_wall_detail_sections(fb))

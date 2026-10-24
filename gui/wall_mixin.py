@@ -812,9 +812,11 @@ class WallMixin:
         _grid4(self.w_frm_be)
         rr = 0
         rr = _hdr(self.w_frm_be, "Cốt thép vùng biên (2 đầu vách)", rr)
-        # 6 ô nhập duy nhất (user chốt 2026-10-25): nhập 1 bên, áp y
-        # hệt 2 đầu; tất cả thanh cùng db; số thanh mỗi cạnh tính cả
-        # 2 góc; lớp ngoài tính mỗi mặt, lớp trong là tổng ở giữa.
+        # 6 ô nhập duy nhất (user chốt 2026-10-25, mô hình cột dọc):
+        # nhập 1 bên, áp y hệt 2 đầu; tất cả thanh cùng db; mỗi vùng
+        # có 2 hàng dọc Lb (mỗi hàng n_Lb thanh tính cả 2 góc) + mỗi
+        # lớp (cột dọc theo tw, đếm từ đầu ngoài vào: L_out cột
+        # ngoài rồi L_in cột trong) đóng góp n_tw thanh Ở GIỮA.
         self.w_en_be_Lb = _entry(self.w_frm_be, D["be_Lb"])
         # Mặc định panel db = 28 (khớp ca mặc định hiện tại); WallInput
         # giữ mặc định 20 để test/file cũ không đổi hành vi.
@@ -825,7 +827,7 @@ class WallMixin:
         self.w_en_be_nLb = _entry(self.w_frm_be, D["be_n_Lb"])
         self.w_en_be_nTw = _entry(self.w_frm_be, D["be_n_tw"])
         _pair(self.w_frm_be, rr, "Số thanh theo chiều Lb",
-              self.w_en_be_nLb, "Số thanh theo chiều tw",
+              self.w_en_be_nLb, "Số thanh ở giữa theo chiều tw",
               self.w_en_be_nTw)
         rr += 1
         self.w_en_be_Lout = _entry(self.w_frm_be, D["be_L_out"])
@@ -843,9 +845,11 @@ class WallMixin:
         ttk.Label(
             self.w_frm_be, foreground="gray", wraplength=520,
             text="Nhập 1 bên, áp y hệt 2 đầu; tất cả thanh cùng db. "
-                 "Số thanh mỗi cạnh tính cả 2 góc; lớp ngoài tính mỗi "
-                 "mặt, lớp trong là tổng số hàng ở giữa "
-                 "(R = 2×lớp ngoài + lớp trong).").grid(
+                 "Mỗi vùng: 2 hàng dọc Lb (trên + dưới, mỗi hàng n_Lb "
+                 "thanh tính cả 2 góc) + mỗi lớp (cột dọc theo tw, "
+                 "đếm từ đầu ngoài vào: L_out cột ngoài rồi L_in cột "
+                 "trong) đóng góp n_tw thanh giữa. Tổng/vùng = "
+                 "2×n_Lb + n_tw×(L_out + L_in); L_out + L_in ≤ n_Lb.").grid(
                      row=rr, column=0, columnspan=4, padx=4, pady=(2, 2),
                      sticky=tk.W)
         # (Khối "Số đọc trực tiếp" ở panel đã bỏ theo quyết user
@@ -1288,12 +1292,17 @@ class WallMixin:
         rev_bn = {v: k for k, v in BOUNDARY_NAMES.items()}
         psi_y = num(self.w_en_psi_y, D["psi_y"])
         be_Lb = num(self.w_en_be_Lb, D["be_Lb"])
-        # Validation panel (user chốt 2026-10-25): n_Lb/n_tw >= 2 (mỗi
-        # cạnh tính cả 2 góc), L_out >= 1 (mỗi mặt), L_in >= 0.
+        # Validation panel (mô hình cột dọc, user chốt 2026-10-25):
+        # n_Lb >= 2 (mỗi hàng tính cả 2 góc), n_tw >= 0 (thanh giữa,
+        # có thể 0), L_out >= 1, L_in >= 0, và L_out + L_in <= n_Lb
+        # (cột lớp lấy từ vị trí thanh của 2 hàng nên không vượt
+        # quá số vị trí hàng).
         be_n_Lb = max(2, int(num(self.w_en_be_nLb, D["be_n_Lb"])))
-        be_n_tw = max(2, int(num(self.w_en_be_nTw, D["be_n_tw"])))
+        be_n_tw = max(0, int(num(self.w_en_be_nTw, D["be_n_tw"])))
         be_L_out = max(1, int(num(self.w_en_be_Lout, D["be_L_out"])))
+        be_L_out = min(be_L_out, be_n_Lb)
         be_L_in = max(0, int(num(self.w_en_be_Lin, D["be_L_in"])))
+        be_L_in = min(be_L_in, be_n_Lb - be_L_out)
         if mode == "perimeter":
             dia_v = cnum(self.w_cb_per_dia, D["per_dia"])
             s_v = num(self.w_en_per_s, D["per_s"])
@@ -1333,8 +1342,8 @@ class WallMixin:
             "Lb_right": be_Lb,
             "lb_auto": bool(self.w_var_lb_auto.get()),
             "dia_be": cnum(self.w_cb_be_dia, D["be_dia"]),
-            "n_be": ((2 * be_L_out + be_L_in) * be_n_Lb
-                      + 2 * (be_n_tw - 2)),
+            "n_be": (2 * be_n_Lb
+                     + be_n_tw * (be_L_out + be_L_in)),
             "tie_dia_be": cnum(self.w_cb_tie_dia, D["tie_dia_be"]),
             "tie_s_be": num(self.w_en_tie_s, D["tie_s_be"]),
             "tie_legs_be": int(num(self.w_en_tie_legs, D["tie_legs_be"])),
@@ -1352,11 +1361,15 @@ class WallMixin:
             "be_n_tw": be_n_tw,
             "be_L_out": be_L_out,
             "be_L_in": be_L_in,
+            # Dấu nghĩa mới: loader thấy be_model="columns" thì dùng
+            # thẳng be_n_tw (thanh giữa); thiếu dấu này thì coi là
+            # file nghĩa cũ 950b4d5 và trừ 2 góc (xem normalize).
+            "be_model": "columns",
             # Mirror format cũ (đọc bởi bản cũ + normalize khi khóa mới
-            # bị xóa tay; mapping cũ không biểu diễn được L_out > 1
-            # nên file mới luôn ưu tiên khóa mới).
+            # bị xóa tay; best-effort: be_nT = 2 hàng, không biểu diễn
+            # được cột lớp — file mới luôn ưu tiên khóa mới).
             "be_nL": be_n_Lb,
-            "be_nT": 2 * be_L_out + be_L_in,
+            "be_nT": 2,
             "be_layout": "chuvi",
             "be_Lb": be_Lb,
             "be_dia": cnum(self.w_cb_be_dia, D["be_dia"]),

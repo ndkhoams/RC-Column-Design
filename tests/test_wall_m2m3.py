@@ -88,7 +88,10 @@ def test_wall_m2m3_sample_perimeter():
 
 
 def test_wall_m2m3_boundary():
-    full = wall_tcvn_full(WallInput(steel_mode="boundary", cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
+    # be_n_tw=0 (nghia moi: 0 thanh giua) de giu hinh hoc 8 thanh/vung
+    # ma ky vong 0.35929 xay tren do; test nay kiem bieu do M2-M3,
+    # khong kiem mo hinh vung bien (mo hinh moi co test rieng).
+    full = wall_tcvn_full(WallInput(steel_mode="boundary", cover=13.0, be_n_tw=0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                           loads=dict(_LOADS))
     _check_case(full, 0.35929)
 
