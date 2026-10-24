@@ -22,11 +22,16 @@ bằng normalize_wall_dict (giữ nguyên L0 ngoài mặt phẳng cũ).
 
 Vật liệu KHÔNG nhân bản ở đây: vách đọc cùng các ô vật liệu hiện có của
 3 tiêu chuẩn (TCVN: concrete/steel/sw_steel; ACI: aci_fc/aci_fy/aci_fyt;
-EC2: ec2_conc/ec2_steel/ec2_phi) trong dict dữ liệu chung.
+EC2: ec2_conc/ec2_steel/ec2_phi) trong dict dữ liệu chung — NGOẠI TRỪ
+cấp thép ngang của vách (``sw_steel_grade`` dưới đây): đây là ô nhập
+RIÊNG của vách (phần 3/7, 2026-10-24), vì cắt trong mặt phẳng của vách
+không dùng ô "Cấp độ bền thép đai" của cột. Thép dọc vách vẫn lấy từ
+ô thép dọc dùng chung (cb_steel).
 """
 
 import math
 from dataclasses import dataclass, fields
+from typing import Optional
 
 
 @dataclass
@@ -49,6 +54,15 @@ class WallInput:
     dia_h: float = 12.0
     s_h: float = 200.0
     layers_h: int = 2
+    # Cấp thép ngang RIÊNG của vách (phần 3/7, 2026-10-24): quyết định
+    # Rsw cho kiểm tra cắt trong mặt phẳng (wall_shear), thay cho cấp
+    # thép dọc. None = CHƯA ĐẶT (file JSON cũ không có khóa này) ->
+    # engine fallback về cấp thép dọc để kết quả cũ tái hiện từng chữ
+    # số. File mới/GUI luôn ghi cấp tường minh (mặc định GUI: CB400-V,
+    # theo quy ước ô thép đai của cột); KHÔNG điền mặc định ở đây hay
+    # ở normalize_wall_dict, vì điền CB400-V sẽ làm lệch file cũ có
+    # thép dọc CB500-V (Rsw 300 -> 280).
+    sw_steel_grade: Optional[str] = None
 
     # Vùng biên (0 = không bố trí thép tập trung tại đầu đó)
     Lb_left: float = 500.0
@@ -129,6 +143,10 @@ def normalize_wall_dict(d) -> dict:
       psi_y <- l0_out_factor (phương X lấy cùng giá trị — trước đây
       trong mặt phẳng không dùng L0 riêng).
     Dict đã có khóa mới (kể cả từ _collect_wall) được giữ nguyên.
+    RIÊNG sw_steel_grade (phần 3/7): KHÔNG điền ở đây — file cũ thiếu
+    khóa này phải giữ trạng thái "chưa đặt" để engine fallback về cấp
+    thép dọc (xem WallInput.sw_steel_grade); điền CB400-V ở đây sẽ
+    đổi Rsw của file cũ từ 300 (CB500-V) xuống 280 và làm lệch Vcap.
     """
     d = dict(d) if isinstance(d, dict) else {}
     if "steel_mode" not in d:

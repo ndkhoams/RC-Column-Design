@@ -146,6 +146,108 @@ def test_engine_shear_fail_does_not_flip_nm():
     assert full["shear_in"]["ok"] is False
 
 
+# ---- Phần 3/7: ô cấp thép ngang RIÊNG của vách (sw_steel_grade) ----
+
+def _sw400():
+    return SteelMaterial(STEEL_GRADES["CB400-V"], 1.0)
+
+
+def test_sw_grade_explicit_via_winp():
+    """Khóa mới trong WallInput: sw_steel_grade="CB400-V" với thép dọc
+    CB500-V -> Rsw = 280 (không phải 300), qsw theo 280, khớp
+    check_shear trực tiếp với Rsw = 280; N–M không đổi."""
+    conc, steel = _mats()
+    w = WallInput(sw_steel_grade="CB400-V")
+    res = check_wall_shear_in_plane(w, conc, steel, 800.0, 2528.65)
+    p = res["parts"]
+    assert p["Rsw"] == 280.0
+    assert p["steel_grade"] == "CB400-V"
+    assert p["sw_steel_grade"] == "CB400-V"
+    assert p["steel_grade_long"] == "CB500-V"
+    assert abs(p["qsw_arr"] - 280.0 * p["Asw"] / 200.0) < 1e-9
+    sh = check_shear(800.0, 350.0, 2457.0, conc.Rb, conc.Rbt,
+                     p["Asw"], 280.0, 200.0, direction="in",
+                     N=2528.65, A_sec=2500.0 * 350.0,
+                     groups=[(p["Asw"], 200.0)])
+    assert abs(res["V_cap"] - min(sh.Qcap1, sh.Qcap2)) < 1e-9
+    assert res["V_cap"] < 1987.1546733996383  # Rsw thấp hơn -> Vcap thấp hơn
+    full = wall_tcvn_full(WallInput(sw_steel_grade="CB400-V"),
+                          conc, steel, loads=_web_loads(800.0))
+    assert abs(full["dc"] - 0.44520104645817127) < 1e-12  # N–M không đổi
+    assert full["shear_in"]["V_cap"] == res["V_cap"]
+
+
+def test_sw_grade_explicit_via_steel_sw_param():
+    """Tham số steel_sw của wall_shear/wall_engine (đường GUI dùng):
+    truyền CB400-V -> Rsw = 280, và thắng cả cấp ghi trong winp."""
+    conc, steel = _mats()
+    res = check_wall_shear_in_plane(WallInput(), conc, steel,
+                                    800.0, 2528.65, steel_sw=_sw400())
+    assert res["parts"]["Rsw"] == 280.0
+    assert res["parts"]["steel_grade"] == "CB400-V"
+    w = WallInput(sw_steel_grade="CB300-V")
+    full = wall_tcvn_full(w, conc, steel, loads=_web_loads(800.0),
+                          steel_sw=_sw400())
+    assert full["shear_in"]["parts"]["Rsw"] == 280.0
+    assert full["shear_in"]["parts"]["steel_grade"] == "CB400-V"
+
+
+def test_old_wall_dict_fallback_to_longitudinal():
+    """TƯƠNG THÍCH NGƯỢC: dict vách cũ KHÔNG có sw_steel_grade ->
+    wall_from_dict giữ None, engine fallback thép dọc CB500-V, số cắt
+    cũ tái hiện TỪNG CHỮ SỐ (Vcap 1987.1546733996383, D/C 0.40259)."""
+    from rc_column.wall_input import wall_from_dict, wall_to_dict
+    conc, steel = _mats()
+    old = {"Lw": 2500, "tw": 350, "cover": 25, "dia_h": 12, "s_h": 200,
+           "layers_h": 2}
+    w = wall_from_dict(old)
+    assert w.sw_steel_grade is None
+    assert "sw_steel_grade" not in old  # normalize KHÔNG điền khóa mới
+    res = check_wall_shear_in_plane(w, conc, steel, 800.0, 2528.65)
+    assert res["parts"]["Rsw"] == 300.0
+    assert res["parts"]["steel_grade"] == "CB500-V"
+    assert res["V_cap"] == 1987.1546733996383
+    assert abs(res["dc"] - 0.4025856722221599) < 1e-12
+    full = wall_tcvn_full(w, conc, steel, loads=_web_loads(800.0))
+    assert full["shear_in"]["V_cap"] == 1987.1546733996383
+    # Round-trip dict cũ: khóa mới có mặt với giá trị None (= chưa đặt),
+    # mở lại vẫn fallback — không tự biến thành CB400-V.
+    assert wall_to_dict(w)["sw_steel_grade"] is None
+    assert wall_from_dict(wall_to_dict(w)).sw_steel_grade is None
+
+
+def test_new_wall_dict_roundtrip():
+    """File mới có khóa sw_steel_grade -> mở lên dùng đúng cấp đó,
+    wall_to_dict giữ nguyên khóa."""
+    from rc_column.wall_input import wall_from_dict, wall_to_dict
+    conc, steel = _mats()
+    d = {"Lw": 2500, "tw": 350, "cover": 25, "dia_h": 12, "s_h": 200,
+         "layers_h": 2, "sw_steel_grade": "CB400-V"}
+    w = wall_from_dict(d)
+    assert w.sw_steel_grade == "CB400-V"
+    assert wall_to_dict(w)["sw_steel_grade"] == "CB400-V"
+    full = wall_tcvn_full(w, conc, steel, loads=_web_loads(800.0))
+    assert full["shear_in"]["parts"]["Rsw"] == 280.0
+    assert full["shear_in"]["parts"]["steel_grade"] == "CB400-V"
+    # Đổi sang cấp khác -> số cắt đổi theo đúng Rsw của cấp đó.
+    w2 = wall_from_dict(dict(d, sw_steel_grade="CB300-V"))
+    full2 = wall_tcvn_full(w2, conc, steel, loads=_web_loads(800.0))
+    assert full2["shear_in"]["parts"]["Rsw"] == 215.0
+    assert full2["shear_in"]["V_cap"] < full["shear_in"]["V_cap"]
+
+
+def test_invalid_sw_grade_falls_back():
+    """Cấp lạ trong winp -> fallback thép dọc ở cả 2 tầng (wall_shear
+    trực tiếp lẫn wall_engine), không crash, không tự đoán cấp khác."""
+    conc, steel = _mats()
+    w = WallInput(sw_steel_grade="KHONG-CO-CAP")
+    res = check_wall_shear_in_plane(w, conc, steel, 800.0, 2528.65)
+    assert res["parts"]["Rsw"] == 300.0
+    full = wall_tcvn_full(w, conc, steel, loads=_web_loads(800.0))
+    assert full["shear_in"]["parts"]["Rsw"] == 300.0
+    assert full["shear_in"]["parts"]["steel_grade"] == "CB500-V"
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

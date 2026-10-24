@@ -36,6 +36,7 @@ CĂN CỨ VÀ GIỚI HẠN ÁP DỤNG (đọc kỹ trước khi dùng số này 
 
 import math
 
+from .materials import STEEL_GRADES, SteelMaterial
 from .sections import bar_area
 from .stirrup import check_shear
 from .wall_section import wall_dims
@@ -67,13 +68,18 @@ def wall_shear_geometry(winp, Lw: float = None, tw: float = None):
 
 
 def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
-                              Lw: float = None, tw: float = None) -> dict:
+                              Lw: float = None, tw: float = None,
+                              steel_sw=None) -> dict:
     """Kiểm tra cắt trong mặt phẳng cho 1 tổ hợp (engine thuần).
 
     winp: WallInput; conc/steel: ConcreteMaterial/SteelMaterial (TCVN).
-    Rsw lấy từ ``steel`` — tức thép ngang lấy CÙNG cấp với thép dọc
-    (cấp thép dọc hiện tại x γs); ô "Cấp độ bền thép đai" của chế độ
-    Cột KHÔNG dùng cho vách ở lát này (xem câu hỏi Q2 trong báo cáo).
+    Rsw lấy từ ``steel_sw`` (vật liệu thép ngang RIÊNG của vách, phần
+    3/7) khi được truyền; steel_sw = None -> suy từ winp.sw_steel_grade
+    nếu là cấp hợp lệ (cùng γs với thép dọc, như đai cột), ngược lại
+    fallback về ``steel`` (cấp thép dọc x γs) — đúng hành vi cũ, để
+    file JSON cũ (không có khóa sw_steel_grade) và các caller cũ tái
+    hiện số cũ từng chữ số.
+    Ô "Cấp độ bền thép đai" của chế độ Cột KHÔNG dùng cho vách.
 
     Thép ngang phân bố quy đổi: một "nhóm" duy nhất
     Asw = layers_h x Ah (Ah = π·dia_h²/4), bước s_h — đúng vai trò
@@ -84,6 +90,8 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
     V_d, V_cap = min([Q]1, [Q]2), dc = |V_d|/V_cap, ok, parts (từng số
     hạng), sh (ShearResult của stirrup — nguồn duy nhất của các số),
     note (căn cứ + giới hạn). V_cap = 0 và |V_d| > 0 -> dc = inf.
+    parts["steel_grade"] = cấp thực dùng cho Rsw; parts["steel_grade_long"]
+    = cấp thép dọc (để đối chiếu khi fallback).
     """
     geom = wall_shear_geometry(winp, Lw, tw)
     b, h0 = geom["b"], geom["h0"]
@@ -94,7 +102,16 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
     except Exception:
         layers_h = 0
     Asw = layers_h * bar_area(dia_h) if dia_h > 0 and layers_h > 0 else 0.0
-    Rsw = float(steel.Rsw)
+    if steel_sw is not None:
+        sw_mat = steel_sw
+    else:
+        _g = getattr(winp, "sw_steel_grade", None)
+        if isinstance(_g, str) and _g in STEEL_GRADES:
+            sw_mat = SteelMaterial(STEEL_GRADES[_g],
+                                   float(getattr(steel, "gamma_s", 1.0)))
+        else:
+            sw_mat = steel
+    Rsw = float(sw_mat.Rsw)
     groups = [(Asw, s_h)] if Asw > 0 and s_h > 0 else []
     qsw_arr = Rsw * Asw / s_h if Asw > 0 and s_h > 0 else 0.0
     A_sec = geom["Lw"] * geom["tw"]
@@ -108,9 +125,13 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
     else:
         dc = 0.0 if abs(V_d) <= 1e-12 else float("inf")
     try:
-        steel_name = steel.grade.name
+        steel_name = sw_mat.grade.name
     except Exception:
         steel_name = ""
+    try:
+        steel_long_name = steel.grade.name
+    except Exception:
+        steel_long_name = ""
     if groups:
         sw_txt = f"{layers_h}φ{dia_h:.0f} a{s_h:.0f}"
     else:
@@ -120,7 +141,8 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
         "cover": geom["cover"], "dia_h": dia_h, "dia_v": geom["dia_v"],
         "s_h": s_h, "layers_h": layers_h, "Asw": Asw,
         "Asw_counted": sh.Asw_counted, "Rsw": Rsw,
-        "steel_grade": steel_name, "sw_txt": sw_txt,
+        "steel_grade": steel_name, "sw_steel_grade": steel_name,
+        "steel_grade_long": steel_long_name, "sw_txt": sw_txt,
         "qsw_arr": qsw_arr, "qsw": sh.qsw,
         "qsw_min96": sh.qsw_min96, "cond96_ok": sh.cond96_ok,
         "qb_mode": sh.qb_mode, "s_max": sh.s_max,
