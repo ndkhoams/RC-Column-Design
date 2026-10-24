@@ -585,7 +585,7 @@ def build_wall_detail_sections(full):
         ]
         if sh.get("seismic_applied"):
             sh_lines.append(
-                f"Phóng đại kháng chấn DCM (TCVN 9386-1:2012 "
+                f"Phóng đại kháng chấn DCM (TCVN 9386-1:2025 "
                 f"§5.4.2.4(7)): V_Ed = 1,5 × V2 = "
                 f"{_f(float(sh.get('V_d', V_in)), 1)} kN — toàn bộ "
                 f"kiểm tra §8.1.3 dưới đây xét ở V_Ed này "
@@ -687,7 +687,7 @@ def build_wall_detail_sections(full):
             f"V3 = {_f(V_out, 1)} kN (lực cắt ngoài mặt phẳng — "
             f"Q3 nhập tay / V3 pier)",
             f"V_Ed = V3 = {_f(float(sho.get('V_d', V_out)), 1)} kN "
-            f"(không phóng đại — TCVN 9386-1:2012 §5.4.2.4(7) chỉ "
+            f"(không phóng đại — TCVN 9386-1:2025 §5.4.2.4(7) chỉ "
             f"áp cho cắt trong mặt phẳng)",
             f"b × h0 = Lw × (tw − cover − dia_v − dia_h/2) = "
             f"{_f(shop.get('Lw', 0), 0)} × "
@@ -770,7 +770,7 @@ def build_wall_detail_sections(full):
                    "phải kết luận độc lập), mục 8 (cắt trong và "
                    "ngoài MP; trượt mạch ngừng CHƯA KIỂM).",
                    ("Cắt trong mặt phẳng ĐÃ kể phóng đại kháng chấn "
-                    "TCVN 9386-1:2012 §5.4.2.4(7) DCM (V_Ed = 1,5 × V2) "
+                    "TCVN 9386-1:2025 §5.4.2.4(7) DCM (V_Ed = 1,5 × V2) "
                     "trong lần tính này; cắt ngoài mặt phẳng không "
                     "phóng đại."
                     if (full.get("shear_in") or {}).get("seismic_applied")

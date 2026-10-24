@@ -342,7 +342,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
             ("Thép ngang bố trí", shp.get("sw_txt", "—")),
             ("Lực cắt tính toán, V2",
              (f"{float(sh.get('V_d', full['V_in'])):.1f} kN "
-              f"(1,5×{float(full['V_in']):.1f}, 9386 §5.4.2.4(7) DCM)"
+              f"(1,5×{float(full['V_in']):.1f}, 9386-1:2025 §5.4.2.4(7) DCM)"
               if sh.get("seismic_applied")
               else f"{float(full['V_in']):.1f} kN")),
             ("Kích thước tiết diện, b × h<sub>0</sub>",
@@ -422,7 +422,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
          "giải lại kết luận N–M (không phải kết luận độc lập), "
          "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
          "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM. "
-         "Cắt trong MP đã phóng đại kháng chấn TCVN 9386-1:2012 "
+         "Cắt trong MP đã phóng đại kháng chấn TCVN 9386-1:2025 "
          "§5.4.2.4(7) DCM (1,5×) trong lần tính này; cắt ngoài MP "
          "không phóng đại."
          if sh.get("seismic_applied") else
@@ -431,7 +431,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
          "giải lại kết luận N–M (không phải kết luận độc lập), "
          "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
          "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM. "
-         "Cắt chưa kể phóng đại kháng chấn TCVN 9386 trong lần "
+         "Cắt chưa kể phóng đại kháng chấn TCVN 9386-1:2025 trong lần "
          "tính này."),
         st_note))
 

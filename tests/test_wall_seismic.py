@@ -1,8 +1,8 @@
 """Kiểm chứng phần 5/7: combo động đất + phóng đại cắt kháng chấn
-TCVN 9386-1:2012 §5.4.2.4(7) DCM cho vách.
+TCVN 9386-1:2025 §5.4.2.4(7) DCM cho vách.
 
 CĂN CỨ (đã tra văn bản thật, không mượn mù):
-- TCVN 9386-1:2012 §5.4 "Design for DCM", §5.4.2.4 "Special
+- TCVN 9386-1:2025 §5.4 "Design for DCM", §5.4.2.4 "Special
   provisions for ductile walls", (6)P: sự tăng lực cắt sau khi
   chảy dẻo tại chân vách PHẢI được kể đến; (7): được thỏa mãn nếu
   lực cắt thiết kế lấy cao hơn 50% lực cắt từ phân tích, tức
@@ -144,7 +144,7 @@ def test_detail_builder_shows_seismic_line():
     secs = build_wall_detail_sections(seis)
     sec8 = [s for s in secs if s["num"] == 8][0]
     txt = "\n".join("\n".join(c["lines"]) for c in sec8["cards"])
-    assert "9386-1:2012" in txt and "1,5" in txt
+    assert "9386-1:2025" in txt and "1,5" in txt
     assert "V_Ed = 1,5" in txt
     base = wall_tcvn_full(w, conc, steel, loads=_web_loads())
     secs0 = build_wall_detail_sections(base)

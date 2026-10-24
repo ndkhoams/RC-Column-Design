@@ -130,7 +130,7 @@ def test_seismic_rows():
     (quyết user 2026-10-24); ngoài MP không đổi 300."""
     full = _full(seis=True)
     rows = build_wall_shear_rows(full)
-    lab = ("Lực cắt tính toán, V_Ed (×1.5 DCM — TCVN 9386-1:2012 "
+    lab = ("Lực cắt tính toán, V_Ed (×1.5 DCM — TCVN 9386-1:2025 "
            "§5.4.2.4(7))")
     v_in, v_out = _row(rows, lab)
     assert v_in == "1200.0 kN"

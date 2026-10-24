@@ -22,7 +22,7 @@ CĂN CỨ VÀ GIỚI HẠN ÁP DỤNG (đọc kỹ trước khi dùng số này 
   s > s_max = Rbt x b x h0²/|Q| thì nhóm đó KHÔNG được kể (Qsw = 0 nếu
   mọi nhóm đều bị loại).
 - Lực cắt thiết kế V_d là lực cắt truyền vào hàm này. Phóng đại cắt
-  kháng chấn DCM (TCVN 9386-1:2012 §5.4.2.4(7): V_Ed = 1,5 × V'_Ed,
+  kháng chấn DCM (TCVN 9386-1:2025 §5.4.2.4(7): V_Ed = 1,5 × V'_Ed,
   chỉ trong mặt phẳng) KHÔNG nằm trong hàm này mà do
   ``wall_engine.wall_tcvn_full(..., seismic_shear=True)`` áp TRƯỚC
   khi gọi (V_d = 1,5 × V_in); gọi trực tiếp hàm này với V_in thì
@@ -163,7 +163,7 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
         "ánh xạ vách: b = tw, h0 = Lw - cover - dia_h - dia_v/2, "
         "qsw từ thép ngang phân bố). φn (§8.1.3.3.2) chỉ nhân số hạng "
         "bê tông (ĐK1, Qb). V_d là lực cắt thiết kế truyền vào "
-        "(engine vách áp 1,5× theo TCVN 9386-1:2012 §5.4.2.4(7) "
+        "(engine vách áp 1,5× theo TCVN 9386-1:2025 §5.4.2.4(7) "
         "trước khi gọi khi combo động đất/DCM bật). Cắt ngoài mặt "
         "phẳng: xem "
         "check_wall_shear_out_of_plane; trượt mạch ngừng: chưa kiểm "
@@ -259,7 +259,7 @@ def check_wall_shear_out_of_plane(winp, conc, steel, V_out: float,
         "nhập giằng xuyên dày (không bịa thép giằng). φn "
         "(§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb). "
         "V_d = V_out = V3; cắt ngoài mặt phẳng KHÔNG phóng đại "
-        "kháng chấn (TCVN 9386-1:2012 §5.4.2.4(7) chỉ áp cho cắt "
+        "kháng chấn (TCVN 9386-1:2025 §5.4.2.4(7) chỉ áp cho cắt "
         "trong mặt phẳng của vách chịu uốn trong MP)."
     )
     return {"V_d": V_d, "V_cap": V_cap, "dc": dc, "ok": bool(sh.ok),

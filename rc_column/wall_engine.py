@@ -32,7 +32,7 @@ PENDING_SLIDING = ("Chưa kiểm (trượt mạch ngừng chân vách: chưa xá
 PENDING_DETAIL = "Chưa kiểm ở lát 1 (cấu tạo/ρmin: lát 3)"
 
 # Phóng đại cắt kháng chấn DCM cho vách (phần 5/7, 2026-10-24):
-# TCVN 9386-1:2012 §5.4.2.4(7) (mục 5.4 = DCM; Phần 1 của TCVN 9386
+# TCVN 9386-1:2025 §5.4.2.4(7) (mục 5.4 = DCM; Phần 1 của TCVN 9386
 # tương ứng EN 1998-1, các sửa đổi VN chỉ ở Phụ lục E–I nên số điều
 # §5 giữ nguyên): "lực cắt thiết kế lấy cao hơn 50% lực cắt thu được
 # từ phân tích" — tức V_Ed = 1,5 × V'_Ed. Đây là quy tắc RIÊNG của
@@ -61,7 +61,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     đúng hành vi cũ cho file JSON cũ không có khóa sw_steel_grade.
     seismic_shear: True = tổ hợp đang kiểm là combo động đất (hoặc
     nhập tay khi cờ DCM đang bật) -> cắt trong mặt phẳng kiểm ở
-    V_Ed = 1,5 × V_in theo TCVN 9386-1:2012 §5.4.2.4(7) DCM; False
+    V_Ed = 1,5 × V_in theo TCVN 9386-1:2025 §5.4.2.4(7) DCM; False
     (mặc định) = giữ đúng hành vi cũ, V_d = V_in. Cắt ngoài mặt phẳng
     không bao giờ phóng đại. N–M không đổi trong cả 2 trường hợp.
     Đơn vị: kN, kN·m, mm, MPa. N nén dương.
@@ -264,7 +264,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                    and math.isfinite(shear_in["dc"]) else "∞")
         if seismic_shear:
             shear_lines.append(
-                f"Phóng đại cắt kháng chấn DCM (TCVN 9386-1:2012 "
+                f"Phóng đại cắt kháng chấn DCM (TCVN 9386-1:2025 "
                 f"§5.4.2.4(7)): V_Ed = 1,5 × V2 = 1,5 × {V_in:.1f} = "
                 f"{_V_in_d:.1f} kN — toàn bộ kiểm tra §8.1.3 dưới đây "
                 f"xét ở V_Ed này; cắt ngoài mặt phẳng không phóng đại.")

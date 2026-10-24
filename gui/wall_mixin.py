@@ -571,7 +571,7 @@ def build_wall_shear_rows(full):
             # nhãn hàng (khóa "_v_ed_note" — không phải một hàng,
             # vòng dựng rows dưới đây gắn vào nhãn khi có).
             v_txt = f"{float(v_d):.1f} kN"
-            v_note = ("(×1.5 DCM — TCVN 9386-1:2012 §5.4.2.4(7))"
+            v_note = ("(×1.5 DCM — TCVN 9386-1:2025 §5.4.2.4(7))"
                       if sh.get("seismic_applied") else None)
             sw = parts.get("sw_txt", "—")
             grade = parts.get("steel_grade") or ""
@@ -935,7 +935,7 @@ class WallMixin:
             fx, "Loại vách (ACI 318-19)", self.w_cb_aci_class, r); r += 1
         self.w_var_seismic = tk.BooleanVar(value=bool(D["seismic_on"]))
         self.w_chk_seismic = tk.Checkbutton(
-            fx, text="Kháng chấn DCM (TCVN 9386:2012)",
+            fx, text="Kháng chấn DCM (TCVN 9386-1:2025)",
             variable=self.w_var_seismic, bg="white",
             activebackground="white", highlightthickness=0)
         self.w_chk_seismic.grid(
@@ -1062,7 +1062,7 @@ class WallMixin:
         """Nhóm 'Kháng chấn' của panel vách: chỉ hiện option thuộc
         tiêu chuẩn đang chọn (user chốt 2026-10-22):
         ACI -> ô 'Loại vách (ACI 318-19)'; TCVN -> checkbox
-        'Kháng chấn DCM (TCVN 9386:2012)'; EC2 -> checkbox
+        'Kháng chấn DCM (TCVN 9386-1:2025)'; EC2 -> checkbox
         'Kháng chấn DCM (EN 1998)'. Option đang ẩn chỉ bị grid_remove —
         biến giá trị (cb/BoolVar) không đổi nên JSON giữ nguyên khi
         đổi tiêu chuẩn qua lại. Được gọi từ _sec_wall (lúc dựng) và từ
@@ -1080,7 +1080,7 @@ class WallMixin:
             self.w_chk_seismic.grid()
             self.w_chk_seismic.configure(
                 text="Kháng chấn DCM (EN 1998)" if code.startswith("EC2")
-                else "Kháng chấn DCM (TCVN 9386:2012)")
+                else "Kháng chấn DCM (TCVN 9386-1:2025)")
 
     # ---------------- Preset ca mẫu web khi vào Vách ----------------
     def _shared_mat_load_values(self):
@@ -1472,7 +1472,7 @@ class WallMixin:
         steel_sw: vật liệu thép ngang riêng (phần 3/7); None -> engine
         tự suy từ winp.sw_steel_grade rồi fallback thép dọc.
         seismic_shear: True -> cắt trong MP phóng đại 1,5× theo TCVN
-        9386-1:2012 §5.4.2.4(7) DCM (phần 5/7)."""
+        9386-1:2025 §5.4.2.4(7) DCM (phần 5/7)."""
         return wall_tcvn_full(winp, conc, steel, model=model,
                               loads=loads, case_info=case_info,
                               steel_sw=steel_sw,
@@ -2380,7 +2380,7 @@ class WallMixin:
             # cột mô tả bên cạnh đã ghi rõ phóng đại DCM).
             rows.insert(4, ("V_Ed",
                             "Lực cắt trong MP đã phóng đại kháng chấn "
-                            "(TCVN 9386-1:2012 §5.4.2.4(7) DCM)",
+                            "(TCVN 9386-1:2025 §5.4.2.4(7) DCM)",
                             f"{_sh['V_d']:.1f} kN"))
         for i, (s, d, v) in enumerate(rows):
             tree.insert("", tk.END, values=(s, d, v),

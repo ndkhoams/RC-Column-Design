@@ -140,7 +140,7 @@ class EtabsMixin:
           đó, VÀ chịu phóng đại cắt kháng chấn khi kiểm tra vách;
         - tên không có cặp: tick chỉ có nghĩa phóng đại (không có
           gì để gộp) — vẫn liệt kê, vẫn tick được.
-        Phóng đại: TCVN 9386-1:2012 §5.4.2.4(7) DCM, V_Ed = 1,5 ×
+        Phóng đại: TCVN 9386-1:2025 §5.4.2.4(7) DCM, V_Ed = 1,5 ×
         V'_Ed, CHỈ cắt trong mặt phẳng vách; cắt ngoài mặt phẳng
         không phóng đại. Đường nhập tay của vách (không có tên
         combo) dùng cờ DCM riêng ở panel vách, không dùng popup này.
@@ -177,7 +177,7 @@ class EtabsMixin:
             text="Tick một tên combo = combo ĐỘNG ĐẤT của tên đó "
                  "(mọi Story/Station).\n• Có cặp max/min: TỰ GỘP cặp đó, và chịu "
                  "phóng đại cắt khi kiểm tra vách.\n• Không có cặp: tick chỉ có nghĩa phóng đại "
-                 "(không có gì để gộp).\nPhóng đại cắt: TCVN 9386-1:2012 §5.4.2.4(7) "
+                 "(không có gì để gộp).\nPhóng đại cắt: TCVN 9386-1:2025 §5.4.2.4(7) "
                  "DCM — V_Ed = 1,5 × V'_Ed, CHỈ trong mặt phẳng vách.",
             font=("", 9, "italic"), wraplength=440, justify=tk.LEFT,
             bg=_bg).pack(
@@ -318,6 +318,20 @@ class EtabsMixin:
                         canvas.configure(height=max(
                             60, _h - (top.winfo_reqheight() - _max_h)))
                         top.update_idletasks()
+        except Exception:
+            pass
+        # Chiều rộng popup giữ 778 như thời d136c1a/19e49db0 (quyết
+        # user 2026-10-24): 439 ở 2ae5a44 chỉ là hệ quả của layout
+        # xếp cạnh cũ bị bỏ, không phải chiều rộng mong muốn.
+        # Kẹp theo màn hình hẹp: rộng tối đa = bề rộng màn hình trừ
+        # 40px (20px lề mỗi phía), sàn 200px cho màn hình rất nhỏ.
+        # Đặt geometry tường minh rồi center_dialog mới đo đúng 778.
+        try:
+            _sw = top.winfo_screenwidth()
+            _want_w = min(778, max(200, _sw - 40))
+            top.update_idletasks()
+            top.geometry(f"{_want_w}x{top.winfo_reqheight()}")
+            top.update_idletasks()
         except Exception:
             pass
         # Quy tắc chung: mọi popup đều mở ở giữa màn hình.

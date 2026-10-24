@@ -25,7 +25,7 @@ _SEISMIC_TIP = (
     "tên đó, và chịu phóng đại cắt khi kiểm tra vách.\n"
     "Bỏ tick = về dòng gốc, không gộp, không phóng đại.\n"
     "Tên không có cặp: tick chỉ có nghĩa phóng đại.\n"
-    "Phóng đại: TCVN 9386-1:2012 §5.4.2.4(7) DCM —\n"
+    "Phóng đại: TCVN 9386-1:2025 §5.4.2.4(7) DCM —\n"
     "V_Ed = 1,5 × V'_Ed, CHỈ cắt trong mặt phẳng vách.\n"
     "Hiện tại chỉ combo động đất mới gộp max/min."
 )
