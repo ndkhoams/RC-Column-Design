@@ -657,7 +657,7 @@ class WallMixin:
 
         # ===== Bổ sung GĐ1 (ngoài format web) =====
         r = 0
-        r = _hdr(fx, "Thép phân bố ngang (chỉ dùng cho cắt — lát 4)", r)
+        r = _hdr(fx, "Thép phân bố ngang (dùng cho cắt trong mặt phẳng)", r)
         self.w_cb_dia_h = _combo(fx, _DIAS, D["dia_h"])
         self._row(fx, "Thép ngang: đường kính (mm)", self.w_cb_dia_h, r)
         r += 1
@@ -1916,12 +1916,7 @@ class WallMixin:
         tk.Label(
             self._sum_inner, foreground="gray", wraplength=1150,
             justify=tk.LEFT,
-            text="Phạm vi lát 1: chỉ kiểm tra N–M (đã kể uốn dọc cả 2 "
-                 "phương: ngoài mặt phẳng theo tw; trong mặt phẳng "
-                 "kèm sàn lệch tâm ea = Lw/30). Vùng biên (lát 3), "
-                 "cắt trong mặt "
-                 "phẳng + trượt mạch ngừng (lát 4) và cấu tạo (lát 3) "
-                 "CHƯA kiểm — kết luận trên chỉ cho N–M."
+            text="Phạm vi: N–M (đã kể uốn dọc cả 2 phương: ngoài mặt phẳng theo tw; trong mặt phẳng kèm sàn lệch tâm ea = Lw/30) + cắt trong mặt phẳng theo TCVN 5574:2018 §8.1.3 (ánh xạ vách — xem hàng Vcap/D/C cắt trong bảng; kết luận cắt RIÊNG). Vùng biên (lát 3), trượt mạch ngừng và cấu tạo (lát 3) CHƯA kiểm — banner trên chỉ kết luận N–M."
             ).grid(row=3, column=0, columnspan=2, sticky="ew",
                    padx=4, pady=(2, 6))
         self._finish_wall_sum_layout()
@@ -1946,6 +1941,12 @@ class WallMixin:
         tree.tag_configure(
             "dc", background="#D1FAE5" if full["ok"] else "#FEE2E2",
             foreground="#065F46" if full["ok"] else "#991B1B")
+        _sh = full.get("shear_in") or {}
+        _sh_ok = _sh.get("ok")
+        tree.tag_configure(
+            "dc_shear",
+            background="#D1FAE5" if _sh_ok else "#FEE2E2",
+            foreground="#065F46" if _sh_ok else "#991B1B")
         c = full["c_neutral"]
         c_txt = (f"{c:.0f} mm" if c is not None and math.isfinite(c)
                  else "—")
@@ -1959,7 +1960,7 @@ class WallMixin:
              f"{full['M_in']:.1f} kN·m"),
             ("M2", "Mô men ngoài mặt phẳng ban đầu",
              f"{full['M_out']:.1f} kN·m"),
-            ("V2", "Lực cắt trong mặt phẳng (chưa kiểm — lát 4)",
+            ("V2", "Lực cắt trong mặt phẳng",
              f"{full['V_in']:.1f} kN"),
             ("L0", "Chiều dài tính toán ngoài mặt phẳng",
              f"{sl['l0_out'] / 1000.0:.2f} m"),
@@ -2001,6 +2002,33 @@ class WallMixin:
                             f"{full['dc']:.3f} (FS = {fs_txt})  "
                             + ("ĐẠT" if full["ok"] else "KHÔNG ĐẠT")),
                     tags=("dc",))
+        # --- Kết quả cắt trong mặt phẳng (lát 4): chỉ giá trị, theo
+        # quy ước hiển thị cắt đã chốt (chi tiết combo/vị trí thuộc
+        # phần tab Chi tiết sau; ở đây dict shear_in đã đủ dữ liệu).
+        _shp = _sh.get("parts") or {}
+        if _sh.get("V_cap") is not None:
+            _dc_sh = _sh.get("dc")
+            _dc_sh_txt = (f"{_dc_sh:.3f}" if _dc_sh is not None
+                          and math.isfinite(_dc_sh) else "∞")
+            tree.insert("", tk.END,
+                        values=("Vcap", "Khả năng chịu cắt trong mặt phẳng",
+                                f"{_sh['V_cap']:.1f} kN"),
+                        tags=("odd",))
+            tree.insert("", tk.END,
+                        values=("D/C cắt", "Tỷ số sử dụng khả năng chịu cắt",
+                                f"{_dc_sh_txt}  "
+                                + ("ĐẠT" if _sh_ok else "KHÔNG ĐẠT")),
+                        tags=("dc_shear",) if _sh_ok is not None
+                        else ("odd",))
+            tree.insert("", tk.END,
+                        values=("Thép ngang", "Thép ngang phân bố (cắt)",
+                                _shp.get("sw_txt", "—")),
+                        tags=("odd",))
+        else:
+            tree.insert("", tk.END,
+                        values=("Vcap", "Khả năng chịu cắt trong mặt phẳng",
+                                "— (chưa tính được)"),
+                        tags=("odd",))
         tree.pack(fill=tk.X, padx=2)
 
     def _render_wall_detail(self, full):
@@ -2017,9 +2045,7 @@ class WallMixin:
                  f"V2 = {full['V_in']:.1f} kN, V3 = {full['V_out']:.1f} kN",
                  ""]
         lines += full["details"]
-        lines += ["", "Chưa kiểm ở lát 1: vùng biên (lát 3), cắt trong "
-                      "mặt phẳng + trượt mạch ngừng (lát 4), cấu tạo "
-                      "(lát 3). PDF vách thuộc lát 6."]
+        lines += ["", "Chưa kiểm: vùng biên (lát 3), trượt mạch ngừng, cấu tạo (lát 3). Cắt trong mặt phẳng đã kiểm — xem các dòng cắt trong thuyết minh trên; bảng chi tiết cắt đầy đủ theo combo/vị trí thuộc phần tab Chi tiết sau (batch pier chưa có ở lát này). PDF vách thuộc lát 6."]
         t.insert(tk.END, "\n".join(lines))
         t.configure(state="disabled")
         self._calc_inner.update_idletasks()
