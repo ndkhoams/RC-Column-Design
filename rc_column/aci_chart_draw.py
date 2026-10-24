@@ -28,6 +28,16 @@ def _design_curve(sec, conc, steel, theta_deg, tied=True, n_points=48):
         n_dsgn.append(float(N))
         m_dsgn.append(cap.moment_capacity(float(N), theta_deg))
     _fix_cap_top(cap, eng, n_dsgn, m_dsgn, theta_deg)
+    # Vẽ đoạn NGANG cap phi*Pn,max từ M=0 tới điểm cắt cap (đầu cong),
+    # như ETABS/CSiCol trình bày: đường bao thiết kế phải KHÉP tại
+    # N = N_cap. Thiếu điểm này, nét vẽ bắt đầu lơ lửng tại điểm cắt
+    # cap (M > 0) và vùng cap chỉ được đóng bởi mép fill rất nhạt —
+    # trông như đầu cong chưa kết thúc / vượt cap. Thuần hiển thị:
+    # chỉ thêm điểm (0, N_cap) khi đỉnh polyline đúng là mặt cap.
+    if n_dsgn and m_dsgn[0] > 0.0 \
+            and abs(n_dsgn[0] - cap.N_cap) <= 1e-6 * max(1.0, abs(cap.N_cap)):
+        n_dsgn.insert(0, n_dsgn[0])
+        m_dsgn.insert(0, 0.0)
     return n_dsgn, m_dsgn
 
 
