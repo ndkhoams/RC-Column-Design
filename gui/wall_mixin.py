@@ -1368,22 +1368,34 @@ class WallMixin:
     # ---------------- Hàm tính vách TCVN duy nhất (lát 1) ----------------
     def _tcvn_wall_calculate_full(self, winp, conc, steel, model,
                                   loads=None, case_info=None,
-                                  steel_sw=None):
+                                  steel_sw=None, seismic_shear=False):
         """Tính 1 lần bằng engine vách; tab/PDF chỉ đọc dict trả về.
         steel_sw: vật liệu thép ngang riêng (phần 3/7); None -> engine
-        tự suy từ winp.sw_steel_grade rồi fallback thép dọc."""
+        tự suy từ winp.sw_steel_grade rồi fallback thép dọc.
+        seismic_shear: True -> cắt trong MP phóng đại 1,5× theo TCVN
+        9386-1:2012 §5.4.2.4(7) DCM (phần 5/7)."""
         return wall_tcvn_full(winp, conc, steel, model=model,
                               loads=loads, case_info=case_info,
-                              steel_sw=steel_sw)
+                              steel_sw=steel_sw,
+                              seismic_shear=seismic_shear)
 
     def _check_wall_tcvn(self):
         try:
             winp = wall_from_dict(self._collect_wall())
             loads = self._collect_wall_loads()
             conc, steel, model = self._wall_tcvn_materials()
+            # Đường nhập tay không có tên combo: phóng đại DCM theo
+            # cờ kháng chấn DCM của panel vách (w_var_seismic, mặc
+            # định BẬT — Q2: cho tắt). Combo động đất ở popup mục 5
+            # là lớp riêng cho đường batch ETABS (lát 5 sẽ tiêu thụ
+            # cờ theo từng combo); ở đây không có combo nên không
+            # xét seismic_combo_selected.
+            _seis = bool(getattr(self, "w_var_seismic", None) is not None
+                         and self.w_var_seismic.get())
             full = self._tcvn_wall_calculate_full(
                 winp, conc, steel, model, loads=loads,
-                steel_sw=self._wall_sw_material())
+                steel_sw=self._wall_sw_material(),
+                seismic_shear=_seis)
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
             return
@@ -2170,6 +2182,15 @@ class WallMixin:
             ("σmép", "Ứng suất nén mép (đàn hồi)",
              f"{full['sigma_edge']:.2f} MPa"),
         ]
+        # Phần 5/7: khi phóng đại DCM đang áp, hiện thêm hàng V_Ed
+        # ngay sau hàng V2 (V2 ở vị trí 3) để không nhầm V gốc với
+        # V thiết kế đã phóng đại; D/C cắt dưới đây đã tính ở V_Ed.
+        if _sh.get("seismic_applied") and _sh.get("V_cap") is not None:
+            rows.insert(4, ("V_Ed",
+                            "Lực cắt trong MP đã phóng đại kháng chấn "
+                            "(TCVN 9386-1:2012 §5.4.2.4(7) DCM)",
+                            f"{_sh['V_d']:.1f} kN "
+                            f"(1,5 × {_sh.get('V_raw', full['V_in']):.1f})"))
         for i, (s, d, v) in enumerate(rows):
             tree.insert("", tk.END, values=(s, d, v),
                         tags=("odd",) if i % 2 else ())
