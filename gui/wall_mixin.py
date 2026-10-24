@@ -160,17 +160,32 @@ def _dir_ha_va(dx, dy):
 
 
 def _wall_section_spans(sec, n_seg=0, rot_deg=0):
-    """Giới hạn trục (x_lo, x_hi, y_lo, y_hi) cho hình mặt cắt vách.
+    """Giới hạn trục (x_lo, x_hi, y_lo, y_hi) cho hình mặt cắt vách =
+    BBOX CHẶT của toàn bộ nội dung vẽ (mặt cắt + thép + dim + chữ +
+    mũi tên trục) cộng margin nhỏ đều — KHÔNG chừa khoảng đệm theo
+    bội số cy/cx như trước (đệm cũ làm span dọc 4.7cy trong khi mực
+    thật chỉ ~4.1cy, và tỉ lệ span lệch xa tỉ lệ hộp axes nên
+    adjustable='datalim' phải giãn span hiển thị +75%, nội dung co
+    còn ~nửa chiều cao canvas trên cửa sổ lớn).
 
-    n_seg > 0 (chế độ vùng biên): chừa thêm 1 hàng DIM phân đoạn
-    (Lb | đoạn giữa | Lb) bên dưới hàng DIM tổng. rot_deg: span ở
-    khung hiển thị = bao hình của 4 góc span canonical đã xoay
-    (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
+    Các mốc lấy đúng vị trí phần tử trong draw_wall_section_ax, đã
+    đo kiểm chứng bằng artist extents (ca 2500x350, rot 0):
+    - trái: chữ 'tw' xoay đứng — mép trái ở -(cx/2 + 0.063cx) trừ
+      bề dày chữ ~0.027cx = -0.59cx; chừa margin tới -0.605cx.
+    - phải: mép phải mặt cắt +0.5cx, chừa 0.02cx.
+    - trên: nhãn 't3' neo ở cy/2 + 1.01cy, đỉnh chữ ~+0.21cy nữa
+      (chiều cao chữ theo đơn vị dữ liệu ở tỉ lệ vẽ thường) = 1.72cy;
+      chừa tới cy/2 + 1.27cy.
+    - dưới: có hàng DIM phân đoạn (n_seg > 0): đường gióng của nó
+      xuống tới -cy/2 - 1.86cy; không có: đáy chữ 'Lw = ...' ở
+      -cy/2 - 1.14cy. Đều chừa thêm 0.07cy.
+    rot_deg: span hiển thị = bao hình của 4 góc span canonical đã
+    xoay (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
     cx, cy = float(sec.cx), float(sec.cy)
-    y_lo = -cy / 2 - (2.15 * cy if n_seg else 1.25 * cy)
-    x_lo, x_hi = -cx / 2 - 0.10 * cx, cx / 2 + 0.05 * cx
-    y_hi = cy / 2 + 1.55 * cy
+    x_lo, x_hi = -cx / 2 - 0.105 * cx, cx / 2 + 0.02 * cx
+    y_hi = cy / 2 + 1.27 * cy
+    y_lo = -cy / 2 - (1.93 * cy if n_seg else 1.21 * cy)
     if int(rot_deg or 0) % 360 == 0:
         return (x_lo, x_hi, y_lo, y_hi)
     pts = [_rot_xy(x, y, rot_deg)
@@ -180,14 +195,37 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     return (min(xs), max(xs), min(ys), max(ys))
 
 
+_WALL_SEC_PAD_PX = 9.0
+
+
+def _wall_section_axes_pos(fig, ax, pad_px=_WALL_SEC_PAD_PX):
+    """Đặt axes lấp gần trọn figure (chừa pad_px mỗi phía). Hình mặt
+    cắt vách không có tick label, không artist nào ngoài axes
+    (legend nằm trong axes, dim + chữ nằm trong span dữ liệu) nên
+    KHÔNG dùng tight_layout: đệm mặc định của nó (theo cỡ chữ, cộng
+    dồn qua các lần layout ở các cỡ figure trung gian) chừa tới
+    ~20px/phía làm nội dung co lại. Position thủ công cho chrome
+    cố định -> phép fit tỉ lệ trong _build_wall_section_cell tất
+    định."""
+    w, h = fig.bbox.width, fig.bbox.height
+    if w <= 0 or h <= 0:
+        return
+    lft = pad_px / w
+    bot = pad_px / h
+    ax.set_position([lft, bot, 1.0 - 2 * lft, 1.0 - 2 * bot])
+
+
 def _wall_section_figsize(sec, n_seg=0, rot_deg=0):
-    """Cỡ figure khớp tỉ lệ span dữ liệu -> aspect 'equal' không bóp
-    dẹt hình và không chừa dải trống lớn quanh mặt cắt."""
+    """Cỡ figure KHỞI TẠO khớp tỉ lệ span chặt (cả 2 hướng ngang/
+    dọc); _build_wall_section_cell sẽ fit lại đúng theo bề rộng ô
+    thật khi canvas được cấp kích thước."""
     x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, n_seg, rot_deg)
     ratio = (x_hi - x_lo) / max(1e-9, y_hi - y_lo)
-    w = 5.5
-    h = w / max(ratio, 0.55) * 0.94
-    return (w, min(3.3, max(2.0, h)))
+    if ratio >= 1.0:
+        w, h = 5.5, 5.5 / ratio
+    else:
+        h, w = 4.6, 4.6 * ratio
+    return (min(6.0, max(2.0, w)), min(5.0, max(1.8, h)))
 
 
 def _dim_h(ax, x1, x2, y, text, text_dy=0.30, fs=8):
@@ -231,12 +269,14 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     def RP(pts):
         return [R(px, py) for px, py in pts]
 
-    # adjustable="datalim": giữ tỉ lệ đơn vị 2 trục bằng nhau nhưng
-    # GIÃN giới hạn dữ liệu ở phương không khống chế để vùng vẽ lấp
-    # đầy khung figure (ô mặt cắt ở tab Kết quả bị lưới kéo cao theo
-    # bảng thông số — với "box" axes bị co thành một dải mỏng giữa
-    # ô, chừa dải trắng chết phía dưới). Khung home của zoom là span
-    # gốc do _wall_section_spans trả (xem _build_wall_section_cell).
+    # adjustable="datalim": giữ tỉ lệ đơn vị 2 trục bằng nhau; khi
+    # tỉ lệ hộp axes khác tỉ lệ span nó giãn lims ở phương không
+    # khống chế và căn giữa nội dung. Builder ô mặt cắt đã fit tỉ
+    # lệ axes = tỉ lệ span chặt (xem _build_wall_section_cell) nên
+    # ở trạng thái home hầu như không giãn; datalim chỉ còn tác
+    # dụng ở ca bị kẹp chiều cao (tiết diện xoay đứng trong ô thấp)
+    # để nội dung lấp đầy chiều cao và cân giữa theo chiều ngang.
+    # Khung home của zoom là span do _wall_section_spans trả.
     ax.set_aspect("equal", adjustable="datalim")
     cx, cy = float(sec.cx), float(sec.cy)
     DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
@@ -319,10 +359,13 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
             markeredgecolor="white",
             markersize=max(4.0, dia * 0.22),
             label=f"D{dia:.0f}"))
-    # Legend thép: box viền riêng bên phải hình (như tab Kết quả cột)
+    # Legend thép: box viền TRONG góc trên-phải của axes (vùng luôn
+    # trống: dải nội dung nằm giữa khung, dim ở mép dưới/trái). Đặt
+    # ngoài axes như trước tốn ~94px chiều rộng cho cột legend, làm
+    # tỉ lệ vẽ co theo chiều ngang — vách dẹt bị thiệt nặng nhất.
     if legend_handles:
-        leg = ax.legend(handles=legend_handles, loc="center left",
-                        bbox_to_anchor=(1.01, 0.5), ncol=1,
+        leg = ax.legend(handles=legend_handles, loc="upper right",
+                        bbox_to_anchor=(1.0, 1.0), ncol=1,
                         frameon=True, fontsize=8,
                         facecolor="white", edgecolor="#D1D5DB")
         for txt in leg.get_texts():
@@ -1279,7 +1322,7 @@ class WallMixin:
 
     def _build_wall_section_cell(self, parent, sec, meta=None,
                                  na_info=None, show_compression=False,
-                                 winp=None):
+                                 winp=None, fit_escape=False):
         """Ô MẶT CẮT TIẾT DIỆN (box viền như cột): tiêu đề + hình mặt
         cắt vách (có DIM từng khoảng; tô vùng nén khi show_compression
         và có na_info sau CHECK) + hàng thẻ thống kê thép dùng chung
@@ -1318,47 +1361,168 @@ class WallMixin:
                                  show_compression=show_compression,
                                  rot_deg=_rot)
             try:
-                fig.tight_layout()
+                _wall_section_axes_pos(fig, ax)
             except Exception:
                 pass
             canvas.draw()
             self._sec_fig, self._sec_canvas, self._sec_ax = fig, canvas, ax
             self._sec_zoom_setup(fig, canvas, ax, _zst)
-            # Home của zoom = span dữ liệu gốc (trước khi axes giãn
-            # theo khung — adjustable="datalim"): Reset đặt lại lims
-            # này rồi lần vẽ kế tự giãn đầy khung, nên hình sau Reset
-            # trùng hình mới vẽ ở mọi cỡ cửa sổ; mốc kẹp zoom cũng
-            # theo span thật của tiết diện + dim.
+            # Home của zoom = span chặt của nội dung vẽ: Reset đặt
+            # lại lims này; mốc kẹp zoom cũng theo span này.
             _sp = _wall_section_spans(sec, _nseg, _rot)
             _zst["home"] = ((_sp[0], _sp[1]), (_sp[2], _sp[3]))
-            # Ô bị lưới kéo co khác cỡ figure gốc: chạy lại
-            # tight_layout khi kích thước canvas đã ổn định để box
-            # legend bên phải luôn nằm trọn trong figure (legend có
-            # cỡ chữ cố định nên không co theo tỉ lệ figure).
+            # FIT KHUNG: canvas chỉ fill theo CHIỀU NGANG của ô (pack
+            # X, không expand dọc); chiều cao canvas được đặt sao cho
+            # tỉ lệ hộp axes = tỉ lệ span chặt -> nội dung (equal
+            # aspect) lấp đầy cả 2 chiều của canvas, không còn dải
+            # trắng trên/dưới do datalim giãn span như trước. Nếu
+            # chiều cao cần thiết vượt quá phần ô chứa cấp (trừ tiêu
+            # đề + hàng thẻ) — ca tiết diện xoay đứng — thì lấy hết
+            # phần được cấp và datalim cân giữa theo chiều ngang.
+            # Chạy debounce theo <Configure> của canvas VÀ của frame
+            # ô (đổi cỡ cửa sổ / lưới giãn đều kích hoạt lại); đặt
+            # height qua widget.configure (figure bám theo qua cơ chế
+            # resize của canvas) — set_size_inches(forward=True)
+            # không đổi được widget nhúng, đã kiểm chứng.
             _cw = canvas.get_tk_widget()
-            _st = {"id": None, "size": (0, 0)}
+            try:
+                _cw.pack_configure(fill=tk.X, expand=False)
+            except Exception:
+                pass
+            _fit = {"id": None, "escape": bool(fit_escape)}
 
-            def _relayout(event=None):
-                if event is not None:
-                    if (abs(event.width - _st["size"][0]) < 4
-                            and abs(event.height - _st["size"][1]) < 4):
+            def _fit_now():
+                _fit["id"] = None
+                try:
+                    wpx = _cw.winfo_width()
+                    fh_px = f.winfo_height()
+                    if wpx < 80 or fh_px < 50:
+                        return  # layout chưa ổn định, Configure sau lo
+                    (hx0, hx1), (hy0, hy1) = _zst["home"]
+                    ratio = (hx1 - hx0) / max(1e-9, hy1 - hy0)
+                    hav = fh_px - 8
+                    for sib in f.winfo_children():
+                        if sib is not _cw:
+                            hav -= sib.winfo_height()
+                    dpr = float(getattr(fig.canvas,
+                                        "device_pixel_ratio", 1.0)
+                                or 1.0)
+                    # CÔNG THỨC ĐÓNG: axes position cố định (pad
+                    # _WALL_SEC_PAD_PX mỗi phía, display px) nên từ bề
+                    # rộng widget (mốc cuối chắc chắn mà figure sẽ
+                    # hội tụ về) suy thẳng chiều cao figure để tỉ lệ
+                    # axes = tỉ lệ span — không đo bbox figure lúc
+                    # đang đổi cỡ (cả 2 chiều của figure đều có thể
+                    # trễ so với widget tại thời điểm đo, từng làm
+                    # delta sai ~13px và datalim co view ~5%).
+                    axes_w = wpx * dpr - 2 * _WALL_SEC_PAD_PX
+                    if axes_w < 40:
                         return
-                    _st["size"] = (event.width, event.height)
-                if _st["id"] is not None:
-                    try:
-                        _cw.after_cancel(_st["id"])
-                    except Exception:
-                        pass
+                    need = (axes_w / ratio
+                            + 2 * _WALL_SEC_PAD_PX) / dpr
+                    # Trần hav rút từ chiều cao frame ô chỉ đáng tin
+                    # khi frame bị khống chế bởi nội dung ĐỘC LẬP
+                    # (view kết quả: bảng thông số). Ở preview, frame
+                    # nằm trong canvas cuộn có chiều cao bám theo nội
+                    # dung: hav tự đuổi theo canvas (+vài px mỗi vòng
+                    # fit — vòng phản hồi dương). Nhận diện: giữa 2
+                    # lần fit liên tiếp, frame cao lên ĐÚNG BẰNG phần
+                    # canvas cao lên -> trần tự tham chiếu -> bỏ kẹp.
+                    # CHỈ áp cho preview (fit_escape): ở view kết quả
+                    # hav là mốc độc lập (bảng thông số) và layout lúc
+                    # dựng có thể cao lên từng nấc nhỏ — từng bị nhận
+                    # nhầm là phản hồi làm canvas phình quá khổ.
+                    ch_now = _cw.winfo_height()
+                    _pv = _fit.get("prev")
+                    self_driven = False
+                    if _pv is not None and _fit.get("escape"):
+                        _dch = ch_now - _pv[0]
+                        _dfh = fh_px - _pv[1]
+                        # Chỉ nhận diện khi mức tăng là "rò rỉ" nhỏ
+                        # theo vòng (vòng lặp preview: +4px/vòng);
+                        # cú nhảy lớn lúc layout đang ổn định (view
+                        # kết quả vừa dựng) không phải phản hồi.
+                        if 0 < abs(_dch) <= 12 \
+                                and abs(_dfh - _dch) <= 6:
+                            self_driven = True
+                    _fit["prev"] = (ch_now, fh_px)
+                    if self_driven:
+                        target = int(round(need))
+                    else:
+                        target = int(round(min(need, max(hav, 60))))
+                    # Chiều cao figure HIỆN TẠI theo display px (=
+                    # miền px của widget/sự kiện Configure của TkAgg).
+                    # Không dùng canvas.get_width_height(): nó trả
+                    # LOGICAL px (đã chia device_pixel_ratio) — trộn
+                    # 2 miền làm tiêu chí "đã khớp chưa" lệch ~4%.
+                    hpx = fig.bbox.height
+                    adjusted = abs(target - hpx) > 3
+                    if adjusted:
+                        _cw.configure(height=target)
+                        # Ép backend resize ĐỒNG BỘ theo đúng (w,
+                        # target) — bỏ qua lớp Debounced giữ sự kiện
+                        # Configure cũ áp lại trễ (chính lớp đó từng
+                        # ghi đè kích thước figure về cỡ khởi tạo).
+                        # Sự kiện Configure do configure() sinh ra sẽ
+                        # áp lại cùng kích thước này -> idempotent.
+                        try:
+                            from matplotlib.backends.backend_tkagg \
+                                import FigureCanvasTkAgg as _BaseCv
+                            import types as _types
+                            _BaseCv.resize(canvas, _types.SimpleNamespace(
+                                width=wpx, height=target))
+                        except Exception:
+                            pass
+                        # Position axes tính theo fraction của cỡ
+                        # figure tại lúc đặt — đặt lại sau resize để
+                        # pad đúng 9px ở cỡ cuối, rồi vẽ lại.
+                        try:
+                            _wall_section_axes_pos(fig, ax)
+                            canvas.draw()
+                        except Exception:
+                            pass
+                    # Vòng kiểm chứng (settle): sự kiện Configure cũ
+                    # của lớp canvas Debounced có thể áp lại trễ sau
+                    # vòng fit này, kéo figure lệch vài px (datalim
+                    # co view, cắt ~2px mép nội dung). 300ms sau —
+                    # khi mọi áp lại đã xong — fit lại một lần cho
+                    # hội tụ hẳn; vòng kiểm chứng tự nó không arm
+                    # thêm vòng nữa.
+                    if adjusted and not _fit.get("in_settle"):
+                        def _settle():
+                            _fit["in_settle"] = True
+                            try:
+                                _fit_now()
+                            finally:
+                                _fit["in_settle"] = False
+                        try:
+                            _cw.after(300, _settle)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
-                def _apply():
-                    _st["id"] = None
+            def _schedule_fit(event=None):
+                if _fit["id"] is not None:
                     try:
-                        fig.tight_layout()
-                        canvas.draw_idle()
+                        _cw.after_cancel(_fit["id"])
                     except Exception:
                         pass
-                _st["id"] = _cw.after(180, _apply)
-            _cw.bind("<Configure>", _relayout)
+                try:
+                    _fit["id"] = _cw.after(150, _fit_now)
+                except Exception:
+                    _fit["id"] = None
+
+            _cw.bind("<Configure>", _schedule_fit)
+            try:
+                f.bind("<Configure>", _schedule_fit)
+            except Exception:
+                pass
+            self._sec_fit_schedule = _schedule_fit
+            try:
+                _cw.after_idle(_schedule_fit)
+            except Exception:
+                pass
         self._sec_card_vars = self._build_section_cards(f, sec)
         return f
 
@@ -1526,7 +1690,8 @@ class WallMixin:
                  "ACI/EC2 vách thuộc lát 2.").pack(
                      anchor="nw", padx=10, pady=10)
         f_sec = self._build_wall_section_cell(self._sum_inner, sec,
-                                              meta=meta, winp=winp)
+                                              meta=meta, winp=winp,
+                                              fit_escape=True)
         f_sec.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self._finish_wall_sum_layout()
 
@@ -1549,7 +1714,7 @@ class WallMixin:
                     sec, meta, None, winp)
                 ax.clear()
                 draw_wall_section_ax(ax, secD, meta=metaD, rot_deg=_rotD)
-                self._sec_fig.tight_layout()
+                _wall_section_axes_pos(self._sec_fig, ax)
                 self._sec_canvas.draw_idle()
                 # Vẽ lại xong: view zoom về khung gốc của dữ liệu mới
                 # (home = span gốc như ở _build_wall_section_cell)
@@ -1560,6 +1725,14 @@ class WallMixin:
                         len((metaD or {}).get("dim_segments") or []),
                         _rotD)
                     _zst["home"] = ((_sp[0], _sp[1]), (_sp[2], _sp[3]))
+                # Span đổi (đổi Lw/tw, chế độ thép...) -> fit lại
+                # chiều cao canvas theo tỉ lệ span mới.
+                _sf = getattr(self, "_sec_fit_schedule", None)
+                if _sf is not None:
+                    try:
+                        _sf()
+                    except Exception:
+                        pass
                 varmap = getattr(self, "_sec_card_vars", None)
                 if varmap:
                     vals = self._section_card_values(secD)
