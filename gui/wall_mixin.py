@@ -1957,45 +1957,102 @@ class WallMixin:
         self._show_wall_preview(sec, winp, meta)
 
     # ---------------- Hiển thị kết quả CHECK vách TCVN ----------------
+    def _wall_result_conclusion(self, full):
+        """Chuỗi kết luận từng phần cho tab Kết quả vách (chỉ đọc
+        dict kết quả, không tính lại). KHÔNG có kết luận chung:
+        banner cũ đã bỏ — mỗi phần kết luận riêng ngay dưới nó.
+        Trả về dict: nm, m2m3, slend, shear_in, shear_out."""
+        ok = bool(full["ok"])
+        dc = full["dc"]
+        fs_txt = (f"{full['fs']:.2f}" if math.isfinite(full["fs"])
+                  else "∞")
+        nm_txt = (f"Kết luận N–M: D/C = {dc:.3f} (FS = {fs_txt}) — "
+                  + ("ĐẠT" if ok else "KHÔNG ĐẠT"))
+        m2m3_txt = (
+            "Diễn giải M2–M3: cùng kết luận N–M — "
+            f"D/C = {dc:.3f} — "
+            + ("ĐẠT" if ok else "KHÔNG ĐẠT")
+            + " (không phải kết luận độc lập; lát cắt tại N = BN "
+            "của cùng khả năng N–M)")
+        sl = full["slend"]
+        lam_in = float(sl.get("lambda_in", 0.0) or 0.0)
+        lam_out = float(sl.get("lambda_out", 0.0) or 0.0)
+        sl_ok = lam_in <= 120.0 and lam_out <= 120.0
+        sl_txt = (
+            f"Kết luận độ mảnh (§10.2.2): λx = {lam_in:.1f}, "
+            f"λy = {lam_out:.1f} — "
+            + ("ĐẠT (λ ≤ 120)" if sl_ok else "KHÔNG ĐẠT (λ > 120)"))
+        _sh = full.get("shear_in") or {}
+        if _sh.get("V_cap") is not None and _sh.get("dc") is not None:
+            _dc_sh = _sh["dc"]
+            _dc_sh_txt = (f"{_dc_sh:.3f}" if math.isfinite(_dc_sh)
+                          else "∞")
+            if _sh.get("seismic_applied"):
+                _seis_txt = (
+                    f"V_Ed = {_sh.get('V_d', full['V_in']):.1f} kN, "
+                    "đã phóng đại 1,5× theo TCVN 9386-1:2012 "
+                    "§5.4.2.4(7) DCM")
+            else:
+                _seis_txt = (
+                    f"V_Ed = V2 = {full['V_in']:.1f} kN, "
+                    "không phóng đại kháng chấn")
+            sh_txt = (f"Kết luận cắt trong MP: D/C = {_dc_sh_txt} — "
+                      + ("ĐẠT" if _sh.get("ok") else "KHÔNG ĐẠT")
+                      + f" ({_seis_txt})")
+        else:
+            sh_txt = "Kết luận cắt trong MP: — (chưa tính được)"
+        _sho = full.get("shear_out") or {}
+        if _sho.get("V_cap") is not None and _sho.get("dc") is not None:
+            _dc_sho = _sho["dc"]
+            _dc_sho_txt = (f"{_dc_sho:.3f}" if math.isfinite(_dc_sho)
+                           else "∞")
+            sho_txt = (
+                f"Kết luận cắt ngoài MP: D/C = {_dc_sho_txt} — "
+                + ("ĐẠT" if _sho.get("ok") else "KHÔNG ĐẠT")
+                + " (Qsw = 0 vì chưa có giằng xuyên dày)")
+        else:
+            sho_txt = "Kết luận cắt ngoài MP: — (chưa tính được)"
+        return {"nm": nm_txt, "m2m3": m2m3_txt, "slend": sl_txt,
+                "shear_in": sh_txt, "shear_out": sho_txt}
+
     def _show_wall_result(self, full):
         """Tab Kết quả cho vách (đọc từ dict _tcvn_wall_full, không
-        tính lại) — lưới 2x2 như bên cột: banner trên cùng; hàng trên
-        bảng thông số | mặt cắt + thẻ thép; hàng dưới biểu đồ N–Mα |
-        biểu đồ M2–M3 (tại N = BN); ghi chú phạm vi full-width."""
+        tính lại) — lưới 2x2 như bên cột, KHÔNG còn banner kết luận
+        chung: hàng trên bảng thông số | mặt cắt + thẻ thép; hàng
+        dưới biểu đồ N–Mα | biểu đồ M2–M3 (tại N = BN); kết luận
+        riêng nằm NGAY DƯỚI từng phần (dưới bảng thông số: độ mảnh
+        + cắt trong/ngoài MP; dưới mỗi biểu đồ: N–M / diễn giải
+        M2–M3); ghi chú phạm vi full-width cuối cùng."""
         for w in self._sum_inner.winfo_children():
             w.destroy()
         self._wall_view_active = True
         self._last_sec = full["sec"]
         self._wall_sum_grid()
-        ok = full["ok"]
-        banner = tk.Label(
-            self._sum_inner,
-            text=("KẾT QUẢ KIỂM TRA VÁCH — TCVN 5574:2018   •   "
-                  + ("ĐẠT (N–M)" if ok else "KHÔNG ĐẠT (N–M)")),
-            font=("", 11, "bold"),
-            bg="#D1FAE5" if ok else "#FEE2E2",
-            fg="#065F46" if ok else "#991B1B")
-        banner.grid(row=0, column=0, columnspan=2, sticky="ew",
-                    padx=2, pady=(4, 2))
+        # Lưới chung đặt hàng biểu đồ ở row 2 (khi còn banner ở
+        # row 0); nay không banner nên biểu đồ lên row 1, ghi chú
+        # xuống row 2 — preview vẫn dùng row 0/1 riêng của nó.
+        self._sum_inner.rowconfigure(1, weight=1)
+        self._sum_inner.rowconfigure(2, weight=0)
+        _concl = self._wall_result_conclusion(full)
         # ===== Ô trên-trái: bảng thông số =====
         f_tr = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB",
                         highlightcolor="#D1D5DB", highlightthickness=1,
                         takefocus=0)
-        f_tr.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_wall_param_table(f_tr, full)
+        f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        self._build_wall_param_table(f_tr, full, _concl)
         # ===== Ô trên-phải: mặt cắt tiết diện + thẻ thép =====
         f_tl = self._build_wall_section_cell(
             self._sum_inner, full["sec"], meta=full.get("meta"),
             na_info=full.get("na_info"), show_compression=True,
             winp=full.get("winp"))
-        f_tl.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        f_tl.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         # ===== Ô dưới-trái: biểu đồ N–Mα =====
         f_bl = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB",
                         highlightcolor="#D1D5DB", highlightthickness=1,
                         takefocus=0)
-        f_bl.grid(row=2, column=0, sticky="nsew", padx=4, pady=4)
+        f_bl.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
         hdr = tk.Frame(f_bl, bg="white")
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         tk.Label(hdr, text="● Biểu đồ tương tác N–Mα",
@@ -2062,6 +2119,13 @@ class WallMixin:
             except Exception:
                 pass
             cv2.draw()
+        # Kết luận N–M NGAY DƯỚI biểu đồ N–Mα (không còn banner
+        # chung phía trên).
+        tk.Label(f_bl, text=_concl["nm"], font=("", 10, "bold"),
+                 bg="#D1FAE5" if full["ok"] else "#FEE2E2",
+                 fg="#065F46" if full["ok"] else "#991B1B",
+                 wraplength=520, justify=tk.CENTER).pack(
+                     fill=tk.X, padx=4, pady=(2, 4))
         # ===== Ô dưới-phải: biểu đồ M2–M3 (tại N = BN) =====
         # Đọc từ khóa "m2m3" của dict kết quả (do wall_tcvn_full dựng
         # 1 lần cùng solver D/C), KHÔNG tính lại — cùng hàm vẽ với
@@ -2070,7 +2134,7 @@ class WallMixin:
                         highlightbackground="#D1D5DB",
                         highlightcolor="#D1D5DB", highlightthickness=1,
                         takefocus=0)
-        f_br.grid(row=2, column=1, sticky="nsew", padx=4, pady=4)
+        f_br.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         hdr2 = tk.Frame(f_br, bg="white")
         hdr2.pack(fill=tk.X, padx=4, pady=(2, 2))
         tk.Label(hdr2, text="● Mặt cắt M2–M3",
@@ -2092,16 +2156,25 @@ class WallMixin:
                 wraplength=420,
                 text="Chưa có dữ liệu biểu đồ M2–M3.").pack(
                     fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Diễn giải M2–M3 NGAY DƯỚI biểu đồ M2–M3: chỉ diễn giải
+        # lại kết luận N–M cùng D/C đó, KHÔNG tạo thêm một
+        # ĐẠT/KHÔNG ĐẠT độc lập (M2–M3 chỉ là lát cắt hiển thị
+        # của cùng khả năng N–M).
+        tk.Label(f_br, text=_concl["m2m3"], font=("", 10, "bold"),
+                 bg="#D1FAE5" if full["ok"] else "#FEE2E2",
+                 fg="#065F46" if full["ok"] else "#991B1B",
+                 wraplength=520, justify=tk.CENTER).pack(
+                     fill=tk.X, padx=4, pady=(2, 4))
         # ===== Ghi chú phạm vi (full-width) =====
         tk.Label(
             self._sum_inner, foreground="gray", wraplength=1150,
             justify=tk.LEFT,
-            text="Phạm vi: N–M (đã kể uốn dọc cả 2 phương: ngoài mặt phẳng theo tw; trong mặt phẳng kèm sàn lệch tâm ea = Lw/30) + cắt trong và ngoài mặt phẳng theo TCVN 5574:2018 §8.1.3 (ánh xạ vách — xem các hàng Vcap/D/C cắt trong bảng; kết luận cắt RIÊNG; ngoài MP Qsw = 0 vì chưa có giằng xuyên dày). Vùng biên (lát 3), trượt mạch ngừng và cấu tạo (lát 3) CHƯA kiểm — banner trên chỉ kết luận N–M."
-            ).grid(row=3, column=0, columnspan=2, sticky="ew",
+            text="Phạm vi: N–M (đã kể uốn dọc cả 2 phương: ngoài mặt phẳng theo tw; trong mặt phẳng kèm sàn lệch tâm ea = Lw/30) + cắt trong và ngoài mặt phẳng theo TCVN 5574:2018 §8.1.3 (ánh xạ vách). Không có kết luận chung: mỗi phần kết luận riêng ngay dưới phần đó (N–M, M2–M3 diễn giải lại N–M, cắt trong MP, cắt ngoài MP, độ mảnh). Vùng biên, trượt mạch ngừng và cấu tạo: CHƯA KIỂM — không ghi ĐẠT."
+            ).grid(row=2, column=0, columnspan=2, sticky="ew",
                    padx=4, pady=(2, 6))
         self._finish_wall_sum_layout()
 
-    def _build_wall_param_table(self, parent, full):
+    def _build_wall_param_table(self, parent, full, concl=None):
         """Bảng thông số vách (đọc từ dict kết quả, không tính lại)."""
         winp = full["winp"]
         sec = full["sec"]
@@ -2228,7 +2301,8 @@ class WallMixin:
                         tags=("odd",))
         # --- Kết quả cắt ngoài mặt phẳng (lát 4 — phần 4): chỉ giá trị;
         # công thức → thay số → kết luận riêng ở tab Chi tiết/PDF chi
-        # tiết (cùng builder wall_detail); banner không đổi.
+        # tiết (cùng builder wall_detail); kết luận riêng dưới bảng
+        # ở cuối hàm này.
         if _sho.get("V_cap") is not None:
             _dc_sho = _sho.get("dc")
             _dc_sho_txt = (f"{_dc_sho:.3f}" if _dc_sho is not None
@@ -2258,6 +2332,26 @@ class WallMixin:
                                 "— (chưa tính được)"),
                         tags=("odd",))
         tree.pack(fill=tk.X, padx=2)
+        # Kết luận riêng NGAY DƯỚI bảng thông số cho các phần mà
+        # giá trị của chúng nằm trong bảng này (độ mảnh, cắt trong
+        # và ngoài MP); N–M/M2–M3 có strip riêng dưới biểu đồ.
+        if concl is None:
+            concl = self._wall_result_conclusion(full)
+        _sl_ok = (float(sl.get("lambda_in", 0.0) or 0.0) <= 120.0
+                  and float(sl.get("lambda_out", 0.0) or 0.0) <= 120.0)
+        for _txt, _ok in ((concl["slend"], _sl_ok),
+                          (concl["shear_in"], _sh_ok),
+                          (concl["shear_out"], _sho_ok)):
+            # ok = None (chưa tính được) -> nền xám trung tính,
+            # không tô đỏ như KHÔNG ĐẠT.
+            _bg = ("#D1FAE5" if _ok else "#FEE2E2") \
+                if _ok is not None else "#F3F4F6"
+            _fg = ("#065F46" if _ok else "#991B1B") \
+                if _ok is not None else "#374151"
+            tk.Label(parent, text=_txt, font=("", 9, "bold"),
+                     bg=_bg, fg=_fg,
+                     wraplength=500, justify=tk.LEFT).pack(
+                         fill=tk.X, padx=2, pady=(2, 0))
 
     def _render_wall_detail(self, full):
         """Tab Chi tiết vách: các mục đánh số theo format web
