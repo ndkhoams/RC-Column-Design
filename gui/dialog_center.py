@@ -28,6 +28,27 @@ KHÔNG áp cho:
 import tkinter as _tk  # noqa: F401  (giữ import để rõ đây là module Tk)
 
 
+def list_height_for_rows(n_rows, pitch_px, min_rows=20):
+    """Chiều cao vùng list popup để thấy ít nhất `min_rows` dòng.
+
+    Quy tắc user chốt 2026-10-24 (popup "Chọn combo động đất"):
+    vùng danh sách phải hiện được ít nhất 20 dòng mà không cần cuộn.
+    - n_rows: tổng số dòng; pitch_px: nhịp 1 dòng (cao 1 dòng + pady).
+    - Trả về pitch * min(min_rows, n_rows): ít dòng hơn thì hiện hết,
+      không kéo giãn thừa; nhiều dòng hơn thì hiện đúng min_rows,
+      phần còn lại cuộn. Nơi gọi tự kẹp thêm theo chiều cao màn hình.
+    - Đầu vào không hợp lệ (<= 0) trả 0 để nơi gọi giữ nguyên.
+    """
+    try:
+        n = int(n_rows)
+        pitch = float(pitch_px)
+        if n <= 0 or pitch <= 0:
+            return 0
+        return int(pitch * min(int(min_rows), n))
+    except Exception:
+        return 0
+
+
 def center_dialog(win):
     """Đặt `win` (Toplevel) sao cho tâm nó trùng tâm màn hình.
 

@@ -265,6 +265,25 @@ class EtabsMixin:
                        side=tk.LEFT, padx=4)
         ttk.Button(btn_row, text="Đóng",
                    command=top.destroy).pack(side=tk.RIGHT)
+        # Popup cao đủ thấy ít nhất 20 dòng (quyết user 2026-10-24):
+        # đặt chiều cao canvas = 20 nhịp dòng, rồi đo thật và thu lại
+        # nếu tổng chiều cao popup vượt 85% màn hình (màn hình nhỏ).
+        try:
+            from gui.dialog_center import list_height_for_rows
+            top.update_idletasks()
+            if rows:
+                _pitch = inner.winfo_reqheight() / len(rows)
+                _h = list_height_for_rows(len(rows), _pitch)
+                if _h > 0:
+                    canvas.configure(height=_h)
+                    top.update_idletasks()
+                    _max_h = int(0.85 * top.winfo_screenheight())
+                    if top.winfo_reqheight() > _max_h:
+                        canvas.configure(height=max(
+                            60, _h - (top.winfo_reqheight() - _max_h)))
+                        top.update_idletasks()
+        except Exception:
+            pass
         # Quy tắc chung: mọi popup đều mở ở giữa màn hình.
         center_dialog(top)
 
