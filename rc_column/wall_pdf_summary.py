@@ -222,7 +222,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
             ("Chiều dài tính toán, L0x, L0y",
              f"{float(sl.get('l0_in', 0)) / 1000.0:.2f} / "
              f"{float(sl.get('l0_out', 0)) / 1000.0:.2f} m"),
-            ("Độ mảnh, λx, λy",
+            ("Độ mảnh, λx, λy (giới hạn 120 — §10.2.2)",
              f"{float(sl.get('lambda_in', 0)):.2f} / "
              f"{float(sl.get('lambda_out', 0)):.2f}"),
             ("Độ lệch tâm ban đầu, e0x, e0y",

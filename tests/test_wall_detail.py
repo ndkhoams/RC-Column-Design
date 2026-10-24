@@ -97,9 +97,23 @@ def test_detail_slenderness_cites_10_2_2_not_bang30():
         assert "Bảng 30" not in s.get("ref", ""), s["ref"]
         for c in s["cards"]:
             assert "Bảng 30" not in c.get("ref", ""), c["ref"]
-    # Giới hạn 120 mượn + 200 theo chữ + chờ chốt đều được nêu.
+    # Giới hạn độ mảnh vách 120 theo TCVN 5574:2018 §10.2.2
+    # (user chốt 2026-10-24) — không còn phương án 200 treo lơ lửng.
     txt = _all_text(secs)
-    assert "ĐANG CHỜ USER CHỐT 120 hay 200" in txt
+    assert "ĐANG CHỜ" not in txt
+    assert "120 hay 200" not in txt
+    assert "theo 200" not in txt
+    # Phạm vi chặt hơn: riêng mục 3 không còn bất kỳ chữ "chờ" nào
+    # (chữ "đang chờ" còn lại ở mục 9 thuộc câu hỏi Q1 về banner,
+    # không phải thẻ độ mảnh — phần việc riêng, không đụng ở đây).
+    sec3_txt = _all_text([sec3])
+    assert "chờ" not in sec3_txt.lower()
+    y_card = _card_by_title(secs, 3, "Phương Y")
+    assert "45.53" in y_card["result"] and "≤ 120: ĐẠT" in y_card["result"]
+    # Badge ở dải > 120 cũng chỉ nêu 120, không còn nhắc 200.
+    from rc_column.wall_detail import _lam_badge
+    assert "KHÔNG ĐẠT" in _lam_badge(150.0) and "200" not in _lam_badge(150.0)
+    assert "KHÔNG ĐẠT" in _lam_badge(250.0) and "200" not in _lam_badge(250.0)
 
 
 def test_detail_eta_card_is_honest_app_path():

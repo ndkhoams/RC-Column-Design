@@ -18,9 +18,8 @@ QUY TẮC (theo AGENTS.md + spec detail_format_spec.md §4/§4b/§4c):
   (nay hai bên khớp nhau); phương λ > 14 giữ nguyên cách trình
   bày theo CT (44)–(48).
 - Trích dẫn độ mảnh: "TCVN 5574:2018 Mục 10.2.2", KHÔNG ghi "Bảng 30"
-  (đã xác minh là sai địa chỉ). Giới hạn 120 là mượn giới hạn cột
-  (bảo thủ); theo chữ §10.2.2 cho cấu kiện không phải cột là 200 —
-  đang chờ user chốt 120 hay 200; mặc định hiển thị theo 120.
+  (đã xác minh là sai địa chỉ). Giới hạn độ mảnh áp dụng cho vách
+  là 120 theo TCVN 5574:2018 §10.2.2 (user chốt 2026-10-24).
 - Banner/kết luận chung (ok_all) chỉ kết luận N–M (câu hỏi Q1 đang
   chờ user); cắt hiển thị kết luận RIÊNG, không tự gộp.
 """
@@ -72,15 +71,12 @@ def _card(title, ref, lines, result=""):
 
 
 def _lam_badge(lam):
-    """Badge độ mảnh theo giới hạn hiển thị 120 (mượn cột) + 200
-    (chữ §10.2.2 cho cấu kiện không phải cột)."""
+    """Badge độ mảnh theo giới hạn 120 (TCVN 5574:2018 §10.2.2,
+    user chốt 2026-10-24). Chỉ là câu chữ hiển thị — không tham
+    gia kết luận N–M của engine (ok_all)."""
     if lam <= 120.0:
-        return f"λ = {_f(lam, 2)} ≤ 120: ĐẠT (theo 200 cũng ĐẠT)"
-    if lam <= 200.0:
-        return (f"λ = {_f(lam, 2)} > 120 nhưng ≤ 200: KHÔNG ĐẠT theo "
-                "giới hạn mượn 120; ĐẠT theo chữ §10.2.2 (200) — "
-                "ĐANG CHỜ USER CHỐT")
-    return f"λ = {_f(lam, 2)} > 200: KHÔNG ĐẠT (cả 120 và 200)"
+        return f"λ = {_f(lam, 2)} ≤ 120: ĐẠT"
+    return f"λ = {_f(lam, 2)} > 120: KHÔNG ĐẠT"
 
 
 def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
@@ -323,12 +319,10 @@ def build_wall_detail_sections(full):
             _l0_card("Y"),
             _card("Ghi chú giới hạn độ mảnh",
                   "TCVN 5574:2018 Mục 10.2.2",
-                  ["Giới hạn 120 hiển thị ở trên là mượn giới hạn "
-                   "cột (bảo thủ). Theo chữ Mục 10.2.2, cấu kiện "
-                   "không phải cột thuộc nhóm 200; §10.2.2 dùng chữ "
+                  ["Giới hạn độ mảnh áp dụng cho vách: λ ≤ 120 "
+                   "theo TCVN 5574:2018 Mục 10.2.2 "
+                   "(user chốt 2026-10-24). §10.2.2 dùng chữ "
                    "“nên”, không phải điều kiện bền cứng.",
-                   "ĐANG CHỜ USER CHỐT 120 hay 200 cho vách "
-                   "(mặc định hiển thị theo 120).",
                    "Không trích dẫn “Bảng 30” cho giới hạn này — "
                    "đã xác minh là sai địa chỉ."],
                   "", ),
