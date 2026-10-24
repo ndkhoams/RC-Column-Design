@@ -2417,11 +2417,13 @@ class WallMixin:
         # ngay sau hàng V2 (V2 ở vị trí 3) để không nhầm V gốc với
         # V thiết kế đã phóng đại; D/C cắt dưới đây đã tính ở V_Ed.
         if _sh.get("seismic_applied") and _sh.get("V_cap") is not None:
+            # Giá trị chỉ còn V_Ed trơn, không hiển thị V_raw (quyết
+            # user 2026-10-24: người dùng tự hiểu V2 đã được tự nhân;
+            # cột mô tả bên cạnh đã ghi rõ phóng đại DCM).
             rows.insert(4, ("V_Ed",
                             "Lực cắt trong MP đã phóng đại kháng chấn "
                             "(TCVN 9386-1:2012 §5.4.2.4(7) DCM)",
-                            f"{_sh['V_d']:.1f} kN "
-                            f"(1,5 × {_sh.get('V_raw', full['V_in']):.1f})"))
+                            f"{_sh['V_d']:.1f} kN"))
         for i, (s, d, v) in enumerate(rows):
             tree.insert("", tk.END, values=(s, d, v),
                         tags=("odd",) if i % 2 else ())

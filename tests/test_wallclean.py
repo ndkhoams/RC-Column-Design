@@ -133,3 +133,17 @@ def test_ved_note_in_label_no_vraw():
     assert "V_raw" not in lab and "V_raw" not in val
     # V_raw vẫn giữ trong dict kết quả (chỉ không hiển thị).
     assert full["shear_in"]["V_raw"] == 800.0
+
+
+def test_param_table_ved_no_vraw():
+    """(4b) Hàng V_Ed ở BẢNG THÔNG SỐ cũng không hiển thị V_raw —
+    quyết user 2026-10-24 (bỏ nốt sau khi đã bỏ ở ghi chú bảng cắt).
+    Bảng thông số dựng bằng Tk nên chỉ kiểm ở mức source: khối
+    rows.insert V_Ed không được nhắc tới V_raw hay hệ số × giá trị thô."""
+    src = open(os.path.join(os.path.dirname(__file__), "..", "gui",
+                            "wall_mixin.py"), encoding="utf-8").read()
+    start = src.index('rows.insert(4, ("V_Ed",')
+    block = src[start:start + 700]
+    assert "V_raw" not in block
+    assert "1,5 ×" not in block
+    assert "V_d" in block
