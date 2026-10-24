@@ -3,8 +3,10 @@
 LÁT 1: khả năng chịu N–M theo TCVN 5574:2018 bằng đúng primitive của
 bản cột (BiaxialCapacity exact + buckling_factors/eccentricities của
 stability.py), KHÔNG qua check_column của cột (hàm đó gói uốn dọc cột
-2 phương — vách chỉ phóng đại mô men NGOÀI mặt phẳng theo bề dày tw,
-trong mặt phẳng không phóng đại theo §5.2 bản thiết kế).
+2 phương). Uốn dọc vách: NGOÀI mặt phẳng η·M_out theo bề dày tw;
+TRONG mặt phẳng M_in* = N·max(e1_in, ea_in = Lw/30)·ηx — bổ sung
+2026-10-24 theo mô hình web Vietcons (user chốt, THAY thiết kế lát 1
+§5.2 "không phóng đại mô men trong mặt phẳng").
 
 Khung dict kết quả theo §5 bản thiết kế: các khóa vùng biên / cắt /
 mạch ngừng / cấu tạo có mặt từ lát 1 với ok=None + ghi chú lát sẽ làm,
@@ -48,10 +50,11 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     Lw, tw = wall_dims(winp)
     Ix, Iy, ix, iy, Isx, Isy = section_inertia(sec)
 
-    # --- Độ mảnh + uốn dọc NGOÀI mặt phẳng (theo tw) ---
-    # Ánh xạ vào hệ cột: phương ngoài MP của vách <-> phương x của cột
-    # (Mx = M_out, độ cứng Ix, bề dày cy = tw). Trong mặt phẳng: không
-    # phóng đại (thiết kế lát 1 §5.2 — đốt được giằng 2 đầu).
+    # --- Độ mảnh + uốn dọc 2 phương ---
+    # Ánh xạ vào khe của buckling_factors: phương ngoài MP <-> khe "x"
+    # (Mx = M_out, Ix = Lw·tw³/12 theo tw, cy = tw, L0 = L0_out);
+    # phương trong MP <-> khe "y" (My = M_in, Iy = tw·Lw³/12 theo Lw,
+    # cx = Lw, L0 = L0_in) — cùng công thức độ cứng/Ncr, cùng φL.
     # Mục 4 (format web 2026-10-23): L0 = ψ x L lấy từ các ô mục 4 TẠI
     # THỜI ĐIỂM TÍNH (Phương X = trong mặt phẳng theo Lw, Phương Y =
     # ngoài mặt phẳng theo tw); L0 KHÔNG lưu riêng, không ghi ngược.
@@ -76,16 +79,33 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     phi = phi_L(N, M_out, M_in, lt)
     ecc = eccentricities(N, M_out, M_in, Lx_m, Ly_m, Lw, tw)
     buck = buckling_factors(ecc.e0x, ecc.e0y, Lw, tw, phi, conc.Eb,
-                            Ix, Iy, Isx, Isy, l0_out_m, l0_out_m,
+                            Ix, Iy, Isx, Isy, l0_out_m, l0_in_m,
                             N, M_out, M_in)
     eta_out = buck.etax
     Ncr_out = buck.Ncrx
     M_out_d = buck.Mx_star
-    M_in_d = M_in
+    eta_in = buck.etay
+    Ncr_in = buck.Ncry
     if pd_method == "none":
-        # "Không xét bổ sung uốn dọc": η = 1 cả 2 phương
+        # "Không xét bổ sung uốn dọc": η = 1 cả 2 phương. Sàn độ lệch
+        # tâm e0 = max(e1, ea) ở dưới VẪN áp cho phương trong mặt
+        # phẳng — đó là độ lệch tâm thiết kế tối thiểu, tách khỏi η.
         eta_out = 1.0
+        eta_in = 1.0
         M_out_d = M_out
+    # --- Phóng đại mô men TRONG mặt phẳng (user chốt 2026-10-24) ---
+    # M_in* = N x max(e1_in, ea_in) x ηx; ecc.e0x đã là max(e1x, eax)
+    # với eax = max(L/600, Lw/30, 10) — tức ea_in = Lw/30 khi Lw lớn
+    # (đúng số web Vietcons dùng: 2500/30 = 83.3 mm). ηx = buck.etay
+    # = 1/(1 − N/Ncr,x) từ cùng công thức độ cứng TCVN (khe "y").
+    if N > 0:
+        M_in_d = (math.copysign(N * ecc.e0x * eta_in / 1000.0, M_in)
+                  if M_in != 0.0 else 0.0)
+    else:
+        # N <= 0 (kéo/không tải): không dựng mô men từ sàn lệch tâm
+        # (không xác định được dấu) — giữ nguyên M_in, cùng hành vi
+        # hiện tại của engine khi N <= 0.
+        M_in_d = M_in
 
     # --- Sức bền tiết diện: solver fiber exact (tia song trục) ---
     cap = BiaxialCapacity(sec, model=model, n_angles=n_angles)
@@ -114,6 +134,20 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     Ig_in = tw * Lw ** 3 / 12.0
     sigma_edge = N * 1000.0 / Ag + abs(M_in) * 1e6 * (Lw / 2.0) / Ig_in
 
+    if N > 0:
+        _in_line = (
+            f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
+            f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}, "
+            f"e1 = {abs(M_in) * 1000.0 / N:.1f} mm, "
+            f"ea = {ecc.eax:.1f} mm, e0 = {ecc.e0x:.1f} mm, "
+            f"Ncr = {Ncr_in:.0f} kN, η = {eta_in:.3f} "
+            f"-> M_in* = {M_in_d:.1f} kN·m")
+    else:
+        _in_line = (
+            f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
+            f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}; "
+            f"N <= 0 nên không áp phóng đại/sàn lệch tâm "
+            f"-> M_in* = {M_in_d:.1f} kN·m")
     _layout_line = meta.get("layout_text") or (
         f"Thép: biên {meta['n_be_left'] + meta['n_be_right']} thanh "
         f"d{float(winp.dia_be):.0f}, phân bố đứng {meta['n_web']} thanh "
@@ -127,9 +161,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         f"{Ly_m:.2f} = {l0_out_m:.2f} m, λ = {lam_out:.1f}, "
         f"e0 = {ecc.e0y:.1f} mm, φL = {phi:.2f}, Ncr = {Ncr_out:.0f} kN, "
         f"η = {eta_out:.3f} -> M_out* = {M_out_d:.1f} kN·m",
-        f"Trong mặt phẳng (Phương X): L0 = {l0_in_m:.2f} m, "
-        f"λ = {lam_in:.1f}; không phóng đại mô men (đốt được giằng 2 "
-        f"đầu) -> M_in* = {M_in_d:.1f} kN·m",
+        _in_line,
         f"Góc α = {alpha_deg:.1f}°, Mα = {Malpha:.1f} kN·m, "
         f"Mα,u = {M_cap:.1f} kN·m tại N = {N:.1f} kN",
         f"D/C = {dc:.3f} (FS = {fs_val:.2f}) -> "
@@ -137,7 +169,8 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     ]
     if pd_method == "none":
         details.append("Phương pháp uốn dọc: KHÔNG xét bổ sung uốn dọc "
-                       "(η = 1 cả 2 phương theo mục 4).")
+                       "(η = 1 cả 2 phương theo mục 4; sàn lệch tâm "
+                       "e0 = max(e1, ea) trong mặt phẳng vẫn áp).")
     if c_neutral is not None and math.isfinite(c_neutral):
         details.append(f"Chiều cao vùng nén tại điểm biên B: "
                        f"c = {c_neutral:.0f} mm")
@@ -160,16 +193,19 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         "c_neutral": c_neutral, "sigma_edge": sigma_edge,
         "Ix": Ix, "Iy": Iy, "Isx": Isx, "Isy": Isy,
         "phi_L": phi, "e0_out": ecc.e0y, "ea_out": ecc.eay,
+        "e0_in": ecc.e0x, "ea_in": ecc.eax,
         "slend": {
             "l0_out": l0_out_m * 1000.0, "lambda_out": lam_out,
             "l0_in": l0_in_m * 1000.0, "lambda_in": lam_in,
             "pd_method": pd_method,
             "psi_x": psi_x, "psi_y": psi_y, "Lx_m": Lx_m, "Ly_m": Ly_m,
             "lambda_lim": None,
-            "second_order": bool(eta_out > 1.0),
+            "second_order": bool(eta_out > 1.0 or eta_in > 1.0),
             "factor_out": eta_out, "Ncr_out": Ncr_out,
+            "factor_in": eta_in, "Ncr_in": Ncr_in,
             "note": "TCVN: η ngoài mặt phẳng theo tw áp mọi λ như cột; "
-                    "trong mặt phẳng không phóng đại (đốt giằng 2 đầu). "
+                    "trong mặt phẳng M_in* = N·max(e1, ea = Lw/30)·ηx "
+                    "(theo web Vietcons, user chốt 2026-10-24). "
                     "L0 = ψ x L lấy từ mục 4 tại thời điểm tính.",
         },
         "boundary": {

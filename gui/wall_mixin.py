@@ -488,8 +488,8 @@ class WallMixin:
         ttk.Label(
             f4, foreground="gray", wraplength=520,
             text="L₀ chỉ suy ra lúc tính, không lưu riêng. Phương X "
-                 "hiện chỉ dùng cho độ lệch tâm ngẫu nhiên — mô men "
-                 "trong mặt phẳng không phóng đại (thiết kế lát 1)."
+                 "dùng cho uốn dọc trong mặt phẳng: "
+                 "M* = N·max(e1, ea = Lw/30)·ηx (bổ sung 2026-10-24)."
             ).grid(row=7, column=0, columnspan=3, padx=4, pady=(2, 4),
                    sticky=tk.W)
 
@@ -1303,8 +1303,10 @@ class WallMixin:
         tk.Label(
             self._sum_inner, foreground="gray", wraplength=1150,
             justify=tk.LEFT,
-            text="Phạm vi lát 1: chỉ kiểm tra N–M (đã kể uốn dọc ngoài "
-                 "mặt phẳng theo tw). Vùng biên (lát 3), cắt trong mặt "
+            text="Phạm vi lát 1: chỉ kiểm tra N–M (đã kể uốn dọc cả 2 "
+                 "phương: ngoài mặt phẳng theo tw; trong mặt phẳng "
+                 "kèm sàn lệch tâm ea = Lw/30). Vùng biên (lát 3), "
+                 "cắt trong mặt "
                  "phẳng + trượt mạch ngừng (lát 4) và cấu tạo (lát 3) "
                  "CHƯA kiểm — kết luận trên chỉ cho N–M."
             ).grid(row=3, column=0, columnspan=2, sticky="ew",
@@ -1351,18 +1353,24 @@ class WallMixin:
             ("λ", "Độ mảnh ngoài mặt phẳng", f"{sl['lambda_out']:.1f}"),
             ("L0x", "Chiều dài tính toán trong mặt phẳng (mục 4)",
              f"{sl.get('l0_in', 0.0) / 1000.0:.2f} m"),
-            ("λx", "Độ mảnh trong mặt phẳng (không phóng đại)",
+            ("λx", "Độ mảnh trong mặt phẳng",
              f"{sl.get('lambda_in', 0.0):.1f}"),
             ("e0", "Độ lệch tâm ban đầu ngoài mặt phẳng",
              f"{full['e0_out']:.1f} mm"),
+            ("e0x", "Độ lệch tâm ban đầu trong mặt phẳng",
+             f"{full.get('e0_in', 0.0):.1f} mm"),
             ("φL", "Hệ số φL", f"{full['phi_L']:.2f}"),
             ("Ncr", "Lực tới hạn Euler ngoài mặt phẳng",
              f"{sl['Ncr_out']:,.0f} kN"),
             ("η", "Hệ số uốn dọc ngoài mặt phẳng",
              f"{sl['factor_out']:.3f}"),
+            ("Ncrx", "Lực tới hạn Euler trong mặt phẳng",
+             f"{sl.get('Ncr_in', 0.0):,.0f} kN"),
+            ("ηx", "Hệ số uốn dọc trong mặt phẳng",
+             f"{sl.get('factor_in', 1.0):.3f}"),
             ("M2*", "Mô men ngoài mặt phẳng đã phóng đại",
              f"{full['M_out_d']:.1f} kN·m"),
-            ("M3*", "Mô men trong mặt phẳng (không phóng đại)",
+            ("M3*", "Mô men trong mặt phẳng đã phóng đại",
              f"{full['M_in_d']:.1f} kN·m"),
             ("α", "Góc mô men (từ trục M3)", f"{full['alpha_deg']:.1f} °"),
             ("Mα", "Mô men tổng hợp", f"{full['Malpha']:.1f} kN·m"),
