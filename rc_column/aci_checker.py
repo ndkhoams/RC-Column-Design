@@ -428,6 +428,59 @@ class _ACIExact:
                 ETs.append(et)
         return Ns, M2s, M3s, nas, ETs
 
+    def _scan_N_design(self, _pre, h_s: float):
+        """Quét thiết kế N theo _eps_far cho 1 gamma, CHỈ tính N.
+
+        Dùng đúng biểu thức từng phần tử của _state_nom + bước thiết kế
+        từng hàng của _states_batch (phi theo eps_t, cắt tại N_cap), nên
+        mỗi giá trị N khớp từng bit với vòng lặp scalar trong
+        _state_at_N_fine cũ (đã kiểm chứng: 5 gamma × 400 trạng thái,
+        0 lệch). Nhanh hơn vòng lặp scalar ~6 lần vì bỏ 2 phép dot M
+        mỗi trạng thái và gom ma trận theo chunk vừa cache L2
+        (192k phần tử/chunk thay vì 384k của _states_batch đầy đủ).
+        Chỉ dùng cho pha quét tìm bracket của _state_at_N_fine: pha này
+        chỉ cần N; M2/M3/eps_t ở nhánh inf lấy scalar tại chỗ (1 lần gọi).
+        Trả (Ns, nas) dạng list, đúng thứ tự _eps_far.
+        """
+        s_f, s_r, s_max = _pre
+        nas = []
+        for eps_far in self._eps_far:
+            if eps_far >= self.eps_cu - 1e-15:
+                nas.append(float("inf"))
+            else:
+                nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
+        na_arr = np.array(nas, dtype=float)
+        kappa = self.eps_cu / na_arr          # na=inf -> 0.0 (như _state_nom)
+        dist_f = s_max - s_f
+        dist_r = s_max - s_r
+        n = len(nas)
+        blk = max(14, min(n, 192_000 // max(len(self.fx), 1)))
+        Ns = []
+        for a in range(0, n, blk):
+            b = min(n, a + blk)
+            block_f = dist_f[None, :] <= (self.beta1 * na_arr[a:b])[:, None]
+            block_r = dist_r[None, :] <= (self.beta1 * na_arr[a:b])[:, None]
+            eps_r = self.eps_cu - kappa[a:b, None] * dist_r[None, :]
+            sig_f = np.where(block_f, self.f_block, 0.0)
+            fs_ = np.clip(self.steel.Es * eps_r,
+                          -self.steel.fy, self.steel.fy)
+            fs_ = np.where(block_r & (fs_ > 0.0), fs_ - self.f_block, fs_)
+            CF = sig_f * self.fa[None, :]
+            CS = fs_ * self.ra[None, :]
+            Nn = (CF.sum(axis=1) + CS.sum(axis=1)) / 1000.0
+            if len(self.rx):
+                ETa = np.maximum(0.0, -eps_r.min(axis=1))
+            else:
+                ETa = np.zeros(b - a)
+            for jj in range(b - a):
+                et = float(ETa[jj])
+                phi = phi_factor(et, self.steel.eps_y, self.tied)
+                Nd = phi * float(Nn[jj])
+                if Nd > self.N_cap:
+                    Nd = self.N_cap
+                Ns.append(Nd)
+        return Ns, nas
+
     def _state_nom(self, gamma_rad: float, na: float, _pre=None):
         """Trạng thái danh nghĩa (gamma, na) -> (N, M2, M3, eps_t).
 
@@ -749,14 +802,10 @@ class _ACIExact:
         s_min = float(s_f.min()) if len(s_f) else 0.0
         h_s = max(s_max - s_min, 1e-9)
         _pre = (s_f, s_r, s_max)
-        nas = []
-        for eps_far in self._eps_far:
-            if eps_far >= self.eps_cu - 1e-15:
-                nas.append(float("inf"))
-            else:
-                nas.append(self.eps_cu * h_s / (self.eps_cu - eps_far))
-        vals = [self._state_design(gamma_rad, na, _pre) for na in nas]
-        Ns = [v[0] for v in vals]
+        # Pha quét chỉ cần N -> _scan_N_design (khớp từng bit với vòng
+        # lặp scalar cũ, nhanh hơn ~6 lần); M2/M3/eps_t chỉ cần ở nhánh
+        # inf dưới đây (lấy scalar tại chỗ, đúng 1 lần gọi).
+        Ns, nas = self._scan_N_design(_pre, h_s)
         if N_target > max(Ns) or N_target < min(Ns):
             return None
         for i in range(len(Ns) - 1):
@@ -766,8 +815,11 @@ class _ACIExact:
                 flo = self._state_design(gamma_rad, lo, _pre)[0] - N_target
                 if math.isinf(hi):
                     if abs(Ns[0] - N_target) < 1e-6:
-                        return (Ns[0], vals[0][1], vals[0][2],
-                                float("inf"), vals[0][3])
+                        # nas[0] = inf (eps_far giảm dần từ eps_cu):
+                        # trạng thái tại inf đúng bằng vals[0] cũ.
+                        st0 = self._state_design(gamma_rad, float("inf"), _pre)
+                        return (Ns[0], st0[1], st0[2],
+                                float("inf"), st0[3])
                     hi = nas[i + 1] * 4.0 + h_s
                 for _ in range(40):
                     mid = 0.5 * (lo + hi)
@@ -850,13 +902,28 @@ class _ACIExact:
         return roots
 
     def capacity_fine(self, N: float, theta_deg: float) -> float:
-        """Capacity exact bản fine (chặt đôi na + gamma) — bản tham chiếu."""
+        """Capacity exact bản fine (chặt đôi na + gamma) — bản tham chiếu.
+
+        Memoize theo (N, theta) trên chính engine: hàm thuần (chỉ đọc
+        lưới trạng thái) nên cache trả đúng từng bit kết quả cũ; biểu đồ
+        ACI vẽ lại cùng (N_cap, θ) ở CHECK ấm / tab Chi tiết / PDF không
+        còn quét fine lại (~6s -> ~0s mỗi lần vẽ lặp). Engine đã được
+        cache theo fingerprint tiết diện+vật liệu nên cache này sống qua
+        các lần CHECK cùng tiết diện; mỗi entry chỉ là 1 float.
+        """
+        cache = self.__dict__.get("_fine_cache")
+        if cache is None:
+            cache = self.__dict__["_fine_cache"] = {}
+        key = (N, theta_deg)
+        if key in cache:
+            return cache[key]
         if N > self.N_max or N < self.N_min:
+            cache[key] = 0.0
             return 0.0
         roots = self._fine_scan_roots(N, theta_deg)
-        if roots:
-            return min(r["capacity"] for r in roots)
-        return 0.0
+        res = min(r["capacity"] for r in roots) if roots else 0.0
+        cache[key] = res
+        return res
 
     def _fine_state_hint(self, gamma_rad: float, N_target: float,
                          na_hint: float):
