@@ -39,6 +39,10 @@ class FiberSection:
         self.Rsc = sec.steel.Rsc
         self.Es = sec.steel.Es
         self.eps_y = self.Rs / self.Es
+        # Biến dạng chảy theo từng phía (quy ước solver: eps > 0 = NÉN):
+        # phía nén chảy ở Rsc, phía kéo chảy ở Rs (Bảng 10 TCVN 5574:2018).
+        self.eps_y_c = self.Rsc / self.Es
+        self.eps_y_t = self.Rs / self.Es
 
     def concrete_stress(self, eps: np.ndarray, model: str) -> np.ndarray:
         sig = np.zeros_like(eps)
@@ -58,11 +62,13 @@ class FiberSection:
 
     def steel_stress(self, eps: np.ndarray) -> np.ndarray:
         sig = np.zeros_like(eps)
-        ey = self.eps_y
-        el = np.abs(eps) <= ey
+        # NÉN (eps > 0) bị chặn ở Rsc, KÉO (eps < 0) ở Rs; vùng đàn hồi
+        # cũng tách theo phía qua eps_y_c / eps_y_t.
+        el = ((eps >= 0) & (eps <= self.eps_y_c)) \
+            | ((eps < 0) & (-eps <= self.eps_y_t))
         sig[el] = self.Es * eps[el]
         pl = (~el) & (np.abs(eps) <= EPS_S2)
-        sig[pl] = np.where(eps[pl] > 0, self.Rs, -self.Rsc)
+        sig[pl] = np.where(eps[pl] > 0, self.Rsc, -self.Rs)
         return sig
 
     def forces(self, eps0: float, kx: float, ky: float,
@@ -412,13 +418,15 @@ class _TCVNExact:
                 np.multiply(ky[a:b, None], rx2, out=Q[:m])
                 ERv += Q[:m]
                 # steel_stress batch: gan theo mask nhu FiberSection
+                # (nen -> Rsc, keo -> Rs; eps_y tach theo phia)
                 SRv = SR[:m]
                 SRv.fill(0.0)
                 aER = np.abs(ERv)
-                el = aER <= fs.eps_y
+                el = ((ERv >= 0) & (aER <= fs.eps_y_c)) \
+                    | ((ERv < 0) & (aER <= fs.eps_y_t))
                 SRv[el] = fs.Es * ERv[el]
                 pl = (~el) & (aER <= EPS_S2)
-                SRv[pl] = np.where(ERv[pl] > 0, fs.Rs, -fs.Rsc)
+                SRv[pl] = np.where(ERv[pl] > 0, fs.Rsc, -fs.Rs)
                 np.multiply(SRv, Ra, out=Q[:m])
                 Nr = np.sum(Q[:m], axis=1)
                 np.multiply(Q[:m], ry2, out=ERv)
