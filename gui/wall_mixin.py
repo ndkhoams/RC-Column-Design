@@ -1322,7 +1322,7 @@ class WallMixin:
 
     def _build_wall_section_cell(self, parent, sec, meta=None,
                                  na_info=None, show_compression=False,
-                                 winp=None, fit_escape=False):
+                                 winp=None, fit_grow=False):
         """Ô MẶT CẮT TIẾT DIỆN (box viền như cột): tiêu đề + hình mặt
         cắt vách (có DIM từng khoảng; tô vùng nén khi show_compression
         và có na_info sau CHECK) + hàng thẻ thống kê thép dùng chung
@@ -1371,25 +1371,27 @@ class WallMixin:
             # lại lims này; mốc kẹp zoom cũng theo span này.
             _sp = _wall_section_spans(sec, _nseg, _rot)
             _zst["home"] = ((_sp[0], _sp[1]), (_sp[2], _sp[3]))
-            # FIT KHUNG: canvas chỉ fill theo CHIỀU NGANG của ô (pack
-            # X, không expand dọc); chiều cao canvas được đặt sao cho
-            # tỉ lệ hộp axes = tỉ lệ span chặt -> nội dung (equal
-            # aspect) lấp đầy cả 2 chiều của canvas, không còn dải
-            # trắng trên/dưới do datalim giãn span như trước. Nếu
-            # chiều cao cần thiết vượt quá phần ô chứa cấp (trừ tiêu
-            # đề + hàng thẻ) — ca tiết diện xoay đứng — thì lấy hết
-            # phần được cấp và datalim cân giữa theo chiều ngang.
-            # Chạy debounce theo <Configure> của canvas VÀ của frame
-            # ô (đổi cỡ cửa sổ / lưới giãn đều kích hoạt lại); đặt
-            # height qua widget.configure (figure bám theo qua cơ chế
-            # resize của canvas) — set_size_inches(forward=True)
-            # không đổi được widget nhúng, đã kiểm chứng.
+            # FIT KHUNG: canvas fill theo CHIỀU NGANG của ô (pack X,
+            # không expand dọc); chiều cao canvas theo quy tắc trong
+            # _fit_now: bằng avail (chiều cao khả dụng chính xác
+            # trong frame ô) khi frame do lưới kéo cao — lấp đầy
+            # frame, nội dung căn giữa nhờ datalim; giữ nguyên khi
+            # frame ôm nội dung (tiết diện xoay đứng không phình
+            # hàng); chỉ vươn tới max(need, avail) khi home vừa đổi
+            # (đổi Lw/tw/chế độ); riêng preview (fit_grow) còn được
+            # vươn tới need khi frame ôm nội dung. Chạy debounce
+            # theo <Configure> của canvas VÀ của frame ô (đổi cỡ cửa
+            # sổ / lưới giãn đều kích hoạt lại); đặt height qua
+            # widget.configure (figure bám theo qua cơ chế resize
+            # của canvas) — set_size_inches(forward=True) không đổi
+            # được widget nhúng, đã kiểm chứng.
             _cw = canvas.get_tk_widget()
             try:
                 _cw.pack_configure(fill=tk.X, expand=False)
             except Exception:
                 pass
-            _fit = {"id": None, "escape": bool(fit_escape)}
+            _fit = {"id": None, "prev_home": _zst["home"],
+                    "grow": bool(fit_grow)}
 
             def _fit_now():
                 _fit["id"] = None
@@ -1400,10 +1402,38 @@ class WallMixin:
                         return  # layout chưa ổn định, Configure sau lo
                     (hx0, hx1), (hy0, hy1) = _zst["home"]
                     ratio = (hx1 - hx0) / max(1e-9, hy1 - hy0)
-                    hav = fh_px - 8
+                    # Chiều cao KHẢ DỤNG CHÍNH XÁC cho canvas trong
+                    # frame ô: chiều cao frame trừ mọi anh em (kèm
+                    # pady của chúng), trừ pady của chính canvas và
+                    # trừ viền highlight của frame. Bản trước dùng
+                    # fudge "-8" trong khi padding thật là 12
+                    # (header pady 2+2, thẻ pady 2+4, viền 2) -> hav
+                    # thừa đúng +4px so với canvas, gây vòng rò rỉ
+                    # +4px/vòng ở preview và — khi trần hav nhỏ hơn
+                    # need — để lại khoảng trống dưới canvas trong ô
+                    # bị lưới kéo cao (hàng kết quả có weight=1, xem
+                    # _show_wall_result/_show_wall_preview): canvas
+                    # giữ need, frame giãn thêm, thẻ nằm cuối frame
+                    # -> dải trắng lớn giữa hình và thẻ (đúng ảnh
+                    # user báo). Tính chính xác thì đặt canvas =
+                    # avail không làm đổi chiều cao frame (khi frame
+                    # do lưới quyết) và không gây vòng lặp.
+                    def _pady(w):
+                        try:
+                            _py = w.pack_info().get("pady", 0)
+                        except Exception:
+                            return 0
+                        if isinstance(_py, (tuple, list)):
+                            return sum(_py)
+                        return int(_py or 0)
+                    try:
+                        _border = 2 * int(f.cget("highlightthickness"))
+                    except Exception:
+                        _border = 2
+                    avail = fh_px - _border - _pady(_cw)
                     for sib in f.winfo_children():
                         if sib is not _cw:
-                            hav -= sib.winfo_height()
+                            avail -= sib.winfo_height() + _pady(sib)
                     dpr = float(getattr(fig.canvas,
                                         "device_pixel_ratio", 1.0)
                                 or 1.0)
@@ -1420,36 +1450,47 @@ class WallMixin:
                         return
                     need = (axes_w / ratio
                             + 2 * _WALL_SEC_PAD_PX) / dpr
-                    # Trần hav rút từ chiều cao frame ô chỉ đáng tin
-                    # khi frame bị khống chế bởi nội dung ĐỘC LẬP
-                    # (view kết quả: bảng thông số). Ở preview, frame
-                    # nằm trong canvas cuộn có chiều cao bám theo nội
-                    # dung: hav tự đuổi theo canvas (+vài px mỗi vòng
-                    # fit — vòng phản hồi dương). Nhận diện: giữa 2
-                    # lần fit liên tiếp, frame cao lên ĐÚNG BẰNG phần
-                    # canvas cao lên -> trần tự tham chiếu -> bỏ kẹp.
-                    # CHỈ áp cho preview (fit_escape): ở view kết quả
-                    # hav là mốc độc lập (bảng thông số) và layout lúc
-                    # dựng có thể cao lên từng nấc nhỏ — từng bị nhận
-                    # nhầm là phản hồi làm canvas phình quá khổ.
-                    ch_now = _cw.winfo_height()
-                    _pv = _fit.get("prev")
-                    self_driven = False
-                    if _pv is not None and _fit.get("escape"):
-                        _dch = ch_now - _pv[0]
-                        _dfh = fh_px - _pv[1]
-                        # Chỉ nhận diện khi mức tăng là "rò rỉ" nhỏ
-                        # theo vòng (vòng lặp preview: +4px/vòng);
-                        # cú nhảy lớn lúc layout đang ổn định (view
-                        # kết quả vừa dựng) không phải phản hồi.
-                        if 0 < abs(_dch) <= 12 \
-                                and abs(_dfh - _dch) <= 6:
-                            self_driven = True
-                    _fit["prev"] = (ch_now, fh_px)
-                    if self_driven:
+                    # QUY TẮC ĐÍCH (phân biệt 2 trạng thái frame):
+                    # - Frame do LƯỚI kéo cao (hàng kết quả
+                    #   weight=1, đúng ca ảnh user): canvas = avail
+                    #   (lấp đầy frame); figure cao theo, equal
+                    #   aspect + datalim giữ nguyên kích thước tiết
+                    #   diện theo chiều khống chế (bề ngang) và căn
+                    #   giữa phần dư theo chiều dọc -> hết dải trắng
+                    #   mà nội dung vẫn gọn trong khung home.
+                    # - Frame ÔM NỘI DUNG (avail == chiều cao canvas
+                    #   hiện tại, ca tiết diện xoay đứng): canvas
+                    #   giữ nguyên — vươn tới need ở đây sẽ phình
+                    #   hàng lên ~1200px (từng bị coi là lỗi ở
+                    #   rot90); figsize khởi tạo vốn đã khớp tỉ lệ
+                    #   span nên nội dung vẫn lấp đầy chiều khống
+                    #   chế (cao) và căn giữa theo chiều ngang.
+                    # - Ngoại lệ DUY NHẤT được vươn tới need: home
+                    #   vừa ĐỔI (đổi Lw/tw/chế độ thép qua vẽ đè):
+                    #   target = max(need, avail) để canvas theo kịp
+                    #   tỉ lệ span mới, rồi các vòng sau lại về
+                    #   avail và ổn định (frame đã giãn theo).
+                    # Điểm cố định: đặt canvas = avail không đổi
+                    # chiều cao frame (khi frame do lưới quyết) nên
+                    # vòng fit sau tính lại đúng avail đó -> ổn
+                    # định, không rò rỉ. Cơ chế nhận diện phản hồi/
+                    # escape của bản trước không còn cần nên đã gỡ.
+                    _home_now = _zst["home"]
+                    if avail < 60:
+                        target = int(round(need))
+                    elif _home_now != _fit.get("prev_home"):
+                        _fit["prev_home"] = _home_now
+                        target = int(round(max(need, avail)))
+                    elif _fit.get("grow") and need > avail \
+                            and avail <= _cw.winfo_height() + 4:
+                        # Riêng PREVIEW (vùng cuộn được): frame ôm
+                        # nội dung thì vươn tới need để hình lấp đầy
+                        # cả 2 chiều như vòng trước (250 -> 303 ở ca
+                        # chu vi); ô kết quả không áp nhánh này để
+                        # tiết diện xoay đứng không phình hàng.
                         target = int(round(need))
                     else:
-                        target = int(round(min(need, max(hav, 60))))
+                        target = int(round(avail))
                     # Chiều cao figure HIỆN TẠI theo display px (=
                     # miền px của widget/sự kiện Configure của TkAgg).
                     # Không dùng canvas.get_width_height(): nó trả
@@ -1691,7 +1732,7 @@ class WallMixin:
                      anchor="nw", padx=10, pady=10)
         f_sec = self._build_wall_section_cell(self._sum_inner, sec,
                                               meta=meta, winp=winp,
-                                              fit_escape=True)
+                                              fit_grow=True)
         f_sec.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self._finish_wall_sum_layout()
 
