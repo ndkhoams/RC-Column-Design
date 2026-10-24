@@ -43,6 +43,8 @@ from rc_column.stability import BOUNDARY_NAMES
 from rc_column.wall_engine import wall_tcvn_full
 from rc_column.wall_input import (WALL_DEFAULTS, normalize_wall_dict,
                                   wall_from_dict)
+from rc_column.cover_migration import (COVER_SEMANTICS_NEW,
+                                        migrate_wall_dict)
 from rc_column.wall_section import build_wall_section, wall_readouts
 
 _DIAS = ["10", "12", "14", "16", "18", "20", "22", "25", "28", "32"]
@@ -114,7 +116,7 @@ def _l0_label(factor):
 #    cả 2 phương -> vách thành 1 vệt mỏng giữa khoảng trống lớn);
 #  - thép vẽ tại tọa độ THẬT (bản cột co 0.96 về tâm: với vách dài
 #    2500mm, co 4% làm thanh biên lệch tới 50mm khỏi vị trí thật;
-#    thép vách đã lùi khỏi mép >= cover+đai+dia/2 nên không chạm viền).
+#    thép vách đã lùi khỏi mép >= cover+dia_h+dia/2 nên không chạm viền).
 # ---------------------------------------------------------------------
 def _rot_xy(x, y, deg):
     """Xoay điểm quanh tâm tiết diện (0, 0) NGƯỢC chiều kim đồng hồ
@@ -602,7 +604,7 @@ class WallMixin:
         self._row(f3, "Chế độ bố trí thép", self.w_cb_steel_mode, r)
         r += 1
         self.w_en_cover = _entry(f3, D["cover"])
-        self._row(f3, "Lớp bảo vệ c (mm)", self.w_en_cover, r); r += 1
+        self._row(f3, "Lớp bảo vệ cốt đai, c (mm)", self.w_en_cover, r); r += 1
         # -- Khung con (a): phân bố đều theo chu vi --
         self.w_frm_per = ttk.Frame(f3)
         self.w_frm_per.grid(row=r, column=0, columnspan=2, sticky=tk.EW)
@@ -1186,6 +1188,9 @@ class WallMixin:
             # mặc định (nội lực thật nằm ở các khóa mục 5 của file).
             "N": D["N"], "M_in": D["M_in"], "M_out": D["M_out"],
             "V_in": D["V_in"], "V_out": D["V_out"], "T": D["T"],
+            # Dấu ngữ nghĩa cover (xem cover_migration): dict do app
+            # mới lưu đã theo quy ước c_đai — mở lại không dịch nữa.
+            "cover_semantics": COVER_SEMANTICS_NEW,
         }
 
     def _apply_wall(self, w: dict):
@@ -1196,9 +1201,18 @@ class WallMixin:
         fallback về cấp thép dọc hiện tại (cb_steel, đã được _apply_data
         set trước khi gọi tới đây) để kết quả cũ tái hiện từng chữ số.
         normalize_wall_dict cố tình KHÔNG điền khóa này (xem wall_input).
+
+        Migration cover: dict vách cũ (thiếu dấu "cover_semantics")
+        lưu cover theo nghĩa tới mặt thép dọc -> dịch sang c_đai
+        (c − dia_h) TRONG BỘ NHỚ trước khi lọc qua WALL_DEFAULTS
+        (khóa dấu không nằm trong WALL_DEFAULTS nên phải đọc từ dict
+        thô w, không đọc từ d đã lọc). Kẹp 0 + cảnh báo ở cuối hàm.
         """
         if not hasattr(self, "w_en_Lw"):
             return
+        _wall_cover_warns = []
+        if isinstance(w, dict):
+            w, _wall_cover_warns = migrate_wall_dict(w)
         d = dict(WALL_DEFAULTS)
         _raw = normalize_wall_dict(w) if isinstance(w, dict) else {}
         if isinstance(w, dict):
@@ -1284,6 +1298,10 @@ class WallMixin:
         self.w_var_seismic.set(bool(d["seismic_on"]))
         self._update_wall_L0_labels()
         self._on_wall_steel_mode()
+        # Cảnh báo migration cover (nếu c_mới bị kẹp về 0).
+        for _w in _wall_cover_warns:
+            messagebox.showwarning("Lớp bảo vệ vách (migration file cũ)",
+                                   _w)
 
 
     # ---------------- Thông báo phần chưa tới lát ----------------
