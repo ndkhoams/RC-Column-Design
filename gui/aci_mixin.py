@@ -472,7 +472,7 @@ class AciMixin:
             "nm_title": "Biểu đồ tương tác N-Mα",
             "nm_alpha_text": f"α = {alpha_deg:.1f}°",
             "m2m3_title": "Mặt cắt M2-M3",
-            "m2m3_n_text": f"N = {inp.N:+.1f} kN",
+            "m2m3_n_text": f"N = {aci_res.get('BN', inp.N):+.1f} kN",
             "notes_nm": notes,
             "on_nm_angle_change": lambda sel: self._on_aci_angle_unified(sel),
             "shear_builder": lambda parent: self._build_aci_shear_summary(
@@ -819,7 +819,7 @@ class AciMixin:
         except Exception:
             pass
 
-    def _build_aci_m2m3_header(self, parent, inp):
+    def _build_aci_m2m3_header(self, parent, inp, aci_res=None):
         """Header trên biểu đồ M2-M3 (ACI)."""
         hdr = ttk.Frame(parent)
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
@@ -827,7 +827,7 @@ class AciMixin:
         left.pack(side=tk.LEFT)
         tk.Label(left, text="● Mặt cắt M2-M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
-        tk.Label(left, text=f"  N = {inp.N:+.1f} kN  ",
+        tk.Label(left, text=f"  N = {(aci_res.get('BN', inp.N) if isinstance(aci_res, dict) else inp.N):+.1f} kN  ",
                  font=("", 8, "bold"), fg="#1D4ED8",
                  bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
 
