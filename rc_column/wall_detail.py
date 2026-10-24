@@ -11,12 +11,12 @@ QUY TẮC (theo AGENTS.md + spec detail_format_spec.md §4/§4b/§4c):
   (theo tw). Trang web Vietcons gắn nhãn độ lệch tâm ĐẢO ngược
   (xem ghi chú mục 4) — KHÔNG copy nhãn web, KHÔNG đổi engine.
 - Thẻ η trình bày ĐÚNG đường tính thật của app (η từ
-  buckling_factors khi bật P–δ, không có cổng λ > 14) kèm căn cứ
-  TCVN §8.1.2.1.2 & §8.1.2.4.2; quy tắc rút gọn λ > 14 của web chỉ
-  xuất hiện dưới dạng ghi chú đối chiếu, KHÔNG trình bày như quy
-  tắc của app. Khi λ ≤ 14 và P–δ bật, thẻ ghi rõ giá trị theo quy
-  trình chuẩn (η = 1,0) bên cạnh giá trị app đang dùng (tính chặt
-  hơn, thiên an toàn) — xem spec §4c phương án B.
+  buckling_factors khi bật P–δ, ĐÃ CÓ cổng λ > 14 theo
+  TCVN §8.1.2.1.2 — phương án A user chốt 2026-10-24, thay phương
+  án B cũ): phương λ ≤ 14 ghi giá trị áp dụng η = 1,0 kèm căn cứ
+  §8.1.2.1.2, KHÔNG còn khối đối chiếu "app vs quy trình chuẩn"
+  (nay hai bên khớp nhau); phương λ > 14 giữ nguyên cách trình
+  bày theo CT (44)–(48).
 - Trích dẫn độ mảnh: "TCVN 5574:2018 Mục 10.2.2", KHÔNG ghi "Bảng 30"
   (đã xác minh là sai địa chỉ). Giới hạn 120 là mượn giới hạn cột
   (bảo thủ); theo chữ §10.2.2 cho cấu kiện không phải cột là 200 —
@@ -112,12 +112,38 @@ def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
             lines.append(f"{m_star_sym} = {m_sym} (không nhân η)")
         result = f"{m_star_sym} = {_f(M_star, 2)} kN·m (η = 1,000)"
         return _card(title, ref, lines, result)
+    # P–δ bật: η đã qua cổng §8.1.2.1.2 trong buckling_factors
+    # (λ > 14 mới nhân η, từng phương độc lập — chung luật với cột).
+    if lam is not None and lam <= 14.0:
+        # Phương bị cổng: giá trị áp dụng là η = 1,0 — KHÔNG còn
+        # khối đối chiếu "app vs quy trình chuẩn" (nay hai bên khớp
+        # nhau theo phương án A); Ncr chỉ để đối chiếu.
+        lines = [
+            f"Ncr = {_f(Ncr, 0)} kN (chỉ để đối chiếu);  "
+            f"φL = {_f(phi_L, 2)}",
+            f"λ = {_f(lam, 2)} ≤ 14 → theo 8.1.2.1.2 không nhân η: "
+            f"η = 1,000.",
+        ]
+        if direction == "X":
+            if N > 0:
+                lines.append(
+                    f"{m_star_sym} = N × e0x × ηx / 1000 "
+                    f"= {_f(N, 1)} × {_f(e0, 2)} × 1.000 / 1000 "
+                    f"(sàn lệch tâm e0 trong MP vẫn áp)")
+            else:
+                lines.append(
+                    f"{m_star_sym} = {m_sym} (N ≤ 0: không dựng mô men "
+                    f"từ sàn lệch tâm; η = 1,000)")
+        else:
+            lines.append(
+                f"{m_star_sym} = ηy × {m_sym} "
+                f"= 1.000 × {_f(M_orig, 2)}")
+        result = f"{m_star_sym} = {_f(M_star, 2)} kN·m (η = 1,000)"
+        return _card(title, ref, lines, result)
     lines = [
         f"η = 1 / (1 − N / Ncr) = 1 / (1 − {_f(N, 1)} / {_f(Ncr, 0)})",
         f"Ncr = {_f(Ncr, 0)} kN;  φL = {_f(phi_L, 2)}",
     ]
-    # P–δ bật (đường tính thật của app: η từ buckling_factors,
-    # không có cổng λ > 14).
     if direction == "X":
         lines.append(
             f"{m_star_sym} = N × e0x × ηx / 1000 "
@@ -127,37 +153,7 @@ def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
             f"{m_star_sym} = ηy × {m_sym} "
             f"= {_f(eta, 3)} × {_f(M_orig, 2)}")
     result = f"{m_star_sym} = {_f(M_star, 2)} kN·m (η = {_f(eta, 3)})"
-    if lam is not None and lam <= 14.0 and N > 0:
-        # Phương án B (spec §4c): nói rõ giá trị chuẩn vs giá trị app.
-        m_std = abs(N) * e0 / 1000.0
-        if direction == "X":
-            std_txt = (f"M3* theo quy trình chuẩn = N × e0x / 1000 "
-                       f"= {_f(m_std, 2)} kN·m (không nhân η)")
-            diff = ((abs(M_star) - m_std) / m_std * 100.0
-                    if m_std > 0 else 0.0)
-        else:
-            std_txt = (f"M2* theo quy trình chuẩn = M2 "
-                       f"(không nhân η) = {_f(M_orig, 2)} kN·m")
-            diff = ((abs(M_star) - abs(M_orig)) / abs(M_orig) * 100.0
-                    if abs(M_orig) > 0 else 0.0)
-        lines.append(
-            "Theo 8.1.2.1.2, phương pháp η chỉ quy định cho "
-            f"λ > 14; với λ = {_f(lam, 2)} ≤ 14 thì "
-            f"theo quy trình chuẩn η = 1,0:")
-        lines.append(std_txt + ".")
-        lines.append(
-            f"App vẫn nhân η = {_f(eta, 3)} theo CT (44) (cùng cách "
-            f"làm với engine cột) → {m_star_sym} = "
-            f"{_f(M_star, 2)} kN·m, cao hơn quy trình chuẩn "
-            f"{diff:+.2f}% — tính chặt hơn, thiên an toàn, không "
-            f"phải giá trị chuẩn quy định. D/C tính với "
-            f"{m_star_sym} = {_f(M_star, 2)} kN·m.")
-        lines.append(
-            "Đối chiếu (không phải quy tắc của app): web áp quy tắc "
-            "rút gọn λ > 14 → η = 1,0 → "
-            f"{m_star_sym} = {_f(m_std if direction == 'X' else M_orig, 2)} "
-            "kN·m.")
-    else:
+    if lam is not None:
         lines.append(
             f"λ = {_f(lam, 2)} > 14 → xét uốn dọc theo 8.1.2.1.2; "
             f"η theo CT (44)–(48).")

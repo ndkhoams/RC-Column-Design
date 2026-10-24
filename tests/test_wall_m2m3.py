@@ -1,8 +1,8 @@
 """Kiểm chứng biểu đồ M2–M3 vách TCVN (rc_column/wall_m2m3.py).
 
 - wall_tcvn_full chỉ THÊM khóa "m2m3": D/C các ca mốc khớp đúng
-  head 4c62af9 (mốc hậu PA-A: mẫu 0.44523, vùng biên 0.35931,
-  lát-1 cũ 0.40256, xoay 90° 0.44529).
+  mốc hậu cổng η §8.1.2.1.2 (mẫu 0.44520, vùng biên 0.35929,
+  lát-1 cũ 0.40226, xoay 90° 0.44526).
 - Đường bao = lát cắt tại N = BN: điểm B nằm trên polyline (sai số
   tương đối < 0.5%, đo bằng khoảng cách tới polyline thô 360 điểm
   chưa chèn B); polyline khép kín; A/B khớp đúng M_out_d/M_in_d
@@ -81,13 +81,13 @@ def _check_case(full, dc_milestone, dc_tol=1e-5):
 
 def test_wall_m2m3_sample_perimeter():
     full = wall_tcvn_full(WallInput(), _CONC, _STEEL, loads=dict(_LOADS))
-    _check_case(full, 0.44523)
+    _check_case(full, 0.44520)
 
 
 def test_wall_m2m3_boundary():
     full = wall_tcvn_full(WallInput(steel_mode="boundary"), _CONC, _STEEL,
                           loads=dict(_LOADS))
-    _check_case(full, 0.35931)
+    _check_case(full, 0.35929)
 
 
 def test_wall_m2m3_old_case_and_rot90():
@@ -95,7 +95,7 @@ def test_wall_m2m3_old_case_and_rot90():
                           loads={"N": 2500.0, "M_in": 3000.0,
                                  "M_out": 60.0, "V_in": 0.0,
                                  "V_out": 0.0, "T": 0.0})
-    _check_case(full, 0.40256)
+    _check_case(full, 0.40226)
     full_r = wall_tcvn_full(WallInput(rot_deg=90), _CONC, _STEEL,
                             loads={"N": 2528.65, "M_in": 275.23,
                                    "M_out": 202.86, "V_in": 0.0,

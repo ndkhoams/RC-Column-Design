@@ -82,9 +82,15 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     lt = LongTermLoads()
     phi = phi_L(N, M_out, M_in, lt)
     ecc = eccentricities(N, M_out, M_in, Lx_m, Ly_m, Lw, tw)
+    # Ánh xạ λ vào khe buckling_factors: khe "x" = ngoài MP (lam_out),
+    # khe "y" = trong MP (lam_in) — cổng η §8.1.2.1.2 (λ > 14 mới
+    # nhân η, từng phương độc lập) nằm trong hàm dùng chung, cột và
+    # vách chịu cùng một luật. Ca mẫu: lam_in = 6.37 → η_in = 1.0,
+    # lam_out = 45.53 → η_out giữ 1.138.
     buck = buckling_factors(ecc.e0x, ecc.e0y, Lw, tw, phi, conc.Eb,
                             Ix, Iy, Isx, Isy, l0_out_m, l0_in_m,
-                            N, M_out, M_in)
+                            N, M_out, M_in,
+                            lambda_x=lam_out, lambda_y=lam_in)
     eta_out = buck.etax
     Ncr_out = buck.Ncrx
     M_out_d = buck.Mx_star
@@ -101,7 +107,8 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     # M_in* = N x max(e1_in, ea_in) x ηx; ecc.e0x đã là max(e1x, eax)
     # với eax = max(L/600, Lw/30, 10) — tức ea_in = Lw/30 khi Lw lớn
     # (đúng số web Vietcons dùng: 2500/30 = 83.3 mm). ηx = buck.etay
-    # = 1/(1 − N/Ncr,x) từ cùng công thức độ cứng TCVN (khe "y").
+    # = 1/(1 − N/Ncr,x) từ cùng công thức độ cứng TCVN (khe "y"),
+    # ĐÃ QUA cổng §8.1.2.1.2: λ_in ≤ 14 → ηx = 1.0 (ca mẫu: 6.37).
     if N > 0:
         M_in_d = (math.copysign(N * ecc.e0x * eta_in / 1000.0, M_in)
                   if M_in != 0.0 else 0.0)
@@ -270,8 +277,10 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             "second_order": bool(eta_out > 1.0 or eta_in > 1.0),
             "factor_out": eta_out, "Ncr_out": Ncr_out,
             "factor_in": eta_in, "Ncr_in": Ncr_in,
-            "note": "TCVN: η ngoài mặt phẳng theo tw áp mọi λ như cột; "
-                    "trong mặt phẳng M_in* = N·max(e1, ea = Lw/30)·ηx "
+            "note": "TCVN §8.1.2.1.2: η mỗi phương chỉ nhân khi λ phương đó "
+                    "> 14 (λ ≤ 14 → η = 1,0; cổng trong "
+                    "buckling_factors, chung với cột); trong mặt phẳng "
+                    "M_in* = N·max(e1, ea = Lw/30)·ηx "
                     "(theo web Vietcons, user chốt 2026-10-24). "
                     "L0 = ψ x L lấy từ mục 4 tại thời điểm tính.",
         },

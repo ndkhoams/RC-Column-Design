@@ -196,9 +196,13 @@ def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
     phi = phi_L(inp.N, inp.Mx, inp.My, inp.long_term)
 
     # --- Uốn dọc ---
+    # Cổng η §8.1.2.1.2 nằm trong buckling_factors; truyền đúng λ
+    # của từng phương (lam_x/lam_y tính từ i của section_inertia —
+    # cùng λ §3 thuyết minh in) để cổng khớp §3 với mọi tiết diện.
     buck = buckling_factors(ecc.e0x, ecc.e0y, inp.cx, inp.cy, phi,
                             conc.Eb, Ix, Iy, Isx, Isy, L0x, L0y,
-                            inp.N, inp.Mx, inp.My)
+                            inp.N, inp.Mx, inp.My,
+                            lambda_x=lam_x, lambda_y=lam_y)
 
     # --- NDM: D/C theo tia 3D với mô men đã phóng đại ---
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=n_angles)
@@ -262,10 +266,16 @@ class BatchChecker:
         phi = phi_L(N, Mx, My, lt)
         ecc = eccentricities(N, Mx, My, self.inp.Lx, self.inp.Ly,
                              self.inp.cx, self.inp.cy)
+        # λ từng phương (cùng định nghĩa check_column) cho cổng η.
+        lam_x = (self.L0x * 1000.0 / self.ix) if self.ix > 0 \
+            else float("inf")
+        lam_y = (self.L0y * 1000.0 / self.iy) if self.iy > 0 \
+            else float("inf")
         return buckling_factors(ecc.e0x, ecc.e0y, self.inp.cx, self.inp.cy,
                                 phi, self._Eb, self.Ix, self.Iy,
                                 self.Isx, self.Isy, self.L0x, self.L0y,
-                                N, Mx, My)
+                                N, Mx, My,
+                                lambda_x=lam_x, lambda_y=lam_y)
 
     def check_one(self, N: float, Mx: float, My: float,
                   lt: "LongTermLoads" = None) -> dict:

@@ -139,15 +139,33 @@ class BucklingResult:
     Mx_star: float; My_star: float    # mô men đã phóng đại (kN·m)
 
 
+# Ngưỡng cổng η — TCVN 5574:2018 §8.1.2.1.2: chỉ kể đến ảnh hưởng
+# uốn dọc bằng cách nhân e0 với η (CT (44)) khi độ mảnh L0/i > 14.
+# Dưới ngưỡng (kể cả λ = 14 đúng bằng) η = 1.0 — nghiêm ngặt ">".
+ETA_SLENDERNESS_LIMIT = 14.0
+
+
 def buckling_factors(e0x: float, e0y: float, cx: float, cy: float,
                      phiL: float, Eb: float, Ix: float, Iy: float,
                      Isx: float, Isy: float, L0x: float, L0y: float,
-                     N: float, Mx: float, My: float) -> BucklingResult:
-    """Tính hệ số uốn dọc theo CT (44)-(48).
+                     N: float, Mx: float, My: float,
+                     lambda_x: float = None,
+                     lambda_y: float = None) -> BucklingResult:
+    """Tính hệ số uốn dọc theo CT (44)-(48) + cổng λ §8.1.2.1.2.
 
     Eb (MPa), I (mm⁴), L0 (m), N (kN), M (kN·m).
     δe = e0/h ∈ [0.15, 1.5]; kb = 0.15/[φL·(0.3+δe)]
     D = kb·Eb·Ib + ks·Es·Is (ks=0.7); Ncr = π²·D/L0²; η = 1/(1-N/Ncr)
+    CỔNG (mỗi phương độc lập, áp cho cả cột lẫn vách — cùng hàm này):
+    η của phương nào chỉ được nhân khi λ của phương đó > 14
+    (TCVN 5574:2018 §8.1.2.1.2); λ ≤ 14 → η = 1.0 cho phương đó,
+    M* = M. Cổng CHỈ gạt hệ số η nhân vào và M*: Ncr, D, kb, δe
+    không đổi (Ncr là đặc trưng tiết diện, vẫn hiển thị đầy đủ).
+    lambda_x/lambda_y: độ mảnh λ = L0/i của khe "x"/"y" do đầu gọi
+    tính (cột: L0·1000/i từ section_inertia — khớp đúng λ mà §3
+    thuyết minh in; vách: lam_out/lam_in). Không truyền thì fallback
+    slenderness(L0x, cy) / slenderness(L0y, cx) — đúng tuyệt đối
+    với tiết diện chữ nhật/tròn (i = h/√12).
     """
     # δe: e0y cho phương X (uốn trong mặt phẳng y), e0x cho phương Y
     d_ex = min(max(e0y / max(cy, 1e-9), 0.15), 1.5)
@@ -161,7 +179,14 @@ def buckling_factors(e0x: float, e0y: float, cx: float, cy: float,
     Dy = (kby * Eb * Iy + ks * Es * Isy) / 1e9
     Ncrx = math.pi ** 2 * Dx / max(L0x, 1e-9) ** 2
     Ncry = math.pi ** 2 * Dy / max(L0y, 1e-9) ** 2
-    etax = 1.0 / (1.0 - abs(N) / Ncrx) if Ncrx > abs(N) else 10.0
-    etay = 1.0 / (1.0 - abs(N) / Ncry) if Ncry > abs(N) else 10.0
+    if lambda_x is None:
+        lambda_x = slenderness(L0x, cy)
+    if lambda_y is None:
+        lambda_y = slenderness(L0y, cx)
+    raw_etax = 1.0 / (1.0 - abs(N) / Ncrx) if Ncrx > abs(N) else 10.0
+    raw_etay = 1.0 / (1.0 - abs(N) / Ncry) if Ncry > abs(N) else 10.0
+    # Cổng §8.1.2.1.2 — nghiêm ngặt ">": λ = 14 đúng bằng → η = 1.0.
+    etax = raw_etax if lambda_x > ETA_SLENDERNESS_LIMIT else 1.0
+    etay = raw_etay if lambda_y > ETA_SLENDERNESS_LIMIT else 1.0
     return BucklingResult(d_ex, d_ey, kbx, kby, Dx, Dy, Ncrx, Ncry,
                           etax, etay, etax * Mx, etay * My)

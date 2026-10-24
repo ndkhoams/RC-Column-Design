@@ -2,18 +2,18 @@
 
 - build_wall_detail_sections đọc từ dict wall_tcvn_full: mọi số trong
   thẻ khớp dict kết quả (N–M/cắt/M2–M3 không đổi từng chữ số so với
-  mốc: mẫu 0.44523, vùng biên 0.35931, lát-1 cũ 0.40256; cắt mẫu
-  V=800 -> 0.403).
+  mốc hậu cổng η §8.1.2.1.2: mẫu 0.44520, vùng biên 0.35929,
+  lát-1 cũ 0.40226; cắt mẫu V=800 -> 0.403).
 - Trích dẫn độ mảnh là Mục 10.2.2, không có card/mục nào trích
   "Bảng 30" làm căn cứ.
-- Thẻ η trình bày đúng đường tính app (ηx ≈ 1.002 -> Mx* = 211.13)
-  kèm giá trị quy trình chuẩn (ηx = 1.0 -> 210.72), không trình bày
-  quy tắc rút gọn λ > 14 của web như quy tắc của app.
+- Thẻ η trình bày đúng đường tính app ĐÃ CÓ cổng λ > 14 (phương án A
+  2026-10-24): phương X mẫu λ = 6.37 → ηx = 1,0, M3* = 210.72;
+  phương Y λ = 45.53 giữ ηy theo CT (44) -> M2* = 313.09. Không còn
+  khối đối chiếu "app vs quy trình chuẩn" ở phương bị cổng.
 - PDF tóm tắt đúng 1 trang; PDF chi tiết xuất được và cùng nguồn số
   với tab (cùng builder).
-- Harness ηx = 1.0 (CHỈ đo, không sửa production): D/C mẫu đổi
-  0.44523 -> ~0.44520 (không đáng kể ở ca này vì M3* chỉ là thành
-  phần nhỏ của Mα).
+- (Lịch sử) Harness ηx = 1.0 trước cổng đo D/C mẫu 0.44523 -> 0.44520
+  — nay chính là giá trị production sau cổng.
 """
 
 import math
@@ -71,14 +71,14 @@ def _card_by_title(sections, num, title_sub):
 
 def test_detail_numbers_match_dict_sample():
     full = _sample()
-    assert abs(full["dc"] - 0.44523) <= 1e-5
+    assert abs(full["dc"] - 0.44520) <= 1e-5
     assert abs(full["shear_in"]["dc"] - 0.40259) <= 1e-4
     secs = build_wall_detail_sections(full)
     assert [s["num"] for s in secs] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
     txt = _all_text(secs)
-    for needle in ["211.13", "313.09", "0.445", "0.403", "1,987.2",
-                   "45.53", "6.37", "210.72", "108.84", "83.33",
-                   "5,679.4", "848.17", "2φ12 a200"]:
+    for needle in ["210.72", "313.09", "0.445", "0.403", "1,987.2",
+                   "45.53", "6.37", "108.84", "83.33",
+                   "5,679.8", "847.71", "2φ12 a200"]:
         assert needle in txt, needle
     # Nhãn app: X = trong MP (e0x = 83.33), Y = ngoài MP (e0y = 108.84)
     cx = _card_by_title(secs, 4, "Phương X")
@@ -103,13 +103,17 @@ def test_detail_slenderness_cites_10_2_2_not_bang30():
 
 
 def test_detail_eta_card_is_honest_app_path():
+    # Hậu cổng η §8.1.2.1.2 (phương án A): phương X bị cổng in đúng
+    # giá trị áp dụng η = 1,000 + căn cứ, KHÔNG còn khối đối chiếu
+    # "app vs quy trình chuẩn"; phương Y (λ > 14) giữ cách trình bày cũ.
     secs = build_wall_detail_sections(_sample())
     x = _card_by_title(secs, 5, "Phương X")
     body = "\n".join(x["lines"])
-    assert "211.13" in x["result"] and "1.002" in x["result"]
-    assert "210.72" in body  # giá trị quy trình chuẩn η = 1,0
-    assert "+0.20%" in body
-    assert "KHÔNG CẦN XÉT" not in body  # cấm ghi nhãn sai kèm số đã nhân η
+    assert "210.72" in x["result"] and "1,000" in x["result"]
+    assert "8.1.2.1.2" in body and "≤ 14" in body
+    assert "211.13" not in x["result"] and "1.002" not in body
+    assert "+0.20%" not in body and "Đối chiếu" not in body
+    assert "KHÔNG CẦN XÉT" not in body
     y = _card_by_title(secs, 5, "Phương Y")
     assert "313.09" in y["result"] and "45.53" in "\n".join(y["lines"])
 
@@ -117,31 +121,32 @@ def test_detail_eta_card_is_honest_app_path():
 def test_detail_milestones_boundary_and_old():
     fb = wall_tcvn_full(WallInput(steel_mode="boundary"), _CONC, _STEEL,
                         loads=dict(_LOADS))
-    assert abs(fb["dc"] - 0.35931) <= 1e-5
+    assert abs(fb["dc"] - 0.35929) <= 1e-5
     txt_b = _all_text(build_wall_detail_sections(fb))
-    assert "0.359" in txt_b and "211.07" in txt_b and "305.12" in txt_b
+    assert "0.359" in txt_b and "210.72" in txt_b and "305.12" in txt_b
     fo = wall_tcvn_full(wall_from_dict(_OLD), _CONC, _STEEL,
                         loads={"N": 2500.0, "M_in": 3000.0,
                                "M_out": 60.0, "V_in": 0.0,
                                "V_out": 0.0, "T": 0.0})
-    assert abs(fo["dc"] - 0.40256) <= 1e-5
+    assert abs(fo["dc"] - 0.40226) <= 1e-5
     txt_o = _all_text(build_wall_detail_sections(fo))
     assert "0.403" in txt_o or "0.402" in txt_o
 
 
 def test_eta_x_forced_harness_only():
-    """HARNESS (không sửa production): cùng solver fiber của engine,
-    chỉ thay M_in_d bằng giá trị quy trình chuẩn (ηx = 1.0)."""
+    """Hậu cổng η §8.1.2.1.2: M_in_d của production ĐÃ BẰNG giá trị
+    quy trình chuẩn (ηx = 1.0) — harness cũ (đo lệch +0.20% khi app
+    còn nhân ηx = 1.002) nay trở thành kiểm chứng đồng nhất: dựng
+    lại tia từ M_in chuẩn phải cho đúng D/C của dict."""
     from rc_column.interaction import BiaxialCapacity
     full = _sample()
     cap = BiaxialCapacity(full["sec"], model=full["model"])
     m_std = abs(full["N"]) * full["e0_in"] / 1000.0
     assert abs(m_std - 210.72) <= 0.01
-    assert abs((abs(full["M_in_d"]) - m_std) / m_std * 100.0
-               - 0.20) <= 0.02
+    assert abs(abs(full["M_in_d"]) - m_std) < 0.01
     r = cap.dc_ratio(full["N"], full["M_out_d"],
                      math.copysign(m_std, full["M_in"]))
-    assert abs(r["dc"] - full["dc"]) < 0.002, (r["dc"], full["dc"])
+    assert abs(r["dc"] - full["dc"]) < 1e-9, (r["dc"], full["dc"])
 
 
 def _pdf_page_count(path):

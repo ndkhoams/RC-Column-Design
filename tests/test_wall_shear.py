@@ -122,7 +122,7 @@ def test_engine_integration_nm_unchanged():
     conc, steel = _mats()
     full = wall_tcvn_full(WallInput(), conc, steel,
                           loads=_web_loads(800.0))
-    assert abs(full["dc"] - 0.4452331146674462) < 1e-12
+    assert abs(full["dc"] - 0.44520104645817127) < 1e-12
     assert full["ok"] is True and full["ok_all"] is True
     sh = full["shear_in"]
     assert sh["ok"] is True and sh["V_cap"] > 800.0

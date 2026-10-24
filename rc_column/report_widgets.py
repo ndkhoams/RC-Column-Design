@@ -330,12 +330,16 @@ def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
     M2_orig = abs(res.Mx_star / res.etax) if res.etax else 0.0
     M3_orig = abs(res.My_star / res.etay) if res.etay else 0.0
     grid = _grid2(g)
-    # Dữ liệu từng phương: (tên, e0, t, I, Is, delta, kb, D, Ncr, eta, M_star, M_orig, L0)
+    # Dữ liệu từng phương: (tên, e0, t, I, Is, delta, kb, D, Ncr, eta,
+    # M_star, M_orig, L0, lambda) — lambda để thẻ η in đúng cổng
+    # §8.1.2.1.2 (λ ≤ 14 → η = 1,0, không in công thức (44)).
     dirs = [
         ("2", res.e0y, inp.cy, res.Ix, res.Isx, res.delta_ex, res.kbx,
-         res.Dx, res.Ncrx, res.etax, res.Mx_star, M2_orig, res.L0x),
+         res.Dx, res.Ncrx, res.etax, res.Mx_star, M2_orig, res.L0x,
+         res.lambda_x),
         ("3", res.e0x, inp.cx, res.Iy, res.Isy, res.delta_ey, res.kby,
-         res.Dy, res.Ncry, res.etay, res.My_star, M3_orig, res.L0y),
+         res.Dy, res.Ncry, res.etay, res.My_star, M3_orig, res.L0y,
+         res.lambda_y),
     ]
     phi_txt = ("2 (thiên về an toàn)"
                if not inp.long_term.has_data else _f(res.phi_L))
@@ -344,54 +348,58 @@ def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
     card_defs = [
         ("phi", f"Hệ số ảnh hưởng thời hạn tải trọng φL",
          "Công thức (48)",
-         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
              [f"φL,{d} = 1 + ML1,{d} / ML,{d} ≤ 2.0",
               f"φL = {phi_txt}"]),
         ("delta", f"Độ lệch tâm tương đối (δe)",
          "Điều 8.1.2.4.2",
-         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
              [f"δe,{d} = e0{'3' if d=='2' else '2'} / t{d} "
               f"(lấy trong [0.15, 1.5])",
               f"= {_f(e0, 2)} / {t:.0f} = {_f(delta, 3)}",
               f"= {_f(delta, 3)} -"]),
         ("kb", f"Hệ số độ cứng bê tông (kb)",
          "Công thức (47)",
-         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
              [f"kb,{d} = 0.15 / [φL,{d} · (0.3 + δe,{d})]",
               f"= 0.15 / [{_f(phi_v, 2)} × (0.3 + {_f(delta, 3)})]",
               f"= {_f(kb, 3)} -"]),
         ("D", f"Độ cứng chống uốn quy ước (D)",
          "Công thức (46)",
-         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
              [f"D{d} = kb,{d} · Eb · I{d} + ks · Es · Is{d}",
               f"ks = 0.7",
               f"= {_f(D, 1)} kN·m²"]),
         ("Ncr", f"Lực tới hạn Euler (Ncr)",
          "Công thức (45)",
-         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
              [f"Ncr,{d} = (π² · D{d}) / L0{d}²",
               f"= (π² × {_f(D, 1)}) / {_f(L0, 2)}²",
               f"= {_f(Ncr, 2)} kN"]),
         ("eta", f"Hệ số uốn dọc (η)",
-         "Công thức (44)",
-         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
-             [f"η{d} = 1 / [1 - N / Ncr,{d}]",
-              f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}]",
-              f"= {_f(eta, 3)} ≥ 1.0"]),
+         "TCVN 5574:2018 §8.1.2.1.2 & Công thức (44)",
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
+             ([f"λ{d} = {_f(lam, 1)} ≤ 14 → theo §8.1.2.1.2 không nhân η",
+               f"η{d} = 1,000 (Ncr,{d} = {_f(Ncr, 1)} kN chỉ để đối chiếu)",
+               f"= {_f(eta, 3)}"]
+              if lam is not None and lam <= 14.0 else
+              [f"η{d} = 1 / [1 - N / Ncr,{d}]",
+               f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}]",
+               f"= {_f(eta, 3)} ≥ 1.0"])),
         ("Mstar", f"Mô men tính toán (M*)",
          "Mục 8.1.2.4",
-         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0:
+         lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
              [f"M{d}* = η{d} · M{d}",
               f"= {_f(eta, 3)} × {_f(Morig, 2)}",
               f"= {_f(abs(Mstar), 2)} kN·m"]),
     ]
     for r, (key, title, ref, fn) in enumerate(card_defs):
         for (d, e0, t, I, Is, delta, kb, D, Ncr, eta,
-             Mstar, Morig, L0) in dirs:
+             Mstar, Morig, L0, lam) in dirs:
             col = int(d) - 2
             c = _param_card(grid, f"{title} phương {d} ({key},{d})",
                             ref, fn(d, e0, t, I, Is, delta, kb, D, Ncr,
-                                    eta, Mstar, Morig, L0))
+                                    eta, Mstar, Morig, L0, lam))
             c.grid(row=r, column=col, sticky="nsew", padx=4, pady=4)
     # Góc α và Mα (hàng cuối, 2 cột)
     import math as _m

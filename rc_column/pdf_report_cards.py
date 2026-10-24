@@ -436,12 +436,12 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     phi_v = 2.0 if not inp.long_term.has_data else res.phi_L
     dirs = [
         ("2", res.e0y, inp.cy, res.delta_ex, res.kbx, res.Dx, res.Ncrx,
-         res.etax, res.Mx_star, M2, res.L0x),
+         res.etax, res.Mx_star, M2, res.L0x, res.lambda_x),
         ("3", res.e0x, inp.cx, res.delta_ey, res.kby, res.Dy, res.Ncry,
-         res.etay, res.My_star, M3, res.L0y),
+         res.etay, res.My_star, M3, res.L0y, res.lambda_y),
     ]
     # Mỗi hàng: 2 card (phương 2 | phương 3)
-    def _mk5(d, e0, t, delta, kb, D, Ncr, eta, Mstar, Morig, L0, kind):
+    def _mk5(d, e0, t, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam, kind):
         if kind == "phi":
             return _mk(
                          f"Hệ số ảnh hưởng thời hạn tải trọng φL,{d}",
@@ -475,6 +475,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                           f"= (π² × {_f(D, 1)}) / {_f(L0, 2)}²",
                           f"= {_f(Ncr, 2)} kN"])
         if kind == "eta":
+            if lam is not None and lam <= 14.0:
+                return _mk( f"Hệ số uốn dọc phương {d} (η{d})",
+                             "TCVN 5574:2018 §8.1.2.1.2",
+                             [f"λ{d} = {_f(lam, 1)} ≤ 14 → theo "
+                              f"§8.1.2.1.2 không nhân η",
+                              f"η{d} = 1,000 (Ncr,{d} = {_f(Ncr, 1)} kN "
+                              f"chỉ để đối chiếu)",
+                              f"= {_f(eta, 3)}"])
             return _mk( f"Hệ số uốn dọc phương {d} (η{d})",
                          "Công thức (44)",
                          [f"η{d} = 1 / [1 - N / Ncr,{d}]",
