@@ -275,6 +275,11 @@ class DataMixin:
                 and self.merge_combo_var.get()),
             "merge_combo_selected": sorted(
                 getattr(self, "merge_combo_selected", set()) or set()),
+            # Phần 5/7: lựa chọn combo động đất (lớp riêng, tương
+            # thích ngược — file cũ không có khóa -> không combo nào
+            # là động đất, hành vi như trước).
+            "seismic_combo_selected": sorted(
+                getattr(self, "seismic_combo_selected", set()) or set()),
             # Vách (GĐ1): namespace riêng, ghi cả khi đang ở chế độ Cột để
             # chuyển qua lại không mất dữ liệu (như 3 bộ vật liệu hiện tại).
             # pier_forces: parser/batch ở lát 5; lát 0 giữ nguyên dữ liệu
@@ -478,6 +483,12 @@ class DataMixin:
                     mv.set(bool(d.get("merge_combo_enabled", False)))
                 self.merge_combo_selected = set(
                     d.get("merge_combo_selected", []) or [])
+                # Phần 5/7: khôi phục lựa chọn động đất TRƯỚC khi suy
+                # lại bảng hiển thị (để gộp động đất có hiệu lực ngay,
+                # kể cả khi nút gộp đang TẮT). File cũ thiếu khóa ->
+                # tập rỗng, hành vi như trước.
+                self.seismic_combo_selected = set(
+                    d.get("seismic_combo_selected", []) or [])
                 self._refresh_merge_display()
                 if self.etabs_forces_orig:
                     n_case = len(set(f.case
