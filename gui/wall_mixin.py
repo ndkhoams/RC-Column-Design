@@ -45,7 +45,7 @@ from rc_column.wall_input import (WALL_DEFAULTS, normalize_wall_dict,
                                   wall_from_dict)
 from rc_column.cover_migration import (COVER_SEMANTICS_NEW,
                                         migrate_wall_dict)
-from rc_column.wall_section import build_wall_section, wall_readouts
+from rc_column.wall_section import build_wall_section
 
 _DIAS = ["10", "12", "14", "16", "18", "20", "22", "25", "28", "32"]
 # Danh mục đường kính theo format web (mục 3): d10..d40
@@ -180,16 +180,17 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     - trên: nhãn 't3' neo ở cy/2 + 1.01cy, đỉnh chữ ~+0.21cy nữa
       (chiều cao chữ theo đơn vị dữ liệu ở tỉ lệ vẽ thường) = 1.72cy;
       chừa tới cy/2 + 1.27cy.
-    - dưới: có hàng DIM phân đoạn (n_seg > 0): đường gióng của nó
-      xuống tới -cy/2 - 1.86cy; không có: đáy chữ 'Lw = ...' ở
-      -cy/2 - 1.14cy. Đều chừa thêm 0.07cy.
+    - dưới: có hàng DIM phân đoạn (n_seg > 0): thấp nhất là đáy
+      chữ 'Lw = ...' ở -cy/2 - 2.22cy (hàng tổng ở dưới cùng);
+      không có: đáy chữ 'Lw = ...' ở -cy/2 - 1.14cy. Đều chừa
+      thêm 0.07cy.
     rot_deg: span hiển thị = bao hình của 4 góc span canonical đã
     xoay (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
     cx, cy = float(sec.cx), float(sec.cy)
     x_lo, x_hi = -cx / 2 - 0.105 * cx, cx / 2 + 0.02 * cx
     y_hi = cy / 2 + 1.27 * cy
-    y_lo = -cy / 2 - (1.93 * cy if n_seg else 1.21 * cy)
+    y_lo = -cy / 2 - (2.29 * cy if n_seg else 1.21 * cy)
     if int(rot_deg or 0) % 360 == 0:
         return (x_lo, x_hi, y_lo, y_hi)
     pts = [_rot_xy(x, y, rot_deg)
@@ -463,15 +464,12 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
                     va=_flip_va(va) if flip else va,
                     rotation=rr, zorder=4)
 
-    # Hàng 1 (dưới đáy): kích thước tổng Lw, đường gióng từ 2 mép.
-    _y_tot = -cy / 2 - 0.62 * cy
-    for _xx in (-cx / 2, cx / 2):
-        _ext((_xx, -cy / 2 - 0.10 * cy), (_xx, _y_tot - 0.16 * cy))
-    _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), f"Lw = {cx:.0f} mm",
-         (0.0, _y_tot - 0.52 * cy), 0, "center", "bottom")
-    # Hàng 2: phân đoạn Lb | đoạn giữa | Lb (chỉ chế độ vùng biên).
+    # Thứ tự DIM dưới đáy (quyết user 2026-10-24): hàng phân đoạn
+    # Lb | đoạn giữa | Lb SÁT mặt cắt hơn, kích thước tổng Lw ở
+    # DƯỚI CÙNG — ngược thứ tự cũ (tổng ở trên, phân đoạn ở dưới).
+    # Hàng 1 (sát đáy): phân đoạn (chỉ chế độ vùng biên).
     if _segs:
-        _y_seg = -cy / 2 - 1.70 * cy
+        _y_seg = -cy / 2 - 0.62 * cy
         for _x1, _x2, _lab in _segs:
             for _xx in (_x1, _x2):
                 _ext((_xx, -cy / 2 - 0.10 * cy),
@@ -479,6 +477,12 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
             _dim((_x1, _y_seg), (_x2, _y_seg), _lab,
                  ((_x1 + _x2) / 2.0, _y_seg + 0.14 * cy),
                  0, "center", "bottom")
+    # Hàng 2 (dưới cùng): kích thước tổng Lw, đường gióng từ 2 mép.
+    _y_tot = -cy / 2 - 1.70 * cy
+    for _xx in (-cx / 2, cx / 2):
+        _ext((_xx, -cy / 2 - 0.10 * cy), (_xx, _y_tot - 0.16 * cy))
+    _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), f"Lw = {cx:.0f} mm",
+         (0.0, _y_tot - 0.52 * cy), 0, "center", "bottom")
     # DIM đứng bên trái: kích thước tổng tw.
     _x_dim = -cx / 2 - 0.045 * cx
     for _yy in (-cy / 2, cy / 2):
@@ -525,7 +529,13 @@ def build_wall_shear_rows(full):
     MP) dạng chuỗi đã format sẵn để _build_wall_shear_table chỉ việc
     vẽ. Hàng (98) KHÔNG có hàng riêng (quy ước cột: engine vẫn kiểm
     (98), qsw dưới đây đã là giá trị sau khi loại nhóm vi phạm;
-    khi có nhóm bị loại thì ghi chú ngay ở hàng qsw)."""
+    khi có nhóm bị loại thì ghi chú ngay ở hàng qsw).
+    Ghi chú phóng đại DCM nằm ở Ô NHÃN của hàng V_Ed (không ở ô
+    giá trị): ô giá trị chỉ còn "1200.0 kN". Ghi chú KHÔNG hiển
+    thị V_raw (quyết user 2026-10-24: người dùng tự hiểu V2 đã
+    được tự nhân); V_raw vẫn giữ nguyên trong dict kết quả.
+    Builder này chỉ dùng cho bảng GUI tab Kết quả + tests (PDF
+    tóm tắt/chi tiết có builder riêng, không dùng chung)."""
     full = full or {}
 
     def _dc_txt(sh):
@@ -544,19 +554,15 @@ def build_wall_shear_rows(full):
         pending = (sh or {}).get("V_cap") is None
         if pending:
             return None
+        v_note = None
         if in_plane:
             v_d = sh.get("V_d")
-            if sh.get("seismic_applied"):
-                v_raw = sh.get("V_raw", parts.get("V_raw"))
-                if v_raw is not None:
-                    v_txt = (f"{float(v_d):.1f} kN (×1.5 DCM — "
-                             f"TCVN 9386-1:2012 §5.4.2.4(7), "
-                             f"V_raw {float(v_raw):.1f} kN)")
-                else:
-                    v_txt = (f"{float(v_d):.1f} kN (×1.5 DCM — "
-                             f"TCVN 9386-1:2012 §5.4.2.4(7))")
-            else:
-                v_txt = f"{float(v_d):.1f} kN"
+            # Ô giá trị chỉ còn số trơn; ghi chú DCM chuyển sang ô
+            # nhãn hàng (khóa "_v_ed_note" — không phải một hàng,
+            # vòng dựng rows dưới đây gắn vào nhãn khi có).
+            v_txt = f"{float(v_d):.1f} kN"
+            v_note = ("(×1.5 DCM — TCVN 9386-1:2012 §5.4.2.4(7))"
+                      if sh.get("seismic_applied") else None)
             sw = parts.get("sw_txt", "—")
             grade = parts.get("steel_grade") or ""
             sw_txt = f"{sw} ({grade})" if grade else sw
@@ -613,6 +619,7 @@ def build_wall_shear_rows(full):
             "Asw/s yêu cầu (tối thiểu theo (96))": req_txt,
             "Asw/s bố trí": prov_txt,
             "Kết luận": concl,
+            "_v_ed_note": v_note,
         }
 
     labels = ["Thép bố trí",
@@ -636,6 +643,9 @@ def build_wall_shear_rows(full):
     for lab in labels:
         in_txt = col_in[lab] if col_in is not None else "CHƯA KIỂM"
         out_txt = col_out[lab] if col_out is not None else "CHƯA KIỂM"
+        if (lab == "Lực cắt tính toán, V_Ed" and col_in is not None
+                and col_in.get("_v_ed_note")):
+            lab = f"{lab} {col_in['_v_ed_note']}"
         rows.append((lab, in_txt, out_txt))
     return rows
 
@@ -785,14 +795,10 @@ class WallMixin:
                  "(chưa phân biệt hình học).").grid(
                      row=rr, column=0, columnspan=2, padx=4, pady=(2, 2),
                      sticky=tk.W)
-        # -- Khối số đọc trực tiếp (web) --
-        r = _hdr(f3, "Số đọc trực tiếp", r)
-        self.w_readout = tk.Text(f3, height=8, font=("Consolas", 9),
-                                 wrap="none", bg="#F9FAFB", relief="solid",
-                                 borderwidth=1)
-        self.w_readout.grid(row=r, column=0, columnspan=2, sticky=tk.EW,
-                            padx=4, pady=(2, 4))
-        self.w_readout.configure(state="disabled")
+        # (Khối "Số đọc trực tiếp" ở panel đã bỏ theo quyết user
+        # 2026-10-24 — dữ liệu suy ra vẫn tính bình thường cho ô
+        # mặt cắt/thẻ thép qua build_wall_section, chỉ không hiển
+        # thị khối readout này ở panel nữa.)
 
         # ===== Mục 4. Chiều dài tính toán & Uốn dọc (web) =====
         self.w_cb_pd = _combo(
@@ -1037,48 +1043,9 @@ class WallMixin:
             except Exception:
                 var.set("—")
 
-    def _update_wall_readouts(self, sec=None, meta=None):
-        """Khối SỐ ĐỌC ở mục 3 — tính từ đúng (sec, meta) của
-        build_wall_section (không suy lại ở nơi khác)."""
-        txt = getattr(self, "w_readout", None)
-        if txt is None:
-            return
-        try:
-            winp = wall_from_dict(self._collect_wall())
-            if sec is None:
-                conc, steel, _m = self._wall_tcvn_materials()
-                sec, meta = build_wall_section(winp, conc, steel)
-            ro = wall_readouts(winp, sec, meta)
-            lines = []
-            if (meta or {}).get("steel_mode") == "boundary":
-                for z in ro["zones"]:
-                    lines.append(
-                        f"{z['name']}: {z['n']} thanh d{z['dia']:.0f} — "
-                        f"As = {z['As']:.0f} mm² (µ = {z['mu'] * 100:.2f}%)")
-            lines.append(f"{ro['n_bars']} thanh — {ro['summary']}")
-            lines.append(f"Tổng As = {ro['As']:.0f} mm²   •   "
-                         f"Hàm lượng µ = {ro['mu'] * 100:.2f}%")
-            lines.append(f"Diện tích Ac = {ro['Ac_m2']:.3f} m²")
-            lines.append(f"Quán tính Ix = {ro['Ix_m4']:.4g} m⁴   •   "
-                         f"Iy = {ro['Iy_m4']:.4g} m⁴")
-            if ro["sclear_min"] is not None:
-                lines.append(
-                    f"Khoảng hở thông thủy sclear,min = "
-                    f"{ro['sclear_min']:.1f} mm")
-                lines.append(
-                    f"Khoảng cách tim smax = {ro['smax']:.1f} mm "
-                    f"(min: {ro['s_step_min']:.1f})")
-            body = "\n".join(lines)
-        except Exception as ex:
-            body = f"(chưa tính được số đọc: {ex})"
-        try:
-            txt.configure(state="normal")
-            txt.delete("1.0", tk.END)
-            txt.insert("1.0", body)
-            txt.configure(state="disabled")
-        except Exception:
-            pass
-
+    # (_update_wall_readouts đã xóa cùng khối readout panel theo
+    # quyết user 2026-10-24; hàm wall_readouts trong wall_section.py
+    # giữ nguyên cho nơi khác dùng sau này.)
 
     # ---------------- Kháng chấn: lọc option theo tiêu chuẩn ----------------
     def _toggle_wall_seismic(self):
@@ -2038,9 +2005,7 @@ class WallMixin:
             conc, steel, _model = self._wall_tcvn_materials()
             sec, meta = build_wall_section(winp, conc, steel)
         except Exception:
-            self._update_wall_readouts()
             return
-        self._update_wall_readouts(sec, meta)
         ax = getattr(self, "_sec_ax", None)
         if getattr(self, "_wall_view_active", False) and ax is not None:
             try:
@@ -2112,9 +2077,14 @@ class WallMixin:
         for i, (label, v_in, v_out) in enumerate(rows, start=1):
             _bg = "#F9FAFB" if i % 2 == 0 else "white"
             _bold = (label == "Kết luận")
+            # wraplength cho ô nhãn: khi phóng đại DCM, ghi chú
+            # nằm ở ô nhãn hàng V_Ed (~70 ký tự) nên phải ngắt
+            # dòng thay vì tràn/kẹp — các nhãn khác ngắn nên
+            # không bị ảnh hưởng.
             tk.Label(tf, text=label, font=("", 9, "bold" if _bold
                                           else ""), bg=_bg,
                      fg="#111827", anchor="w", padx=6,
+                     wraplength=420,
                      pady=4).grid(row=i, column=0, sticky="nsew")
             for j, v in enumerate((v_in, v_out), start=1):
                 _fg = "#111827"
@@ -2123,42 +2093,28 @@ class WallMixin:
                         _fg = "#065F46"
                     elif v.startswith("✗"):
                         _fg = "#991B1B"
-                # wraplength: chuỗi V_Ed khi phóng đại DCM dài
-                # (~70 ký tự, kèm số điều khoản bắt buộc) vượt bề
-                # rộng cột giá trị (~1/4 bề rộng bảng) nên phải
-                # ngắt dòng thay vì tràn/kẹp — các ô khác ngắn nên
-                # không bị ảnh hưởng.
                 tk.Label(tf, text=v, font=("", 9, "bold" if _bold
                                           else ""), bg=_bg, fg=_fg,
                          anchor="center", padx=6, wraplength=280,
                          pady=4).grid(row=i, column=j, sticky="nsew")
-        # Footnote: căn cứ + ánh xạ + định nghĩa Asw/s yêu cầu +
-        # quy ước hàng (98) ẩn (engine vẫn kiểm, xem hàng qsw).
-        tk.Label(
-            tf, foreground="gray", wraplength=950, justify=tk.LEFT,
-            bg="white",
-            text="Căn cứ: TCVN 5574:2018 §8.1.3 (công thức cắt cấu "
-                 "kiện qua check_shear); ánh xạ vách — trong MP: "
-                 "b = tw, h0 = Lw − cover − dia_h − dia_v/2; ngoài "
-                 "MP: b = Lw, h0 = tw − cover − dia_v − dia_h/2, "
-                 "Qsw = 0 (chưa có giằng xuyên dày). Phóng đại DCM "
-                 "1,5× (TCVN 9386-1:2012 §5.4.2.4(7)) chỉ áp cho "
-                 "cắt trong MP khi combo động đất/DCM bật. "
-                 "Asw/s yêu cầu = qsw_min96 / Rsw: chỉ là phép đổi "
-                 "đơn vị từ qsw tối thiểu theo (96) đã có trong "
-                 "dict shear, không tính lại khả năng cắt. Hàng "
-                 "(98) ẩn khỏi hiển thị theo quy ước cột (engine "
-                 "vẫn kiểm; qsw trên đã là giá trị sau khi loại "
-                 "nhóm vi phạm).").grid(
-                     row=len(rows) + 1, column=0, columnspan=3,
-                     sticky="ew", padx=6, pady=(2, 4))
+        # (Khối diễn giải dưới bảng — căn cứ §8.1.3 + phạm vi —
+        # đã bỏ theo quyết user 2026-10-24; căn cứ đầy đủ vẫn ở
+        # tab Chi tiết mục 8 và PDF chi tiết.)
         return tf
 
     def _wall_result_conclusion(self, full):
         """Chuỗi kết luận từng phần cho tab Kết quả vách (chỉ đọc
         dict kết quả, không tính lại). KHÔNG có kết luận chung:
         banner cũ đã bỏ — mỗi phần kết luận riêng ngay dưới nó.
-        Trả về dict: nm, m2m3, slend, shear_in, shear_out."""
+        Trả về dict: nm, m2m3, slend, shear_in, shear_out.
+        Dạng ngắn kiểu kết luận bên cột (quyết user 2026-10-24):
+        chỉ tên mục + D/C + ĐẠT/KHÔNG ĐẠT, không chú thích trong
+        ngoặc — chi tiết λ/V_Ed/Qsw vẫn ở bảng thông số, bảng cắt
+        và tab Chi tiết. Độ mảnh dùng tỉ số λmax/120 làm D/C tương
+        đương (ghi rõ trong chuỗi). Khóa nm/m2m3 giữ lại cho tương
+        thích nhưng KHÔNG còn render ở tab Kết quả (dải xanh dưới
+        biểu đồ đã bỏ; kết luận N–M vẫn có ở bullets A/B/O qua
+        wall_chart_notes)."""
         ok = bool(full["ok"])
         dc = full["dc"]
         fs_txt = (f"{full['fs']:.2f}" if math.isfinite(full["fs"])
@@ -2176,39 +2132,28 @@ class WallMixin:
         lam_out = float(sl.get("lambda_out", 0.0) or 0.0)
         sl_ok = lam_in <= 120.0 and lam_out <= 120.0
         sl_txt = (
-            f"Kết luận độ mảnh (§10.2.2): λx = {lam_in:.1f}, "
-            f"λy = {lam_out:.1f} — "
-            + ("ĐẠT (λ ≤ 120)" if sl_ok else "KHÔNG ĐẠT (λ > 120)"))
+            f"Độ mảnh: D/C = {max(lam_in, lam_out) / 120.0:.3f} "
+            f"(λmax/120) — "
+            + ("ĐẠT" if sl_ok else "KHÔNG ĐẠT"))
         _sh = full.get("shear_in") or {}
         if _sh.get("V_cap") is not None and _sh.get("dc") is not None:
             _dc_sh = _sh["dc"]
             _dc_sh_txt = (f"{_dc_sh:.3f}" if math.isfinite(_dc_sh)
                           else "∞")
-            if _sh.get("seismic_applied"):
-                _seis_txt = (
-                    f"V_Ed = {_sh.get('V_d', full['V_in']):.1f} kN, "
-                    "đã phóng đại 1,5× theo TCVN 9386-1:2012 "
-                    "§5.4.2.4(7) DCM")
-            else:
-                _seis_txt = (
-                    f"V_Ed = V2 = {full['V_in']:.1f} kN, "
-                    "không phóng đại kháng chấn")
-            sh_txt = (f"Kết luận cắt trong MP: D/C = {_dc_sh_txt} — "
-                      + ("ĐẠT" if _sh.get("ok") else "KHÔNG ĐẠT")
-                      + f" ({_seis_txt})")
+            sh_txt = (f"Cắt trong MP: D/C = {_dc_sh_txt} — "
+                      + ("ĐẠT" if _sh.get("ok") else "KHÔNG ĐẠT"))
         else:
-            sh_txt = "Kết luận cắt trong MP: — (chưa tính được)"
+            sh_txt = "Cắt trong MP: — (chưa tính được)"
         _sho = full.get("shear_out") or {}
         if _sho.get("V_cap") is not None and _sho.get("dc") is not None:
             _dc_sho = _sho["dc"]
             _dc_sho_txt = (f"{_dc_sho:.3f}" if math.isfinite(_dc_sho)
                            else "∞")
             sho_txt = (
-                f"Kết luận cắt ngoài MP: D/C = {_dc_sho_txt} — "
-                + ("ĐẠT" if _sho.get("ok") else "KHÔNG ĐẠT")
-                + " (Qsw = 0 vì chưa có giằng xuyên dày)")
+                f"Cắt ngoài MP: D/C = {_dc_sho_txt} — "
+                + ("ĐẠT" if _sho.get("ok") else "KHÔNG ĐẠT"))
         else:
-            sho_txt = "Kết luận cắt ngoài MP: — (chưa tính được)"
+            sho_txt = "Cắt ngoài MP: — (chưa tính được)"
         return {"nm": nm_txt, "m2m3": m2m3_txt, "slend": sl_txt,
                 "shear_in": sh_txt, "shear_out": sho_txt}
 
@@ -2217,11 +2162,11 @@ class WallMixin:
         tính lại) — lưới 2x2 như bên cột, KHÔNG còn banner kết luận
         chung: hàng trên bảng thông số | mặt cắt + thẻ thép; hàng
         dưới biểu đồ N–Mα | biểu đồ M2–M3 (tại N = BN); kết luận
-        riêng nằm NGAY DƯỚI từng phần (dưới bảng thông số: độ mảnh
-        + cắt trong/ngoài MP; dưới mỗi biểu đồ: N–M / diễn giải
-        M2–M3); ghi chú A/B/O full-width ở row 2; row 3 để dành
-        cho bảng cắt vách (phần 2); ghi chú phạm vi full-width ở
-        row 4 cuối cùng."""
+        riêng nằm NGAY DƯỚI bảng thông số (độ mảnh + cắt trong/
+        ngoài MP, dạng ngắn); kết luận N–M chỉ còn ở bullets A/B/O
+        (dải xanh dưới biểu đồ đã bỏ theo quyết user 2026-10-24);
+        ghi chú A/B/O full-width ở row 2; row 3 là bảng cắt vách
+        (phần 2, không còn khối diễn giải dưới nó)."""
         for w in self._sum_inner.winfo_children():
             w.destroy()
         self._wall_view_active = True
@@ -2229,12 +2174,10 @@ class WallMixin:
         self._wall_sum_grid()
         # Lưới chung đặt hàng biểu đồ ở row 2 (khi còn banner ở
         # row 0); nay không banner nên biểu đồ lên row 1, ghi chú
-        # A/B/O xuống row 2, ghi chú phạm vi xuống row 4 —
-        # preview vẫn dùng row 0/1 riêng của nó.
+        # A/B/O xuống row 2 — preview vẫn dùng row 0/1 riêng của nó.
         self._sum_inner.rowconfigure(1, weight=1)
         self._sum_inner.rowconfigure(2, weight=0)
         self._sum_inner.rowconfigure(3, weight=0)
-        self._sum_inner.rowconfigure(4, weight=0)
         _concl = self._wall_result_conclusion(full)
         # ===== Ô trên-trái: bảng thông số =====
         f_tr = tk.Frame(self._sum_inner, bg="white",
@@ -2295,13 +2238,8 @@ class WallMixin:
             self._wall_nm_cb.bind(
                 "<<ComboboxSelected>>",
                 self._on_wall_nm_angle_changed)
-        # Kết luận N–M NGAY DƯỚI biểu đồ N–Mα (không còn banner
-        # chung phía trên).
-        tk.Label(f_bl, text=_concl["nm"], font=("", 10, "bold"),
-                 bg="#D1FAE5" if full["ok"] else "#FEE2E2",
-                 fg="#065F46" if full["ok"] else "#991B1B",
-                 wraplength=520, justify=tk.CENTER).pack(
-                     fill=tk.X, padx=4, pady=(2, 4))
+        # (Dải kết luận xanh dưới biểu đồ đã bỏ theo quyết user
+        # 2026-10-24 — kết luận N–M chỉ còn ở bullets A/B/O row 2.)
         # ===== Ô dưới-phải: biểu đồ M2–M3 (tại N = BN) =====
         # Vẽ bằng ĐÚNG hàm vẽ của cột qua adapter (không còn hàm
         # vẽ M2–M3 riêng cho vách): lát cắt tại N = BN do hàm cột
@@ -2334,15 +2272,9 @@ class WallMixin:
                 wraplength=420,
                 text="Chưa có dữ liệu biểu đồ M2–M3.").pack(
                     fill=tk.BOTH, expand=True, padx=10, pady=10)
-        # Diễn giải M2–M3 NGAY DƯỚI biểu đồ M2–M3: chỉ diễn giải
-        # lại kết luận N–M cùng D/C đó, KHÔNG tạo thêm một
-        # ĐẠT/KHÔNG ĐẠT độc lập (M2–M3 chỉ là lát cắt hiển thị
-        # của cùng khả năng N–M).
-        tk.Label(f_br, text=_concl["m2m3"], font=("", 10, "bold"),
-                 bg="#D1FAE5" if full["ok"] else "#FEE2E2",
-                 fg="#065F46" if full["ok"] else "#991B1B",
-                 wraplength=520, justify=tk.CENTER).pack(
-                     fill=tk.X, padx=4, pady=(2, 4))
+        # (Diễn giải M2–M3 dưới biểu đồ đã bỏ cùng dải xanh —
+        # M2–M3 chỉ là lát cắt hiển thị của cùng khả năng N–M,
+        # kết luận của nó nằm ở bullets A/B/O row 2.)
         # ===== Ghi chú A/B/O (full-width, row 2) =====
         # Cùng format khối ghi chú cột TCVN (adapter
         # wall_chart_notes): góc α và các số luôn là góc tải,
@@ -2362,16 +2294,12 @@ class WallMixin:
             tk.Label(_box, text=_txt, font=("TkFixedFont", 9),
                      fg=_col, bg="white", wraplength=1200,
                      justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
-        # ===== Bảng kiểm tra cắt (full-width, row 3) =====
+        # ===== Bảng kiểm tra cắt (full-width, row 3, cuối tab) =====
+        # Khối diễn giải dưới bảng cắt (căn cứ + phạm vi) đã bỏ
+        # theo quyết user 2026-10-24 — tab kết thúc ở hàng Kết luận
+        # của bảng cắt, không để khoảng trống.
         self._sum_inner.rowconfigure(3, weight=0)
         self._build_wall_shear_table(self._sum_inner, full)
-        # ===== Ghi chú phạm vi (full-width, row 4) =====
-        tk.Label(
-            self._sum_inner, foreground="gray", wraplength=1150,
-            justify=tk.LEFT,
-            text="Phạm vi: N–M (đã kể uốn dọc cả 2 phương: ngoài mặt phẳng theo tw; trong mặt phẳng kèm sàn lệch tâm ea = Lw/30) + cắt trong và ngoài mặt phẳng theo TCVN 5574:2018 §8.1.3 (ánh xạ vách). Không có kết luận chung: mỗi phần kết luận riêng ngay dưới phần đó (N–M, M2–M3 diễn giải lại N–M, cắt trong MP, cắt ngoài MP, độ mảnh). Vùng biên, trượt mạch ngừng và cấu tạo: CHƯA KIỂM — không ghi ĐẠT."
-            ).grid(row=4, column=0, columnspan=2, sticky="ew",
-                   padx=4, pady=(2, 6))
         self._finish_wall_sum_layout()
 
     def _on_wall_nm_angle_changed(self, event=None):
@@ -2564,7 +2492,8 @@ class WallMixin:
         tree.pack(fill=tk.X, padx=2)
         # Kết luận riêng NGAY DƯỚI bảng thông số cho các phần mà
         # giá trị của chúng nằm trong bảng này (độ mảnh, cắt trong
-        # và ngoài MP); N–M/M2–M3 có strip riêng dưới biểu đồ.
+        # và ngoài MP), dạng ngắn; kết luận N–M chỉ còn ở bullets
+        # A/B/O dưới biểu đồ (dải xanh đã bỏ).
         if concl is None:
             concl = self._wall_result_conclusion(full)
         _sl_ok = (float(sl.get("lambda_in", 0.0) or 0.0) <= 120.0

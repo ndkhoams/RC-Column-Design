@@ -125,13 +125,16 @@ def test_sample_rows_match_parts():
 
 
 def test_seismic_rows():
-    """(b) Phóng đại DCM: trong MP V_Ed = 1200 (1,5×800, kèm V_raw),
-    ngoài MP không đổi 300."""
+    """(b) Phóng đại DCM: trong MP V_Ed = 1200 (1,5×800); ghi chú
+    DCM nằm ở Ô NHÃN (không ở ô giá trị) và KHÔNG hiển thị V_raw
+    (quyết user 2026-10-24); ngoài MP không đổi 300."""
     full = _full(seis=True)
     rows = build_wall_shear_rows(full)
-    v_in, v_out = _row(rows, "Lực cắt tính toán, V_Ed")
-    assert v_in == ("1200.0 kN (×1.5 DCM — TCVN 9386-1:2012 "
-                    "§5.4.2.4(7), V_raw 800.0 kN)")
+    lab = ("Lực cắt tính toán, V_Ed (×1.5 DCM — TCVN 9386-1:2012 "
+           "§5.4.2.4(7))")
+    v_in, v_out = _row(rows, lab)
+    assert v_in == "1200.0 kN"
+    assert "V_raw" not in lab and "V_raw" not in v_in
     assert v_out == "300.0 kN (không phóng đại)"
     assert _row(rows, "Kết luận") == ("✓ ĐẠT (D/C 0.625)",
                                       "✓ ĐẠT (D/C 0.426)")
@@ -248,7 +251,9 @@ def test_tk_table_builds():
         assert "Ngoài MP (V3)" in joined
         assert "2φ12 a200 (CB400-V)" in joined
         assert "✓ ĐẠT (D/C 0.417)" in joined
-        assert "TCVN 5574:2018 §8.1.3" in joined
+        assert "TCVN 5574:2018 §8.1.3" in joined  # ở header bảng
+        # Khối diễn giải dưới bảng đã bỏ (quyết user 2026-10-24).
+        assert "Căn cứ:" not in joined
     finally:
         try:
             root.destroy()

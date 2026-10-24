@@ -192,9 +192,17 @@ class EtabsMixin:
                 canvas.yview_scroll(-1 if ev.num == 4 else 1, "units")
             else:
                 canvas.yview_scroll(-1 if ev.delta > 0 else 1, "units")
+        # Binding chỉ trên canvas KHÔNG đủ: sự kiện wheel khi con trỏ
+        # ở trên Checkbutton/inner không bubble lên canvas (bindtags
+        # của item con không chứa canvas) nên popup không cuộn được
+        # (user báo 2026-10-24) — gắn thêm cho inner + từng dòng.
+        # Windows: <MouseWheel> (delta ±120); Linux: <Button-4/5>.
         canvas.bind("<MouseWheel>", _wheel)
         canvas.bind("<Button-4>", _wheel)
         canvas.bind("<Button-5>", _wheel)
+        inner.bind("<MouseWheel>", _wheel)
+        inner.bind("<Button-4>", _wheel)
+        inner.bind("<Button-5>", _wheel)
 
         self._seismic_pick_anchor = None
         self._seismic_pick_press_shift = False
@@ -245,6 +253,10 @@ class EtabsMixin:
         for idx, (base, var, cb, ok) in enumerate(rows):
             cb.bind("<ButtonPress-1>", _make_press(idx))
             cb.config(command=_make_cmd(idx, base, var))
+            # Wheel cuộn danh sách ngay cả khi con trỏ ở trên dòng.
+            cb.bind("<MouseWheel>", _wheel)
+            cb.bind("<Button-4>", _wheel)
+            cb.bind("<Button-5>", _wheel)
 
         self._seismic_pick_top = top
         self._seismic_pick_rows = rows
