@@ -22,19 +22,21 @@ KHÁC BIỆT CÓ CHỦ Ý so với cột — mức N của đường bao:
   lại giữ y hệt cột. Mức N là tham số của `build_wall_m2m3` nên nếu
   sau này user chốt vẽ tại N tải thì chỉ đổi đối số, không đổi code vẽ.
 
+  Từ phần thống nhất biểu đồ (phần 1): logic vẽ riêng cho
+  M2–M3 ĐÃ XÓA — `wall_m2m3_figure` nay nhận nguyên dict `full`
+  và vẽ bằng `draw_m2m3_ax` của cột qua adapter.
+
 "Tính 1 lần": `build_wall_m2m3` nhận `BiaxialCapacity` đã dựng sẵn
 trong `wall_tcvn_full` (cùng solver fiber TCVN, cùng model vật liệu
 như D/C); `wall_tcvn_full` chỉ THÊM khóa `"m2m3"` vào dict kết quả.
-GUI (`gui/wall_mixin.py`) và PDF sau này chỉ đọc dict đó qua
-`draw_wall_m2m3_ax` / `wall_m2m3_figure`, không tính lại.
+GUI (`gui/wall_mixin.py`) và PDF chỉ đọc dict kết quả qua adapter
+(`rc_column.wall_chart_adapter`) + hàm vẽ chung của cột
+(`rc_column.chart_draw.draw_m2m3_ax`), không tính lại. Dict
+"m2m3" vẫn được giữ làm DỮ LIỆU (wall_detail mục 7 và caption
+PDF đọc N_level/A/B từ đó), chỉ logic VẼ riêng đã xóa.
 """
 
 import math
-
-BLUE = "#2563EB"
-GREEN = "#059669"
-RED = "#DC2626"
-ORANGE = "#F97316"
 
 
 def build_wall_m2m3(cap, n_level, a_m2, a_m3, b_m2, b_m3,
@@ -86,67 +88,21 @@ def build_wall_m2m3(cap, n_level, a_m2, a_m3, b_m2, b_m3,
     }
 
 
-def draw_wall_m2m3_ax(ax, m2m3):
-    """Vẽ biểu đồ M2–M3 lên `ax` từ dict của `build_wall_m2m3`.
-
-    Style COPY Y HỆT `chart_draw.draw_m2m3_ax` của cột; chỉ khác
-    tiêu đề ghi rõ mức N (BN) của lát cắt.
-    """
-    xs = m2m3["M3"]
-    ys = m2m3["M2"]
-    a_m3, a_m2 = m2m3["A_M3"], m2m3["A_M2"]
-    b_m3, b_m2 = m2m3["B_M3"], m2m3["B_M2"]
-    ax.plot(xs, ys, color=BLUE, linewidth=2.2, zorder=3)
-    ax.fill(xs, ys, color=BLUE, alpha=0.08, zorder=1)
-    # Nét đứt đỏ từ tâm qua A tới B (kéo dài 1.18 như cột)
-    ax.plot([0, b_m3 * 1.18], [0, b_m2 * 1.18], color=RED,
-            ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([b_m3], [b_m2], c=ORANGE, marker="D", s=70, zorder=5,
-               edgecolors="white", linewidths=1.2, label="Giới hạn")
-    ax.scatter([a_m3], [a_m2], c=GREEN, s=70,
-               zorder=6, edgecolors="white", linewidths=1.2,
-               label="Điểm tải A")
-    ax.text(a_m3, a_m2, "  A", fontsize=9,
-            color=GREEN, weight="bold", va="center", zorder=7)
-    # Trục qua tâm
-    ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
-    ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
-    ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
-    ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
-    ax.set_title(f"M2–M3 (tại N = {m2m3['N_level']:,.0f} kN)",
-                 fontsize=11)
-
-    from matplotlib.lines import Line2D
-    leg_elems = [
-        Line2D([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
-        Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-               label="Tia tải O-A-B"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
-               markersize=8, markeredgecolor="white", label="Điểm tải A"),
-        Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
-               markersize=7, markeredgecolor="white",
-               label="Điểm giới hạn B"),
-    ]
-    ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
-              bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
-    ax.grid(True, color="#E5E7EB", linestyle="--",
-            linewidth=0.7, alpha=0.9)
-    ax.set_axisbelow(True)
-    for sp in ("top", "right"):
-        ax.spines[sp].set_visible(False)
-    for sp in ("left", "bottom"):
-        ax.spines[sp].set_color("#9CA3AF")
-
-
-def wall_m2m3_figure(m2m3, width_in=5.0, dpi=200) -> bytes:
-    """Tạo PNG biểu đồ M2–M3 vuông cho PDF vách (dùng chung hàm vẽ
-    với GUI — cùng `draw_wall_m2m3_ax`, kiểu `aci_m2m3_image`)."""
+def wall_m2m3_figure(full, width_in=5.0, dpi=200) -> bytes:
+    """Tạo PNG biểu đồ M2–M3 vuông cho PDF vách — bằng đúng hàm vẽ
+    của cột (`chart_draw.draw_m2m3_ax`) qua adapter, không còn
+    logic vẽ riêng cho vách. Nhận nguyên dict `full` (không còn
+    dict `m2m3`); lát cắt vẫn tại N = BN do `draw_m2m3_ax` tự lấy
+    từ `res_ns.BN`."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import io
+    from .chart_draw import draw_m2m3_ax
+    from .wall_chart_adapter import wall_chart_inputs
+    sec, inp_ns, res_ns = wall_chart_inputs(full)
     fig, ax = plt.subplots(figsize=(width_in, width_in))
-    draw_wall_m2m3_ax(ax, m2m3)
+    draw_m2m3_ax(ax, sec, inp_ns, res_ns)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)

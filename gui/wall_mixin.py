@@ -2022,7 +2022,9 @@ class WallMixin:
         dưới biểu đồ N–Mα | biểu đồ M2–M3 (tại N = BN); kết luận
         riêng nằm NGAY DƯỚI từng phần (dưới bảng thông số: độ mảnh
         + cắt trong/ngoài MP; dưới mỗi biểu đồ: N–M / diễn giải
-        M2–M3); ghi chú phạm vi full-width cuối cùng."""
+        M2–M3); ghi chú A/B/O full-width ở row 2; row 3 để dành
+        cho bảng cắt vách (phần 2); ghi chú phạm vi full-width ở
+        row 4 cuối cùng."""
         for w in self._sum_inner.winfo_children():
             w.destroy()
         self._wall_view_active = True
@@ -2030,9 +2032,12 @@ class WallMixin:
         self._wall_sum_grid()
         # Lưới chung đặt hàng biểu đồ ở row 2 (khi còn banner ở
         # row 0); nay không banner nên biểu đồ lên row 1, ghi chú
-        # xuống row 2 — preview vẫn dùng row 0/1 riêng của nó.
+        # A/B/O xuống row 2, ghi chú phạm vi xuống row 4 —
+        # preview vẫn dùng row 0/1 riêng của nó.
         self._sum_inner.rowconfigure(1, weight=1)
         self._sum_inner.rowconfigure(2, weight=0)
+        self._sum_inner.rowconfigure(3, weight=0)
+        self._sum_inner.rowconfigure(4, weight=0)
         _concl = self._wall_result_conclusion(full)
         # ===== Ô trên-trái: bảng thông số =====
         f_tr = tk.Frame(self._sum_inner, bg="white",
@@ -2058,67 +2063,41 @@ class WallMixin:
         tk.Label(hdr, text="● Biểu đồ tương tác N–Mα",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
         if HAS_MPL:
-            from rc_column.interaction import BiaxialCapacity
+            # Vẽ bằng ĐÚNG hàm vẽ của cột qua adapter (không còn
+            # code vẽ N–Mα riêng cho vách): A xanh lá tròn, B cam
+            # thoi, legend 4 mục dưới biểu đồ — y hệt bên cột.
+            from rc_column.chart_draw import draw_nm_alpha_ax
+            from rc_column.wall_chart_adapter import wall_chart_inputs
             fig2, cv2 = self._new_wall_fig(f_bl, (5.2, 3.9))
             ax2 = fig2.add_subplot(111)
-            # Đường cong N–Mα: capacity EXACT tại góc α — cùng nguồn
-            # solver sinh điểm B (như chart_draw.draw_nm_alpha_ax của
-            # cột từ 2026-10-21). KHÔNG dùng uniaxial_curve_fs: đường
-            # cong construction đơn trục cho Mα lớn hơn exact ~2–6%
-            # (tại BN của ca chuẩn: +5.8%) khiến B nằm PHÍA TRONG
-            # đường cong đã vẽ.
-            _cap = BiaxialCapacity(full["sec"], model=full["model"])
-            _eng = _cap._exact
-            _n_lv = 64
-            _levels = [_eng.N_max + (_eng.N_min - _eng.N_max) * _i
-                       / (_n_lv - 1) for _i in range(_n_lv)]
-            _BN = full["BN"]
-            if math.isfinite(_BN) and _eng.N_min < _BN < _eng.N_max \
-                    and _BN not in _levels:
-                # Chèn mức N của B để polyline đi đúng qua B
-                _levels.append(_BN)
-                _levels.sort(reverse=True)
-            _ns, _ms = [], []
-            for _N in _levels:
-                _ns.append(float(_N))
-                _ms.append(_cap.moment_capacity(float(_N),
-                                                full["alpha_deg"]))
-            ax2.plot(_ms, _ns, color="#059669", lw=1.8, zorder=3)
-            # Tô màu vùng tương tác như biểu đồ N–M của cột
-            # (chart_draw.draw_nm_alpha_ax: GREEN #059669, alpha 0.08)
-            ax2.fill_betweenx(_ns, 0, _ms, color="#059669", alpha=0.08,
-                              zorder=1)
-            lam = full["lambda_ray"]
-            _MB = lam * full["Malpha"] if math.isfinite(lam) else None
-            # Tia tải O–A–B như bên cột (chart_draw.draw_nm_alpha_ax:
-            # nét đứt đỏ từ gốc qua A tới B, kéo dài 1.18 lần)
-            if _MB is not None:
-                ax2.plot([0, _MB * 1.18], [0, _BN * 1.18],
-                         color="#DC2626", ls="--", lw=1.5,
-                         dashes=(4, 3), zorder=4)
-            ax2.scatter([full["Malpha"]], [full["N"]], c="#DC2626",
-                        zorder=5, label="A (làm việc)")
-            if _MB is not None:
-                ax2.scatter([_MB], [_BN],
-                            c="#2563EB", zorder=5, label="B (giới hạn)")
-            # Chỉ hiện góc 1/4 chứa tia làm việc như cột chỉ hiện nửa
-            # có tải: Mα >= 0 luôn; phía N theo dấu N của điểm A/B.
-            ax2.set_xlim(left=0)
-            if full["N"] >= 0:
-                ax2.set_ylim(bottom=0)
-            else:
-                ax2.set_ylim(top=0)
-            ax2.set_xlabel("Mα (kN·m)")
-            ax2.set_ylabel("N (kN)")
-            ax2.set_title(f"N–Mα (α = {full['alpha_deg']:.1f}°)",
-                          fontsize=11)
-            ax2.grid(True, color="#E5E7EB", lw=0.6, linestyle="--")
-            ax2.legend(fontsize=8)
+            _sec2, _inp2, _res2 = wall_chart_inputs(full)
+            draw_nm_alpha_ax(ax2, _sec2, _inp2, _res2, None)
             try:
                 fig2.tight_layout()
             except Exception:
                 pass
             cv2.draw()
+            # Combobox "Góc xem:" như bên cột nhưng KHÔNG có "3D"
+            # (vách không có mặt 3D): đổi góc chỉ vẽ lại biểu đồ
+            # N–Mα này, điểm A/B, D/C và khối ghi chú giữ nguyên
+            # số góc tải.
+            self._wall_nm_ax = ax2
+            self._wall_nm_cv = cv2
+            self._wall_nm_full = full
+            _right = tk.Frame(hdr, bg="white")
+            _right.pack(side=tk.RIGHT)
+            tk.Label(_right, text="Góc xem:", font=("", 8),
+                     bg="white").pack(side=tk.LEFT)
+            _vals = ["α (góc tải)"] + \
+                [f"{d}°" for d in range(0, 361, 15)]
+            self._wall_nm_cb = ttk.Combobox(
+                _right, values=_vals, width=11, state="readonly",
+                font=("", 9))
+            self._wall_nm_cb.set("α (góc tải)")
+            self._wall_nm_cb.pack(side=tk.LEFT, padx=(4, 0))
+            self._wall_nm_cb.bind(
+                "<<ComboboxSelected>>",
+                self._on_wall_nm_angle_changed)
         # Kết luận N–M NGAY DƯỚI biểu đồ N–Mα (không còn banner
         # chung phía trên).
         tk.Label(f_bl, text=_concl["nm"], font=("", 10, "bold"),
@@ -2127,9 +2106,10 @@ class WallMixin:
                  wraplength=520, justify=tk.CENTER).pack(
                      fill=tk.X, padx=4, pady=(2, 4))
         # ===== Ô dưới-phải: biểu đồ M2–M3 (tại N = BN) =====
-        # Đọc từ khóa "m2m3" của dict kết quả (do wall_tcvn_full dựng
-        # 1 lần cùng solver D/C), KHÔNG tính lại — cùng hàm vẽ với
-        # figure PDF (rc_column/wall_m2m3.draw_wall_m2m3_ax).
+        # Vẽ bằng ĐÚNG hàm vẽ của cột qua adapter (không còn hàm
+        # vẽ M2–M3 riêng cho vách): lát cắt tại N = BN do hàm cột
+        # tự lấy từ res_ns.BN; mọi số đọc từ dict kết quả, KHÔNG
+        # tính lại — cùng hàm vẽ với figure PDF.
         f_br = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB",
                         highlightcolor="#D1D5DB", highlightthickness=1,
@@ -2139,12 +2119,13 @@ class WallMixin:
         hdr2.pack(fill=tk.X, padx=4, pady=(2, 2))
         tk.Label(hdr2, text="● Mặt cắt M2–M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
-        _m2m3 = full.get("m2m3")
-        if HAS_MPL and _m2m3 is not None:
-            from rc_column.wall_m2m3 import draw_wall_m2m3_ax
+        if HAS_MPL:
+            from rc_column.chart_draw import draw_m2m3_ax
+            from rc_column.wall_chart_adapter import wall_chart_inputs
             fig3, cv3 = self._new_wall_fig(f_br, (5.2, 3.9))
             ax3 = fig3.add_subplot(111)
-            draw_wall_m2m3_ax(ax3, _m2m3)
+            _sec3, _inp3, _res3 = wall_chart_inputs(full)
+            draw_m2m3_ax(ax3, _sec3, _inp3, _res3)
             try:
                 fig3.tight_layout()
             except Exception:
@@ -2165,14 +2146,64 @@ class WallMixin:
                  fg="#065F46" if full["ok"] else "#991B1B",
                  wraplength=520, justify=tk.CENTER).pack(
                      fill=tk.X, padx=4, pady=(2, 4))
-        # ===== Ghi chú phạm vi (full-width) =====
+        # ===== Ghi chú A/B/O (full-width, row 2) =====
+        # Cùng format khối ghi chú cột TCVN (adapter
+        # wall_chart_notes): góc α và các số luôn là góc tải,
+        # kể cả khi dropdown "Góc xem" đang ở góc khác.
+        from rc_column.wall_chart_adapter import wall_chart_notes
+        f_notes = tk.Frame(self._sum_inner, bg="white",
+                           highlightbackground="#D1D5DB",
+                           highlightcolor="#D1D5DB",
+                           highlightthickness=1, takefocus=0)
+        f_notes.grid(row=2, column=0, columnspan=2, sticky="ew",
+                     padx=4, pady=4)
+        _box = tk.Frame(f_notes, bg="white",
+                        highlightbackground="#E5E7EB",
+                        highlightthickness=1, takefocus=0)
+        _box.pack(fill=tk.X, padx=4, pady=4)
+        for _txt, _col in wall_chart_notes(full):
+            tk.Label(_box, text=_txt, font=("TkFixedFont", 9),
+                     fg=_col, bg="white", wraplength=1200,
+                     justify=tk.LEFT).pack(anchor="w", padx=4, pady=1)
+        # row 3: bảng cắt vách (phần 2)
+        # ===== Ghi chú phạm vi (full-width, row 4) =====
         tk.Label(
             self._sum_inner, foreground="gray", wraplength=1150,
             justify=tk.LEFT,
             text="Phạm vi: N–M (đã kể uốn dọc cả 2 phương: ngoài mặt phẳng theo tw; trong mặt phẳng kèm sàn lệch tâm ea = Lw/30) + cắt trong và ngoài mặt phẳng theo TCVN 5574:2018 §8.1.3 (ánh xạ vách). Không có kết luận chung: mỗi phần kết luận riêng ngay dưới phần đó (N–M, M2–M3 diễn giải lại N–M, cắt trong MP, cắt ngoài MP, độ mảnh). Vùng biên, trượt mạch ngừng và cấu tạo: CHƯA KIỂM — không ghi ĐẠT."
-            ).grid(row=2, column=0, columnspan=2, sticky="ew",
+            ).grid(row=4, column=0, columnspan=2, sticky="ew",
                    padx=4, pady=(2, 6))
         self._finish_wall_sum_layout()
+
+    def _on_wall_nm_angle_changed(self, event=None):
+        """Vẽ lại CHỈ biểu đồ N–Mα vách tại góc xem đã chọn.
+
+        Như bên cột nhưng không có "3D": "α (góc tải)" -> góc tải
+        của dict; "0°".."360°" -> xoay mô men thiết kế qua
+        adapter. Điểm A/B, D/C và khối ghi chú giữ nguyên."""
+        try:
+            ax = getattr(self, "_wall_nm_ax", None)
+            cv = getattr(self, "_wall_nm_cv", None)
+            full = getattr(self, "_wall_nm_full", None)
+            if ax is None or cv is None or full is None:
+                return
+            sel = self._wall_nm_cb.get()
+            if sel.startswith("α"):
+                angle = None
+            else:
+                angle = float(sel.replace("°", ""))
+        except Exception:
+            return
+        try:
+            from rc_column.chart_draw import draw_nm_alpha_ax
+            from rc_column.wall_chart_adapter import wall_chart_inputs
+            sec, inp_ns, res_ns = wall_chart_inputs(
+                full, view_angle_deg=angle)
+            ax.clear()
+            draw_nm_alpha_ax(ax, sec, inp_ns, res_ns, None)
+            cv.draw()
+        except Exception:
+            pass
 
     def _build_wall_param_table(self, parent, full, concl=None):
         """Bảng thông số vách (đọc từ dict kết quả, không tính lại)."""

@@ -173,7 +173,7 @@ def export_wall_pdf_cards(full, filepath: str, member_name: str = None,
         # Biểu đồ M2–M3 sau mục 7.
         if sec["num"] == 7 and full.get("m2m3") is not None:
             try:
-                _m_png = wall_m2m3_figure(full["m2m3"])
+                _m_png = wall_m2m3_figure(full)
                 _im = _img_from_bytes(_m_png, 120 * mm, 150 * mm)
                 _t = Table([[_im]], colWidths=[190 * mm],
                            hAlign="CENTER")

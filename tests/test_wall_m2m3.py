@@ -19,7 +19,9 @@ from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
 from rc_column.wall_engine import wall_tcvn_full
 from rc_column.cover_migration import migrate_wall_dict
 from rc_column.wall_input import WallInput, wall_from_dict
-from rc_column.wall_m2m3 import draw_wall_m2m3_ax, wall_m2m3_figure
+from rc_column.chart_draw import draw_m2m3_ax
+from rc_column.wall_chart_adapter import wall_chart_inputs
+from rc_column.wall_m2m3 import wall_m2m3_figure
 
 _CONC = ConcreteMaterial(CONCRETE_GRADES["B30"], 0.85)
 _STEEL = SteelMaterial(STEEL_GRADES["CB500-V"], 1.0)
@@ -105,16 +107,19 @@ def test_wall_m2m3_old_case_and_rot90():
 
 
 def test_wall_m2m3_figure_shared_draw():
-    """Hàm vẽ figure dùng chung cho PDF: vẽ được PNG từ đúng dict
-    m2m3 đã lưu (không tính lại), dùng chung draw_wall_m2m3_ax."""
+    """Hàm vẽ figure dùng chung cho PDF: vẽ bằng đúng hàm vẽ của
+    cột qua adapter (không còn logic vẽ riêng cho vách);
+    wall_m2m3_figure nay nhận nguyên dict `full`."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     full = wall_tcvn_full(WallInput(cover=13.0), _CONC, _STEEL, loads=dict(_LOADS))  # MIGRATION COVER: 25-12
     fig, ax = plt.subplots()
-    draw_wall_m2m3_ax(ax, full["m2m3"])
+    sec, inp_ns, res_ns = wall_chart_inputs(full)
+    draw_m2m3_ax(ax, sec, inp_ns, res_ns)
     assert ax.get_xlabel().startswith("M3")
     assert ax.get_ylabel().startswith("M2")
+    assert f"{full['BN']:,.0f}" in ax.get_title()
     plt.close(fig)
-    png = wall_m2m3_figure(full["m2m3"])
+    png = wall_m2m3_figure(full)
     assert png[:8] == b"\x89PNG\r\n\x1a\n" and len(png) > 1000

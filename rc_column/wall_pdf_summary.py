@@ -297,7 +297,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
                 f"(N = {float(full['m2m3']['N_level']):,.0f} kN)",
                 st_chart))
             right_flow.append(centered_img(
-                wall_m2m3_figure(full["m2m3"]), img_w))
+                wall_m2m3_figure(full), img_w))
             # Diễn giải M2–M3 NGAY DƯỚI biểu đồ: chỉ diễn giải
             # lại kết luận N–M cùng D/C, không phải kết luận
             # độc lập.

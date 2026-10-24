@@ -6,10 +6,14 @@
   import lười (tránh vòng import rc_column -> gui lúc nạp module);
   khi không import được GUI (vd chạy headless) thì vẽ fallback Agg
   tối giản (khung + thép tròn đúng dia/2 + vùng nén + dim Lw/tw).
-- N–Mα: vẽ lại đúng đường cong tab Kết quả vẽ (sweep exact của
-  BiaxialCapacity tại góc α, chèn mức BN) — đây là vẽ biểu đồ từ
-  solver đã dựng cho D/C, không phải tính lại kết luận.
-- M2–M3: dùng sẵn rc_column.wall_m2m3.wall_m2m3_figure.
+- N–Mα: vẽ bằng đúng hàm vẽ của cột
+  (`chart_draw.draw_nm_alpha_ax`) qua adapter
+  (`wall_chart_adapter.wall_chart_inputs`) — cùng hình với tab
+  Kết quả, không còn code vẽ riêng cho vách, không tính lại
+  kết luận. (Hàm vẽ cột không đặt title trong axes; α ghi ở
+  caption ngoài hình của PDF.)
+- M2–M3: dùng sẵn rc_column.wall_m2m3.wall_m2m3_figure (nay cũng
+  vẽ bằng `draw_m2m3_ax` của cột qua adapter).
 """
 
 import io
@@ -161,49 +165,17 @@ def wall_section_png(full, width_in=5.5, dpi=200,
 
 
 def wall_nm_alpha_png(full, width_in=5.0, dpi=200):
-    """PNG biểu đồ N–Mα — đúng cách vẽ của tab Kết quả vách."""
+    """PNG biểu đồ N–Mα — bằng đúng hàm vẽ của cột qua adapter
+    (cùng hình với tab Kết quả sau thống nhất). Giữ nguyên tên
+    và signature để caller không đổi."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from .interaction import BiaxialCapacity
-    cap = BiaxialCapacity(full["sec"], model=full["model"])
-    eng = cap._exact
-    n_lv = 64
-    levels = [eng.N_max + (eng.N_min - eng.N_max) * i / (n_lv - 1)
-              for i in range(n_lv)]
-    BN = float(full["BN"])
-    if math.isfinite(BN) and eng.N_min < BN < eng.N_max \
-            and BN not in levels:
-        levels.append(BN)
-        levels.sort(reverse=True)
-    ns, ms = [], []
-    for Nv in levels:
-        ns.append(float(Nv))
-        ms.append(cap.moment_capacity(float(Nv), float(full["alpha_deg"])))
+    from .chart_draw import draw_nm_alpha_ax
+    from .wall_chart_adapter import wall_chart_inputs
+    sec, inp_ns, res_ns = wall_chart_inputs(full)
     fig, ax = plt.subplots(figsize=(width_in, width_in * 0.78))
-    ax.plot(ms, ns, color="#059669", lw=1.8, zorder=3)
-    ax.fill_betweenx(ns, 0, ms, color="#059669", alpha=0.08, zorder=1)
-    lam = float(full["lambda_ray"])
-    MB = lam * float(full["Malpha"]) if math.isfinite(lam) else None
-    if MB is not None:
-        ax.plot([0, MB * 1.18], [0, BN * 1.18], color="#DC2626",
-                ls="--", lw=1.5, dashes=(4, 3), zorder=4)
-    ax.scatter([float(full["Malpha"])], [float(full["N"])],
-               c="#DC2626", zorder=5, label="A (làm việc)")
-    if MB is not None:
-        ax.scatter([MB], [BN], c="#2563EB", zorder=5,
-                   label="B (giới hạn)")
-    ax.set_xlim(left=0)
-    if float(full["N"]) >= 0:
-        ax.set_ylim(bottom=0)
-    else:
-        ax.set_ylim(top=0)
-    ax.set_xlabel("Mα (kN·m)")
-    ax.set_ylabel("N (kN)")
-    ax.set_title(f"N–Mα (α = {float(full['alpha_deg']):.1f}°)",
-                 fontsize=11)
-    ax.grid(True, color="#E5E7EB", lw=0.6, linestyle="--")
-    ax.legend(fontsize=8)
+    draw_nm_alpha_ax(ax, sec, inp_ns, res_ns, None)
     try:
         fig.tight_layout()
     except Exception:
