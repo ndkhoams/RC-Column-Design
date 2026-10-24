@@ -226,7 +226,9 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     # --- Cắt trong mặt phẳng (lát 4 — phần 2 của chương trình vách) ---
     # Tính SAU và ĐỘC LẬP với N–M: không động vào bất kỳ số N–M nào ở
     # trên; lỗi cắt (nếu có) chỉ làm shear_in pending, không đánh sập
-    # kết quả N–M. ok_all vẫn = ok của N–M (xem câu hỏi Q1 báo cáo).
+    # kết quả N–M. ok_all giữ = ok của N–M chỉ để tương thích
+    # dict cũ — không còn render thành kết luận chung, hiển thị
+    # kết luận riêng từng phần (phần 2/7).
     # Phóng đại kháng chấn (phần 5/7): V_Ed đưa vào check_shear là
     # lực cắt THIẾT KẾ đã phóng đại — toàn bộ §8.1.3 (kể cả ĐK (98)
     # với s_max theo V_Ed) xét ở V_Ed, không chỉ nhân D/C sau cùng.
@@ -296,7 +298,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             f"  V_cap = min([Q]1, [Q]2) = {shear_in['V_cap']:.1f} kN, "
             f"D/C cắt = {_dc_txt} -> "
             f"{'ĐẠT' if shear_in['ok'] else 'KHÔNG ĐẠT'} "
-            f"(kết luận cắt RIÊNG, không đổi kết luận N–M/banner)")
+            f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
     except Exception as ex:
         shear_in = {"V_d": _V_in_d, "V_raw": V_in,
                     "seismic_factor": _seis_factor,
@@ -310,9 +312,10 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     # --- Cắt ngoài mặt phẳng (lát 4 — phần 4 của chương trình vách) ---
     # Cùng khuôn với cắt trong MP: tính SAU và ĐỘC LẬP với N–M và với
     # cắt trong MP; lỗi cắt (nếu có) chỉ làm shear_out pending, không
-    # đánh sập kết quả N–M. ok_all vẫn = ok của N–M (banner/kết luận
-    # chung thuộc phần khác, phần này chỉ kết luận RIÊNG trong thẻ
-    # chi tiết + số trong dict). V_out = V3 (Q3 nhập tay / V3 pier —
+    # đánh sập kết quả N–M. ok_all giữ = ok của N–M chỉ để tương
+    # thích dict cũ (không render thành kết luận chung); phần này
+    # chỉ kết luận RIÊNG trong thẻ chi tiết + số trong dict.
+    # V_out = V3 (Q3 nhập tay / V3 pier —
     # xem _collect_wall_loads + WallInput: V_in = V2 trong MP,
     # V_out = V3 ngoài MP); Qsw = 0 (chưa có giằng xuyên dày).
     shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
@@ -344,7 +347,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             f"  V_cap = min([Q]1, [Q]2) = {shear_out['V_cap']:.1f} kN, "
             f"D/C cắt ngoài MP = {_dc_o_txt} -> "
             f"{'ĐẠT' if shear_out['ok'] else 'KHÔNG ĐẠT'} "
-            f"(kết luận cắt RIÊNG, không đổi kết luận N–M/banner)")
+            f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
     except Exception as ex:
         shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
                      "ok": None, "parts": {},

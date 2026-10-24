@@ -186,14 +186,26 @@ def export_wall_pdf_cards(full, filepath: str, member_name: str = None,
                 S.append(P(f"Mặt cắt M2–M3 (tại N = "
                            f"{float(full['m2m3']['N_level']):,.0f} kN)",
                            st["cap"]))
+                # Diễn giải M2–M3 NGAY DƯỚI hình (cùng thẻ trong
+                # builder mục 7): chỉ diễn giải lại kết luận N–M,
+                # không phải kết luận độc lập.
+                _ok7 = bool(full["ok"])
+                S.append(P(
+                    f"Diễn giải M2–M3: cùng kết luận N–M — "
+                    f"D/C = {float(full['dc']):.3f} — "
+                    f"{'ĐẠT' if _ok7 else 'KHÔNG ĐẠT'} "
+                    f"(không phải kết luận độc lập; lát cắt tại "
+                    f"N = BN của cùng khả năng N–M)",
+                    st["note"]))
             except Exception as ex:
                 S.append(P(f"(Không vẽ được biểu đồ M2–M3: {ex})",
                            st["note"]))
 
-    S.append(P("Phạm vi: banner/kết luận chung chỉ kết luận N–M "
-               "(câu hỏi Q1 đang chờ user chốt); cắt trong mặt phẳng "
-               "kết luận riêng; vùng biên, trượt mạch ngừng và cấu "
-               "tạo chưa kiểm (lát 3).",
+    S.append(P("Phạm vi: không có kết luận chung — mỗi mục kết luận "
+               "riêng tại mục của nó (mục 3 độ mảnh, mục 6 N–M, "
+               "mục 7 diễn giải lại N–M, mục 8 cắt trong và ngoài "
+               "mặt phẳng); vùng biên, trượt mạch ngừng và cấu tạo: "
+               "CHƯA KIỂM.",
                st["note"]))
     doc.build(S)
     return filepath

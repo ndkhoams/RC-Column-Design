@@ -231,6 +231,11 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
             ("Độ mảnh, λx, λy (giới hạn 120 — §10.2.2)",
              f"{float(sl.get('lambda_in', 0)):.2f} / "
              f"{float(sl.get('lambda_out', 0)):.2f}"),
+            ("Kết luận độ mảnh (§10.2.2)",
+             ("ĐẠT — λx, λy ≤ 120"
+              if float(sl.get('lambda_in', 0)) <= 120.0
+              and float(sl.get('lambda_out', 0)) <= 120.0
+              else "KHÔNG ĐẠT — có λ > 120")),
             ("Độ lệch tâm ban đầu, e0x, e0y",
              f"{float(full['e0_in']):.1f} / "
              f"{float(full['e0_out']):.1f} mm"),
@@ -254,7 +259,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
          f"{float(full['M_capacity']):.1f} kN·m"),
         ("Tỉ số sử dụng, D/C (FS)",
          f"{float(full['dc']):.3f} ({fs_txt})"),
-        ("Kết luận (chỉ N–M)", _ok_txt),
+        ("Kết luận N–M", _ok_txt),
     ]
     left_flow.append(sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                                res_rows))
@@ -275,6 +280,12 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
             f"<b>Biểu đồ tương tác N–Mα</b> "
             f"(α = {float(full['alpha_deg']):.1f}°)", st_chart))
         right_flow.append(centered_img(wall_nm_alpha_png(full), img_w))
+        # Kết luận N–M NGAY DƯỚI biểu đồ N–Mα (không còn kết
+        # luận chung phía trên).
+        right_flow.append(Paragraph(
+            f"Kết luận N–M: D/C = {float(full['dc']):.3f} "
+            f"({fs_txt}) — {'ĐẠT' if ok_nm else 'KHÔNG ĐẠT'}",
+            st_chart))
     except Exception as ex:
         right_flow.append(Paragraph(
             f"(Không vẽ được N–Mα: {ex})", st_cell))
@@ -287,6 +298,16 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
                 st_chart))
             right_flow.append(centered_img(
                 wall_m2m3_figure(full["m2m3"]), img_w))
+            # Diễn giải M2–M3 NGAY DƯỚI biểu đồ: chỉ diễn giải
+            # lại kết luận N–M cùng D/C, không phải kết luận
+            # độc lập.
+            right_flow.append(Paragraph(
+                f"Diễn giải M2–M3: cùng kết luận N–M — "
+                f"D/C = {float(full['dc']):.3f} — "
+                f"{'ĐẠT' if ok_nm else 'KHÔNG ĐẠT'} "
+                f"(không phải kết luận độc lập; lát cắt tại "
+                f"N = BN của cùng khả năng N–M)",
+                st_chart))
         except Exception as ex:
             right_flow.append(Paragraph(
                 f"(Không vẽ được M2–M3: {ex})", st_cell))
@@ -391,17 +412,22 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
     t_sw.setStyle(TableStyle(sw_style))
     story.append(KeepTogether(t_sw))
     story.append(Paragraph(
-        ("Phạm vi: kết luận trên chỉ kết luận N–M (banner); cắt trong "
-         "và ngoài mặt phẳng kết luận riêng. Trượt mạch ngừng, vùng "
-         "biên và cấu tạo chưa kiểm (lát 3). "
+        ("Phạm vi: không có kết luận chung — N–M kết luận ở khối "
+         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, M2–M3 diễn "
+         "giải lại kết luận N–M (không phải kết luận độc lập), "
+         "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
+         "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM. "
          "Cắt trong MP đã phóng đại kháng chấn TCVN 9386-1:2012 "
          "§5.4.2.4(7) DCM (1,5×) trong lần tính này; cắt ngoài MP "
          "không phóng đại."
          if sh.get("seismic_applied") else
-         "Phạm vi: kết luận trên chỉ kết luận N–M (banner); cắt trong "
-         "và ngoài mặt phẳng kết luận riêng. Trượt mạch ngừng, vùng "
-         "biên và cấu tạo chưa kiểm (lát 3). Cắt chưa kể "
-         "phóng đại kháng chấn TCVN 9386 trong lần tính này."),
+         "Phạm vi: không có kết luận chung — N–M kết luận ở khối "
+         "KẾT QUẢ, độ mảnh ở khối CHIỀU DÀI TÍNH TOÁN, M2–M3 diễn "
+         "giải lại kết luận N–M (không phải kết luận độc lập), "
+         "cắt trong và ngoài mặt phẳng kết luận riêng ở bảng cắt. "
+         "Trượt mạch ngừng, vùng biên và cấu tạo: CHƯA KIỂM. "
+         "Cắt chưa kể phóng đại kháng chấn TCVN 9386 trong lần "
+         "tính này."),
         st_note))
 
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm,
@@ -446,7 +472,15 @@ def export_wall_summary_pdf(full, filepath: str, member_name: str = None,
               # ca xoay 90° + 4 hàng vượt 1 trang ở nấc 46 mm, vừa ở
               # 42 mm (gap ~39 pt); vòng giãn phía dưới sẽ nở lại
               # hình/padding trong khi vẫn giữ 1 trang.
-              (0.5, 42.0, 1.0)]
+              (0.5, 42.0, 1.0),
+              # Nấc sâu hơn cho phần 2/7 (thêm 1 hàng kết luận độ
+              # mảnh + 2 chú thích kết luận dưới biểu đồ N–Mα và
+              # M2–M3): ca xoay 90° vượt 1 trang ở nấc 42 mm, phải
+              # thu hình thêm mới vừa; các ca đã vừa ở nấc trên
+              # không bị ảnh hưởng vì thang dừng ở nấc vừa đầu
+              # tiên, vòng giãn sau đó nở lại trong khi giữ 1 trang.
+              (0.5, 38.0, 1.0), (0.5, 34.0, 1.0),
+              (0.4, 30.0, 1.0)]
     best = None
     best_params = None
     best_gap = None

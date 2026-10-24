@@ -20,8 +20,12 @@ QUY TẮC (theo AGENTS.md + spec detail_format_spec.md §4/§4b/§4c):
 - Trích dẫn độ mảnh: "TCVN 5574:2018 Mục 10.2.2", KHÔNG ghi "Bảng 30"
   (đã xác minh là sai địa chỉ). Giới hạn độ mảnh áp dụng cho vách
   là 120 theo TCVN 5574:2018 §10.2.2 (user chốt 2026-10-24).
-- Banner/kết luận chung (ok_all) chỉ kết luận N–M (câu hỏi Q1 đang
-  chờ user); cắt hiển thị kết luận RIÊNG, không tự gộp.
+- KHÔNG có banner/kết luận chung: mỗi phần kết luận riêng ngay
+  dưới phần đó (mục 3 độ mảnh, mục 6 N–M, mục 7 diễn giải lại
+  N–M, mục 8 cắt trong/ngoài MP + trượt CHƯA KIỂM, mục 9 chỉ
+  phạm vi + phần CHƯA KIỂM). Khóa "ok_all" vẫn giữ trong dict
+  kết quả (= ok N–M) chỉ để tương thích file/code cũ — không
+  còn render thành banner và không được dùng làm kết luận tổng.
 """
 
 import math
@@ -75,10 +79,60 @@ def _card(title, ref, lines, result=""):
 def _lam_badge(lam):
     """Badge độ mảnh theo giới hạn 120 (TCVN 5574:2018 §10.2.2,
     user chốt 2026-10-24). Chỉ là câu chữ hiển thị — không tham
-    gia kết luận N–M của engine (ok_all)."""
+    gia kết luận N–M của engine."""
     if lam <= 120.0:
         return f"λ = {_f(lam, 2)} ≤ 120: ĐẠT"
     return f"λ = {_f(lam, 2)} > 120: KHÔNG ĐẠT"
+
+
+def _slend_conclusion_card(lam_in, lam_out):
+    """Thẻ kết luận cuối mục 3: độ mảnh ĐẠT chỉ khi CẢ 2 phương
+    ≤ 120 (TCVN 5574:2018 §10.2.2). Đây là kết luận độ mảnh
+    riêng — §10.2.2 dùng chữ “nên”, không phải điều kiện bền,
+    nên không đổi kết luận N–M ở mục 6."""
+    ok = lam_in <= 120.0 and lam_out <= 120.0
+    if ok:
+        lines = [f"λx = {_f(lam_in, 2)} ≤ 120 và λy = {_f(lam_out, 2)} "
+                 "≤ 120 → cả 2 phương đều trong giới hạn.",
+                 "§10.2.2 dùng chữ “nên”, không phải điều kiện bền "
+                 "— kết luận này không đổi kết luận N–M (mục 6)."]
+        result = "Kết luận độ mảnh: ĐẠT (λ ≤ 120)"
+    else:
+        _bad = []
+        if lam_in > 120.0:
+            _bad.append(f"λx = {_f(lam_in, 2)} > 120")
+        if lam_out > 120.0:
+            _bad.append(f"λy = {_f(lam_out, 2)} > 120")
+        lines = ["; ".join(_bad) + " → vượt giới hạn độ mảnh.",
+                 "§10.2.2 dùng chữ “nên”, không phải điều kiện bền "
+                 "— kết luận này không đổi kết luận N–M (mục 6)."]
+        result = "Kết luận độ mảnh: KHÔNG ĐẠT (λ > 120)"
+    card = _card("Kết luận độ mảnh", "TCVN 5574:2018 Mục 10.2.2",
+                 lines, result)
+    card["full"] = True
+    return card
+
+
+def _m2m3_reinterpret_card(full):
+    """Thẻ diễn giải cuối mục 7: M2–M3 chỉ là lát cắt tại N = BN
+    của cùng mặt tương tác N–M (mục 6) nên KHÔNG tự tạo thêm
+    một ĐẠT/KHÔNG ĐẠT độc lập — chỉ diễn giải lại kết luận N–M
+    cùng D/C đó."""
+    dc_val = float(full["dc"])
+    ok_nm = bool(full["ok"])
+    card = _card(
+        "Diễn giải kết luận M2–M3",
+        "Cùng khả năng N–M (mục 6)",
+        ["M2–M3 chỉ là lát cắt tại N = BN của cùng mặt tương tác "
+         "N–M ở mục 6, không phải kiểm tra độc lập.",
+         "Vì vậy không tự tạo thêm một ĐẠT/KHÔNG ĐẠT mới có thể "
+         "mâu thuẫn N–M: diễn giải lại kết luận N–M cùng D/C đó "
+         "(không phải kết luận độc lập)."],
+        f"Diễn giải M2–M3: cùng kết luận N–M — "
+        f"D/C = {_f(dc_val, 3)} — "
+        f"{'ĐẠT' if ok_nm else 'KHÔNG ĐẠT'}")
+    card["full"] = True
+    return card
 
 
 def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
@@ -333,6 +387,9 @@ def build_wall_detail_sections(full):
         ]})
     # Card ghi chú chiếm full-width trong cả 2 vật chứa.
     sections[-1]["cards"][-1]["full"] = True
+    # Kết luận độ mảnh ở CUỐI mục 3 (sau ghi chú).
+    sections[-1]["cards"].append(
+        _slend_conclusion_card(lam_in, lam_out))
 
     # ================= MỤC 4: ĐỘ LỆCH TÂM =================
     def _ecc_card(direction):
@@ -409,6 +466,22 @@ def build_wall_detail_sections(full):
                       float(full["M_out_d"]), M_out, pd_method,
                       float(full["phi_L"])),
         ]})
+    # Kết quả mục 5 ở CUỐI mục: mô men thiết kế dùng cho mục 6
+    # (không phải ĐẠT/KHÔNG ĐẠT — η/M* là đầu vào, không phải
+    # kiểm tra bền).
+    _sec5_res = _card(
+        "Kết quả mục 5 — Mô men thiết kế",
+        "Dùng cho kiểm tra N–M (mục 6)",
+        [f"M3* (trong MP) = {_f(float(full['M_in_d']), 2)} kN·m",
+         f"M2* (ngoài MP) = {_f(float(full['M_out_d']), 2)} kN·m",
+         f"α = {_f(float(full['alpha_deg']), 2)}° "
+         f"(từ trục M3, chuẩn hoá [0, 360))"],
+        f"Mô men dùng cho kiểm tra N–M (mục 6): "
+        f"M3* = {_f(float(full['M_in_d']), 2)} kN·m;  "
+        f"M2* = {_f(float(full['M_out_d']), 2)} kN·m;  "
+        f"Mα = {_f(float(full['Malpha']), 2)} kN·m")
+    _sec5_res["full"] = True
+    sections[-1]["cards"].append(_sec5_res)
 
     # ================= MỤC 6: N–Mα & D/C =================
     lam_ray = float(full["lambda_ray"])
@@ -496,6 +569,11 @@ def build_wall_detail_sections(full):
         "num": 7, "title": "MẶT CẮT M2–M3",
         "ref": "Lát cắt mặt tương tác tại N = BN",
         "cards": m_cards})
+    # Diễn giải kết luận M2–M3 ở CUỐI mục 7 (chỉ khi có dữ liệu
+    # đường bao; khi chưa có dữ liệu thì thẻ trên đã ghi rõ và
+    # không kết luận gì thêm).
+    if m2m3:
+        sections[-1]["cards"].append(_m2m3_reinterpret_card(full))
 
     # ================= MỤC 8: CẮT =================
     sh = full.get("shear_in") or {}
@@ -645,10 +723,13 @@ def build_wall_detail_sections(full):
                    "biên, đai vùng biên): CHƯA KIỂM — lát 3.",
                    "Cấu tạo / ρmin: CHƯA KIỂM — lát 3."],
                   "CHƯA KIỂM"),
-            _card("Kết luận chung",
-                  "Q1 đang chờ user chốt",
-                  ["Banner/kết luận chung (ok_all) hiện chỉ kết luận "
-                   "N–M; cắt hiển thị kết luận RIÊNG, không tự gộp.",
+            _card("Ghi chú phạm vi kết luận",
+                  "Không có kết luận chung",
+                  ["Không có kết luận chung: mỗi phần kết "
+                   "luận riêng tại mục của nó — mục 3 (độ mảnh), "
+                   "mục 6 (N–M), mục 7 (diễn giải lại N–M, không "
+                   "phải kết luận độc lập), mục 8 (cắt trong và "
+                   "ngoài MP; trượt mạch ngừng CHƯA KIỂM).",
                    ("Cắt trong mặt phẳng ĐÃ kể phóng đại kháng chấn "
                     "TCVN 9386-1:2012 §5.4.2.4(7) DCM (V_Ed = 1,5 × V2) "
                     "trong lần tính này; cắt ngoài mặt phẳng không "
@@ -665,9 +746,7 @@ def build_wall_detail_sections(full):
                    "của lát, KHÔNG phải điều khoản riêng cho vách "
                    "trong tiêu chuẩn — cần thẩm tra xác nhận trước "
                    "khi dùng cho thiết kế chính thức."],
-                  f"Kết luận N–M: "
-                  f"{'ĐẠT' if ok_nm else 'KHÔNG ĐẠT'} "
-                  f"(D/C = {_f(dc_val, 3)})"),
+                  "Không có kết luận chung — xem kết luận từng mục"),
         ]})
 
     return sections
