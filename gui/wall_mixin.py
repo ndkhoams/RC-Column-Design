@@ -168,9 +168,9 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     BBOX CHẶT của toàn bộ nội dung vẽ (mặt cắt + thép + dim + chữ +
     mũi tên trục) cộng margin nhỏ đều — KHÔNG chừa khoảng đệm theo
     bội số cy/cx như trước (đệm cũ làm span dọc 4.7cy trong khi mực
-    thật chỉ ~4.1cy, và tỉ lệ span lệch xa tỉ lệ hộp axes nên
-    adjustable='datalim' phải giãn span hiển thị +75%, nội dung co
-    còn ~nửa chiều cao canvas trên cửa sổ lớn).
+    thật chỉ ~4.1cy). Hàng DIM tổng Lw luôn vẽ ở dưới cùng nên
+    đáy span luôn phải phủ tới đáy chữ Lw (-cy/2 - 2.22cy) ở cả
+    2 chế độ thép, kể cả khi không có hàng phân đoạn.
 
     Các mốc lấy đúng vị trí phần tử trong draw_wall_section_ax, đã
     đo kiểm chứng bằng artist extents (ca 2500x350, rot 0):
@@ -180,17 +180,21 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     - trên: nhãn 't3' neo ở cy/2 + 1.01cy, đỉnh chữ ~+0.21cy nữa
       (chiều cao chữ theo đơn vị dữ liệu ở tỉ lệ vẽ thường) = 1.72cy;
       chừa tới cy/2 + 1.27cy.
-    - dưới: có hàng DIM phân đoạn (n_seg > 0): thấp nhất là đáy
-      chữ 'Lw = ...' ở -cy/2 - 2.22cy (hàng tổng ở dưới cùng);
-      không có: đáy chữ 'Lw = ...' ở -cy/2 - 1.14cy. Đều chừa
-      thêm 0.07cy.
+    - dưới: thấp nhất là đáy chữ 'Lw = ...' ở -cy/2 - 2.22cy
+      (hàng tổng luôn ở dưới cùng, cả khi không có hàng phân
+      đoạn); chừa thêm 0.07cy tới -cy/2 - 2.29cy.
     rot_deg: span hiển thị = bao hình của 4 góc span canonical đã
     xoay (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
     cx, cy = float(sec.cx), float(sec.cy)
     x_lo, x_hi = -cx / 2 - 0.105 * cx, cx / 2 + 0.02 * cx
     y_hi = cy / 2 + 1.27 * cy
-    y_lo = -cy / 2 - (2.29 * cy if n_seg else 1.21 * cy)
+    # Hàng tổng Lw luôn vẽ (kể cả không có phân đoạn) nên đáy span
+    # luôn là -2.29cy; nhánh cũ -1.21cy khi không phân đoạn làm
+    # dim + nhãn Lw tràn khỏi khung (đo Agg: nhãn ở y < 0, ngoài
+    # figure). n_seg giữ lại cho chữ ký hàm, không còn ảnh hưởng
+    # tới span.
+    y_lo = -cy / 2 - 2.29 * cy
     if int(rot_deg or 0) % 360 == 0:
         return (x_lo, x_hi, y_lo, y_hi)
     pts = [_rot_xy(x, y, rot_deg)
@@ -314,15 +318,21 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     def RP(pts):
         return [R(px, py) for px, py in pts]
 
-    # adjustable="datalim": giữ tỉ lệ đơn vị 2 trục bằng nhau; khi
-    # tỉ lệ hộp axes khác tỉ lệ span nó giãn lims ở phương không
-    # khống chế và căn giữa nội dung. Builder ô mặt cắt đã fit tỉ
-    # lệ axes = tỉ lệ span chặt (xem _build_wall_section_cell) nên
-    # ở trạng thái home hầu như không giãn; datalim chỉ còn tác
-    # dụng ở ca bị kẹp chiều cao (tiết diện xoay đứng trong ô thấp)
-    # để nội dung lấp đầy chiều cao và cân giữa theo chiều ngang.
+    # adjustable="box": giữ tỉ lệ đơn vị 2 trục bằng nhau bằng cách
+    # co hộp axes về đúng tỉ lệ span (căn giữa), KHÔNG đụng tới
+    # lims. Bản cũ dùng "datalim" (giãn lims ở phương không khống
+    # chế) nhưng mỗi lần vẽ lại lims là matplotlib lại in warning
+    # "Ignoring fixed y/x limits..." ra console — tỉ lệ hộp khác
+    # tỉ lệ span xảy ra thường xuyên (pad 9px làm lệch tỉ lệ ở
+    # figsize khởi tạo; canvas bị kéo cao/thấp hơn need ở tab Kết
+    # quả; bbox_inches="tight" ở ảnh PDF). "box" cho cùng hình
+    # tiết diện (cùng chiều khống chế, cùng tâm) mà không warning
+    # và không đổi lims nên zoom/pan tính trên lims cũng chính
+    # xác hơn. Ở ca bị kẹp chiều cao (tiết diện xoay đứng trong ô
+    # thấp) hộp co theo chiều ngang, nội dung vẫn lấp đầy chiều
+    # cao và căn giữa theo chiều ngang.
     # Khung home của zoom là span do _wall_section_spans trả.
-    ax.set_aspect("equal", adjustable="datalim")
+    ax.set_aspect("equal", adjustable="box")
     cx, cy = float(sec.cx), float(sec.cy)
     DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
                   "#BE123C", "#CA8A04", "#0F766E", "#4D7C0F"]
@@ -499,7 +509,7 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # Sàn hiển thị cho thép (xem _wall_bar_floor_apply): lưu danh
     # sách (Circle, dia) lên axes và gắn 1 lần handler draw_event.
     # draw_event phát SAU khi Figure.draw xong nên lims/bbox đã
-    # chốt (kể cả giãn datalim); handler chỉ vẽ lại khi radius thực
+    # chốt; handler chỉ vẽ lại khi radius thực
     # sự đổi nên hội tụ sau tối đa 2 lần vẽ, không vòng lặp. Bao
     # phủ cả 2 đường vẽ: _build_wall_section_cell (axes mới) và
     # _refresh_wall_preview (ax.clear() + vẽ lại trên axes cũ —
@@ -1635,7 +1645,8 @@ class WallMixin:
             # không expand dọc); chiều cao canvas theo quy tắc trong
             # _fit_now: bằng avail (chiều cao khả dụng chính xác
             # trong frame ô) khi frame do lưới kéo cao — lấp đầy
-            # frame, nội dung căn giữa nhờ datalim; giữ nguyên khi
+            # frame, nội dung căn giữa nhờ hộp axes co về tỉ lệ
+            # span (adjustable="box"); giữ nguyên khi
             # frame ôm nội dung (tiết diện xoay đứng không phình
             # hàng); chỉ vươn tới max(need, avail) khi home vừa đổi
             # (đổi Lw/tw/chế độ); riêng preview (fit_grow) còn được
@@ -1704,7 +1715,8 @@ class WallMixin:
                     # axes = tỉ lệ span — không đo bbox figure lúc
                     # đang đổi cỡ (cả 2 chiều của figure đều có thể
                     # trễ so với widget tại thời điểm đo, từng làm
-                    # delta sai ~13px và datalim co view ~5%).
+                    # delta sai ~13px và view co ~5% thời còn
+                    # adjustable="datalim").
                     axes_w = wpx * dpr - 2 * _WALL_SEC_PAD_PX
                     if axes_w < 40:
                         return
@@ -1714,10 +1726,11 @@ class WallMixin:
                     # - Frame do LƯỚI kéo cao (hàng kết quả
                     #   weight=1, đúng ca ảnh user): canvas = avail
                     #   (lấp đầy frame); figure cao theo, equal
-                    #   aspect + datalim giữ nguyên kích thước tiết
-                    #   diện theo chiều khống chế (bề ngang) và căn
-                    #   giữa phần dư theo chiều dọc -> hết dải trắng
-                    #   mà nội dung vẫn gọn trong khung home.
+                    #   aspect + hộp co về tỉ lệ span giữ nguyên
+                    #   kích thước tiết diện theo chiều khống chế
+                    #   (bề ngang) và căn giữa phần dư theo chiều
+                    #   dọc -> hết dải trắng mà nội dung vẫn gọn
+                    #   trong khung home.
                     # - Frame ÔM NỘI DUNG (avail == chiều cao canvas
                     #   hiện tại, ca tiết diện xoay đứng): canvas
                     #   giữ nguyên — vươn tới need ở đây sẽ phình
@@ -1784,8 +1797,8 @@ class WallMixin:
                             pass
                     # Vòng kiểm chứng (settle): sự kiện Configure cũ
                     # của lớp canvas Debounced có thể áp lại trễ sau
-                    # vòng fit này, kéo figure lệch vài px (datalim
-                    # co view, cắt ~2px mép nội dung). 300ms sau —
+                    # vòng fit này, kéo figure lệch vài px (hộp axes
+                    # lệch khỏi tỉ lệ span vài px). 300ms sau —
                     # khi mọi áp lại đã xong — fit lại một lần cho
                     # hội tụ hẳn; vòng kiểm chứng tự nó không arm
                     # thêm vòng nữa.
@@ -2102,68 +2115,14 @@ class WallMixin:
         # tab Chi tiết mục 8 và PDF chi tiết.)
         return tf
 
-    def _wall_result_conclusion(self, full):
-        """Chuỗi kết luận từng phần cho tab Kết quả vách (chỉ đọc
-        dict kết quả, không tính lại). KHÔNG có kết luận chung:
-        banner cũ đã bỏ — mỗi phần kết luận riêng ngay dưới nó.
-        Trả về dict: nm, m2m3, slend, shear_in, shear_out.
-        Dạng ngắn kiểu kết luận bên cột (quyết user 2026-10-24):
-        chỉ tên mục + D/C + ĐẠT/KHÔNG ĐẠT, không chú thích trong
-        ngoặc — chi tiết λ/V_Ed/Qsw vẫn ở bảng thông số, bảng cắt
-        và tab Chi tiết. Độ mảnh dùng tỉ số λmax/120 làm D/C tương
-        đương (ghi rõ trong chuỗi). Khóa nm/m2m3 giữ lại cho tương
-        thích nhưng KHÔNG còn render ở tab Kết quả (dải xanh dưới
-        biểu đồ đã bỏ; kết luận N–M vẫn có ở bullets A/B/O qua
-        wall_chart_notes)."""
-        ok = bool(full["ok"])
-        dc = full["dc"]
-        fs_txt = (f"{full['fs']:.2f}" if math.isfinite(full["fs"])
-                  else "∞")
-        nm_txt = (f"Kết luận N–M: D/C = {dc:.3f} (FS = {fs_txt}) — "
-                  + ("ĐẠT" if ok else "KHÔNG ĐẠT"))
-        m2m3_txt = (
-            "Diễn giải M2–M3: cùng kết luận N–M — "
-            f"D/C = {dc:.3f} — "
-            + ("ĐẠT" if ok else "KHÔNG ĐẠT")
-            + " (không phải kết luận độc lập; lát cắt tại N = BN "
-            "của cùng khả năng N–M)")
-        sl = full["slend"]
-        lam_in = float(sl.get("lambda_in", 0.0) or 0.0)
-        lam_out = float(sl.get("lambda_out", 0.0) or 0.0)
-        sl_ok = lam_in <= 120.0 and lam_out <= 120.0
-        sl_txt = (
-            f"Độ mảnh: D/C = {max(lam_in, lam_out) / 120.0:.3f} "
-            f"(λmax/120) — "
-            + ("ĐẠT" if sl_ok else "KHÔNG ĐẠT"))
-        _sh = full.get("shear_in") or {}
-        if _sh.get("V_cap") is not None and _sh.get("dc") is not None:
-            _dc_sh = _sh["dc"]
-            _dc_sh_txt = (f"{_dc_sh:.3f}" if math.isfinite(_dc_sh)
-                          else "∞")
-            sh_txt = (f"Cắt trong MP: D/C = {_dc_sh_txt} — "
-                      + ("ĐẠT" if _sh.get("ok") else "KHÔNG ĐẠT"))
-        else:
-            sh_txt = "Cắt trong MP: — (chưa tính được)"
-        _sho = full.get("shear_out") or {}
-        if _sho.get("V_cap") is not None and _sho.get("dc") is not None:
-            _dc_sho = _sho["dc"]
-            _dc_sho_txt = (f"{_dc_sho:.3f}" if math.isfinite(_dc_sho)
-                           else "∞")
-            sho_txt = (
-                f"Cắt ngoài MP: D/C = {_dc_sho_txt} — "
-                + ("ĐẠT" if _sho.get("ok") else "KHÔNG ĐẠT"))
-        else:
-            sho_txt = "Cắt ngoài MP: — (chưa tính được)"
-        return {"nm": nm_txt, "m2m3": m2m3_txt, "slend": sl_txt,
-                "shear_in": sh_txt, "shear_out": sho_txt}
-
     def _show_wall_result(self, full):
         """Tab Kết quả cho vách (đọc từ dict _tcvn_wall_full, không
         tính lại) — lưới 2x2 như bên cột, KHÔNG còn banner kết luận
         chung: hàng trên bảng thông số | mặt cắt + thẻ thép; hàng
-        dưới biểu đồ N–Mα | biểu đồ M2–M3 (tại N = BN); kết luận
-        riêng nằm NGAY DƯỚI bảng thông số (độ mảnh + cắt trong/
-        ngoài MP, dạng ngắn); kết luận N–M chỉ còn ở bullets A/B/O
+        dưới biểu đồ N–Mα | biểu đồ M2–M3 (tại N = BN); KHÔNG còn
+        khối kết luận dưới bảng thông số (quyết user 2026-10-24:
+        chỉ thể hiện D/C P-M — đã có ở hàng D/C bảng thông số và
+        bullets A/B/O); kết luận N–M chỉ còn ở bullets A/B/O
         (dải xanh dưới biểu đồ đã bỏ theo quyết user 2026-10-24);
         ghi chú A/B/O full-width ở row 2; row 3 là bảng cắt vách
         (phần 2, không còn khối diễn giải dưới nó)."""
@@ -2178,14 +2137,13 @@ class WallMixin:
         self._sum_inner.rowconfigure(1, weight=1)
         self._sum_inner.rowconfigure(2, weight=0)
         self._sum_inner.rowconfigure(3, weight=0)
-        _concl = self._wall_result_conclusion(full)
         # ===== Ô trên-trái: bảng thông số =====
         f_tr = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB",
                         highlightcolor="#D1D5DB", highlightthickness=1,
                         takefocus=0)
         f_tr.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        self._build_wall_param_table(f_tr, full, _concl)
+        self._build_wall_param_table(f_tr, full)
         # ===== Ô trên-phải: mặt cắt tiết diện + thẻ thép =====
         f_tl = self._build_wall_section_cell(
             self._sum_inner, full["sec"], meta=full.get("meta"),
@@ -2332,7 +2290,7 @@ class WallMixin:
         except Exception:
             pass
 
-    def _build_wall_param_table(self, parent, full, concl=None):
+    def _build_wall_param_table(self, parent, full):
         """Bảng thông số vách (đọc từ dict kết quả, không tính lại)."""
         winp = full["winp"]
         sec = full["sec"]
@@ -2461,8 +2419,7 @@ class WallMixin:
                         tags=("odd",))
         # --- Kết quả cắt ngoài mặt phẳng (lát 4 — phần 4): chỉ giá trị;
         # công thức → thay số → kết luận riêng ở tab Chi tiết/PDF chi
-        # tiết (cùng builder wall_detail); kết luận riêng dưới bảng
-        # ở cuối hàm này.
+        # tiết (cùng builder wall_detail).
         if _sho.get("V_cap") is not None:
             _dc_sho = _sho.get("dc")
             _dc_sho_txt = (f"{_dc_sho:.3f}" if _dc_sho is not None
@@ -2492,27 +2449,10 @@ class WallMixin:
                                 "— (chưa tính được)"),
                         tags=("odd",))
         tree.pack(fill=tk.X, padx=2)
-        # Kết luận riêng NGAY DƯỚI bảng thông số cho các phần mà
-        # giá trị của chúng nằm trong bảng này (độ mảnh, cắt trong
-        # và ngoài MP), dạng ngắn; kết luận N–M chỉ còn ở bullets
-        # A/B/O dưới biểu đồ (dải xanh đã bỏ).
-        if concl is None:
-            concl = self._wall_result_conclusion(full)
-        _sl_ok = (float(sl.get("lambda_in", 0.0) or 0.0) <= 120.0
-                  and float(sl.get("lambda_out", 0.0) or 0.0) <= 120.0)
-        for _txt, _ok in ((concl["slend"], _sl_ok),
-                          (concl["shear_in"], _sh_ok),
-                          (concl["shear_out"], _sho_ok)):
-            # ok = None (chưa tính được) -> nền xám trung tính,
-            # không tô đỏ như KHÔNG ĐẠT.
-            _bg = ("#D1FAE5" if _ok else "#FEE2E2") \
-                if _ok is not None else "#F3F4F6"
-            _fg = ("#065F46" if _ok else "#991B1B") \
-                if _ok is not None else "#374151"
-            tk.Label(parent, text=_txt, font=("", 9, "bold"),
-                     bg=_bg, fg=_fg,
-                     wraplength=500, justify=tk.LEFT).pack(
-                         fill=tk.X, padx=2, pady=(2, 0))
+        # KHÔNG còn khối kết luận dưới bảng thông số (quyết user
+        # 2026-10-24: chỉ thể hiện D/C P-M — đã có ở hàng D/C trong
+        # bảng này và bullets A/B/O dưới biểu đồ). Bảng kết thúc ở
+        # Treeview, không để khoảng trống.
 
     def _render_wall_detail(self, full):
         """Tab Chi tiết vách: các mục đánh số theo format web

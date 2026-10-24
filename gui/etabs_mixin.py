@@ -166,22 +166,40 @@ class EtabsMixin:
         top.transient(self)
         top.grab_set()
         top.minsize(340, 260)
-        ttk.Label(
+        # Nền đồng nhất với nền popup (quyết user 2026-10-24): mọi
+        # widget text đều lấy đúng bg của Toplevel, không để ttk
+        # theme (trắng) hay Canvas mặc định tạo dải nền riêng sau
+        # chữ — trên Windows các mặc định này khác Xvfb nên phải
+        # gắn tường minh, không dựa vào mặc định.
+        _bg = top.cget("bg")
+        tk.Label(
             top,
             text="Tick một tên combo = combo ĐỘNG ĐẤT của tên đó "
                  "(mọi Story/Station).\n• Có cặp max/min: TỰ GỘP cặp đó, và chịu "
                  "phóng đại cắt khi kiểm tra vách.\n• Không có cặp: tick chỉ có nghĩa phóng đại "
                  "(không có gì để gộp).\nPhóng đại cắt: TCVN 9386-1:2012 §5.4.2.4(7) "
                  "DCM — V_Ed = 1,5 × V'_Ed, CHỈ trong mặt phẳng vách.",
-            font=("", 9, "italic"), wraplength=440, justify=tk.LEFT).pack(
+            font=("", 9, "italic"), wraplength=440, justify=tk.LEFT,
+            bg=_bg).pack(
                 anchor=tk.W, padx=10, pady=(10, 6))
-        canvas = tk.Canvas(top, highlightthickness=0)
+        canvas = tk.Canvas(top, highlightthickness=0, bg=_bg)
         sb = ttk.Scrollbar(top, orient=tk.VERTICAL, command=canvas.yview)
-        inner = ttk.Frame(canvas)
+        inner = tk.Frame(canvas, bg=_bg)
         inner.bind("<Configure>",
                    lambda e: canvas.configure(
                        scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=inner, anchor="nw")
+        _win = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _fit_inner_width(_ev=None):
+            # Dòng liệt kê trải hết chiều rộng vùng nội dung (trừ
+            # scrollbar): inner bám chiều rộng canvas; chỉ chạy khi
+            # canvas đổi cỡ nên không vòng lặp với scrollregion.
+            try:
+                canvas.itemconfig(_win, width=canvas.winfo_width())
+            except Exception:
+                pass
+
+        canvas.bind("<Configure>", _fit_inner_width)
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
                     padx=(10, 0), pady=4)
@@ -217,7 +235,7 @@ class EtabsMixin:
                 txt = (f"{base} — không có cặp max/min "
                        f"(chỉ phóng đại)")
             cb = tk.Checkbutton(inner, text=txt, variable=var,
-                                bg="white", activebackground="white",
+                                bg=_bg, activebackground=_bg,
                                 highlightthickness=0, anchor=tk.W,
                                 justify=tk.LEFT)
             cb.pack(fill=tk.X, padx=4, pady=1)
@@ -267,8 +285,14 @@ class EtabsMixin:
                     v.set(val)
             self._seismic_pick_anchor = None
 
+        # Hàng nút ở RIÊNG phía trên danh sách (quyết user
+        # 2026-10-24): trước đây btn_row pack sau canvas nên packer
+        # xếp nó vào dải bên phải canvas, cùng cao với các dòng đầu
+        # của danh sách (đo Xvfb: đáy nút 150, đỉnh dòng đầu 115).
+        # before=canvas chèn hàng nút vào trước canvas trong thứ tự
+        # pack nên nó chiếm dải ngang riêng dưới header, trên canvas.
         btn_row = ttk.Frame(top)
-        btn_row.pack(fill=tk.X, padx=10, pady=(4, 10))
+        btn_row.pack(fill=tk.X, padx=10, pady=(2, 8), before=canvas)
         ttk.Button(btn_row, text="Chọn tất cả",
                    command=lambda: (_set_all(True), _sync())).pack(
                        side=tk.LEFT, padx=(0, 4))

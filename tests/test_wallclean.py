@@ -1,6 +1,8 @@
 """Dọn tab Kết quả vách theo 6 ghi chú đỏ của user (2026-10-24) —
-test headless (không cần Tk): kết luận dạng ngắn, ghi chú DCM ở ô
-nhãn (không V_raw), thứ tự dim Lw dưới dim thành phần.
+test headless (không cần Tk): ghi chú DCM ở ô nhãn (không V_raw),
+thứ tự dim Lw dưới dim thành phần, và (quyết user 2026-10-24)
+khối kết luận dưới bảng thông số đã bỏ hẳn — D/C P-M chỉ còn ở
+hàng D/C bảng thông số và bullets A/B/O.
 
 Mọi số lấy từ engine thật (wall_tcvn_full / build_wall_section),
 không hardcode số từ trí nhớ ngoài chuỗi định dạng kỳ vọng.
@@ -20,49 +22,31 @@ from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                  ConcreteMaterial, SteelMaterial)
 from rc_column.wall_input import WallInput
 from rc_column.wall_section import build_wall_section
-from gui.wall_mixin import (WallMixin, _rot_xy, _wall_section_figsize,
+from gui.wall_mixin import (_rot_xy, _wall_section_figsize,
                             build_wall_shear_rows, draw_wall_section_ax)
 
 
-def _concl(full):
-    obj = object.__new__(WallMixin)
-    return obj._wall_result_conclusion(full)
-
-
-def _full_concl():
-    return {"ok": True, "dc": 0.463, "fs": 2.16,
-            "slend": {"lambda_in": 4.6, "lambda_out": 32.7},
-            "shear_in": {"V_cap": 1828.8, "dc": 0.656, "ok": True},
-            "shear_out": {"V_cap": 657.6, "dc": 0.0, "ok": True}}
-
-
-def test_conclusion_short_form():
-    """(1) 3 dòng dưới bảng thông số: chỉ tên mục + D/C + ĐẠT,
-    không chú thích trong ngoặc; độ mảnh dùng λmax/120."""
-    c = _concl(_full_concl())
-    assert c["slend"] == ("Độ mảnh: D/C = "
-                          f"{max(4.6, 32.7) / 120.0:.3f}"
-                          " (λmax/120) — ĐẠT")
-    assert "λx =" not in c["slend"] and "λy =" not in c["slend"]
-    assert c["shear_in"] == "Cắt trong MP: D/C = 0.656 — ĐẠT"
-    assert c["shear_out"] == "Cắt ngoài MP: D/C = 0.000 — ĐẠT"
-    for k in ("slend", "shear_in", "shear_out"):
-        assert "§" not in c[k] and "V_Ed" not in c[k]
-
-
-def test_conclusion_pending_and_fail():
-    """Chưa tính được giữ dạng '— (chưa tính được)'; KHÔNG ĐẠT
-    khi D/C > 1 hoặc λ > 120."""
-    f = _full_concl()
-    f["shear_in"] = {"V_cap": None, "dc": None, "ok": None}
-    c = _concl(f)
-    assert c["shear_in"] == "Cắt trong MP: — (chưa tính được)"
-    f2 = _full_concl()
-    f2["slend"] = {"lambda_in": 4.6, "lambda_out": 130.0}
-    f2["shear_in"] = {"V_cap": 100.0, "dc": 2.604, "ok": False}
-    c2 = _concl(f2)
-    assert c2["slend"].endswith("— KHÔNG ĐẠT")
-    assert c2["shear_in"] == "Cắt trong MP: D/C = 2.604 — KHÔNG ĐẠT"
+def test_param_conclusion_block_removed():
+    """(quyết user 2026-10-24) Khối kết luận dưới bảng thông số đã
+    bỏ hẳn: hàm _wall_result_conclusion bị xóa (không còn caller
+    nào khác ngoài builder bảng thông số), 3 chuỗi nhãn của nó
+    không còn trong wall_mixin, và builder bảng thông số không
+    còn tham số concl cũng không tạo tk.Label kết luận nào.
+    D/C P-M vẫn có ở hàng D/C bảng thông số và bullets A/B/O
+    (kiểm ở cổng GUI, không dựng Tk ở đây)."""
+    src = open(os.path.join(os.path.dirname(__file__), "..", "gui",
+                            "wall_mixin.py"), encoding="utf-8").read()
+    assert "_wall_result_conclusion" not in src
+    for s in ("Độ mảnh: D/C", "Cắt trong MP: D/C",
+              "Cắt ngoài MP: D/C"):
+        assert s not in src, s
+    assert ("def _build_wall_param_table(self, parent, full):" in src)
+    start = src.index("def _build_wall_param_table")
+    nxt = src.index("\n    def ", start + 10)
+    block = src[start:nxt]
+    # tk.Label (không tính ttk.Label của tiêu đề bảng).
+    assert re.search(r"(?<!t)tk\.Label\(", block) is None
+    assert "concl" not in block
 
 
 def _boundary_sec_meta():

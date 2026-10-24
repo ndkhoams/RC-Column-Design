@@ -86,7 +86,10 @@ def _fallback_section_png(sec, meta, na_info, rot_deg, width_in, dpi):
     from matplotlib.patches import Polygon as MplPolygon
     cx, cy = float(sec.cx), float(sec.cy)
     fig, ax = plt.subplots(figsize=(width_in, width_in * 0.45))
-    ax.set_aspect("equal", adjustable="datalim")
+    # "box" thay "datalim": cùng lý do như draw_wall_section_ax
+    # (datalim in warning "Ignoring fixed y limits..." mỗi lần
+    # savefig với bbox_inches="tight" làm lệch tỉ lệ hộp).
+    ax.set_aspect("equal", adjustable="box")
     ax.add_patch(MplPolygon(
         [(-cx / 2, -cy / 2), (cx / 2, -cy / 2),
          (cx / 2, cy / 2), (-cx / 2, cy / 2)],
