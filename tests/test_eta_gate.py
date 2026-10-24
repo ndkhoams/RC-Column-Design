@@ -16,6 +16,7 @@ from rc_column.checker import BatchChecker, ColumnInput, check_column
 from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                  ConcreteMaterial, SteelMaterial)
 from rc_column.stability import buckling_factors, slenderness
+from rc_column.cover_migration import migrate_wall_dict
 from rc_column.wall_detail import build_wall_detail_sections
 from rc_column.wall_engine import wall_tcvn_full
 from rc_column.wall_input import WallInput, wall_from_dict
@@ -90,7 +91,8 @@ def test_gate_negative_N_keeps_gate():
 def _col_600_low():
     return ColumnInput(concrete_grade="B25", gamma_b=0.85,
                        steel_grade="CB400-V", cx=600.0, cy=600.0,
-                       cover=30.0, corner_dia=20.0,
+                       cover=22.0,  # MIGRATION COVER: fixture cũ 30 (nghĩa mặt thép) - sw_dia 8 = 22 (c_đai); fiber giữ nguyên
+                       corner_dia=20.0,
                        edge_t2_count=3, edge_t2_dia=20.0,
                        edge_t3_count=3, edge_t3_dia=20.0,
                        Lx=4.0, Ly=4.0, top_x="ngam_cung",
@@ -120,7 +122,8 @@ def test_gate_column_high_lambda_unchanged_and_batch_parity():
     # D/C giữ mốc PA-A 0.61406.
     inp = ColumnInput(concrete_grade="B25", gamma_b=0.85,
                       steel_grade="CB400-V", cx=400.0, cy=400.0,
-                      cover=30.0, corner_dia=20.0,
+                      cover=22.0,  # MIGRATION COVER: fixture cũ 30 (nghĩa mặt thép) - sw_dia 8 = 22 (c_đai); fiber giữ nguyên
+                       corner_dia=20.0,
                       edge_t2_count=3, edge_t2_dia=20.0,
                       edge_t3_count=3, edge_t3_dia=20.0,
                       Lx=4.0, Ly=4.0, top_x="ngam_cung",
@@ -141,7 +144,7 @@ def test_gate_column_high_lambda_unchanged_and_batch_parity():
 
 
 def test_gate_wall_sample_in_plane_gated_out_kept():
-    full = wall_tcvn_full(WallInput(), _CONC, _STEEL, loads=dict(_LOADS))
+    full = wall_tcvn_full(WallInput(cover=13.0), _CONC, _STEEL, loads=dict(_LOADS))  # MIGRATION COVER: 25-12
     sl = full["slend"]
     assert abs(sl["lambda_in"] - 6.37) < 0.01
     assert abs(sl["lambda_out"] - 45.53) < 0.01
@@ -156,7 +159,7 @@ def test_gate_wall_sample_in_plane_gated_out_kept():
 
 
 def test_gate_wall_rot90_and_old_and_pd_none():
-    fr = wall_tcvn_full(WallInput(rot_deg=90), _CONC, _STEEL,
+    fr = wall_tcvn_full(WallInput(rot_deg=90, cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                         loads={"N": 2528.65, "M_in": 275.23,
                                "M_out": 202.86, "V_in": 0.0,
                                "V_out": 0.0, "T": 0.0})
@@ -164,7 +167,7 @@ def test_gate_wall_rot90_and_old_and_pd_none():
     assert abs(fr["M_out_d"] - 202.86) < 0.01
     assert abs(fr["slend"]["factor_in"] - 1.1375729051035446) < 1e-9
     assert abs(fr["dc"] - 0.44526) <= 1e-4
-    fo = wall_tcvn_full(wall_from_dict(_OLD), _CONC, _STEEL,
+    fo = wall_tcvn_full(wall_from_dict(migrate_wall_dict(_OLD)[0]), _CONC, _STEEL,  # MIGRATION COVER qua helper
                         loads={"N": 2500.0, "M_in": 3000.0,
                                "M_out": 60.0, "V_in": 0.0,
                                "V_out": 0.0, "T": 0.0})
@@ -172,7 +175,7 @@ def test_gate_wall_rot90_and_old_and_pd_none():
     assert fo["M_in_d"] == 3000.0
     assert abs(fo["dc"] - 0.40226) <= 1e-5
     # P–δ tắt: η đã = 1 từ trước, cổng không đổi gì.
-    fn = wall_tcvn_full(WallInput(pd_method="none"), _CONC, _STEEL,
+    fn = wall_tcvn_full(WallInput(pd_method="none", cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                         loads=dict(_LOADS))
     assert fn["slend"]["factor_in"] == 1.0
     assert fn["slend"]["factor_out"] == 1.0
@@ -182,7 +185,7 @@ def test_gate_wall_rot90_and_old_and_pd_none():
 
 def test_gate_wall_detail_card_gated_direction():
     secs = build_wall_detail_sections(
-        wall_tcvn_full(WallInput(), _CONC, _STEEL, loads=dict(_LOADS)))
+        wall_tcvn_full(WallInput(cover=13.0), _CONC, _STEEL, loads=dict(_LOADS)))  # MIGRATION COVER: 25-12
     sec5 = [s for s in secs if s["num"] == 5][0]
     cards = {c["title"]: c for c in sec5["cards"]}
     x = cards["η & mô men phóng đại — Phương X (trong MP)"]

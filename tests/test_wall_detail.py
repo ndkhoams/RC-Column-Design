@@ -3,7 +3,8 @@
 - build_wall_detail_sections đọc từ dict wall_tcvn_full: mọi số trong
   thẻ khớp dict kết quả (N–M/cắt/M2–M3 không đổi từng chữ số so với
   mốc hậu cổng η §8.1.2.1.2: mẫu 0.44520, vùng biên 0.35929,
-  lát-1 cũ 0.40226; cắt mẫu V=800 -> 0.403).
+  lát-1 cũ 0.40226; cắt mẫu V=800 -> 0.401 sau migration cover
+  (h0 2457 -> 2469, Vcap 1987.2 -> 1996.9).
 - Trích dẫn độ mảnh là Mục 10.2.2, không có card/mục nào trích
   "Bảng 30" làm căn cứ.
 - Thẻ η trình bày đúng đường tính app ĐÃ CÓ cổng λ > 14 (phương án A
@@ -24,6 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                  ConcreteMaterial, SteelMaterial)
+from rc_column.cover_migration import migrate_wall_dict
 from rc_column.wall_input import WallInput, wall_from_dict
 from rc_column.wall_engine import wall_tcvn_full
 from rc_column.wall_detail import build_wall_detail_sections
@@ -43,7 +45,7 @@ _OLD = {"Lw": 2500, "tw": 350, "h_story": 3300, "h_total": 19800,
 
 
 def _sample():
-    return wall_tcvn_full(WallInput(), _CONC, _STEEL,
+    return wall_tcvn_full(WallInput(cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: fixture cũ 25-12
                           loads=dict(_LOADS))
 
 
@@ -72,11 +74,13 @@ def _card_by_title(sections, num, title_sub):
 def test_detail_numbers_match_dict_sample():
     full = _sample()
     assert abs(full["dc"] - 0.44520) <= 1e-5
-    assert abs(full["shear_in"]["dc"] - 0.40259) <= 1e-4
+    # MIGRATION COVER: cắt mẫu đổi theo migration (h0 2457 -> 2469,
+    # Vcap 1987.2 -> 1996.9, dc 0.40259 -> 0.40063) — N-M không đổi.
+    assert abs(full["shear_in"]["dc"] - 0.40063) <= 1e-4
     secs = build_wall_detail_sections(full)
     assert [s["num"] for s in secs] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
     txt = _all_text(secs)
-    for needle in ["210.72", "313.09", "0.445", "0.403", "1,987.2",
+    for needle in ["210.72", "313.09", "0.445", "0.401", "1,996.9",
                    "45.53", "6.37", "108.84", "83.33",
                    "5,679.8", "847.71", "2φ12 a200"]:
         assert needle in txt, needle
@@ -133,12 +137,12 @@ def test_detail_eta_card_is_honest_app_path():
 
 
 def test_detail_milestones_boundary_and_old():
-    fb = wall_tcvn_full(WallInput(steel_mode="boundary"), _CONC, _STEEL,
+    fb = wall_tcvn_full(WallInput(steel_mode="boundary", cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                         loads=dict(_LOADS))
     assert abs(fb["dc"] - 0.35929) <= 1e-5
     txt_b = _all_text(build_wall_detail_sections(fb))
     assert "0.359" in txt_b and "210.72" in txt_b and "305.12" in txt_b
-    fo = wall_tcvn_full(wall_from_dict(_OLD), _CONC, _STEEL,
+    fo = wall_tcvn_full(wall_from_dict(migrate_wall_dict(_OLD)[0]), _CONC, _STEEL,  # MIGRATION COVER qua helper
                         loads={"N": 2500.0, "M_in": 3000.0,
                                "M_out": 60.0, "V_in": 0.0,
                                "V_out": 0.0, "T": 0.0})
@@ -211,7 +215,7 @@ def test_wall_summary_rot90_is_one_page(tmp_path):
     đúng 1 trang tóm tắt — thang thu có mức sâu cho ca này."""
     _patch_fonts_for_vm()
     from rc_column.wall_pdf_summary import export_wall_summary_pdf
-    full = wall_tcvn_full(WallInput(rot_deg=90), _CONC, _STEEL,
+    full = wall_tcvn_full(WallInput(rot_deg=90, cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                           loads={"N": 2528.65, "M_in": 275.23,
                                  "M_out": 202.86, "V_in": 0.0,
                                  "V_out": 0.0, "T": 0.0})

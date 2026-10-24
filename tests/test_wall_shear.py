@@ -37,7 +37,7 @@ def _web_loads(V_in):
 
 def test_geometry_mapping():
     """Ánh xạ: b = tw, h0 = Lw - cover - dia_h - dia_v/2."""
-    w = WallInput()  # 2500x350, cover 25, dia_h 12, dia_v 12
+    w = WallInput()  # 2500x350, cover 25 (nay là c_đai), dia_h 12, dia_v 12
     g = wall_shear_geometry(w)
     assert g["b"] == 350.0
     assert abs(g["h0"] - (2500 - 25 - 12 - 6)) < 1e-9
@@ -47,6 +47,25 @@ def test_geometry_mapping():
     g90 = wall_shear_geometry(w90)
     assert g90["b"] == 2500.0
     assert abs(g90["h0"] - (350 - 25 - 12 - 6)) < 1e-9
+
+
+def test_migrated_old_file_shear_h0_grows_by_dia_h():
+    """File cũ cover 25 (nghĩa mặt thép) -> migration 13 (c_đai):
+    h0 cắt TĂNG đúng dia_h 12 (2457 -> 2469) — số cắt cũ bảo thủ hơn;
+    đồng thời inset fiber giữ nguyên (25+6 = 13+12+6 = 31).
+    (Số 2457 của test_geometry_mapping giữ nguyên vì WallInput() mới
+    với cover 25 nay đã mang nghĩa c_đai, không còn là fixture cũ.)"""
+    from rc_column.cover_migration import migrate_wall_dict
+    from rc_column.wall_input import wall_from_dict
+    from rc_column.wall_section import build_wall_section
+    old = {"cover": 25, "dia_h": 12, "Lw": 2500, "tw": 350,
+           "steel_mode": "perimeter", "per_dia": 12, "per_s": 200}
+    mig, warns = migrate_wall_dict(old)
+    assert mig["cover"] == 13 and warns == []
+    g = wall_shear_geometry(wall_from_dict(mig))
+    assert abs(g["h0"] - 2469.0) < 1e-9  # 2500-13-12-6
+    sec, _ = build_wall_section(wall_from_dict(mig), *_mats())
+    assert abs(min(r.x for r in sec.rebars) - (-1250.0 + 31.0)) < 1e-9
 
 
 def test_qsw_from_distributed_steel():
@@ -120,7 +139,10 @@ def test_engine_integration_nm_unchanged():
     """wall_tcvn_full: shear_in điền đủ, N–M giữ nguyên từng chữ số,
     checks_included/pending cập nhật, ok_all vẫn = ok N–M."""
     conc, steel = _mats()
-    full = wall_tcvn_full(WallInput(), conc, steel,
+    # MIGRATION COVER: fixture cũ cover 25 (nghĩa mặt thép) -> 13
+    # (c_đai) để giữ mốc N-M 0.44520...; cắt theo đó h0 2469, Vcap mới.
+    _w_mig = WallInput(); _w_mig.cover = 13.0
+    full = wall_tcvn_full(_w_mig, conc, steel,
                           loads=_web_loads(800.0))
     assert abs(full["dc"] - 0.44520104645817127) < 1e-12
     assert full["ok"] is True and full["ok_all"] is True
@@ -131,7 +153,7 @@ def test_engine_integration_nm_unchanged():
     assert "sliding" in full["checks_pending"]  # trượt vẫn pending
     assert full["sliding"]["ok"] is None
     # V_in đổi -> N–M không đổi, chỉ cắt đổi
-    full0 = wall_tcvn_full(WallInput(), conc, steel,
+    full0 = wall_tcvn_full(_w_mig, conc, steel,
                            loads=_web_loads(0.0))
     assert full0["dc"] == full["dc"]
     assert full0["shear_in"]["dc"] == 0.0
@@ -155,9 +177,14 @@ def _sw400():
 def test_sw_grade_explicit_via_winp():
     """Khóa mới trong WallInput: sw_steel_grade="CB400-V" với thép dọc
     CB500-V -> Rsw = 280 (không phải 300), qsw theo 280, khớp
-    check_shear trực tiếp với Rsw = 280; N–M không đổi."""
+    check_shear trực tiếp với Rsw = 280; N–M không đổi.
+
+    MIGRATION COVER: fixture cũ cover 25 (nghĩa mặt thép) -> 13
+    (c_đai) để giữ mốc N–M 0.44520; h0 cắt trực tiếp 2457 -> 2469,
+    Vcap CB400-V 1920.5 (h0 cũ, GUI preset) -> 1929.8 (h0 mới).
+    """
     conc, steel = _mats()
-    w = WallInput(sw_steel_grade="CB400-V")
+    w = WallInput(sw_steel_grade="CB400-V", cover=13.0)
     res = check_wall_shear_in_plane(w, conc, steel, 800.0, 2528.65)
     p = res["parts"]
     assert p["Rsw"] == 280.0
@@ -165,13 +192,14 @@ def test_sw_grade_explicit_via_winp():
     assert p["sw_steel_grade"] == "CB400-V"
     assert p["steel_grade_long"] == "CB500-V"
     assert abs(p["qsw_arr"] - 280.0 * p["Asw"] / 200.0) < 1e-9
-    sh = check_shear(800.0, 350.0, 2457.0, conc.Rb, conc.Rbt,
+    sh = check_shear(800.0, 350.0, 2469.0, conc.Rb, conc.Rbt,
                      p["Asw"], 280.0, 200.0, direction="in",
                      N=2528.65, A_sec=2500.0 * 350.0,
                      groups=[(p["Asw"], 200.0)])
     assert abs(res["V_cap"] - min(sh.Qcap1, sh.Qcap2)) < 1e-9
-    assert res["V_cap"] < 1987.1546733996383  # Rsw thấp hơn -> Vcap thấp hơn
-    full = wall_tcvn_full(WallInput(sw_steel_grade="CB400-V"),
+    assert res["V_cap"] < 1996.8599465297955  # Rsw thấp hơn -> Vcap thấp hơn
+    full = wall_tcvn_full(WallInput(sw_steel_grade="CB400-V",
+                                    cover=13.0),
                           conc, steel, loads=_web_loads(800.0))
     assert abs(full["dc"] - 0.44520104645817127) < 1e-12  # N–M không đổi
     assert full["shear_in"]["V_cap"] == res["V_cap"]

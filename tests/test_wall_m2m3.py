@@ -17,6 +17,7 @@ from rc_column.interaction import BiaxialCapacity
 from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                  ConcreteMaterial, SteelMaterial)
 from rc_column.wall_engine import wall_tcvn_full
+from rc_column.cover_migration import migrate_wall_dict
 from rc_column.wall_input import WallInput, wall_from_dict
 from rc_column.wall_m2m3 import draw_wall_m2m3_ax, wall_m2m3_figure
 
@@ -80,23 +81,23 @@ def _check_case(full, dc_milestone, dc_tol=1e-5):
 
 
 def test_wall_m2m3_sample_perimeter():
-    full = wall_tcvn_full(WallInput(), _CONC, _STEEL, loads=dict(_LOADS))
+    full = wall_tcvn_full(WallInput(cover=13.0), _CONC, _STEEL, loads=dict(_LOADS))  # MIGRATION COVER: 25-12
     _check_case(full, 0.44520)
 
 
 def test_wall_m2m3_boundary():
-    full = wall_tcvn_full(WallInput(steel_mode="boundary"), _CONC, _STEEL,
+    full = wall_tcvn_full(WallInput(steel_mode="boundary", cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                           loads=dict(_LOADS))
     _check_case(full, 0.35929)
 
 
 def test_wall_m2m3_old_case_and_rot90():
-    full = wall_tcvn_full(wall_from_dict(_OLD), _CONC, _STEEL,
+    full = wall_tcvn_full(wall_from_dict(migrate_wall_dict(_OLD)[0]), _CONC, _STEEL,  # MIGRATION COVER qua helper
                           loads={"N": 2500.0, "M_in": 3000.0,
                                  "M_out": 60.0, "V_in": 0.0,
                                  "V_out": 0.0, "T": 0.0})
     _check_case(full, 0.40226)
-    full_r = wall_tcvn_full(WallInput(rot_deg=90), _CONC, _STEEL,
+    full_r = wall_tcvn_full(WallInput(rot_deg=90, cover=13.0), _CONC, _STEEL,  # MIGRATION COVER: 25-12
                             loads={"N": 2528.65, "M_in": 275.23,
                                    "M_out": 202.86, "V_in": 0.0,
                                    "V_out": 0.0, "T": 0.0})
@@ -109,7 +110,7 @@ def test_wall_m2m3_figure_shared_draw():
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    full = wall_tcvn_full(WallInput(), _CONC, _STEEL, loads=dict(_LOADS))
+    full = wall_tcvn_full(WallInput(cover=13.0), _CONC, _STEEL, loads=dict(_LOADS))  # MIGRATION COVER: 25-12
     fig, ax = plt.subplots()
     draw_wall_m2m3_ax(ax, full["m2m3"])
     assert ax.get_xlabel().startswith("M3")

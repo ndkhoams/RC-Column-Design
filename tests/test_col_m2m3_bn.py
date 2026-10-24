@@ -40,7 +40,8 @@ from rc_column.interaction import BiaxialCapacity
 from rc_column.pdf_export import m2m3_image
 
 _BASE = dict(concrete_grade="B25", gamma_b=0.85, steel_grade="CB400-V",
-             cx=400.0, cy=400.0, cover=30.0, corner_dia=20.0,
+             cx=400.0, cy=400.0, cover=22.0,  # MIGRATION COVER: fixture cũ 30 - sw_dia 8
+             corner_dia=20.0,
              edge_t2_count=3, edge_t2_dia=20.0,
              edge_t3_count=3, edge_t3_dia=20.0, Lx=4.0, Ly=4.0,
              top_x="ngam_cung", bottom_x="ngam_cung",

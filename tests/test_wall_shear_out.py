@@ -159,31 +159,37 @@ def test_engine_integration_nm_and_inplane_unchanged():
 
     V_out đổi chỉ đổi shear_out; ok_all vẫn = ok N–M (banner thuộc
     phần khác, phần này không đổi); shear_out vào checks_included.
+
+    MIGRATION COVER: fixture cũ cover 25 (nghĩa mặt thép) -> 13
+    (c_đai) để giữ mốc N–M 0.44520; cắt đổi theo h0 mới (trong MP
+    Vcap 1987.2 -> 1996.9, ngoài MP Vcap 704.6 -> 732.1 do h0_out
+    307 -> 319) — số cắt cũ bảo thủ hơn.
     """
     conc, steel = _mats()
-    full = wall_tcvn_full(WallInput(), conc, steel,
+    _w_mig = WallInput(cover=13.0)
+    full = wall_tcvn_full(_w_mig, conc, steel,
                           loads=_web_loads(800.0, 300.0))
     assert abs(full["dc"] - 0.44520) < 5e-5
     assert full["ok"] is True and full["ok_all"] is True
     sh_in = full["shear_in"]
     assert sh_in["ok"] is True
-    assert abs(sh_in["V_cap"] - 1987.2) < 0.5
+    assert abs(sh_in["V_cap"] - 1996.9) < 0.5
     assert abs(sh_in["dc"] - 800.0 / sh_in["V_cap"]) < 1e-12
     sho = full["shear_out"]
     assert sho["ok"] is True and sho["V_d"] == 300.0
-    assert abs(sho["V_cap"] - 704.6) < 0.5
+    assert abs(sho["V_cap"] - 732.1) < 0.5
     assert abs(sho["dc"] - 300.0 / sho["V_cap"]) < 1e-12
     assert "shear_out" in full["checks_included"]
     assert "shear_out" not in full["checks_pending"]
     # V_out đổi -> N–M + cắt trong MP giữ nguyên từng chữ số
-    full2 = wall_tcvn_full(WallInput(), conc, steel,
+    full2 = wall_tcvn_full(_w_mig, conc, steel,
                            loads=_web_loads(800.0, 5000.0))
     assert full2["dc"] == full["dc"]
     assert full2["shear_in"] == full["shear_in"]
     assert full2["shear_out"]["ok"] is False
     assert full2["ok_all"] is True  # cắt fail không lật banner N–M
     # Cắt trong MP vẫn độc lập: check trực tiếp khớp dict engine
-    direct = check_wall_shear_in_plane(WallInput(), conc, steel,
+    direct = check_wall_shear_in_plane(_w_mig, conc, steel,
                                        800.0, 2528.65)
     assert abs(direct["V_cap"] - sh_in["V_cap"]) < 1e-9
 
