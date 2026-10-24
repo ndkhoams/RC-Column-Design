@@ -197,6 +197,15 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
 
 _WALL_SEC_PAD_PX = 9.0
 
+# Cỡ tối thiểu hiển thị của điểm thép vách (đường kính, px màn
+# hình). Thép tỉ lệ thật ở home chỉ ~1.3px (d12 trên nhịp ~2812mm)
+# nên gần như tàng hình; sàn này khôi phục đúng mức nhìn của
+# marker scatter cũ (s=16 -> diện tích 16pt² -> đường kính ~4.5pt
+# ≈ 6px ở dpi 100) mà không lấn át mặt cắt. Khi zoom đủ lớn để tỉ
+# lệ thật vượt sàn, thép theo đúng tỉ lệ thật và scale cùng mặt
+# cắt (đường kính px = max(tỉ lệ thật, sàn)).
+WALL_BAR_MIN_DIAM_PX = 6.0
+
 
 def _wall_section_axes_pos(fig, ax, pad_px=_WALL_SEC_PAD_PX):
     """Đặt axes lấp gần trọn figure (chừa pad_px mỗi phía). Hình mặt
@@ -237,6 +246,37 @@ def _dim_h(ax, x1, x2, y, text, text_dy=0.30, fs=8):
     if text:
         ax.text((x1 + x2) / 2.0, y + text_dy, text, fontsize=fs,
                 weight="bold", ha="center", va="bottom", zorder=4)
+
+
+def _wall_bar_floor_apply(ax):
+    """Áp cỡ sàn hiển thị cho thép vách trên axes đã vẽ.
+
+    Đường kính điểm thép trên màn hình = max(đường kính tỉ lệ thật
+    tại khung nhìn hiện tại, WALL_BAR_MIN_DIAM_PX). Trả True nếu có
+    radius đổi (nơi gọi vẽ lại một lần); False nếu đã đúng. Chỉ
+    đọc transform hiện tại, không đổi lims nên không gây vòng lặp
+    vẽ lại. Với equal aspect, tỉ lệ px/mm 2 phương bằng nhau nên
+    tính theo phương x là đủ.
+    """
+    items = getattr(ax, "_wall_bar_items", None)
+    if not items:
+        return False
+    try:
+        _p0 = ax.transData.transform((0.0, 0.0))
+        _p1 = ax.transData.transform((1.0, 0.0))
+        px_per_mm = abs(float(_p1[0]) - float(_p0[0]))
+        if px_per_mm <= 0:
+            return False
+        changed = False
+        for circ, dia in items:
+            r = max(dia / 2.0,
+                    (WALL_BAR_MIN_DIAM_PX / 2.0) / px_per_mm)
+            if abs(float(circ.radius) - r) > 1e-9:
+                circ.set_radius(r)
+                changed = True
+        return changed
+    except Exception:
+        return False
 
 
 def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
@@ -350,15 +390,18 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     dia_color = {d: DIA_COLORS[i % len(DIA_COLORS)]
                  for i, d in enumerate(dias_l1)}
     legend_handles = []
+    _bar_items = []
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
         for p in pts:
             _qx, _qy = R(p.x, p.y)
-            ax.add_patch(mpatches.Circle(
+            _circ = mpatches.Circle(
                 (_qx, _qy), dia / 2.0,
                 fill=True, facecolor=color, edgecolor="white",
-                linewidth=0.8, zorder=5))
+                linewidth=0.8, zorder=5)
+            ax.add_patch(_circ)
+            _bar_items.append((_circ, float(dia)))
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white",
@@ -445,6 +488,30 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     ax.set_yticks([])
     for sp in ax.spines.values():
         sp.set_visible(False)
+    # Sàn hiển thị cho thép (xem _wall_bar_floor_apply): lưu danh
+    # sách (Circle, dia) lên axes và gắn 1 lần handler draw_event.
+    # draw_event phát SAU khi Figure.draw xong nên lims/bbox đã
+    # chốt (kể cả giãn datalim); handler chỉ vẽ lại khi radius thực
+    # sự đổi nên hội tụ sau tối đa 2 lần vẽ, không vòng lặp. Bao
+    # phủ cả 2 đường vẽ: _build_wall_section_cell (axes mới) và
+    # _refresh_wall_preview (ax.clear() + vẽ lại trên axes cũ —
+    # cờ hook sống qua clear(), danh sách được ghi đè mới mỗi lần
+    # vẽ nên handler luôn đọc đúng thép hiện tại).
+    try:
+        ax._wall_bar_items = _bar_items
+        if not getattr(ax, "_wall_bar_floor_hooked", False):
+            ax._wall_bar_floor_hooked = True
+            _fig = ax.figure
+            if _fig is not None and _fig.canvas is not None:
+                def _on_wall_draw(_evt, _ax=ax):
+                    try:
+                        if _wall_bar_floor_apply(_ax):
+                            _ax.figure.canvas.draw_idle()
+                    except Exception:
+                        pass
+                _fig.canvas.mpl_connect("draw_event", _on_wall_draw)
+    except Exception:
+        pass
 
 
 class WallMixin:
