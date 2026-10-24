@@ -193,11 +193,11 @@ class DxfMixin:
                 station=data["L0"], N=ld["P"],
                 Mx=ld["Mx_top"], My=ld["My_top"],
                 Q2=0.0, Q3=0.0))
-        self.etabs_forces = forces
+        self.etabs_forces_orig = forces
         self.etabs_file = path
         self.var_load_mode.set("etabs")
         self._toggle_load_mode()
-        self._fill_etabs_table([(f, None) for f in forces])
+        self._refresh_merge_display()
         self.etabs_info.set(
             f"Đã import Prokon: {len(sec.rebars)} thanh thép, "
             f"{len(data['loads'])} tổ hợp ({code}) — "

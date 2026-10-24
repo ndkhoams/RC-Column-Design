@@ -251,14 +251,24 @@ class DataMixin:
             "My_lt": ev(self.en_Mylt),
             "etabs_path": getattr(self, "etabs_file", ""),
             "etabs_comb": True,
-            # Lưu luôn nội lực đã import (không cần link lại file Excel)
+            # Lưu luôn nội lực đã import (không cần link lại file Excel).
+            # LƯU DỮ LIỆU GỐC (không phải bảng hiển thị đang gộp) +
+            # lựa chọn gộp + trạng thái nút chọn — mở lại khôi phục
+            # đúng dạng gộp. File cũ không có 2 khóa mới -> mở lên
+            # nút chọn TẮT, bảng như cũ (tương thích ngược).
             "etabs_forces": [
                 {"story": f.story, "column": f.column, "case": f.case,
                  "case_type": f.case_type, "station": f.station,
                  "N": f.N, "Mx": f.Mx, "My": f.My,
                  "Q2": f.Q2, "Q3": f.Q3}
-                for f in getattr(self, "etabs_forces", [])
+                for f in (getattr(self, "etabs_forces_orig", None)
+                          or getattr(self, "etabs_forces", []))
             ],
+            "merge_combo_enabled": bool(
+                getattr(self, "merge_combo_var", None) is not None
+                and self.merge_combo_var.get()),
+            "merge_combo_selected": sorted(
+                getattr(self, "merge_combo_selected", set()) or set()),
             # Vách (GĐ1): namespace riêng, ghi cả khi đang ở chế độ Cột để
             # chuyển qua lại không mất dữ liệu (như 3 bộ vật liệu hiện tại).
             # pier_forces: parser/batch ở lát 5; lát 0 giữ nguyên dữ liệu
@@ -439,16 +449,28 @@ class DataMixin:
             # Đã có file: preset vách (nếu từng áp) hết hiệu lực —
             # trạng thái từ nay do file/user quyết định.
             self._wall_preset_stash = None
-            # Khôi phục nội lực đã lưu trong file (không cần file Excel)
+            # Khôi phục nội lực đã lưu trong file (không cần file Excel):
+            # nạp vào dữ liệu GỐC, khôi phục lựa chọn + trạng thái nút
+            # chọn gộp, rồi suy ra lại bảng hiển thị (file cũ không có
+            # 2 khóa mới -> nút TẮT, bảng = gốc như trước).
             forces_data = d.get("etabs_forces", [])
-            if d.get("load_mode") == "etabs" and forces_data:
+            if d.get("load_mode") == "etabs":
                 from rc_column.etabs_import import EtabsForce
-                self.etabs_forces = [EtabsForce(**fd) for fd in forces_data]
-                n_case = len(set(f.case for f in self.etabs_forces))
-                self.etabs_info.set(
-                    f"Đã nạp {len(self.etabs_forces)} dòng, {n_case} tổ hợp "
-                    f"từ file dữ liệu — Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
-                self._fill_etabs_table([(f, None) for f in self.etabs_forces])
+                self.etabs_forces_orig = [EtabsForce(**fd)
+                                          for fd in forces_data]
+                mv = getattr(self, "merge_combo_var", None)
+                if mv is not None:
+                    mv.set(bool(d.get("merge_combo_enabled", False)))
+                self.merge_combo_selected = set(
+                    d.get("merge_combo_selected", []) or [])
+                self._refresh_merge_display()
+                if self.etabs_forces_orig:
+                    n_case = len(set(f.case
+                                     for f in self.etabs_forces_orig))
+                    self.etabs_info.set(
+                        f"Đã nạp {len(self.etabs_forces_orig)} dòng, "
+                        f"{n_case} tổ hợp từ file dữ liệu — Bấm 'KIỂM "
+                        f"TRA KHẢ NĂNG CHỊU LỰC' để tính.")
             self.current_save_path = path
             self._update_title()
             # Điền tên file vào textbox nếu JSON chưa có tên cấu kiện
