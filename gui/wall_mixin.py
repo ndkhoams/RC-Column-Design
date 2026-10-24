@@ -102,22 +102,76 @@ def _l0_label(factor):
 #    2500mm, co 4% làm thanh biên lệch tới 50mm khỏi vị trí thật;
 #    thép vách đã lùi khỏi mép >= cover+đai+dia/2 nên không chạm viền).
 # ---------------------------------------------------------------------
-def _wall_section_spans(sec, n_seg=0):
+def _rot_xy(x, y, deg):
+    """Xoay điểm quanh tâm tiết diện (0, 0) NGƯỢC chiều kim đồng hồ
+    deg độ (deg thuộc {0, 90, 180, 270}) — phép xoay hình học DUY
+    NHẤT áp cho mọi phần tử của plot mặt cắt vách khi xoay tiết
+    diện (đường bao, thép, vùng nén, dim, mũi tên trục)."""
+    deg = int(deg or 0) % 360
+    if deg == 90:
+        return (-y, x)
+    if deg == 180:
+        return (-x, -y)
+    if deg == 270:
+        return (y, -x)
+    return (x, y)
+
+
+def _rot_text(base_rot, deg):
+    """Góc xoay của chữ sau khi hình xoay deg: cộng góc như xoay
+    cứng rồi chuẩn hoá về (-90, 90] để chữ không lộn ngược. Trả
+    (rotation, flip) — flip=True khi đã trừ 180°: phải hoán đổi
+    ha (left<->right) và va (top<->bottom) để khối chữ vẫn nằm
+    đúng phía của điểm neo như khi xoay cứng."""
+    r = (float(base_rot) + float(deg or 0)) % 360.0
+    if r == 180.0:
+        return 0.0, True
+    if r > 180.0:
+        return r - 360.0, False
+    return r, False
+
+
+def _flip_ha(ha):
+    return {"left": "right", "right": "left"}.get(ha, ha)
+
+
+def _flip_va(va):
+    return {"top": "bottom", "bottom": "top"}.get(va, va)
+
+
+def _dir_ha_va(dx, dy):
+    """(ha, va) cho nhãn nằm NGOÀI đầu mũi tên theo hướng (dx, dy)
+    đã xoay: chữ ở phía ngoài đầu mũi tên, không đè lên thân."""
+    ha = "left" if dx > 0.5 else ("right" if dx < -0.5 else "center")
+    va = "bottom" if dy > 0.5 else ("top" if dy < -0.5 else "center")
+    return ha, va
+
+
+def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     """Giới hạn trục (x_lo, x_hi, y_lo, y_hi) cho hình mặt cắt vách.
 
     n_seg > 0 (chế độ vùng biên): chừa thêm 1 hàng DIM phân đoạn
-    (Lb | đoạn giữa | Lb) bên dưới hàng DIM tổng.
+    (Lb | đoạn giữa | Lb) bên dưới hàng DIM tổng. rot_deg: span ở
+    khung hiển thị = bao hình của 4 góc span canonical đã xoay
+    (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
     cx, cy = float(sec.cx), float(sec.cy)
     y_lo = -cy / 2 - (2.15 * cy if n_seg else 1.25 * cy)
-    return (-cx / 2 - 0.10 * cx, cx / 2 + 0.05 * cx,
-            y_lo, cy / 2 + 1.55 * cy)
+    x_lo, x_hi = -cx / 2 - 0.10 * cx, cx / 2 + 0.05 * cx
+    y_hi = cy / 2 + 1.55 * cy
+    if int(rot_deg or 0) % 360 == 0:
+        return (x_lo, x_hi, y_lo, y_hi)
+    pts = [_rot_xy(x, y, rot_deg)
+           for x in (x_lo, x_hi) for y in (y_lo, y_hi)]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return (min(xs), max(xs), min(ys), max(ys))
 
 
-def _wall_section_figsize(sec, n_seg=0):
+def _wall_section_figsize(sec, n_seg=0, rot_deg=0):
     """Cỡ figure khớp tỉ lệ span dữ liệu -> aspect 'equal' không bóp
     dẹt hình và không chừa dải trống lớn quanh mặt cắt."""
-    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, n_seg)
+    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, n_seg, rot_deg)
     ratio = (x_hi - x_lo) / max(1e-9, y_hi - y_lo)
     w = 5.5
     h = w / max(ratio, 0.55) * 0.94
@@ -136,7 +190,7 @@ def _dim_h(ax, x1, x2, y, text, text_dy=0.30, fs=8):
 
 
 def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
-                         show_compression=False):
+                         show_compression=False, rot_deg=0):
     """Vẽ mặt cắt vách (tiết diện luôn là rect từ build_wall_section)
     lên axes có sẵn — dùng chung cho hình sau CHECK và live preview.
 
@@ -145,10 +199,26 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     show_compression=True (sau CHECK): tô vùng nén xanh + đường
     trung hòa đỏ đứt — cùng quy ước/hàm ý như draw_compression_zone_ax
     của cột (Sutherland–Hodgman theo nửa mặt phẳng nén exact).
+
+    rot_deg (2026-10-24): sec/meta/na_info truyền vào luôn ở khung
+    CANONICAL (x theo Lw vật lý, y theo tw — xem _wall_display_geom);
+    MỌI phần tử vẽ (đường bao, thép, vùng biên, vùng nén + đường
+    trung hòa, dim + nhãn, mũi tên t2/t3) đều qua cùng một phép
+    xoay _rot_xy quanh tâm tiết diện nên hình ở 90/180/270° là hình
+    0° đã xoay cứng, không hoán đổi nhãn dim. rot_deg=0 -> hình vẽ
+    giống hệt trước đây.
     """
     import matplotlib.patches as mpatches
     from matplotlib.lines import Line2D
     from matplotlib.patches import Polygon as MplPolygon
+    rot = int(rot_deg or 0) % 360
+
+    def R(x, y):
+        return _rot_xy(x, y, rot)
+
+    def RP(pts):
+        return [R(px, py) for px, py in pts]
+
     ax.set_aspect("equal", adjustable="box")
     cx, cy = float(sec.cx), float(sec.cy)
     DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
@@ -156,9 +226,11 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     L2_COLOR = "#F59E0B"  # lớp 2 (thép phân bố): cam — như bên cột
     ax.set_axisbelow(True)
     ax.grid(True, color="#E8EDF3", linewidth=0.7)
-    ax.add_patch(mpatches.Rectangle(
-        (-cx / 2, -cy / 2), cx, cy, fill=True, facecolor="#F4F7FB",
-        edgecolor="black", lw=2.0, zorder=2))
+    _rect = [(-cx / 2, -cy / 2), (cx / 2, -cy / 2),
+             (cx / 2, cy / 2), (-cx / 2, cy / 2)]
+    ax.add_patch(MplPolygon(RP(_rect), closed=True, fill=True,
+                            facecolor="#F4F7FB", edgecolor="black",
+                            lw=2.0, zorder=2))
     # --- Vùng nén + đường trung hòa (chỉ khi đã CHECK và có na_info) ---
     if show_compression and na_info is not None \
             and na_info.get("found") and na_info.get("yp_na") is not None:
@@ -166,8 +238,6 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
 
         def _naval(_x, _y):
             return -_x * _st + _y * _ct - _yp
-        _rect = [(-cx / 2, -cy / 2), (cx / 2, -cy / 2),
-                 (cx / 2, cy / 2), (-cx / 2, cy / 2)]
         _pts = []
         for _i in range(len(_rect)):
             _cur = _rect[_i]
@@ -181,7 +251,7 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
             if _ci:
                 _pts.append(_cur)
         if len(_pts) >= 3:
-            ax.add_patch(MplPolygon(_pts, closed=True, fill=True,
+            ax.add_patch(MplPolygon(RP(_pts), closed=True, fill=True,
                                     facecolor="#BFDBFE",
                                     edgecolor="#2563EB", lw=1.5,
                                     zorder=3, alpha=0.7))
@@ -195,15 +265,18 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
                               _y1 + _t * (_y2 - _y1)))
         if len(_ints) >= 2:
             _ints.sort(key=lambda p: p[0] * _ct + p[1] * _st)
-            ax.plot([_ints[0][0], _ints[-1][0]],
-                    [_ints[0][1], _ints[-1][1]],
+            _p1 = R(*_ints[0])
+            _p2 = R(*_ints[-1])
+            ax.plot([_p1[0], _p2[0]], [_p1[1], _p2[1]],
                     "--", color="#DC2626", linewidth=1.5, zorder=4)
     # Tô phân biệt vùng biên ở chế độ vùng biên (nền xám nhạt 2 đầu)
     _segs = (meta or {}).get("dim_segments") or []
     if _segs:
         for _x1, _x2, _lab in (_segs[0], _segs[-1]):
-            ax.add_patch(mpatches.Rectangle(
-                (_x1, -cy / 2), _x2 - _x1, cy, fill=True,
+            ax.add_patch(MplPolygon(
+                RP([(_x1, -cy / 2), (_x2, -cy / 2),
+                    (_x2, cy / 2), (_x1, cy / 2)]),
+                closed=True, fill=True,
                 facecolor="#E0E7FF", edgecolor="none", zorder=2.5,
                 alpha=0.55))
     # Chấm thép theo (layer, dia) — marker cố định theo điểm ảnh
@@ -219,7 +292,8 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
         dot_s = (max(4.0, dia * 0.22)) ** 2
-        ax.scatter([p.x for p in pts], [p.y for p in pts],
+        _rp = [R(p.x, p.y) for p in pts]
+        ax.scatter([q[0] for q in _rp], [q[1] for q in _rp],
                    s=dot_s, c=color, zorder=5,
                    edgecolors="white", linewidths=0.8)
         legend_handles.append(Line2D(
@@ -236,47 +310,69 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
         for txt in leg.get_texts():
             txt.set_fontweight("bold")
     # Trục t2 (ngang, xanh lá) / t3 (đứng, xanh dương) tại tâm —
-    # độ dài mũi tên tỉ lệ theo từng phương để nằm gọn trong khung
+    # độ dài mũi tên tỉ lệ theo từng phương để nằm gọn trong khung;
+    # đầu mũi tên + nhãn đi theo cùng phép xoay R như mọi phần tử.
     a2 = 0.30 * cx
     a3 = cy / 2 + 0.85 * cy
-    ax.annotate("", xy=(a2, 0), xytext=(0, 0),
+    ax.annotate("", xy=R(a2, 0.0), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#16A34A", lw=2.0,
                                 shrinkA=0, shrinkB=0), zorder=6)
-    ax.annotate("", xy=(0, a3), xytext=(0, 0),
+    ax.annotate("", xy=R(0.0, a3), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#2563EB", lw=2.0,
                                 shrinkA=0, shrinkB=0), zorder=6)
-    ax.text(a2 * 1.03, 0, "t2", fontsize=8, color="#15803D",
-            weight="bold", va="center", ha="left", zorder=6)
-    ax.text(0, a3 + 0.16 * cy, "t3", fontsize=8, color="#1D4ED8",
-            weight="bold", va="bottom", ha="center", zorder=6)
+    _lt2 = R(a2 * 1.03, 0.0)
+    _ha, _va = _dir_ha_va(*R(1.0, 0.0))
+    ax.text(_lt2[0], _lt2[1], "t2", fontsize=8, color="#15803D",
+            weight="bold", va=_va, ha=_ha, zorder=6)
+    _lt3 = R(0.0, a3 + 0.16 * cy)
+    _ha, _va = _dir_ha_va(*R(0.0, 1.0))
+    ax.text(_lt3[0], _lt3[1], "t3", fontsize=8, color="#1D4ED8",
+            weight="bold", va=_va, ha=_ha, zorder=6)
+
     # --- DIM từng khoảng (format web 2026-10-23) ---
+    # Mọi đường gióng/đường dim/điểm neo chữ đều định nghĩa ở khung
+    # canonical rồi qua R; góc chữ theo _rot_text (không lộn ngược).
+    def _ext(p1, p2):
+        q1, q2 = R(*p1), R(*p2)
+        ax.plot([q1[0], q2[0]], [q1[1], q2[1]], color="black", lw=0.7)
+
+    def _dim(p1, p2, text, anchor, base_rot, ha, va):
+        q1, q2 = R(*p1), R(*p2)
+        ax.annotate("", xy=q1, xytext=q2,
+                    arrowprops=dict(arrowstyle="<->", color="black",
+                                    lw=0.8, shrinkA=0, shrinkB=0),
+                    zorder=4)
+        if text:
+            qa = R(*anchor)
+            rr, flip = _rot_text(base_rot, rot)
+            ax.text(qa[0], qa[1], text, fontsize=8, weight="bold",
+                    ha=_flip_ha(ha) if flip else ha,
+                    va=_flip_va(va) if flip else va,
+                    rotation=rr, zorder=4)
+
     # Hàng 1 (dưới đáy): kích thước tổng Lw, đường gióng từ 2 mép.
     _y_tot = -cy / 2 - 0.62 * cy
     for _xx in (-cx / 2, cx / 2):
-        ax.plot([_xx, _xx], [-cy / 2 - 0.10 * cy, _y_tot - 0.16 * cy],
-                color="black", lw=0.7)
-    _dim_h(ax, -cx / 2, cx / 2, _y_tot, f"Lw = {cx:.0f} mm",
-           text_dy=-0.52 * cy)
+        _ext((_xx, -cy / 2 - 0.10 * cy), (_xx, _y_tot - 0.16 * cy))
+    _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), f"Lw = {cx:.0f} mm",
+         (0.0, _y_tot - 0.52 * cy), 0, "center", "bottom")
     # Hàng 2: phân đoạn Lb | đoạn giữa | Lb (chỉ chế độ vùng biên).
     if _segs:
         _y_seg = -cy / 2 - 1.70 * cy
         for _x1, _x2, _lab in _segs:
             for _xx in (_x1, _x2):
-                ax.plot([_xx, _xx],
-                        [-cy / 2 - 0.10 * cy, _y_seg - 0.16 * cy],
-                        color="black", lw=0.7)
-            _dim_h(ax, _x1, _x2, _y_seg, _lab, text_dy=0.14 * cy)
+                _ext((_xx, -cy / 2 - 0.10 * cy),
+                     (_xx, _y_seg - 0.16 * cy))
+            _dim((_x1, _y_seg), (_x2, _y_seg), _lab,
+                 ((_x1 + _x2) / 2.0, _y_seg + 0.14 * cy),
+                 0, "center", "bottom")
     # DIM đứng bên trái: kích thước tổng tw.
     _x_dim = -cx / 2 - 0.045 * cx
     for _yy in (-cy / 2, cy / 2):
-        ax.plot([-cx / 2 - 0.012 * cx, _x_dim - 0.008 * cx], [_yy, _yy],
-                color="black", lw=0.7)
-    ax.annotate("", xy=(_x_dim, cy / 2), xytext=(_x_dim, -cy / 2),
-                arrowprops=dict(arrowstyle="<->", color="black", lw=0.8,
-                                shrinkA=0, shrinkB=0), zorder=4)
-    ax.text(_x_dim - 0.018 * cx, 0, f"tw = {cy:.0f} mm", fontsize=8,
-            weight="bold", ha="right", va="center", rotation=90)
-    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, len(_segs))
+        _ext((-cx / 2 - 0.012 * cx, _yy), (_x_dim - 0.008 * cx, _yy))
+    _dim((_x_dim, -cy / 2), (_x_dim, cy / 2), f"tw = {cy:.0f} mm",
+         (_x_dim - 0.018 * cx, 0.0), 90, "right", "center")
+    x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, len(_segs), rot)
     ax.set_xlim(x_lo, x_hi)
     ax.set_ylim(y_lo, y_hi)
     ax.set_xticks([])
@@ -602,6 +698,10 @@ class WallMixin:
         self._wall_rot_deg = (int(getattr(self, "_wall_rot_deg", 0))
                               + 90) % 360
         self.w_rot_var.set(f"{self._wall_rot_deg}°")
+        # Xoay làm tỉ lệ khung hình lật ngang/dọc: huỷ axes cũ để
+        # preview dựng lại ô mặt cắt với figsize đúng hướng mới
+        # (thay vì vẽ đè vào figure cỡ cũ).
+        self._sec_ax = None
         self._refresh_wall_preview()
 
     def _on_wall_sectype(self):
@@ -1058,33 +1158,91 @@ class WallMixin:
         except Exception:
             _to_top()
 
+    def _wall_display_geom(self, sec, meta, na_info=None, winp=None):
+        """Hình học HIỂN THỊ của plot mặt cắt vách: trả
+        (sec, meta, na_info) ở khung CANONICAL (x theo Lw vật lý,
+        y theo tw) + góc xoay hiển thị rot_deg.
+
+        Ở 0/180° tiết diện engine dựng đã là canonical. Ở 90/270°
+        engine hoán đổi vai trò Lw/tw khi dựng (và riêng chế độ
+        vùng biên hình học dựng bị suy biến: Lb > cạnh ngắn nên
+        thanh rơi ra ngoài mặt cắt, dim_segments rỗng) — phần VẼ
+        dựng lại tiết diện canonical từ winp với rot=0 rồi xoay
+        cứng khi vẽ (draw_wall_section_ax rot_deg); đường trung
+        hòa ánh xạ S -> canonical: (st, ct) -> (-ct, -st), yp giữ
+        nguyên. Số liệu tính toán/bảng thông số KHÔNG đổi.
+        """
+        rot = 0
+        try:
+            rot = int((meta or {}).get("rot_deg", 0) or 0) % 360
+        except Exception:
+            rot = 0
+        if rot not in (90, 270):
+            return sec, meta, na_info, rot
+        try:
+            if winp is None:
+                winp = wall_from_dict(self._collect_wall())
+            import dataclasses
+            w0 = dataclasses.replace(winp, rot_deg=0)
+            conc, steel, _mdl = self._wall_tcvn_materials()
+            secW, metaW = build_wall_section(w0, conc, steel)
+        except Exception:
+            return sec, meta, na_info, 0
+        naW = na_info
+        if na_info is not None and na_info.get("st") is not None \
+                and na_info.get("ct") is not None:
+            naW = dict(na_info)
+            naW["st"] = -float(na_info["ct"])
+            naW["ct"] = -float(na_info["st"])
+        return secW, metaW, naW, rot
+
     def _build_wall_section_cell(self, parent, sec, meta=None,
-                                 na_info=None, show_compression=False):
+                                 na_info=None, show_compression=False,
+                                 winp=None):
         """Ô MẶT CẮT TIẾT DIỆN (box viền như cột): tiêu đề + hình mặt
         cắt vách (có DIM từng khoảng; tô vùng nén khi show_compression
         và có na_info sau CHECK) + hàng thẻ thống kê thép dùng chung
         với cột. Trả về frame của ô (chưa đặt — nơi gọi tự grid)."""
+        sec, meta, na_info, _rot = self._wall_display_geom(
+            sec, meta, na_info, winp)
         f = tk.Frame(parent, bg="white", highlightbackground="#D1D5DB",
                      highlightcolor="#D1D5DB", highlightthickness=1,
                      takefocus=0)
         _hdr = tk.Frame(f, bg="white")
         _hdr.pack(fill=tk.X, pady=(2, 2))
+        _zst = {}
+        _zbtns = tk.Frame(_hdr, bg="white")
+        _zbtns.pack(side=tk.RIGHT, padx=(0, 4))
+        tk.Button(_zbtns, text="−", font=("", 9, "bold"), width=2,
+                  bg="white", relief=tk.GROOVE,
+                  command=lambda: self._sec_zoom_step(_zst, 1.25)
+                  ).pack(side=tk.LEFT, padx=1)
+        tk.Button(_zbtns, text="+", font=("", 9, "bold"), width=2,
+                  bg="white", relief=tk.GROOVE,
+                  command=lambda: self._sec_zoom_step(_zst, 0.8)
+                  ).pack(side=tk.LEFT, padx=1)
+        tk.Button(_zbtns, text="Reset", font=("", 8), width=5,
+                  bg="white", relief=tk.GROOVE,
+                  command=lambda: self._sec_zoom_reset(_zst)
+                  ).pack(side=tk.LEFT, padx=1)
         tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
                  font=("", 11, "bold"), bg="white").pack(
                      side=tk.TOP, fill=tk.X)
         if HAS_MPL:
             _nseg = len((meta or {}).get("dim_segments") or [])
             fig, canvas = self._new_wall_fig(
-                f, _wall_section_figsize(sec, _nseg))
+                f, _wall_section_figsize(sec, _nseg, _rot))
             ax = fig.add_subplot(111)
             draw_wall_section_ax(ax, sec, meta=meta, na_info=na_info,
-                                 show_compression=show_compression)
+                                 show_compression=show_compression,
+                                 rot_deg=_rot)
             try:
                 fig.tight_layout()
             except Exception:
                 pass
             canvas.draw()
             self._sec_fig, self._sec_canvas, self._sec_ax = fig, canvas, ax
+            self._sec_zoom_setup(fig, canvas, ax, _zst)
             # Ô bị lưới kéo co khác cỡ figure gốc: chạy lại
             # tight_layout khi kích thước canvas đã ổn định để box
             # legend bên phải luôn nằm trọn trong figure (legend có
@@ -1116,6 +1274,142 @@ class WallMixin:
         self._sec_card_vars = self._build_section_cards(f, sec)
         return f
 
+    # ---------- Zoom / pan / reset cho ô mặt cắt vách (như web) ----
+    # Cuộn chuột: zoom tại vị trí con trỏ; kéo trái: pan; nút +/− và
+    # Reset ở góc ô; double-click: reset. Gắn ở mức widget SAU
+    # _bind_wheel đệ quy của tab (after_idle) để cuộn trên canvas
+    # mặt cắt không cuộn cả tab; các biểu đồ khác không bị ảnh
+    # hưởng. Sau mỗi lần vẽ lại (CHECK/làm mới), view về khung gốc.
+    def _sec_zoom_setup(self, fig, canvas, ax, zst):
+        zst.update({"fig": fig, "canvas": canvas, "ax": ax,
+                    "home": (ax.get_xlim(), ax.get_ylim()),
+                    "drag": None})
+        self._sec_zoom = zst
+        w = canvas.get_tk_widget()
+        zst["widget"] = w
+
+        def _attach():
+            w.bind("<MouseWheel>",
+                   lambda e: self._sec_zoom_wheel(e, zst))
+            w.bind("<Button-4>",
+                   lambda e: self._sec_zoom_wheel_btn(e, zst, -1))
+            w.bind("<Button-5>",
+                   lambda e: self._sec_zoom_wheel_btn(e, zst, 1))
+            w.bind("<ButtonPress-1>",
+                   lambda e: self._sec_zoom_press(e, zst))
+            w.bind("<B1-Motion>",
+                   lambda e: self._sec_zoom_motion(e, zst))
+            w.bind("<ButtonRelease-1>",
+                   lambda e: self._sec_zoom_release(e, zst))
+            w.bind("<Double-Button-1>",
+                   lambda e: self._sec_zoom_reset(zst))
+        try:
+            w.after_idle(_attach)
+        except Exception:
+            _attach()
+
+    def _sec_zoom_data_at(self, zst, event, lims=None):
+        """Toạ độ dữ liệu tại vị trí con trỏ (event Tk trên canvas)
+        theo lims cho trước (mặc định: lims hiện tại của axes)."""
+        ax = zst["ax"]
+        _fw, fh = zst["fig"].canvas.get_width_height()
+        px, py = float(event.x), fh - float(event.y)
+        bb = ax.bbox
+        (x0, x1), (y0, y1) = lims or (ax.get_xlim(), ax.get_ylim())
+        fx = (px - bb.x0) / max(1.0, bb.width)
+        fy = (py - bb.y0) / max(1.0, bb.height)
+        return (x0 + fx * (x1 - x0), y0 + fy * (y1 - y0))
+
+    def _sec_zoom_apply(self, zst, factor, center):
+        ax = zst["ax"]
+        (hx0, hx1), (hy0, hy1) = zst["home"]
+
+        def _new(v0, v1, c, hspan):
+            span = (v1 - v0) * factor
+            span = min(max(span, hspan * 0.02), hspan * 6.0)
+            f2 = span / (v1 - v0) if v1 != v0 else factor
+            return c - (c - v0) * f2, c + (v1 - c) * f2
+
+        x0, x1 = ax.get_xlim()
+        y0, y1 = ax.get_ylim()
+        ax.set_xlim(_new(x0, x1, center[0], hx1 - hx0))
+        ax.set_ylim(_new(y0, y1, center[1], hy1 - hy0))
+        zst["canvas"].draw_idle()
+
+    def _sec_zoom_wheel(self, event, zst):
+        try:
+            d = getattr(event, "delta", 0) or 0
+            c = self._sec_zoom_data_at(zst, event)
+            self._sec_zoom_apply(zst, 0.8 if d > 0 else 1.25, c)
+        except Exception:
+            pass
+        return "break"
+
+    def _sec_zoom_wheel_btn(self, event, zst, sgn):
+        try:
+            c = self._sec_zoom_data_at(zst, event)
+            self._sec_zoom_apply(zst, 0.8 if sgn < 0 else 1.25, c)
+        except Exception:
+            pass
+        return "break"
+
+    def _sec_zoom_step(self, zst, factor):
+        if not zst or "ax" not in zst:
+            return
+        try:
+            x0, x1 = zst["ax"].get_xlim()
+            y0, y1 = zst["ax"].get_ylim()
+            self._sec_zoom_apply(
+                zst, factor, ((x0 + x1) / 2.0, (y0 + y1) / 2.0))
+        except Exception:
+            pass
+
+    def _sec_zoom_reset(self, zst):
+        if zst and "ax" in zst:
+            try:
+                (x0, x1), (y0, y1) = zst["home"]
+                zst["ax"].set_xlim(x0, x1)
+                zst["ax"].set_ylim(y0, y1)
+                zst["canvas"].draw_idle()
+            except Exception:
+                pass
+        return "break"
+
+    def _sec_zoom_press(self, event, zst):
+        try:
+            lims = (zst["ax"].get_xlim(), zst["ax"].get_ylim())
+            zst["drag"] = {"lims": lims,
+                           "data": self._sec_zoom_data_at(
+                               zst, event, lims)}
+            zst["widget"].configure(cursor="fleur")
+        except Exception:
+            zst["drag"] = None
+        return "break"
+
+    def _sec_zoom_motion(self, event, zst):
+        dr = zst.get("drag") if zst else None
+        if dr:
+            try:
+                d1 = self._sec_zoom_data_at(zst, event, dr["lims"])
+                (x0, x1), (y0, y1) = dr["lims"]
+                sx = dr["data"][0] - d1[0]
+                sy = dr["data"][1] - d1[1]
+                zst["ax"].set_xlim(x0 + sx, x1 + sx)
+                zst["ax"].set_ylim(y0 + sy, y1 + sy)
+                zst["canvas"].draw_idle()
+            except Exception:
+                pass
+        return "break"
+
+    def _sec_zoom_release(self, event, zst):
+        if zst:
+            zst["drag"] = None
+            try:
+                zst["widget"].configure(cursor="")
+            except Exception:
+                pass
+        return "break"
+
     def _show_wall_preview(self, sec, winp, meta=None):
         """View xem trước mặt cắt vách (chưa CHECK) ở tab Kết quả —
         cùng lưới với view kết quả: ô hướng dẫn trái, ô mặt cắt phải."""
@@ -1144,7 +1438,7 @@ class WallMixin:
                  "ACI/EC2 vách thuộc lát 2.").pack(
                      anchor="nw", padx=10, pady=10)
         f_sec = self._build_wall_section_cell(self._sum_inner, sec,
-                                              meta=meta)
+                                              meta=meta, winp=winp)
         f_sec.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self._finish_wall_sum_layout()
 
@@ -1163,13 +1457,19 @@ class WallMixin:
         ax = getattr(self, "_sec_ax", None)
         if getattr(self, "_wall_view_active", False) and ax is not None:
             try:
+                secD, metaD, _naD, _rotD = self._wall_display_geom(
+                    sec, meta, None, winp)
                 ax.clear()
-                draw_wall_section_ax(ax, sec, meta=meta)
+                draw_wall_section_ax(ax, secD, meta=metaD, rot_deg=_rotD)
                 self._sec_fig.tight_layout()
                 self._sec_canvas.draw_idle()
+                # Vẽ lại xong: view zoom về khung gốc của dữ liệu mới
+                _zst = getattr(self, "_sec_zoom", None)
+                if _zst is not None and _zst.get("ax") is ax:
+                    _zst["home"] = (ax.get_xlim(), ax.get_ylim())
                 varmap = getattr(self, "_sec_card_vars", None)
                 if varmap:
-                    vals = self._section_card_values(sec)
+                    vals = self._section_card_values(secD)
                     for k, var in varmap.items():
                         if k in vals:
                             var.set(vals[k])
@@ -1209,7 +1509,8 @@ class WallMixin:
         # ===== Ô trên-phải: mặt cắt tiết diện + thẻ thép =====
         f_tl = self._build_wall_section_cell(
             self._sum_inner, full["sec"], meta=full.get("meta"),
-            na_info=full.get("na_info"), show_compression=True)
+            na_info=full.get("na_info"), show_compression=True,
+            winp=full.get("winp"))
         f_tl.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         # ===== Ô dưới-trái: biểu đồ N–Mα =====
         f_bl = tk.Frame(self._sum_inner, bg="white",
