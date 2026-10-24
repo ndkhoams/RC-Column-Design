@@ -39,24 +39,29 @@ class PdfMixin:
         """Xuất PDF theo tab đang mở: Tóm tắt hoặc Thuyết minh."""
         try:
             from tkinter import filedialog, messagebox
-            # Chế độ Vách (GĐ1 lát 0): chưa hỗ trợ xuất PDF — không được
-            # dùng kết quả cột còn lưu để xuất cho vách
-            if getattr(self, "cb_member", None) is not None \
-                    and self.cb_member.get() == "Vách":
-                self._wall_notice("Xuất PDF", "lát 6")
-                return
-            # Kiểm tra kết quả theo tiêu chuẩn đang chọn
-            # (trước đây chỉ kiểm tra _last_sec của TCVN nên ACI/EC2 báo lỗi)
-            if self.is_aci():
-                has_result = getattr(self, "_aci_res", None) is not None
-            elif self.is_ec2():
-                has_result = getattr(self, "_ec2_res", None) is not None
-            else:
-                has_result = self._last_sec is not None
-            if not has_result:
+            # Chế độ Vách: xuất PDF vách TCVN từ dict _tcvn_wall_full
+            # (không dùng kết quả cột còn lưu cho vách).
+            _is_wall = getattr(self, "cb_member", None) is not None \
+                and self.cb_member.get() == "Vách"
+            _wfull = getattr(self, "_tcvn_wall_full", None) \
+                if _is_wall else None
+            if _is_wall and _wfull is None:
                 messagebox.showwarning("Xuất PDF",
                                        "Chưa có kết quả để xuất.")
                 return
+            # Kiểm tra kết quả theo tiêu chuẩn đang chọn
+            # (trước đây chỉ kiểm tra _last_sec của TCVN nên ACI/EC2 báo lỗi)
+            if not _is_wall:
+                if self.is_aci():
+                    has_result = getattr(self, "_aci_res", None) is not None
+                elif self.is_ec2():
+                    has_result = getattr(self, "_ec2_res", None) is not None
+                else:
+                    has_result = self._last_sec is not None
+                if not has_result:
+                    messagebox.showwarning("Xuất PDF",
+                                           "Chưa có kết quả để xuất.")
+                    return
             # Tab đang chọn
             is_summary = (self._current_tab == "sum")
             # Tên file mặc định:
@@ -105,6 +110,24 @@ class PdfMixin:
             # Hàm hiện dialog thành công có nút Mở PDF
             def _show_success(ppath):
                 self._show_pdf_success(ppath)
+            # --- Chế độ Vách: rẽ tóm tắt/chi tiết theo tab đang mở ---
+            if _is_wall:
+                _mname = self.member_var.get().strip() \
+                    if hasattr(self, "member_var") else ""
+                if is_summary:
+                    from rc_column.wall_pdf_summary import \
+                        export_wall_summary_pdf
+                    export_wall_summary_pdf(
+                        _wfull, path, member_name=_mname,
+                        show_compression=self._pdf_show_compression())
+                else:
+                    from rc_column.wall_pdf_report import \
+                        export_wall_pdf_cards
+                    export_wall_pdf_cards(
+                        _wfull, path, member_name=_mname,
+                        show_compression=self._pdf_show_compression())
+                _show_success(path)
+                return
             # --- ACI mode: dùng PDF ACI (đặt sau khi path & _show_success đã có) ---
             if self.is_aci() and getattr(self, "_aci_res", None) is not None:
                 self._export_pdf_aci(is_summary, path, _show_success)
