@@ -163,9 +163,10 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
       trí thanh của 2 hàng, gồm n_tw thanh Ở GIỮA (không tính 2
       hàng trên/dưới — thanh trên/dưới của cột TRÙNG thanh của 2
       hàng nên không đếm thêm, không sinh trùng, không dedupe).
-      Các cột đếm TỪ ĐẦU NGOÀI (đầu vách) vào trong: L_out cột đầu
-      = lớp ngoài, tiếp theo L_in cột = lớp trong; các vị trí hàng
-      còn lại (nếu n_Lb > L_out + L_in) chỉ có thép 2 hàng.
+      L_out cột đầu (từ đầu ngoài) = lớp ngoài; L_in cột cuối
+      (từ hàng trong cùng đi ra về phía đầu vách) = lớp trong;
+      các vị trí hàng còn lại (nếu n_Lb > L_out + L_in) chỉ có
+      thép 2 hàng.
       Ràng buộc L_out + L_in <= n_Lb (clamp phòng thủ ở đây, panel
       clamp ở _collect_wall).
     Tổng/vùng = 2*n_Lb + n_tw*(L_out + L_in). Thân vách: 2 mặt
@@ -208,12 +209,16 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
         for yy in (-face, face):
             runs.append(([-Lw / 2.0 + p for p in ps], db))
             runs.append(([Lw / 2.0 - p for p in ps], db))
-        # Cột lớp: ps[0:L_out] = lớp ngoài (từ đầu ngoài vào),
-        # ps[L_out:L_out+L_in] = lớp trong; mỗi cột n_tw thanh giữa
-        # (chia đều giữa 2 hàng, không tính 2 hàng).
+        # Cột lớp: ps[:L_out] = lớp ngoài (từ đầu ngoài vào);
+        # ps[n_Lb-L_in:] = lớp trong (neo ở hàng trong cùng, đếm
+        # đi ra về phía đầu vách — user chốt 2026-10-25, khác bản
+        # 9eac50e6 đặt lớp trong kề sau lớp ngoài); mỗi cột n_tw
+        # thanh giữa (chia đều giữa 2 hàng, không tính 2 hàng).
+        # Clamp trên đã đảm bảo L_out + L_in <= n_Lb nên 2 nhóm
+        # không bao giờ trùng vị trí.
         if n_tw > 0 and (L_out + L_in) > 0:
             ys_mid = _linspace(-face, face, n_tw + 2)[1:-1]
-            for p in ps[:L_out + L_in]:
+            for p in ps[:L_out] + ps[n_Lb - L_in:]:
                 for yy in ys_mid:
                     be_left.append((-Lw / 2.0 + p, yy, db))
                     be_right.append((Lw / 2.0 - p, yy, db))

@@ -107,15 +107,18 @@ class WallInput:
     # Mô hình vùng biên cột dọc (2026-10-25, user chốt, thay mô hình
     # hàng ngang 950b4d5): 6 ô nhập, nhập 1 bên áp y hệt 2 đầu.
     # Mỗi vùng: 2 hàng dọc Lb (trên + dưới, mỗi hàng n_Lb thanh tính
-    # cả 2 góc ở 2 đầu hàng) + mỗi lớp (cột dọc theo tw, đếm từ đầu
-    # ngoài vào: L_out cột ngoài rồi L_in cột trong) đóng góp n_tw
-    # thanh Ở GIỮA (không tính 2 hàng — thanh trên/dưới của cột
-    # TRÙNG thanh của 2 hàng nên không đếm thêm, không sinh trùng).
+    # cả 2 góc ở 2 đầu hàng) + mỗi lớp (cột dọc theo tw: L_out cột
+    # ngoài đếm từ đầu ngoài vào, L_in cột trong neo ở hàng trong
+    # cùng đếm đi ra — user chốt 2026-10-25, sửa bản 9eac50e6 đặt
+    # lớp trong kề sau lớp ngoài) đóng góp n_tw thanh Ở GIỮA
+    # (không tính 2 hàng — thanh trên/dưới của cột TRÙNG thanh của
+    # 2 hàng nên không đếm thêm, không sinh trùng).
     # Tổng/vùng = 2*n_Lb + n_tw*(L_out + L_in); L_out + L_in <= n_Lb.
     be_n_Lb: int = 4            # số thanh theo chiều Lb (tính cả 2 góc)
     be_n_tw: int = 2            # số thanh Ở GIỮA theo chiều tw / cột
     be_L_out: int = 1           # số lớp tw ngoài — TỔNG số cột ngoài
-    be_L_in: int = 0            # số lớp tw trong — số cột trong tiếp theo
+    be_L_in: int = 0            # số lớp tw trong — số cột trong cùng
+                                # (đếm từ hàng trong cùng đi ra)
     web_dia: float = 12.0       # thép phân bố thân vách: đường kính
     web_s: float = 200.0        # thép phân bố thân vách: khoảng cách
 

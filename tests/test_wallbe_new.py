@@ -2,8 +2,9 @@
 
 User chot (thay mo hinh hang ngang 950b4d5):
 - LOP = COT DOC theo chieu tw (cot thep tai 1 vi tri thanh cua 2
-  hang, xep doc theo Lb, dem TU DAU NGOAI vao: L_out cot ngoai
-  roi L_in cot trong).
+  hang, xep doc theo Lb: L_out cot ngoai dem TU DAU NGOAI vao,
+  L_in cot trong NEO O HANG TRONG CUNG dem DI RA — sua ban
+  9eac50e6 dat lop trong ke sau lop ngoai, user chot 2026-10-25).
 - "So thanh theo chieu tw" DOI THANH "so thanh O GIUA theo chieu
   tw": n_tw chi dem thep giua (khong tinh 2 hang tren/duoi — thanh
   tren/duoi cua cot TRUNG thanh cua 2 hang nen khong dem them,
@@ -115,14 +116,16 @@ def test_case_16_bars():
     """(5,2,2,1) -> 2x5 + 2x2 + 2x1 = 16 thanh/vung."""
     bl, br = _bars(_winp(be_n_Lb=5, be_n_tw=2, be_L_out=2, be_L_in=1))
     assert len(bl) == len(br) == 16
-    # ps(5) = [39, 144.5, 250, 355.5, 461]; cot ngoai = 2 dau (39,
-    # 144.5), cot trong = tiep theo (250); thanh giua y=+-45.333.
+    # ps(5) = [39, 144.5, 250, 355.5, 461]; cot ngoai = 2 dau tu dau
+    # ngoai (39, 144.5), cot trong = hang trong cung (461, khong
+    # phai 250 ke sau ngoai); p=250, 355.5 chi co thep 2 hang.
+    # Thanh giua y=+-45.333.
     mids = sorted((round(x + 1250.0, 6), round(y, 6))
                   for x, y, _d in bl
                   if round(y, 6) in (-45.333333, 45.333333))
     assert mids == [(39.0, -45.333333), (39.0, 45.333333),
                     (144.5, -45.333333), (144.5, 45.333333),
-                    (250.0, -45.333333), (250.0, 45.333333)]
+                    (461.0, -45.333333), (461.0, 45.333333)]
 
 
 def test_case_14_supersedes_dedupe():
@@ -136,16 +139,74 @@ def test_case_14_supersedes_dedupe():
     assert len(bl) == len(br) == 14
     ys = sorted({round(y, 6) for _x, y, _d in bl})
     assert ys == [-136.0, -68.0, 0.0, 68.0, 136.0]
-    # Thanh giua o cot ngoai (p=39) va cot trong (p=179.667).
+    # Thanh giua o cot ngoai (p=39) va cot trong = hang trong cung
+    # (p=461, khong phai p=179.667 ke sau ngoai); p=179.667 va
+    # p=320.333 chi co thep 2 hang.
     mids = sorted((round(x + 1250.0, 6), round(y, 6))
                   for x, y, _d in bl
                   if round(y, 6) in (-68.0, 0.0, 68.0))
     assert mids == [(39.0, -68.0), (39.0, 0.0), (39.0, 68.0),
-                    (179.666667, -68.0), (179.666667, 0.0),
-                    (179.666667, 68.0)]
+                    (461.0, -68.0), (461.0, 0.0), (461.0, 68.0)]
     for i, (x1, y1, _d) in enumerate(bl):
         for x2, y2, _e in bl[i + 1:]:
             assert math.hypot(x1 - x2, y1 - y2) >= 1.0 - 1e-9
+
+
+def test_inner_layers_anchored_at_innermost():
+    """Lop trong neo o hang trong cung, dem di ra (user chot
+    2026-10-25, sua ban 9eac50e6 dat trong ke sau ngoai).
+
+    (4,2,2,1): ngoai p1, p2 (39, 179.667 tu dau ngoai); trong p4
+    (461, trong cung); p3 (320.333) chi co thep 2 hang. Vung phai
+    mirror: trong = cot ke bung vach (x = 1250 - 461 = 789, khong
+    phai 929.667). (5,2,2,2): ngoai p1, p2; trong p5, p4; p3 chi
+    2 hang; tong 2x5 + 2x4 = 18/vung. (4,1,2,0): khong co lop
+    trong -> khong doi.
+    """
+    bl, br = _bars(_winp(be_n_Lb=4, be_n_tw=2, be_L_out=2, be_L_in=1))
+    assert len(bl) == len(br) == 14
+    # Thanh giua (n_tw=2 -> y=+-45.333) chi o p1, p2, p4.
+    mids_l = sorted({round(x + 1250.0, 6) for x, y, _d in bl
+                     if abs(round(y, 6)) < 136.0})
+    assert mids_l == [39.0, 179.666667, 461.0]
+    # p3 (320.333) khong co thanh giua: tai x=-1250+320.333 chi co
+    # 2 thanh hang (+-136).
+    p3 = sorted(round(y, 6) for x, y, _d in bl
+                if round(x + 1250.0, 6) == 320.333333)
+    assert p3 == [-136.0, 136.0]
+    # Vung phai: trong = cot ke bung vach (x=789); cot x=929.667
+    # (mirror cua p3) chi co 2 hang.
+    mids_r = sorted({round(x, 6) for x, y, _d in br
+                     if abs(round(y, 6)) < 136.0})
+    assert mids_r == [789.0, 1070.333333, 1211.0]
+    p3r = sorted(round(y, 6) for x, y, _d in br
+                 if round(x, 6) == 929.666667)
+    assert p3r == [-136.0, 136.0]
+    # (5,2,2,2): 18/vung, trong = p5, p4; p3 chi 2 hang.
+    bl5, _br5 = _bars(_winp(be_n_Lb=5, be_n_tw=2, be_L_out=2,
+                            be_L_in=2))
+    assert len(bl5) == 18
+    mids5 = sorted({round(x + 1250.0, 6) for x, y, _d in bl5
+                    if abs(round(y, 6)) < 136.0})
+    assert mids5 == [39.0, 144.5, 355.5, 461.0]
+    p3_5 = sorted(round(y, 6) for x, y, _d in bl5
+                  if round(x + 1250.0, 6) == 250.0)
+    assert p3_5 == [-136.0, 136.0]
+    # (4,1,2,0): khong lop trong, khong doi.
+    bl0, _br0 = _bars(_winp(be_n_Lb=4, be_n_tw=1, be_L_out=2,
+                            be_L_in=0))
+    assert len(bl0) == 10
+
+
+def test_inner_clamp_keeps_outer_wins():
+    """Clamp: (n_Lb=4, L_out=3, L_in=2) -> L_in kep con 1, trong
+    duy nhat = p4; ngoai p1..p3; tong 2x4 + 2x4 = 16/vung."""
+    from rc_column.wall_section import _gen_boundary
+    bl, _br, _web, _runs, ex = _gen_boundary(
+        2500.0, 350.0, 13.0, 500.0, 28.0, 4, 2, 3, 2, 12.0, 200.0,
+        12.0)
+    assert (ex["be_layers_out"], ex["be_layers_in"]) == (3, 1)
+    assert len(bl) == 16
 
 
 @pytest.mark.parametrize("kw", [

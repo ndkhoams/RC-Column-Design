@@ -815,8 +815,9 @@ class WallMixin:
         # 6 ô nhập duy nhất (user chốt 2026-10-25, mô hình cột dọc):
         # nhập 1 bên, áp y hệt 2 đầu; tất cả thanh cùng db; mỗi vùng
         # có 2 hàng dọc Lb (mỗi hàng n_Lb thanh tính cả 2 góc) + mỗi
-        # lớp (cột dọc theo tw, đếm từ đầu ngoài vào: L_out cột
-        # ngoài rồi L_in cột trong) đóng góp n_tw thanh Ở GIỮA.
+        # lớp (cột dọc theo tw: L_out cột ngoài từ đầu ngoài vào,
+        # L_in cột trong từ hàng trong cùng đi ra) đóng góp n_tw
+        # thanh Ở GIỮA.
         self.w_en_be_Lb = _entry(self.w_frm_be, D["be_Lb"])
         # Mặc định panel db = 28 (khớp ca mặc định hiện tại); WallInput
         # giữ mặc định 20 để test/file cũ không đổi hành vi.
@@ -846,9 +847,10 @@ class WallMixin:
             self.w_frm_be, foreground="gray", wraplength=520,
             text="Nhập 1 bên, áp y hệt 2 đầu; tất cả thanh cùng db. "
                  "Mỗi vùng: 2 hàng dọc Lb (trên + dưới, mỗi hàng n_Lb "
-                 "thanh tính cả 2 góc) + mỗi lớp (cột dọc theo tw, "
-                 "đếm từ đầu ngoài vào: L_out cột ngoài rồi L_in cột "
-                 "trong) đóng góp n_tw thanh giữa. Tổng/vùng = "
+                 "thanh tính cả 2 góc) + mỗi lớp (cột dọc theo tw: "
+                 "L_out cột ngoài từ đầu ngoài vào, L_in cột trong "
+                 "từ hàng trong cùng đi ra) đóng góp n_tw thanh "
+                 "giữa. Tổng/vùng = "
                  "2×n_Lb + n_tw×(L_out + L_in); L_out + L_in ≤ n_Lb.").grid(
                      row=rr, column=0, columnspan=4, padx=4, pady=(2, 2),
                      sticky=tk.W)
