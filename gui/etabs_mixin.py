@@ -59,60 +59,257 @@ class EtabsMixin:
             from tkinter import messagebox
             messagebox.showerror("Lỗi đọc clipboard", str(ex))
             return
-        _old_n = len(getattr(self, "etabs_forces", []) or [])
-        if _old_n:
-            self.etabs_forces = list(self.etabs_forces) + forces
+        # Ghi THÊM vào dữ liệu GỐC (dòng mới mặc định chưa tick gộp),
+        # rồi suy ra lại bảng hiển thị theo lựa chọn còn hiệu lực.
+        _old_orig = list(getattr(self, "etabs_forces_orig", None) or [])
+        if _old_orig:
+            self.etabs_forces_orig = _old_orig + forces
+            self._refresh_merge_display()
             self.etabs_info.set(
                 f"Đã thêm {len(forces)} dòng từ clipboard "
-                f"(tổng {len(self.etabs_forces)} dòng) — "
+                f"(tổng {len(self.etabs_forces_orig)} dòng"
+                f"{self._merge_display_suffix()}) — "
                 f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
         else:
-            self.etabs_forces = forces
+            self.etabs_forces_orig = forces
+            self._refresh_merge_display()
             n_case = len(set(f.case for f in forces))
             self.etabs_info.set(
-                f"Đã dán {len(forces)} dòng, {n_case} tổ hợp từ clipboard — "
+                f"Đã dán {len(forces)} dòng, {n_case} tổ hợp từ clipboard"
+                f"{self._merge_display_suffix()} — "
                 f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
         self.etabs_file = "<clipboard>"
-        self._fill_etabs_table([(f, None) for f in self.etabs_forces])
 
-    def on_merge_combo_max_min(self):
-        """Gộp các cặp combo max/min trong bảng nội lực thành 1 dòng.
+    def _refresh_merge_display(self):
+        """Đồng bộ bảng hiển thị từ dữ liệu gốc + lựa chọn gộp.
 
-        Quy tắc bao theo trị tuyệt đối từng thành phần (xem
-        rc_column.etabs_import.merge_combo_max_min). Dòng gộp là dòng
-        thường trong bảng: lưu JSON, mở lại và CHECK/batch đều bình
-        thường; cột D/C được xóa để tính lại sau khi gộp.
+        self.etabs_forces LUÔN là bảng đang hiển thị — mọi đường CHECK/
+        batch/bảng đọc nó như trước nên CHECK khi nút chọn BẬT tự tính
+        trên các dòng đã gộp, khi TẮT tính trên dòng gốc. Dữ liệu gốc
+        nằm ở etabs_forces_orig và không bao giờ bị ghi đè bởi việc
+        gộp. Mỗi lần đổi dạng hiển thị, bảng được vẽ lại với D/C trống
+        (chờ CHECK lại) để không còn số D/C cũ sai bám lại.
         """
-        from rc_column.etabs_import import merge_combo_max_min
-        forces = list(getattr(self, "etabs_forces", []) or [])
-        if not forces:
-            messagebox.showinfo("Gộp Combo max/min",
+        from rc_column.etabs_import import merge_combo_max_min, _max_min_suffix
+        orig = list(getattr(self, "etabs_forces_orig", None) or [])
+        # Lựa chọn của tên gốc không còn dòng nào trong bảng thì tự rơi.
+        present = set()
+        for f in orig:
+            name = f.case.strip()
+            if name.startswith("TX_"):
+                continue
+            split = _max_min_suffix(name)
+            present.add(split[0] if split else name)
+        sel = set(getattr(self, "merge_combo_selected", set()) or set())
+        sel &= present
+        self.merge_combo_selected = sel
+        var = getattr(self, "merge_combo_var", None)
+        if var is not None and var.get():
+            disp, _n = merge_combo_max_min(orig, sel)
+        else:
+            disp = list(orig)
+        self.etabs_forces = disp
+        orig_ids = {id(f) for f in orig}
+        self._merge_merged_ids = {id(f) for f in disp
+                                  if id(f) not in orig_ids}
+        self._fill_etabs_table([(f, None) for f in disp])
+
+    def _merge_display_suffix(self):
+        """Hậu tố ghi chú hiển thị gộp cho dòng thông báo import/nạp."""
+        var = getattr(self, "merge_combo_var", None)
+        if var is not None and var.get():
+            n_disp = len(getattr(self, "etabs_forces", []) or [])
+            n_orig = len(getattr(self, "etabs_forces_orig", []) or [])
+            if n_disp != n_orig:
+                return f", hiển thị {n_disp} dòng sau gộp"
+        return ""
+
+    def on_toggle_merge_combo(self):
+        """Bật/tắt hiển thị dạng gộp (Checkbutton ở hàng radio mục 5).
+
+        BẬT: bảng hiển thị dạng đã gộp theo lựa chọn ở popup "Chọn
+        combo gộp…". TẮT: bảng trở về đúng các dòng gốc ban đầu
+        (thứ tự + giá trị nguyên vẹn). Dữ liệu gốc không bị thay đổi.
+        """
+        self._refresh_merge_display()
+        var = getattr(self, "merge_combo_var", None)
+        if var is not None and var.get():
+            n_merged = len(getattr(self, "_merge_merged_ids", set()))
+            if n_merged == 0:
+                self.etabs_info.set(
+                    "Chưa chọn combo gộp nào — bấm 'Chọn combo gộp…' "
+                    "để chọn tên combo cần gộp.")
+            else:
+                self.etabs_info.set(
+                    f"Đang hiển thị dạng gộp: {n_merged} cặp max/min "
+                    f"({len(self.etabs_forces)} dòng) — Bấm 'KIỂM TRA "
+                    f"KHẢ NĂNG CHỊU LỰC' để tính lại D/C.")
+        else:
+            self.etabs_info.set(
+                f"Đã trở về bảng gốc ({len(self.etabs_forces)} dòng) — "
+                f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính lại D/C.")
+
+    def on_pick_merge_combo(self):
+        """Mở popup "Chọn combo gộp…" (nút bên cạnh nút chọn gộp).
+
+        Popup tổng hợp và chỉ liệt kê TÊN các combo (không liệt kê
+        từng dòng): mỗi tên một dòng, các biến thể max/min gộp về tên
+        gốc. Tick một tên gốc = gộp mọi cặp max/min của tên đó (mọi
+        Story/Station). Tên không có cặp max/min hiển thị mờ, không
+        tick được; shift-click chọn đoạn liên tục chỉ tác động lên
+        các dòng tick được trong đoạn. Đổi lựa chọn khi nút chọn đang
+        BẬT thì bảng cập nhật ngay.
+        """
+        from rc_column.etabs_import import combo_merge_options
+        orig = list(getattr(self, "etabs_forces_orig", None) or [])
+        if not orig:
+            messagebox.showinfo("Chọn combo gộp",
                                 "Bảng nội lực đang trống.")
             return
-        merged, n_pairs = merge_combo_max_min(forces)
-        if n_pairs == 0:
-            messagebox.showinfo("Gộp Combo max/min",
-                                "Không tìm thấy cặp max/min nào để gộp.")
-            return
-        self.etabs_forces = merged
-        self._fill_etabs_table([(f, None) for f in merged])
-        self.etabs_info.set(
-            f"Đã gộp {n_pairs} cặp max/min thành {n_pairs} combo "
-            f"(còn {len(merged)} dòng) — Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' "
-            f"để tính lại D/C.")
+        # Popup đã mở thì đưa lên trước, không mở trùng.
+        _old_top = getattr(self, "_merge_pick_top", None)
+        if _old_top is not None:
+            try:
+                if _old_top.winfo_exists():
+                    _old_top.lift()
+                    return
+            except Exception:
+                pass
+        options = combo_merge_options(orig)
+        top = tk.Toplevel(self)
+        top.title("Chọn combo gộp")
+        top.transient(self)
+        top.grab_set()
+        top.minsize(320, 240)
+        ttk.Label(
+            top,
+            text="Tick một tên combo = gộp mọi cặp max/min của tên đó "
+                 "(mọi Story/Station).\nChỉ combo có cặp max/min mới "
+                 "tick được; tên không có cặp hiển thị mờ.",
+            font=("", 9, "italic"), wraplength=420, justify=tk.LEFT).pack(
+                anchor=tk.W, padx=10, pady=(10, 6))
+        # Khung cuộn chứa các checkbutton (1 dòng / tên combo)
+        canvas = tk.Canvas(top, highlightthickness=0)
+        sb = ttk.Scrollbar(top, orient=tk.VERTICAL, command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        inner.bind("<Configure>",
+                   lambda e: canvas.configure(
+                       scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=sb.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
+                    padx=(10, 0), pady=4)
+        sb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=4)
+
+        def _wheel(ev):
+            if ev.num in (4, 5):
+                canvas.yview_scroll(-1 if ev.num == 4 else 1, "units")
+            else:
+                canvas.yview_scroll(-1 if ev.delta > 0 else 1, "units")
+        canvas.bind("<MouseWheel>", _wheel)
+        canvas.bind("<Button-4>", _wheel)
+        canvas.bind("<Button-5>", _wheel)
+
+        # anchor = chỉ số dòng của lần click trước (tính trên TOÀN bộ
+        # danh sách, kể cả dòng mờ); press_shift = Shift có giữ lúc nhấn
+        # chuột (ghi ở ButtonPress, đọc ở command sau khi toggle).
+        # Để ở attribute (thay vì closure) để cổng kiểm mô phỏng được.
+        self._merge_pick_anchor = None
+        self._merge_pick_press_shift = False
+        rows = []  # (tên gốc, BooleanVar|None, Checkbutton, tick_được?)
+        for base, has_pair, n_pairs in options:
+            if has_pair:
+                # Master tường minh = popup (không dùng default root).
+                var = tk.BooleanVar(
+                    top, value=base in getattr(self, "merge_combo_selected",
+                                               set()))
+                txt = f"{base} — {n_pairs} cặp"
+            else:
+                var = None
+                txt = f"{base} — không có cặp max/min"
+            cb = tk.Checkbutton(inner, text=txt, variable=var,
+                                bg="white", activebackground="white",
+                                highlightthickness=0, anchor=tk.W,
+                                justify=tk.LEFT)
+            if not has_pair:
+                cb.config(state=tk.DISABLED)
+            cb.pack(fill=tk.X, padx=4, pady=1)
+            rows.append((base, var, cb, has_pair))
+
+        def _sync():
+            sel = {b for b, v, _c, ok in rows
+                   if ok and v is not None and v.get()}
+            self.merge_combo_selected = sel
+            var = getattr(self, "merge_combo_var", None)
+            if var is not None and var.get():
+                self._refresh_merge_display()
+
+        def _make_press(idx):
+            def _press(ev):
+                self._merge_pick_press_shift = bool(ev.state & 0x0001)
+            return _press
+
+        def _make_cmd(idx, base, var):
+            def _cmd():
+                anchor = self._merge_pick_anchor
+                if self._merge_pick_press_shift and anchor is not None:
+                    # Shift-click: áp giá trị SAU toggle của ô vừa bấm
+                    # cho cả đoạn [anchor..idx], chỉ các dòng tick được.
+                    new_val = var.get()
+                    lo = min(anchor, idx)
+                    hi = max(anchor, idx)
+                    for j in range(lo, hi + 1):
+                        _b, v2, _c2, ok2 = rows[j]
+                        if ok2 and v2 is not None:
+                            v2.set(new_val)
+                self._merge_pick_anchor = idx
+                _sync()
+            return _cmd
+
+        for idx, (base, var, cb, ok) in enumerate(rows):
+            if not ok:
+                continue
+            cb.bind("<ButtonPress-1>", _make_press(idx))
+            cb.config(command=_make_cmd(idx, base, var))
+
+        # Móc cho cổng kiểm (không ảnh hưởng hành vi): cổng tìm popup
+        # và các dòng tick qua các thuộc tính này thay vì dò widget.
+        self._merge_pick_top = top
+        self._merge_pick_rows = rows
+
+        def _set_all(val):
+            for _b, v, _c, ok in rows:
+                if ok and v is not None:
+                    v.set(val)
+            # Chọn tất cả / bỏ chọn: xóa mốc để shift-click tiếp theo
+            # bắt đầu từ lần click thường mới.
+            self._merge_pick_anchor = None
+
+        btn_row = ttk.Frame(top)
+        btn_row.pack(fill=tk.X, padx=10, pady=(4, 10))
+        ttk.Button(btn_row, text="Chọn tất cả",
+                   command=lambda: (_set_all(True), _sync())).pack(
+                       side=tk.LEFT, padx=(0, 4))
+        ttk.Button(btn_row, text="Bỏ chọn tất cả",
+                   command=lambda: (_set_all(False), _sync())).pack(
+                       side=tk.LEFT, padx=4)
+        ttk.Button(btn_row, text="Đóng",
+                   command=top.destroy).pack(side=tk.RIGHT)
 
     def on_delete_forces(self):
-        """Xóa toàn bộ nội lực đã import."""
+        """Xóa toàn bộ nội lực đã import (cả dữ liệu gốc lẫn lựa chọn gộp)."""
         from tkinter import messagebox
-        if not getattr(self, "etabs_forces", []):
+        orig = list(getattr(self, "etabs_forces_orig", None) or [])
+        if not orig:
             messagebox.showinfo("Xóa nội lực", "Bảng nội lực đang trống.")
             return
         if messagebox.askyesno("Xóa nội lực",
-                               f"Xóa toàn bộ {len(self.etabs_forces)} dòng nội lực?"):
-            self.etabs_forces = []
+                               f"Xóa toàn bộ {len(orig)} dòng nội lực?"):
+            self.etabs_forces_orig = []
+            self.merge_combo_selected = set()
+            self._refresh_merge_display()
             self.etabs_file = ""
             self.etabs_info.set("Đã xóa toàn bộ nội lực.")
-            self._fill_etabs_table([])
 
     def _load_etabs_file(self, path: str) -> bool:
         """Nạp file Excel ETABS (dùng chung cho import tay và mở dữ liệu)."""
@@ -123,14 +320,16 @@ class EtabsMixin:
         except Exception as ex:
             messagebox.showerror("Lỗi đọc file", str(ex))
             return False
-        self.etabs_forces = forces
+        # Nạp vào dữ liệu GỐC rồi suy ra lại bảng hiển thị.
+        self.etabs_forces_orig = forces
+        self._refresh_merge_display()
         self.etabs_file = path
         n_case = len(set(f.case for f in forces))
         self.etabs_info.set(
             f"Đã đọc {len(forces)} dòng, {n_case} tổ hợp từ: "
-            f"{path.split('/')[-1].split(chr(92))[-1]} — "
+            f"{path.split('/')[-1].split(chr(92))[-1]}"
+            f"{self._merge_display_suffix()} — "
             f"Bấm 'KIỂM TRA KHẢ NĂNG CHỊU LỰC' để tính.")
-        self._fill_etabs_table([(f, None) for f in forces])
         return True
 
     def _fill_etabs_table(self, rows):
@@ -188,6 +387,16 @@ class EtabsMixin:
                 tgt = f
                 break
         if tgt is None:
+            return
+        # Dòng gộp là đối tượng suy ra, không phải dòng gốc: chặn sửa
+        # trực tiếp (sửa sẽ mất khi vẽ lại và không lan về cặp gốc).
+        if (getattr(self, "merge_combo_var", None) is not None
+                and self.merge_combo_var.get()
+                and id(tgt) in getattr(self, "_merge_merged_ids", set())):
+            messagebox.showinfo(
+                "Dòng gộp",
+                "Đây là dòng gộp từ cặp max/min — tắt 'Gộp Combo "
+                "max/min' để sửa các dòng gốc.")
             return
         entry = tk.Entry(t, font=("", 9))
         entry.insert(0, vals[col_idx])

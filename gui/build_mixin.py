@@ -18,13 +18,24 @@ _COVER_TIP = (
 )
 
 _MERGE_TIP = (
-    "Gộp các cặp combo max/min thành 1 combo duy nhất\n"
-    "(vd ULS17max + ULS17min → ULS17).\n"
+    "Bật: bảng hiển thị dạng đã gộp theo lựa chọn ở nút\n"
+    "'Chọn combo gộp…' (vd ULS17max + ULS17min → ULS17).\n"
+    "Tắt: bảng trở về đúng các dòng gốc ban đầu.\n"
+    "Dữ liệu gốc không bao giờ bị thay đổi bởi việc gộp.\n"
     "Theo chỉ dẫn ETABS về phổ phản ứng: max/min là biên thống kê ±\n"
     "của từng thành phần riêng lẻ, không đồng thời — nên mỗi thành\n"
     "phần (N, V2, V3, M2, M3) lấy giá trị có |giá trị| lớn nhất\n"
     "trong 2 dòng, giữ nguyên dấu.\n"
-    "Dòng không có cặp và dòng TX_* giữ nguyên. Bấm lại không đổi."
+    "Dòng không có cặp và dòng TX_* giữ nguyên."
+)
+
+_PICK_TIP = (
+    "Chọn tên combo cần gộp (mỗi tên một dòng).\n"
+    "Tick một tên = gộp mọi cặp max/min của tên đó\n"
+    "(mọi Story/Station).\n"
+    "Chỉ combo có cặp max/min mới tick được;\n"
+    "tên không có cặp hiển thị mờ.\n"
+    "Shift-click: chọn đoạn liên tục (chỉ tính các dòng tick được)."
 )
 
 
@@ -815,13 +826,27 @@ class BuildMixin:
                         variable=self.var_load_mode, value="etabs",
                         command=self._toggle_load_mode).pack(side=tk.LEFT,
                                                             padx=6)
-        # Nút gộp cặp combo max/min (chỉ có nghĩa ở chế độ ETABS;
-        # _toggle_load_mode sẽ disable nó khi ở chế độ nhập tay)
-        self.btn_merge_combo = ttk.Button(
+        # Nút CHỌN gộp cặp combo max/min (giữ trạng thái, không hủy
+        # diệt dữ liệu gốc — như cách chọn phương pháp nhập nội lực;
+        # _toggle_load_mode sẽ disable cả 2 khi ở chế độ nhập tay).
+        # Pack RIGHT theo thứ tự: checkbutton ở phải cùng, nút chọn
+        # popup nằm ngay bên trái nó.
+        # Master tường minh = root App (không dùng default root: nếu tiến
+        # trình có nhiều cửa sổ Tk thì var không master sẽ bám nhầm root).
+        self.merge_combo_var = tk.BooleanVar(self, value=False)
+        self.chk_merge_combo = tk.Checkbutton(
             mode_bar, text="Gộp Combo max/min",
-            command=self.on_merge_combo_max_min)
-        self.btn_merge_combo.pack(side=tk.RIGHT, padx=(6, 2))
-        _ToolTip(self.btn_merge_combo, _MERGE_TIP)
+            variable=self.merge_combo_var,
+            command=self.on_toggle_merge_combo,
+            bg="white", activebackground="white", highlightthickness=0,
+            font=("", 9))
+        self.chk_merge_combo.pack(side=tk.RIGHT, padx=(6, 2))
+        _ToolTip(self.chk_merge_combo, _MERGE_TIP)
+        self.btn_pick_merge_combo = ttk.Button(
+            mode_bar, text="Chọn combo gộp…",
+            command=self.on_pick_merge_combo)
+        self.btn_pick_merge_combo.pack(side=tk.RIGHT, padx=(6, 2))
+        _ToolTip(self.btn_pick_merge_combo, _PICK_TIP)
 
         # Ghi chú về tổ hợp TX_ — dòng riêng dưới hàng radio (in nghiêng)
         ttk.Label(f,
@@ -935,6 +960,11 @@ class BuildMixin:
         self.etabs_tree.tag_configure("worst", background="#fecaca",
                                       font=("", 9, "bold"))
         self.etabs_forces = []
+        # Dữ liệu gốc (source of truth): etabs_forces chỉ là BẢNG HIỂN
+        # THỊ suy ra từ gốc + lựa chọn gộp (xem _refresh_merge_display).
+        self.etabs_forces_orig = []
+        self.merge_combo_selected = set()  # tập tên gốc được tick
+        self._merge_merged_ids = set()  # id() các dòng gộp đang hiển thị
         self.current_save_path = None
         # Áp dụng trạng thái mặc định (Ngàm / Import Excel)
         self._toggle_load_mode()
@@ -946,12 +976,13 @@ class BuildMixin:
         else:
             self.etabs_frame.grid_remove()
             self.manual_frame.grid()
-        # Nút gộp chỉ có nghĩa khi có bảng nội lực ETABS
-        _btn = getattr(self, "btn_merge_combo", None)
-        if _btn is not None:
-            _btn.config(state=tk.NORMAL
-                        if self.var_load_mode.get() == "etabs"
-                        else tk.DISABLED)
+        # Nút chọn gộp chỉ có nghĩa khi có bảng nội lực ETABS
+        for _w in (getattr(self, "chk_merge_combo", None),
+                   getattr(self, "btn_pick_merge_combo", None)):
+            if _w is not None:
+                _w.config(state=tk.NORMAL
+                          if self.var_load_mode.get() == "etabs"
+                          else tk.DISABLED)
 
     def _toggle_lt(self):
         if self.var_lt.get():
