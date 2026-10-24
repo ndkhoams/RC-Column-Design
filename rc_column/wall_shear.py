@@ -21,10 +21,12 @@ CĂN CỨ VÀ GIỚI HẠN ÁP DỤNG (đọc kỹ trước khi dùng số này 
   (97), đai vẫn được kể; điều kiện (98): nhóm thép ngang nào có
   s > s_max = Rbt x b x h0²/|Q| thì nhóm đó KHÔNG được kể (Qsw = 0 nếu
   mọi nhóm đều bị loại).
-- Lực cắt thiết kế V_d = V_in (lực cắt trong mặt phẳng của tổ hợp đang
-  kiểm tra). Lát này KHÔNG áp hệ số phóng đại cắt kháng chấn (TCVN
-  9386 DCM, D2) — đó là phần riêng, chưa bật ở đây; nếu bật kháng chấn
-  mà vẫn lấy V_d = V_in thì kết luận cắt là KHÔNG kể phóng đại.
+- Lực cắt thiết kế V_d là lực cắt truyền vào hàm này. Phóng đại cắt
+  kháng chấn DCM (TCVN 9386-1:2012 §5.4.2.4(7): V_Ed = 1,5 × V'_Ed,
+  chỉ trong mặt phẳng) KHÔNG nằm trong hàm này mà do
+  ``wall_engine.wall_tcvn_full(..., seismic_shear=True)`` áp TRƯỚC
+  khi gọi (V_d = 1,5 × V_in); gọi trực tiếp hàm này với V_in thì
+  kết quả là KHÔNG kể phóng đại — caller phải ghi rõ điều đó.
 - Cắt NGOÀI mặt phẳng (V_out): LÀM ở lát 4 phần 4 bằng cùng bộ công
   thức §8.1.3 qua ``check_shear`` (xem ``check_wall_shear_out_of_plane``
   cuối file: b = Lw, h0 = tw - cover - dia_v - dia_h/2, Qsw = 0 vì
@@ -160,8 +162,10 @@ def check_wall_shear_in_plane(winp, conc, steel, V_in: float, N: float,
         "rc_column/stirrup.check_shear — cùng bộ công thức của cột; "
         "ánh xạ vách: b = tw, h0 = Lw - cover - dia_h - dia_v/2, "
         "qsw từ thép ngang phân bố). φn (§8.1.3.3.2) chỉ nhân số hạng "
-        "bê tông (ĐK1, Qb). V_d = V_in, chưa kể phóng đại cắt kháng "
-        "chấn 9386. Cắt ngoài mặt phẳng: xem "
+        "bê tông (ĐK1, Qb). V_d là lực cắt thiết kế truyền vào "
+        "(engine vách áp 1,5× theo TCVN 9386-1:2012 §5.4.2.4(7) "
+        "trước khi gọi khi combo động đất/DCM bật). Cắt ngoài mặt "
+        "phẳng: xem "
         "check_wall_shear_out_of_plane; trượt mạch ngừng: chưa kiểm "
         "(pending — xem wall_engine.sliding)."
     )
@@ -254,7 +258,9 @@ def check_wall_shear_out_of_plane(winp, conc, steel, V_out: float,
         "h0 = tw - cover - dia_v - dia_h/2, Qsw = 0 vì chưa có ô "
         "nhập giằng xuyên dày (không bịa thép giằng). φn "
         "(§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb). "
-        "V_d = V_out = V3, chưa kể phóng đại cắt kháng chấn 9386."
+        "V_d = V_out = V3; cắt ngoài mặt phẳng KHÔNG phóng đại "
+        "kháng chấn (TCVN 9386-1:2012 §5.4.2.4(7) chỉ áp cho cắt "
+        "trong mặt phẳng của vách chịu uốn trong MP)."
     )
     return {"V_d": V_d, "V_cap": V_cap, "dc": dc, "ok": bool(sh.ok),
             "parts": parts, "sh": sh, "note": note}

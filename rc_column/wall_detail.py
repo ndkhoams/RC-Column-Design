@@ -28,6 +28,7 @@ import math
 
 from .cover_migration import cover_long
 
+
 def _f(x, nd=1):
     try:
         v = float(x)
@@ -503,6 +504,22 @@ def build_wall_detail_sections(full):
     if sh.get("V_cap") is not None:
         sh_lines = [
             f"V2 = {_f(V_in, 1)} kN (lực cắt trong mặt phẳng)",
+        ]
+        if sh.get("seismic_applied"):
+            sh_lines.append(
+                f"Phóng đại kháng chấn DCM (TCVN 9386-1:2012 "
+                f"§5.4.2.4(7)): V_Ed = 1,5 × V2 = "
+                f"{_f(float(sh.get('V_d', V_in)), 1)} kN — toàn bộ "
+                f"kiểm tra §8.1.3 dưới đây xét ở V_Ed này "
+                f"(kể cả ĐK (98) với s_max theo V_Ed); cắt ngoài "
+                f"mặt phẳng không phóng đại.")
+        else:
+            sh_lines.append(
+                "Không phóng đại cắt kháng chấn (combo không phải "
+                "động đất / cờ DCM đang tắt): V_Ed = V2.")
+        sh_lines += [
+            f"b × h0 = {shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm;  "
+            f"thép ngang: {shp.get('sw_txt', '—')}",
             f"b × h0 = {shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm;  "
             f"thép ngang: {shp.get('sw_txt', '—')}",
             f"Asw = {shp.get('Asw', 0):,.0f} mm²;  "
@@ -632,10 +649,15 @@ def build_wall_detail_sections(full):
                   "Q1 đang chờ user chốt",
                   ["Banner/kết luận chung (ok_all) hiện chỉ kết luận "
                    "N–M; cắt hiển thị kết luận RIÊNG, không tự gộp.",
-                   "Cắt (trong + ngoài mặt phẳng) chưa kể phóng đại "
-                   "cắt kháng chấn TCVN 9386 (DCM) — nếu bật kháng chấn "
-                   "mà vẫn lấy V_d = V_in/V_out thì kết luận cắt là "
-                   "KHÔNG kể phóng đại.",
+                   ("Cắt trong mặt phẳng ĐÃ kể phóng đại kháng chấn "
+                    "TCVN 9386-1:2012 §5.4.2.4(7) DCM (V_Ed = 1,5 × V2) "
+                    "trong lần tính này; cắt ngoài mặt phẳng không "
+                    "phóng đại."
+                    if (full.get("shear_in") or {}).get("seismic_applied")
+                    else "Cắt trong mặt phẳng CHƯA kể phóng đại cắt "
+                    "kháng chấn trong lần tính này (combo không phải "
+                    "động đất / cờ DCM đang tắt): V_Ed = V2; cắt ngoài "
+                    "mặt phẳng không bao giờ phóng đại."),
                    "Ánh xạ cắt §8.1.3 sang vách (trong MP: b = tw, h0 "
                    "theo Lw, qsw từ thép ngang phân bố; ngoài MP: "
                    "b = Lw, h0 theo tw, Qsw = 0 vì chưa có giằng xuyên "

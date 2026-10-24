@@ -18,6 +18,7 @@ import os
 
 from .cover_migration import cover_long
 
+
 def _fm(x):
     try:
         v = float(x)
@@ -318,7 +319,11 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
                       and math.isfinite(float(_dc_sh)) else "∞")
         sw_rows = [
             ("Thép ngang bố trí", shp.get("sw_txt", "—")),
-            ("Lực cắt tính toán, V2", f"{float(full['V_in']):.1f} kN"),
+            ("Lực cắt tính toán, V2",
+             (f"{float(sh.get('V_d', full['V_in'])):.1f} kN "
+              f"(1,5×{float(full['V_in']):.1f}, 9386 §5.4.2.4(7) DCM)"
+              if sh.get("seismic_applied")
+              else f"{float(full['V_in']):.1f} kN")),
             ("Kích thước tiết diện, b × h<sub>0</sub>",
              f"{shp.get('b', 0):.0f} × {shp.get('h0', 0):.0f} mm"),
             ("A<sub>sw</sub>", f"{shp.get('Asw', 0):,.0f} mm²"),
@@ -386,10 +391,17 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer):
     t_sw.setStyle(TableStyle(sw_style))
     story.append(KeepTogether(t_sw))
     story.append(Paragraph(
-        "Phạm vi: kết luận trên chỉ kết luận N–M (banner); cắt trong "
-        "và ngoài mặt phẳng kết luận riêng. Trượt mạch ngừng, vùng "
-        "biên và cấu tạo chưa kiểm (lát 3). Cắt chưa kể "
-        "phóng đại kháng chấn TCVN 9386.",
+        ("Phạm vi: kết luận trên chỉ kết luận N–M (banner); cắt trong "
+         "và ngoài mặt phẳng kết luận riêng. Trượt mạch ngừng, vùng "
+         "biên và cấu tạo chưa kiểm (lát 3). "
+         "Cắt trong MP đã phóng đại kháng chấn TCVN 9386-1:2012 "
+         "§5.4.2.4(7) DCM (1,5×) trong lần tính này; cắt ngoài MP "
+         "không phóng đại."
+         if sh.get("seismic_applied") else
+         "Phạm vi: kết luận trên chỉ kết luận N–M (banner); cắt trong "
+         "và ngoài mặt phẳng kết luận riêng. Trượt mạch ngừng, vùng "
+         "biên và cấu tạo chưa kiểm (lát 3). Cắt chưa kể "
+         "phóng đại kháng chấn TCVN 9386 trong lần tính này."),
         st_note))
 
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm,

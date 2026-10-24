@@ -31,11 +31,26 @@ PENDING_SLIDING = ("Chưa kiểm (trượt mạch ngừng chân vách: chưa xá
                    "mượn công thức ma sát cắt ACI/EC2 sang TCVN)")
 PENDING_DETAIL = "Chưa kiểm ở lát 1 (cấu tạo/ρmin: lát 3)"
 
+# Phóng đại cắt kháng chấn DCM cho vách (phần 5/7, 2026-10-24):
+# TCVN 9386-1:2012 §5.4.2.4(7) (mục 5.4 = DCM; Phần 1 của TCVN 9386
+# tương ứng EN 1998-1, các sửa đổi VN chỉ ở Phụ lục E–I nên số điều
+# §5 giữ nguyên): "lực cắt thiết kế lấy cao hơn 50% lực cắt thu được
+# từ phân tích" — tức V_Ed = 1,5 × V'_Ed. Đây là quy tắc RIÊNG của
+# DCM, KHÔNG phải công thức ε của DCH (EN 1998-1 §5.5.2.4.1(7),
+# (5.24)/(5.25): ε = q·√((γRd/q·MRd/MEd)² + 0,1·(Se(Tc)/Se(T1))²),
+# 1,5 ≤ ε ≤ q) — nên DCM KHÔNG cần MRd/MEd, q hay phổ; đừng áp ε
+# DCH cho vách DCM. (7) không có ngoại lệ theo hw/lw; (8) chỉ là
+# bao lực cắt theo chiều cao cho hệ kép (dual) — kiểm tra 1 tiết
+# diện chân vách ở đây không dựng bao đó. Phạm vi: CHỈ cắt trong
+# mặt phẳng (chảy dẻo uốn trong MP tại chân vách là cơ chế mà (6)P
+# nhắm tới); cắt ngoài mặt phẳng KHÔNG phóng đại (không tự mở rộng).
+SEISMIC_SHEAR_FACTOR_DCM = 1.5
+
 
 def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                    loads: dict = None, case_info: dict = None,
                    mesh_step: float = None, n_angles: int = 24,
-                   steel_sw=None) -> dict:
+                   steel_sw=None, seismic_shear: bool = False) -> dict:
     """Kiểm tra N–M vách theo TCVN cho 1 tổ hợp (engine thuần, không GUI).
 
     winp: WallInput; conc/steel: ConcreteMaterial/SteelMaterial (TCVN);
@@ -44,6 +59,11 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     engine tự suy từ winp.sw_steel_grade nếu là cấp hợp lệ (cùng γs với
     thép dọc, như đai cột), ngược lại fallback về steel (thép dọc) —
     đúng hành vi cũ cho file JSON cũ không có khóa sw_steel_grade.
+    seismic_shear: True = tổ hợp đang kiểm là combo động đất (hoặc
+    nhập tay khi cờ DCM đang bật) -> cắt trong mặt phẳng kiểm ở
+    V_Ed = 1,5 × V_in theo TCVN 9386-1:2012 §5.4.2.4(7) DCM; False
+    (mặc định) = giữ đúng hành vi cũ, V_d = V_in. Cắt ngoài mặt phẳng
+    không bao giờ phóng đại. N–M không đổi trong cả 2 trường hợp.
     Đơn vị: kN, kN·m, mm, MPa. N nén dương.
     """
     if loads is None:
@@ -207,7 +227,15 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     # Tính SAU và ĐỘC LẬP với N–M: không động vào bất kỳ số N–M nào ở
     # trên; lỗi cắt (nếu có) chỉ làm shear_in pending, không đánh sập
     # kết quả N–M. ok_all vẫn = ok của N–M (xem câu hỏi Q1 báo cáo).
-    shear_in = {"V_d": V_in, "V_cap": None, "dc": None,
+    # Phóng đại kháng chấn (phần 5/7): V_Ed đưa vào check_shear là
+    # lực cắt THIẾT KẾ đã phóng đại — toàn bộ §8.1.3 (kể cả ĐK (98)
+    # với s_max theo V_Ed) xét ở V_Ed, không chỉ nhân D/C sau cùng.
+    _seis_factor = SEISMIC_SHEAR_FACTOR_DCM if seismic_shear else 1.0
+    _V_in_d = _seis_factor * V_in
+    shear_in = {"V_d": _V_in_d, "V_raw": V_in,
+                "seismic_factor": _seis_factor,
+                "seismic_applied": bool(seismic_shear),
+                "V_cap": None, "dc": None,
                 "ok": None, "parts": {},
                 "note": "Cắt trong mặt phẳng: lỗi khi tính (xem chi tiết)"}
     shear_lines = []
@@ -220,12 +248,24 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                 and _sw_grade in STEEL_GRADES:
             steel_sw = SteelMaterial(STEEL_GRADES[_sw_grade],
                                      float(getattr(steel, "gamma_s", 1.0)))
-        shear_in = check_wall_shear_in_plane(winp, conc, steel, V_in, N,
-                                             Lw=Lw, tw=tw,
+        shear_in = check_wall_shear_in_plane(winp, conc, steel, _V_in_d,
+                                             N, Lw=Lw, tw=tw,
                                              steel_sw=steel_sw)
+        shear_in["V_raw"] = V_in
+        shear_in["seismic_factor"] = _seis_factor
+        shear_in["seismic_applied"] = bool(seismic_shear)
+        shear_in["parts"]["V_raw"] = V_in
+        shear_in["parts"]["seismic_factor"] = _seis_factor
+        shear_in["parts"]["seismic_applied"] = bool(seismic_shear)
         _p = shear_in["parts"]
         _dc_txt = (f"{shear_in['dc']:.3f}" if shear_in["dc"] is not None
                    and math.isfinite(shear_in["dc"]) else "∞")
+        if seismic_shear:
+            shear_lines.append(
+                f"Phóng đại cắt kháng chấn DCM (TCVN 9386-1:2012 "
+                f"§5.4.2.4(7)): V_Ed = 1,5 × V2 = 1,5 × {V_in:.1f} = "
+                f"{_V_in_d:.1f} kN — toàn bộ kiểm tra §8.1.3 dưới đây "
+                f"xét ở V_Ed này; cắt ngoài mặt phẳng không phóng đại.")
         shear_lines.append(
             f"Cắt trong mặt phẳng (TCVN 5574:2018 §8.1.3, ánh xạ vách): "
             f"V2 = {V_in:.1f} kN; b = tw = {_p['b']:.0f} mm, "
@@ -258,7 +298,10 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             f"{'ĐẠT' if shear_in['ok'] else 'KHÔNG ĐẠT'} "
             f"(kết luận cắt RIÊNG, không đổi kết luận N–M/banner)")
     except Exception as ex:
-        shear_in = {"V_d": V_in, "V_cap": None, "dc": None,
+        shear_in = {"V_d": _V_in_d, "V_raw": V_in,
+                    "seismic_factor": _seis_factor,
+                    "seismic_applied": bool(seismic_shear),
+                    "V_cap": None, "dc": None,
                     "ok": None, "parts": {},
                     "note": f"Cắt trong mặt phẳng: lỗi khi tính: {ex}"}
         shear_lines.append(f"Cắt trong mặt phẳng: lỗi khi tính: {ex}")
