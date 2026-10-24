@@ -53,7 +53,8 @@ def _boundary_sec_meta():
     conc = ConcreteMaterial(CONCRETE_GRADES["B25"], 0.85)
     steel = SteelMaterial(STEEL_GRADES["CB400-V"], 1.0)
     w = WallInput(steel_mode="boundary", cover=13.0, be_Lb=500.0,
-                  be_dia=28.0, be_nL=4, be_nT=2, web_dia=12.0,
+                  be_dia=28.0, be_n_Lb=4, be_n_tw=2, be_L_out=1,
+                  be_L_in=0, web_dia=12.0,
                   web_s=200.0, sw_steel_grade="CB400-V")
     w.rot_deg = 0
     return build_wall_section(w, conc, steel)

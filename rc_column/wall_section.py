@@ -146,38 +146,52 @@ def _gen_perimeter(Lw, tw, cover, d, s, dia_h=0.0):
     return bars, runs, extra
 
 
-def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws, dia_h=0.0):
+def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
+                  wd, ws, dia_h=0.0):
     """Chế độ (b): vùng biên đối xứng 2 đầu + thép phân bố thân vách.
 
     cover: lớp bảo vệ cốt đai c (tới mặt ngoài thép ngang dia_h,
-    thống nhất cho mọi nhóm thép). Vùng biên mỗi đầu: nL vị trí dọc
-    trong Lb (vị trí đầu tại c + dia_h + db/2 từ mặt đầu vách, vị trí
-    cuối tại Lb - (c + dia_h + db/2)) x nT hàng ngang theo tw (hàng
-    ngoài tại 2 mặt cách mép c + dia_h + db/2, hàng thêm chia đều ở
-    giữa). Thân vách: 2 mặt trong đoạn giữa (Lw - 2*Lb), quy tắc
-    bước <= ws như cạnh dài chế độ chu vi.
+    thống nhất cho mọi nhóm thép). Vùng biên mỗi đầu, tất cả thanh
+    cùng db, không thanh góc riêng (mô hình 6 ô, user chốt 2026-10-25):
+    - R = 2*L_out + L_in hàng dọc theo Lb, cách đều theo tw từ mặt
+      này sang mặt kia (hàng ngoài tại 2 mặt cách mép
+      c + dia_h + db/2, hàng thêm chia đều ở giữa); mỗi hàng có n_Lb
+      thanh cách đều theo Lb (thanh đầu tại c + dia_h + db/2 từ mặt
+      đầu vách, thanh cuối tại Lb - (c + dia_h + db/2)) — 2 thanh đầu
+      hàng chính là góc, đã tính trong n_Lb.
+    - Mỗi đầu ngắn (2 đầu/vùng) thêm (n_tw - 2) thanh MỚI, cách đều
+      theo tw ở các vị trí trong (không tính 2 mặt — 2 mặt đã là góc);
+      vị trí trùng vị trí thanh đầu hàng (sai số < 1 mm) chỉ giữ 1.
+    Tổng/vùng (không trùng) = R*n_Lb + 2*(n_tw - 2). L_out tính MỖI
+    MẶT, L_in là tổng số hàng ở giữa. Thân vách: 2 mặt trong đoạn
+    giữa (Lw - 2*Lb), quy tắc bước <= ws như cạnh dài chế độ chu vi.
     Trả về (be_left, be_right, web, runs, extra) với bars (x, y, dia).
+    Migration: mapping cũ (nL, nT) -> (n_Lb=nL, n_tw=2, L_out=1,
+    L_in=nT-2) cho R = nT hàng và 0 thanh tw nên lưới cũ tái hiện
+    từng tọa độ (xem normalize_wall_dict).
     """
     warnings = []
     be_left: List[Tuple[float, float, float]] = []
     be_right: List[Tuple[float, float, float]] = []
     runs = []
-    if Lb > 0 and db > 0 and nL > 0 and nT > 0:
+    n_rows = 2 * int(L_out) + int(L_in)
+    if Lb > 0 and db > 0 and n_Lb > 0 and n_rows > 0:
         inset_b = cover + dia_h + db / 2.0
-        if nL == 1:
+        if n_Lb == 1:
             ps = [Lb / 2.0]
         elif Lb - 2.0 * inset_b > 0:
-            ps = _linspace(inset_b, Lb - inset_b, nL)
+            ps = _linspace(inset_b, Lb - inset_b, n_Lb)
         else:
             warnings.append(
                 f"Vùng biên Lb={Lb:.0f}mm ngắn so với c + dia_h + db "
                 f"({inset_b:.0f}mm): thanh biên xếp cách nhau 1.1*db "
                 "từ mặt đầu vách.")
-            ps = [inset_b + k * 1.1 * db for k in range(nL)]
-        if nT == 1:
+            ps = [inset_b + k * 1.1 * db for k in range(n_Lb)]
+        if n_rows == 1:
             ys_be = [0.0]
         else:
-            ys_be = _linspace(-(tw / 2.0 - inset_b), tw / 2.0 - inset_b, nT)
+            ys_be = _linspace(-(tw / 2.0 - inset_b), tw / 2.0 - inset_b,
+                              n_rows)
         for p in ps:
             for yy in ys_be:
                 be_left.append((-Lw / 2.0 + p, yy, db))
@@ -185,6 +199,32 @@ def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws, dia_h=0.0):
         for yy in ys_be:
             runs.append(([-Lw / 2.0 + p for p in ps], db))
             runs.append(([Lw / 2.0 - p for p in ps], db))
+        # Thanh theo chiều tw ở 2 đầu ngắn mỗi vùng: linspace n_tw điểm
+        # trên cả cạnh tw rồi bỏ 2 đầu (đã là góc trong hàng ngoài).
+        # Đầu ngắn đặt tại 2 mép vùng biên (inset_b từ mặt đầu vách và
+        # Lb - inset_b) — trùng vị trí Lb cực biên của lưới hàng khi
+        # Lb đủ dài; dedupe < 1 mm loại trùng với thanh đầu hàng (vd
+        # hàng giữa trùng thanh tw giữa khi R và n_tw cùng lẻ).
+        n_tw_new = max(0, int(n_tw) - 2)
+        if n_tw_new > 0:
+            face = tw / 2.0 - inset_b
+            ys_tw = _linspace(-face, face, int(n_tw))[1:-1]
+
+            def _add_dedupe(bars, x, y):
+                for (bx, by, _d) in bars:
+                    if (x - bx) ** 2 + (y - by) ** 2 < 1.0:
+                        return
+                bars.append((x, y, db))
+
+            for x_end in (inset_b, Lb - inset_b):
+                for yy in ys_tw:
+                    _add_dedupe(be_left, -Lw / 2.0 + x_end, yy)
+                    _add_dedupe(be_right, Lw / 2.0 - x_end, yy)
+            for _side in range(4):
+                runs.append((list(ys_tw), db))
+    else:
+        n_rows = 0
+        n_tw_new = 0
     # Thân vách (2 mặt, đoạn giữa 2 vùng biên)
     web: List[Tuple[float, float, float]] = []
     s_web = None
@@ -210,7 +250,8 @@ def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws, dia_h=0.0):
              ("Bụng vách", len(web), float(wd)),
              ("Đầu 2", len(be_right), float(db))]
     extra = {"zones": zones, "s_web_actual": s_web, "warnings": warnings,
-             "web_a": a, "web_b": b}
+             "web_a": a, "web_b": b, "be_rows": n_rows,
+             "be_n_tw": int(n_tw)}
     return be_left, be_right, web, runs, extra
 
 
@@ -273,13 +314,18 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
     if mode == "boundary":
         Lb = float(winp.be_Lb)
         be_l, be_r, web, runs, extra = _gen_boundary(
-            Lw, tw, cover, Lb, float(winp.be_dia), int(winp.be_nL),
-            int(winp.be_nT), float(winp.web_dia), float(winp.web_s),
+            Lw, tw, cover, Lb, float(winp.be_dia), int(winp.be_n_Lb),
+            int(winp.be_n_tw), int(winp.be_L_out), int(winp.be_L_in),
+            float(winp.web_dia), float(winp.web_s),
             float(winp.dia_h))
         rebars = [Rebar(x, y, bar_area(d), d, 1) for x, y, d in be_l + be_r]
         rebars += [Rebar(x, y, bar_area(d), d, 2) for x, y, d in web]
         sec.rebars = rebars
         smax, smin, sclear = _spacing_stats(runs)
+        # Thanh tw THỰC THÊM mỗi đầu (sau dedupe): tổng/vùng trừ đi
+        # lưới hàng; luôn chẵn vì dedupe xảy ra đối xứng 2 đầu ngắn.
+        n_tw_net = (len(be_l) - extra["be_rows"]
+                    * int(winp.be_n_Lb)) // 2
         meta = dict(base_meta)
         meta.update({
             "n_bars": len(rebars), "n_web": len(web),
@@ -301,7 +347,8 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
             "layout_text":
                 f"Vùng biên: {len(be_l) + len(be_r)} thanh "
                 f"d{float(winp.be_dia):.0f} (mỗi đầu {len(be_l)} = "
-                f"{int(winp.be_nL)} vị trí x {int(winp.be_nT)} hàng, "
+                f"{extra['be_rows']} hàng x {int(winp.be_n_Lb)} thanh"
+                f"{'' if n_tw_net <= 0 else ' + 2x' + str(n_tw_net) + ' đầu ngắn'}, "
                 f"Lb = {Lb:.0f} mm); thân vách: {len(web)} thanh "
                 f"d{float(winp.web_dia):.0f} (bước thực "
                 f"{extra['s_web_actual'] if extra['s_web_actual'] else 0:.0f} mm)",

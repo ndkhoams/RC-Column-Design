@@ -97,11 +97,22 @@ class WallInput:
     per_dia: float = 12.0       # đường kính d
     per_s: float = 200.0        # khoảng cách s (bước thực <= s)
     # (b) Tập trung vùng biên (đối xứng 2 đầu) + thép phân bố thân vách
+    # LEGACY (format panel cũ, generator mới không dùng — chỉ giữ để
+    # file cũ vẫn parse + mirror khi lưu): be_layout/be_nL/be_nT.
     be_layout: str = "chuvi"    # "chuvi" | "grid" (GĐ1: sinh cùng lưới)
     be_Lb: float = 500.0        # chiều dài vùng biên mỗi đầu (mm)
     be_dia: float = 20.0        # đường kính db vùng biên
-    be_nL: int = 4              # số vị trí dọc trong Lb
-    be_nT: int = 2              # số hàng ngang theo tw (2 = 2 mặt)
+    be_nL: int = 4              # số vị trí dọc trong Lb (cũ)
+    be_nT: int = 2              # số hàng ngang theo tw (cũ, 2 = 2 mặt)
+    # Mô hình vùng biên mới (2026-10-25, user chốt): 6 ô nhập, nhập
+    # 1 bên áp y hệt 2 đầu. n_Lb/n_tw tính CẢ 2 góc (mỗi cạnh gồm 2
+    # góc, góc chung nhau giữa 2 cạnh kề); L_out tính MỖI MẶT,
+    # L_in là tổng số hàng ở giữa. R = 2*L_out + L_in hàng dọc Lb,
+    # tổng/vùng = R*n_Lb + 2*(n_tw - 2) (dedupe trùng < 1 mm).
+    be_n_Lb: int = 4            # số thanh theo chiều Lb (tính cả 2 góc)
+    be_n_tw: int = 2            # số thanh theo chiều tw (tính cả 2 góc)
+    be_L_out: int = 1           # số lớp tw ngoài — tính MỖI MẶT (>= 1)
+    be_L_in: int = 0            # số lớp tw trong — tổng số hàng ở giữa
     web_dia: float = 12.0       # thép phân bố thân vách: đường kính
     web_s: float = 200.0        # thép phân bố thân vách: khoảng cách
 
@@ -144,6 +155,9 @@ def normalize_wall_dict(d) -> dict:
       psi_y <- l0_out_factor (phương X lấy cùng giá trị — trước đây
       trong mặt phẳng không dùng L0 riêng).
     Dict đã có khóa mới (kể cả từ _collect_wall) được giữ nguyên.
+    (2026-10-25) Format vùng biên cũ (be_nL/be_nT) được dịch sang 6 ô
+    mới (be_n_Lb/be_n_tw/be_L_out/be_L_in) theo mapping ở cuối hàm;
+    be_layout cũ bị bỏ qua.
     RIÊNG sw_steel_grade (phần 3/7): KHÔNG điền ở đây — file cũ thiếu
     khóa này phải giữ trạng thái "chưa đặt" để engine fallback về cấp
     thép dọc (xem WallInput.sw_steel_grade); điền CB400-V ở đây sẽ
@@ -177,6 +191,29 @@ def normalize_wall_dict(d) -> dict:
             d.setdefault("psi_x", fac)
         except Exception:
             pass
+    # (2026-10-25) Dịch format vùng biên cũ (be_nL/be_nT) sang 6 ô mới:
+    # n_Lb <- be_nL; n_tw <- 2 (mô hình cũ không có thanh tw riêng);
+    # L_out <- 1; L_in <- be_nT - 2. Với mapping này generator mới sinh
+    # đúng lưới cũ (R = 2*1 + (nT-2) = nT hàng, 0 thanh tw) nên thép cũ
+    # không đổi số thanh/tọa độ/As/D/C. Chỉ map khi khóa mới chưa có
+    # (file mới thắng); khóa be_layout cũ bị bỏ qua.
+    if "be_n_Lb" not in d and "be_nL" in d:
+        try:
+            d["be_n_Lb"] = int(float(d["be_nL"]))
+        except Exception:
+            pass
+    if "be_n_tw" not in d:
+        d["be_n_tw"] = 2
+    if "be_L_out" not in d:
+        d["be_L_out"] = 1
+    if "be_L_in" not in d:
+        if "be_nT" in d:
+            try:
+                d["be_L_in"] = max(0, int(float(d["be_nT"])) - 2)
+            except Exception:
+                d["be_L_in"] = 0
+        else:
+            d["be_L_in"] = 0
     return d
 
 

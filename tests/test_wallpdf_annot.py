@@ -29,7 +29,8 @@ def _full(seis=True):
         Lw=2500.0, tw=350.0, cover=13.0, dia_h=12.0, s_h=200.0,
         layers_h=2, sw_steel_grade="CB400-V",
         steel_mode="boundary", be_Lb=500.0, be_dia=28.0,
-        be_nL=4, be_nT=2, web_dia=12.0, web_s=200.0,
+        be_n_Lb=4, be_n_tw=2, be_L_out=1, be_L_in=0,
+        web_dia=12.0, web_s=200.0,
         Lx_m=3.3, Ly_m=3.3, psi_x=1.0, psi_y=1.0,
         seismic_on=True)
     return wall_tcvn_full(winp, CONC, STEEL, loads=dict(LOADS),
