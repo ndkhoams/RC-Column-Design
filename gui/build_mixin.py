@@ -10,11 +10,13 @@ from rc_column.stability import BOUNDARY_NAMES
 
 
 _COVER_TIP = (
-    "Định nghĩa c khác với ETABS!\n"
-    "• App: c đo từ mép bê tông đến TÂM thép dọc.\n"
-    "• ETABS: cover đo đến mép NGOÀI của đai.\n"
-    "→ Muốn so sánh với ETABS: nhập c = cover_đai_ETABS + đường kính đai\n"
-    "  (vd ETABS cover đai 40, đai Ø10 → nhập app c = 50)."
+    "Quy ước lớp bảo vệ (giống ETABS):\n"
+    "• c = khoảng cách từ mép bê tông đến MẶT NGOÀI của cốt đai\n"
+    "  (đai bao đối với cột, thép ngang dia_h đối với vách).\n"
+    "• Lớp bảo vệ tới mặt cốt dọc do app tự tính:\n"
+    "  c_dọc = c + đường kính đai bao (cột: sw_dia; vách: dia_h).\n"
+    "• Tâm cốt dọc cách mép bê tông = c + d_đai + d_dọc/2.\n"
+    "→ Nhập đúng số cover đai của ETABS, không cộng tay thêm."
 )
 
 _MERGE_TIP = (
@@ -480,7 +482,7 @@ class BuildMixin:
         r = 0
         self.sp_cover = ttk.Entry(rr, width=8)
         self.sp_cover.insert(0, "30")
-        lbl_cover = self._row(rr, "Lớp bảo vệ cốt dọc c (mm)",
+        lbl_cover = self._row(rr, "Lớp bảo vệ cốt đai, c (mm)",
                               self.sp_cover, r)
         _ToolTip(lbl_cover, _COVER_TIP)
         r += 1
@@ -612,7 +614,7 @@ class BuildMixin:
         self.sp_ccover = ttk.Spinbox(self.rebar_circ, from_=15, to=100,
                                      width=10)
         self.sp_ccover.set("30")
-        lbl_ccover = self._row(self.rebar_circ, "Lớp bê tông bảo vệ c (mm)",
+        lbl_ccover = self._row(self.rebar_circ, "Lớp bảo vệ cốt đai, c (mm)",
                                self.sp_ccover, 2)
         _ToolTip(lbl_ccover, _COVER_TIP)
 

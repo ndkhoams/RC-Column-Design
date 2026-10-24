@@ -33,7 +33,7 @@ STRINGS = {
     "Đường kính D (mm)": {"EN": "Diameter D (mm)"},
     # Section 3
     "3. Bố trí cốt thép dọc": {"EN": "3. Longitudinal Reinforcement"},
-    "Lớp bảo vệ cốt dọc c (mm)": {"EN": "Cover c (mm)"},
+    "Lớp bảo vệ cốt đai, c (mm)": {"EN": "Stirrup cover c (mm)"},
     "4 thanh thép góc": {"EN": "4 corner bars"},
     "Thép cạnh t2 (2 mặt trái/phải)": {"EN": "Side t2 steel (2 faces)"},
     "Thép cạnh t3 (2 mặt trên/dưới)": {"EN": "Side t3 steel (2 faces)"},

@@ -5,6 +5,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 from rc_column.checker import ColumnInput
+from rc_column.cover_migration import (COVER_SEMANTICS_NEW,
+                                       migrate_column_dict)
 from rc_column.report import generate_report_sections
 from rc_column.stability import BOUNDARY_NAMES, LongTermLoads
 
@@ -184,6 +186,10 @@ class DataMixin:
             return v.get()
         return {
             "version": 1,
+            # Dấu ngữ nghĩa cover: file do app mới lưu đã theo quy ước
+            # c_đai (xem rc_column/cover_migration) — mở lại không dịch
+            # nữa. File cũ thiếu khóa này sẽ được dịch khi mở.
+            "cover_semantics": COVER_SEMANTICS_NEW,
             # Loại cấu kiện (khóa cộng thêm; file cũ thiếu -> hiểu là "column")
             "member_type": "wall" if (getattr(self, "cb_member", None) is not None
                                       and self.cb_member.get() == "Vách") else "column",
@@ -282,6 +288,11 @@ class DataMixin:
         def se(e, v):
             e.delete(0, tk.END); e.insert(0, str(v))
         try:
+            # Migration cover (file cũ lưu theo nghĩa tới mặt cốt dọc):
+            # dịch cover/ccover sang c_đai (c − sw_dia) TRONG BỘ NHỚ —
+            # không ghi đè file chỉ vì mở; bỏ qua file DXF; kẹp 0 +
+            # cảnh báo (xem cover_migration) hiện ở cuối hàm.
+            d, _cover_warns = migrate_column_dict(d)
             # Tên cấu kiện (ưu tiên từ JSON, fallback tên file ở on_load_data)
             _mn = d.get("member_name", "")
             if _mn and hasattr(self, "member_var"):
@@ -364,6 +375,10 @@ class DataMixin:
             self._toggle_load_mode()
             self._toggle_lt()
             self._refresh_rebar()
+            # Cảnh báo migration cover (nếu c_mới bị kẹp về 0 — hình
+            # học cũ phi thực tế, user cần kiểm tra lại ô cover/đai).
+            for _w in _cover_warns:
+                messagebox.showwarning("Lớp bảo vệ (migration file cũ)", _w)
         except Exception as ex:
             messagebox.showerror("Lỗi", f"Không đọc được file dữ liệu: {ex}")
 
