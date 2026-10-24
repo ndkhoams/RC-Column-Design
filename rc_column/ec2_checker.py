@@ -232,6 +232,25 @@ class _EC2Exact:
                    21.0, 30.0, 45.0, 70.0, 120.0, 250.0)]
         self._eps_far = sorted(set(self._eps_far) | set(_extra),
                                reverse=True)
+        # Đuôi kéo (fix D/C = inf, 2026-10-24): lưới cũ dừng ở eps_far =
+        # -eps_s_max nên với tiết diện ít thép, N_min vẫn > 0 và capacity
+        # tại N = 0 bằng 0 -> dc_ratio sập về inf với mọi tải. Nối thêm
+        # các điểm tiếp tục luật frac^0.8 cũ (i vượt N_PTS-1) xuống tới
+        # sàn -0.20 (mô hình thép EC2 không có giới hạn đứt: ứng suất chỉ
+        # kẹp ở ±fyd nên trạng thái đuôi vẫn hợp lệ trong mô hình). Các
+        # điểm cũ giữ nguyên nên nội suy trong miền cũ không đổi — chỉ
+        # miền mới (N < N_min cũ) thay đổi.
+        _tail_floor = -0.20
+        _tail = []
+        for _m in (1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.5, 7.5, 10.0,
+                   14.0, 20.0):
+            _ef = -eps_s_max + (self.eps_cu + eps_s_max) * (1.0 - _m ** 0.8)
+            if _ef >= _tail_floor:
+                _tail.append(_ef)
+        if _tail_floor < -eps_s_max and (not _tail or _tail_floor < min(_tail)):
+            _tail.append(_tail_floor)
+        self._eps_far = sorted(set(self._eps_far) | set(_tail),
+                               reverse=True)
         # Quét trạng thái cho từng gamma
         self.sweeps = []   # mỗi phần tử: dict(N, M2, M3, NA) mảng giảm dần theo N
         n_all = []
