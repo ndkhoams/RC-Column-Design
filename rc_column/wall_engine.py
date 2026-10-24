@@ -19,6 +19,7 @@ from .checker import section_inertia
 from .interaction import BiaxialCapacity, neutral_axis_at_N
 from .stability import (LongTermLoads, buckling_factors, eccentricities,
                         phi_L, slenderness)
+from .wall_m2m3 import build_wall_m2m3
 from .wall_section import build_wall_section, wall_dims
 from .wall_shear import check_wall_shear_in_plane
 
@@ -180,6 +181,14 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     details.append(f"Ứng suất nén mép (đàn hồi): σ = {sigma_edge:.2f} MPa "
                    f"(tiêu chí vùng biên xét ở lát 3)")
 
+    # --- Biểu đồ M2–M3 (chỉ THÊM khóa "m2m3", không đổi số nào trên) ---
+    # Đường bao = lát cắt mặt tương tác tại N = BN (xem wall_m2m3.py:
+    # chỉ lát cắt này mới đi đúng qua B; lát cắt tại N tải lệch B
+    # 8–19% ở các ca vách). Dùng đúng cap đã dựng cho D/C ở trên.
+    _n_level = r["BN"] if math.isfinite(r["BN"]) else N
+    _m2m3 = build_wall_m2m3(cap, _n_level, M_out_d, M_in_d,
+                            r["Bx"], r["By"])
+
     # --- Cắt trong mặt phẳng (lát 4 — phần 2 của chương trình vách) ---
     # Tính SAU và ĐỘC LẬP với N–M: không động vào bất kỳ số N–M nào ở
     # trên; lỗi cắt (nếu có) chỉ làm shear_in pending, không đánh sập
@@ -246,6 +255,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         "alpha_deg": alpha_deg, "Malpha": Malpha, "M_capacity": M_cap,
         "Bx": r["Bx"], "By": r["By"], "BN": r["BN"],
         "lambda_ray": r["lambda_max"],
+        "m2m3": _m2m3,
         "gamma_deg": r.get("gamma_deg"), "na_info": na_info,
         "c_neutral": c_neutral, "sigma_edge": sigma_edge,
         "Ix": Ix, "Iy": Iy, "Isx": Isx, "Isy": Isy,

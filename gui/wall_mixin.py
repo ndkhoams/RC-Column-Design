@@ -1795,7 +1795,7 @@ class WallMixin:
         """Tab Kết quả cho vách (đọc từ dict _tcvn_wall_full, không
         tính lại) — lưới 2x2 như bên cột: banner trên cùng; hàng trên
         bảng thông số | mặt cắt + thẻ thép; hàng dưới biểu đồ N–Mα |
-        ô dành cho biểu đồ thứ hai; ghi chú phạm vi full-width."""
+        biểu đồ M2–M3 (tại N = BN); ghi chú phạm vi full-width."""
         for w in self._sum_inner.winfo_children():
             w.destroy()
         self._wall_view_active = True
@@ -1896,7 +1896,10 @@ class WallMixin:
             except Exception:
                 pass
             cv2.draw()
-        # ===== Ô dưới-phải: vị trí dành cho biểu đồ thứ hai =====
+        # ===== Ô dưới-phải: biểu đồ M2–M3 (tại N = BN) =====
+        # Đọc từ khóa "m2m3" của dict kết quả (do wall_tcvn_full dựng
+        # 1 lần cùng solver D/C), KHÔNG tính lại — cùng hàm vẽ với
+        # figure PDF (rc_column/wall_m2m3.draw_wall_m2m3_ax).
         f_br = tk.Frame(self._sum_inner, bg="white",
                         highlightbackground="#D1D5DB",
                         highlightcolor="#D1D5DB", highlightthickness=1,
@@ -1906,12 +1909,23 @@ class WallMixin:
         hdr2.pack(fill=tk.X, padx=4, pady=(2, 2))
         tk.Label(hdr2, text="● Mặt cắt M2–M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
-        tk.Label(
-            f_br, bg="white", fg="#6B7280", justify=tk.CENTER,
-            wraplength=420,
-            text="Chưa dùng cho vách ở lát 1 — vị trí dành cho biểu "
-                 "đồ thứ hai theo lưới của cột.").pack(
-                     fill=tk.BOTH, expand=True, padx=10, pady=10)
+        _m2m3 = full.get("m2m3")
+        if HAS_MPL and _m2m3 is not None:
+            from rc_column.wall_m2m3 import draw_wall_m2m3_ax
+            fig3, cv3 = self._new_wall_fig(f_br, (5.2, 3.9))
+            ax3 = fig3.add_subplot(111)
+            draw_wall_m2m3_ax(ax3, _m2m3)
+            try:
+                fig3.tight_layout()
+            except Exception:
+                pass
+            cv3.draw()
+        else:
+            tk.Label(
+                f_br, bg="white", fg="#6B7280", justify=tk.CENTER,
+                wraplength=420,
+                text="Chưa có dữ liệu biểu đồ M2–M3.").pack(
+                    fill=tk.BOTH, expand=True, padx=10, pady=10)
         # ===== Ghi chú phạm vi (full-width) =====
         tk.Label(
             self._sum_inner, foreground="gray", wraplength=1150,
