@@ -20,9 +20,12 @@ from .interaction import BiaxialCapacity, neutral_axis_at_N
 from .stability import (LongTermLoads, buckling_factors, eccentricities,
                         phi_L, slenderness)
 from .wall_section import build_wall_section, wall_dims
+from .wall_shear import check_wall_shear_in_plane
 
 PENDING_BOUNDARY = "Chưa kiểm ở lát 1 (vùng biên: lát 3)"
-PENDING_SHEAR = "Chưa kiểm ở lát 1 (cắt trong mặt phẳng + mạch ngừng: lát 4)"
+PENDING_SLIDING = ("Chưa kiểm (trượt mạch ngừng chân vách: chưa xác minh "
+                   "được điều khoản TCVN 5574:2018 cho mạch ngừng — không "
+                   "mượn công thức ma sát cắt ACI/EC2 sang TCVN)")
 PENDING_DETAIL = "Chưa kiểm ở lát 1 (cấu tạo/ρmin: lát 3)"
 
 
@@ -177,6 +180,60 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     details.append(f"Ứng suất nén mép (đàn hồi): σ = {sigma_edge:.2f} MPa "
                    f"(tiêu chí vùng biên xét ở lát 3)")
 
+    # --- Cắt trong mặt phẳng (lát 4 — phần 2 của chương trình vách) ---
+    # Tính SAU và ĐỘC LẬP với N–M: không động vào bất kỳ số N–M nào ở
+    # trên; lỗi cắt (nếu có) chỉ làm shear_in pending, không đánh sập
+    # kết quả N–M. ok_all vẫn = ok của N–M (xem câu hỏi Q1 báo cáo).
+    shear_in = {"V_d": V_in, "V_cap": None, "dc": None,
+                "ok": None, "parts": {},
+                "note": "Cắt trong mặt phẳng: lỗi khi tính (xem chi tiết)"}
+    shear_lines = []
+    try:
+        shear_in = check_wall_shear_in_plane(winp, conc, steel, V_in, N,
+                                             Lw=Lw, tw=tw)
+        _p = shear_in["parts"]
+        _dc_txt = (f"{shear_in['dc']:.3f}" if shear_in["dc"] is not None
+                   and math.isfinite(shear_in["dc"]) else "∞")
+        shear_lines.append(
+            f"Cắt trong mặt phẳng (TCVN 5574:2018 §8.1.3, ánh xạ vách): "
+            f"V2 = {V_in:.1f} kN; b = tw = {_p['b']:.0f} mm, "
+            f"h0 = {_p['h0']:.0f} mm, thép ngang {_p['sw_txt']} "
+            f"(Rsw = {_p['Rsw']:.0f} MPa, Asw = {_p['Asw']:.0f} mm²); "
+            f"qsw bố trí = {_p['qsw_arr']:.1f} N/mm, "
+            f"qsw được kể = {_p['qsw']:.1f} N/mm; "
+            f"φn = {_p['phi_n']:.3f}")
+        shear_lines.append(
+            f"  ĐK1 (dải nén xiên, (88)): [Q]1 = φn×0.3×Rb×b×h0 "
+            f"= {_p['Qcap1']:.1f} kN -> "
+            f"{'ĐẠT' if _p['ok1'] else 'KHÔNG ĐẠT'}; "
+            f"ĐK2 (vết nứt xiên): C = {_p['C_opt']:.0f} mm, "
+            f"Qb = {_p['Qb']:.1f} kN, Qsw = {_p['Qsw']:.1f} kN, "
+            f"[Q]2 = {_p['Qcap2']:.1f} kN -> "
+            f"{'ĐẠT' if _p['ok2'] else 'KHÔNG ĐẠT'}")
+        if not _p["cond98_ok"]:
+            shear_lines.append(
+                f"  ĐK (98) KHÔNG thỏa: s_h = {_p['s_h']:.0f} mm > "
+                f"s_max = {_p['s_max']:.0f} mm -> thép ngang không "
+                f"được kể, Qsw = 0")
+        if not _p["cond96_ok"]:
+            shear_lines.append(
+                f"  ĐK (96) KHÔNG thỏa: qsw = {_p['qsw']:.1f} < "
+                f"0.25×Rbt×b = {_p['qsw_min96']:.1f} N/mm -> Qb theo "
+                f"(97), thép ngang vẫn được kể")
+        shear_lines.append(
+            f"  V_cap = min([Q]1, [Q]2) = {shear_in['V_cap']:.1f} kN, "
+            f"D/C cắt = {_dc_txt} -> "
+            f"{'ĐẠT' if shear_in['ok'] else 'KHÔNG ĐẠT'} "
+            f"(kết luận cắt RIÊNG, không đổi kết luận N–M/banner)")
+    except Exception as ex:
+        shear_in = {"V_d": V_in, "V_cap": None, "dc": None,
+                    "ok": None, "parts": {},
+                    "note": f"Cắt trong mặt phẳng: lỗi khi tính: {ex}"}
+        shear_lines.append(f"Cắt trong mặt phẳng: lỗi khi tính: {ex}")
+    details += shear_lines
+    details.append("Trượt mạch ngừng chân vách: CHƯA kiểm — "
+                   + PENDING_SLIDING)
+
     return {
         "member_type": "wall", "std": "tcvn",
         "winp": winp, "sec": sec, "meta": meta, "model": model,
@@ -217,13 +274,17 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             "tie": {"ok": None}, "hcr": None, "ok": None,
             "note": PENDING_BOUNDARY,
         },
-        "shear_in": {"V_d": V_in, "V_cap": None, "dc": None,
-                     "ok": None, "parts": {}, "note": PENDING_SHEAR},
+        "shear_in": shear_in,
         "sliding": {"V_cap": None, "dc": None, "ok": None,
-                    "mu": None, "parts": {}, "note": PENDING_SHEAR},
+                    "mu": None, "parts": {}, "note": PENDING_SLIDING},
         "detailing": [], "ok_detail": None,
         "ok_all": bool(r["ok"]),
-        "checks_included": ["N-M"],
-        "checks_pending": ["boundary", "shear_in", "sliding", "detailing"],
+        "checks_included": (["N-M", "shear_in"]
+                            if shear_in.get("ok") is not None
+                            else ["N-M"]),
+        "checks_pending": (["boundary", "sliding", "detailing"]
+                           if shear_in.get("ok") is not None
+                           else ["boundary", "shear_in", "sliding",
+                                 "detailing"]),
         "details": details,
     }
