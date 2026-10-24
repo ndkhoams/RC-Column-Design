@@ -19,14 +19,17 @@ rẽ theo winp.steel_mode:
 - "perimeter": thép dọc theo CHU VI tiết diện (4 cạnh, 1 lớp theo
   chu vi), mỗi cạnh số khoảng = ceil(chiều_dài_trong/s), bước thực
   = chiều_dài_trong/số_khoảng <= s, thanh góc dùng chung không tính
-  trùng; chiều_dài_trong của cạnh = kích thước cạnh - 2*(c + d/2)
-  (c = lớp bảo vệ tới MẶT thanh). Ca mẫu 2500x350, c=25, d12, s200:
+  trùng; chiều_dài_trong của cạnh = kích thước cạnh - 2*(c + dia_h
+  + d/2) (c = lớp bảo vệ cốt đai, tới mặt ngoài thép ngang dia_h).
+  Ca mẫu 2500x350, c=13, dia_h=12, d12, s200:
   cạnh dài 13 khoảng x 187.5, cạnh ngắn 2 khoảng x 144 -> 30 thanh.
 - "boundary": vùng biên đối xứng 2 đầu: mỗi đầu nL vị trí dọc trong
   Lb x nT hàng ngang theo tw (hàng ngoài tại 2 mặt, hàng thêm nằm
   giữa theo chiều dày); thân vách: thanh trên 2 mặt trong đoạn giữa
   (Lw - 2*Lb) theo cùng quy tắc bước <= s như cạnh dài của chế độ
-  chu vi. Lớp bảo vệ c đo tới mặt thanh ở cả 2 chế độ mới.
+  chu vi. Lớp bảo vệ c đo tới mặt ngoài thép ngang dia_h (thống nhất
+  cho mọi nhóm thép — xem cover_migration về giả định này) ở cả 2
+  chế độ mới.
 - khác (file cũ chưa qua normalize): generator lát 1 cũ (biên 2 hàng
   kể đai + bụng giữa 2 Lb) — giữ nguyên để tương thích.
 Xoay tiết diện (winp.rot_deg): 90/270 hoán đổi vai trò Lw/tw cho cả
@@ -108,15 +111,17 @@ def _spacing_stats(runs):
             min(s - d for s, d in steps))
 
 
-def _gen_perimeter(Lw, tw, cover, d, s):
+def _gen_perimeter(Lw, tw, cover, d, s, dia_h=0.0):
     """Chế độ (a): thép dọc theo chu vi — xem docstring đầu module.
 
+    cover: lớp bảo vệ cốt đai c (tới mặt ngoài thép ngang dia_h);
+    inset tới tim thanh = cover + dia_h + d/2, cả 2 trục.
     Trả về (bars, runs, extra): bars = [(x, y, dia)] (layer 2 khi đưa
     vào Section), runs cho thống kê khoảng cách.
     """
     if d <= 0 or s <= 0:
         raise ValueError("Thép chu vi: đường kính/khoảng cách phải > 0")
-    inset = cover + d / 2.0
+    inset = cover + dia_h + d / 2.0
     x0, x1 = -Lw / 2.0 + inset, Lw / 2.0 - inset
     y0, y1 = -tw / 2.0 + inset, tw / 2.0 - inset
     if x1 <= x0 or y1 <= y0:
@@ -141,14 +146,16 @@ def _gen_perimeter(Lw, tw, cover, d, s):
     return bars, runs, extra
 
 
-def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws):
+def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws, dia_h=0.0):
     """Chế độ (b): vùng biên đối xứng 2 đầu + thép phân bố thân vách.
 
-    Vùng biên mỗi đầu: nL vị trí dọc trong Lb (vị trí đầu tại
-    c + db/2 từ mặt đầu vách, vị trí cuối tại Lb - (c + db/2)) x nT
-    hàng ngang theo tw (hàng ngoài tại 2 mặt cách mép c + db/2, hàng
-    thêm chia đều ở giữa). Thân vách: 2 mặt trong đoạn giữa
-    (Lw - 2*Lb), quy tắc bước <= ws như cạnh dài chế độ chu vi.
+    cover: lớp bảo vệ cốt đai c (tới mặt ngoài thép ngang dia_h,
+    thống nhất cho mọi nhóm thép). Vùng biên mỗi đầu: nL vị trí dọc
+    trong Lb (vị trí đầu tại c + dia_h + db/2 từ mặt đầu vách, vị trí
+    cuối tại Lb - (c + dia_h + db/2)) x nT hàng ngang theo tw (hàng
+    ngoài tại 2 mặt cách mép c + dia_h + db/2, hàng thêm chia đều ở
+    giữa). Thân vách: 2 mặt trong đoạn giữa (Lw - 2*Lb), quy tắc
+    bước <= ws như cạnh dài chế độ chu vi.
     Trả về (be_left, be_right, web, runs, extra) với bars (x, y, dia).
     """
     warnings = []
@@ -156,14 +163,14 @@ def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws):
     be_right: List[Tuple[float, float, float]] = []
     runs = []
     if Lb > 0 and db > 0 and nL > 0 and nT > 0:
-        inset_b = cover + db / 2.0
+        inset_b = cover + dia_h + db / 2.0
         if nL == 1:
             ps = [Lb / 2.0]
         elif Lb - 2.0 * inset_b > 0:
             ps = _linspace(inset_b, Lb - inset_b, nL)
         else:
             warnings.append(
-                f"Vùng biên Lb={Lb:.0f}mm ngắn so với c + db "
+                f"Vùng biên Lb={Lb:.0f}mm ngắn so với c + dia_h + db "
                 f"({inset_b:.0f}mm): thanh biên xếp cách nhau 1.1*db "
                 "từ mặt đầu vách.")
             ps = [inset_b + k * 1.1 * db for k in range(nL)]
@@ -184,7 +191,7 @@ def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws):
     a = -Lw / 2.0 + (Lb if Lb > 0 else 0.0)
     b = Lw / 2.0 - (Lb if Lb > 0 else 0.0)
     if b - a > 0 and wd > 0 and ws > 0:
-        g = cover + wd / 2.0
+        g = cover + dia_h + wd / 2.0
         lo, hi = a + g, b - g
         if hi <= lo:
             xs = [(a + b) / 2.0]
@@ -193,7 +200,7 @@ def _gen_boundary(Lw, tw, cover, Lb, db, nL, nT, wd, ws):
             n_int = max(1, int(math.ceil((hi - lo) / ws)))
             xs = _linspace(lo, hi, n_int + 1)
             s_web = (hi - lo) / n_int
-        y_v = tw / 2.0 - cover - wd / 2.0
+        y_v = tw / 2.0 - cover - dia_h - wd / 2.0
         for x in xs:
             web.append((x, y_v, wd))
             web.append((x, -y_v, wd))
@@ -237,7 +244,8 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
 
     if mode == "perimeter":
         bars, runs, extra = _gen_perimeter(
-            Lw, tw, cover, float(winp.per_dia), float(winp.per_s))
+            Lw, tw, cover, float(winp.per_dia), float(winp.per_s),
+            float(winp.dia_h))
         sec.rebars = [Rebar(x, y, bar_area(d), d, 2) for x, y, d in bars]
         smax, smin, sclear = _spacing_stats(runs)
         a1 = bar_area(float(winp.per_dia))
@@ -266,7 +274,8 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
         Lb = float(winp.be_Lb)
         be_l, be_r, web, runs, extra = _gen_boundary(
             Lw, tw, cover, Lb, float(winp.be_dia), int(winp.be_nL),
-            int(winp.be_nT), float(winp.web_dia), float(winp.web_s))
+            int(winp.be_nT), float(winp.web_dia), float(winp.web_s),
+            float(winp.dia_h))
         rebars = [Rebar(x, y, bar_area(d), d, 1) for x, y, d in be_l + be_r]
         rebars += [Rebar(x, y, bar_area(d), d, 2) for x, y, d in web]
         sec.rebars = rebars
@@ -353,7 +362,11 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
     web: List[Tuple[float, float, float]] = []
     s_actual = None
     if b - a > 0 and dia_v > 0 and float(winp.s_v) > 0:
-        g = cover + dia_v / 2.0   # chừa từ mép đoạn bụng (mép vách/zone)
+        # Nhánh legacy C6 theo Lw: cộng dia_h cho đồng nhất với
+        # C5-tw (thân theo tw đã có dia_h từ trước). Nhánh legacy
+        # C5 (thép biên kể tie_d, thân theo tw kể dia_h) ĐÃ đúng
+        # ngữ nghĩa c_đai nên giữ nguyên, không cộng thêm.
+        g = cover + dia_h + dia_v / 2.0   # chừa từ mép đoạn bụng (mép vách/zone)
         lo, hi = a + g, b - g
         if hi <= lo:
             xs = [(a + b) / 2.0]

@@ -35,7 +35,8 @@ class ColumnInput:
     n_bars: int = 8                # cho tròn / auto
     nx: int = 3                    # (giữ để tương thích)
     ny: int = 3
-    cover: float = 30.0            # lớp bê tông bảo vệ cốt dọc c (mm)
+    cover: float = 30.0            # lớp bảo vệ cốt đai c (mm, tới mặt ngoài đai bao);
+                                   # lớp bảo vệ cốt dọc do engine tự tính: c_dọc = c + sw_dia
     custom_bars: List[Tuple[float, float, float]] = field(default_factory=list)
     # Bố trí thép kiểu VietconSoft (chữ nhật, rebar_mode="auto")
     # cx = t3 (ngang), cy = t2 (đứng); thép cạnh t2 nằm 2 mặt trái/phải,
@@ -142,14 +143,19 @@ def build_section(inp: ColumnInput) -> Section:
             layout_custom_bars(sec, inp.custom_bars)
         else:
             # rebar_mode="auto": bố trí kiểu VietconSoft
-            # (4 thép góc + thép cạnh t2/t3, hỗ trợ 2 lớp)
+            # (4 thép góc + thép cạnh t2/t3, hỗ trợ 2 lớp).
+            # sw_dia đi qua inp: layout_vietconsoft_bars đọc
+            # inp.sw_dia (đai bao) làm d_đai cho tim thép — đây là
+            # điểm phân phối duy nhất, ACI/EC2 dùng chung build_section
+            # nên tự hưởng (không có layout riêng).
             layout_vietconsoft_bars(sec, inp)
     else:
         sec = make_circle_section(inp.cx, conc, steel)
         if inp.rebar_mode == "custom" and inp.custom_bars:
             layout_custom_bars(sec, inp.custom_bars)
         else:
-            layout_circle_bars(sec, inp.bar_dia, inp.n_bars, inp.cover)
+            layout_circle_bars(sec, inp.bar_dia, inp.n_bars, inp.cover,
+                               inp.sw_dia)
     return sec
 
 

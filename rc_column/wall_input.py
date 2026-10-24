@@ -44,7 +44,8 @@ class WallInput:
     h_story: float = 3300.0     # chiều cao đốt giữa 2 sàn
     h_total: float = 19800.0    # tổng chiều cao vách (cho hw/Lw)
     story_pos: str = "base"     # "base" | "mid" | "top"
-    cover: float = 25.0         # lớp bảo vệ tới thép phân bố
+    cover: float = 25.0         # lớp bảo vệ cốt đai c (mm, tới mặt ngoài thép ngang dia_h);
+                                # lớp bảo vệ cốt dọc do engine tự tính: c_dọc = c + dia_h
     l0_out_factor: float = 1.0  # hệ số chiều dài tính toán ngoài mặt phẳng
 
     # Thép phân bố (đứng: vào tiết diện N-M; ngang: chỉ cắt + cấu tạo)

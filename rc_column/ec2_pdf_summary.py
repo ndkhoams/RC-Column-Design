@@ -15,6 +15,7 @@ import os as _os
 
 from .pdf_export import (_mpl_font, _find_font, _find_font_bold, section_image,
                           draw_section_ax)
+from .cover_migration import cover_long
 from .ec2_chart_draw import draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax
 
 
@@ -169,7 +170,10 @@ def _slenderness_ec2(sec, conc, steel, inp, precalc=None):
             l0_mm = effective_length(L, top, bot,
                                      getattr(inp, f"psi_{'x' if lbl == '2' else 'y'}",
                                              None)) * 1000.0
-            d = max(h - getattr(inp, "cover", 30.0) - 12.0, 1.0)
+            # Fallback khi không có precalc: d theo đúng ngữ nghĩa c_đai
+            # (B11 cũ thiếu sw_dia nên d lớn hơn thật đúng sw_dia).
+            d = max(h - getattr(inp, "cover", 30.0)
+                    - getattr(inp, "sw_dia", 0.0) - 12.0, 1.0)
             r = ec2_design_moment(
                 NEd_kN=inp.N, M_top_kNm=abs(M), M_bot_kNm=abs(M),
                 l0_mm=l0_mm, i_mm=i_rad, h_mm=h,
@@ -437,8 +441,9 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         else:
             _sec_rows = [("Hình chữ nhật, t2 × t3",
                           f"{_t2:.0f} × {_t3:.0f} mm")]
-        _sec_rows.append(("Lớp bê tông bảo vệ cốt thép dọc, c",
-                          f"{inp.cover:.0f} mm"))
+        _sec_rows.append(("Lớp bảo vệ cốt đai, c",
+                          f"{inp.cover:.0f} mm "
+                          f"(c_dọc = {cover_long(inp.cover, getattr(inp, 'sw_dia', 0.0) or 0.0):.0f} mm)"))
         left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
         left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
             ("Số lượng thép", " + ".join(_parts)),

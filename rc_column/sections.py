@@ -107,16 +107,19 @@ def bar_area(dia: float) -> float:
 
 
 def layout_rect_bars(sec: Section, dia: float, nx: int, ny: int,
-                     cover: float) -> List[Rebar]:
+                     cover: float, sw_dia: float = 0.0) -> List[Rebar]:
     """Bố trí thép đều theo chu vi tiết diện chữ nhật.
 
     dia: đường kính thanh; nx, ny: số thanh mỗi cạnh (góc tính 1 lần);
-    cover: lớp bảo vệ (tới tim thép = cover + dia/2).
+    cover: lớp bảo vệ cốt đai c (tới mặt ngoài cốt đai);
+    sw_dia: đường kính đai bao — tim thép cách mép
+    cover + sw_dia + dia/2 (mặc định 0 để test cũ gọi trực tiếp
+    không vỡ; engine luôn truyền sw_dia thật qua build_section).
     """
     rebars: List[Rebar] = []
     a = bar_area(dia)
     cx, cy = sec.cx, sec.cy
-    ox, oy = dia / 2.0 + cover, dia / 2.0 + cover  # khoảng cách tim tới mép
+    ox, oy = dia / 2.0 + cover + sw_dia, dia / 2.0 + cover + sw_dia  # tim tới mép
     xs = [ox + i * (cx - 2 * ox) / max(1, nx - 1) for i in range(nx)] if nx > 1 else [0.0]
     ys = [oy + j * (cy - 2 * oy) / max(1, ny - 1) for j in range(ny)] if ny > 1 else [0.0]
     pts = set()
@@ -133,11 +136,16 @@ def layout_rect_bars(sec: Section, dia: float, nx: int, ny: int,
 
 
 def layout_circle_bars(sec: Section, dia: float, n_bars: int,
-                       cover: float) -> List[Rebar]:
-    """Bố trí n_bars thanh đều trên đường tròn."""
+                       cover: float, sw_dia: float = 0.0) -> List[Rebar]:
+    """Bố trí n_bars thanh đều trên đường tròn.
+
+    cover: lớp bảo vệ cốt đai c; sw_dia: đường kính đai bao (dây xoắn
+    đối với tiết diện spiral — cùng một ô nhập sw_dia). Bán kính vòng
+    thép r = cx/2 − cover − sw_dia − dia/2.
+    """
     rebars: List[Rebar] = []
     a = bar_area(dia)
-    r = sec.cx / 2.0 - cover - dia / 2.0
+    r = sec.cx / 2.0 - cover - sw_dia - dia / 2.0
     for k in range(n_bars):
         ang = 2.0 * math.pi * k / n_bars
         rebars.append(Rebar(r * math.cos(ang), r * math.sin(ang), a, dia))
@@ -172,23 +180,31 @@ def layout_vietconsoft_bars(sec: Section, inp) -> List[Rebar]:
     Lớp 1: 4 thép góc + thép cạnh (không trùng góc).
     Lớp 2 (nếu two_layer): perimeter | concentrated | bundled.
     Mỗi Rebar mang thuộc tính layer (1/2) để vẽ màu khác nhau.
+
+    Quy ước cover (mới): cover = lớp bảo vệ cốt đai c (tới mặt ngoài
+    đai bao); đường kính đai bao lấy từ inp.sw_dia (đai giữa không
+    phải lớp ngoài, không cộng). Tim thép lớp 1 cách mép
+    cover + sw_dia + dia/2; lớp 2 kế thừa qua off2 (thêm d_lớp1 +
+    khe s_layer + d_lớp2/2); nhánh bundled "outer" đặt quanh vị trí
+    lớp 1 nên tự đúng theo off1.
     """
     rebars: List[Rebar] = []
     cx, cy = sec.cx, sec.cy
     cover = float(getattr(inp, "cover", 30.0))
+    sw_dia = float(getattr(inp, "sw_dia", 0.0) or 0.0)
 
     def add(x: float, y: float, dia: float, layer: int):
         rebars.append(Rebar(x, y, bar_area(dia), dia, layer))
 
     def off1(dia: float) -> float:
         """Khoảng cách tim thép lớp 1 tới mép."""
-        return cover + dia / 2.0
+        return cover + sw_dia + dia / 2.0
 
     def off2(d1: float, d2: float) -> float:
         """Khoảng cách tim thép lớp 2 tới mép: cách mặt thép lớp 1
         một khe s = l2_s_layer."""
         s_layer = float(getattr(inp, "l2_s_layer", 30.0))
-        return cover + d1 + s_layer + d2 / 2.0
+        return cover + sw_dia + d1 + s_layer + d2 / 2.0
 
     # ---------------- Lớp 1 ----------------
     cd = float(getattr(inp, "corner_dia", 20.0))
