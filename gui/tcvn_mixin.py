@@ -913,13 +913,33 @@ class TcvnMixin:
             self._show_compression = tk.BooleanVar(value=True)
         _hdr = tk.Frame(f_tl, bg="white")
         _hdr.pack(fill=tk.X, pady=(2, 2))
-        tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
-                 font=("", 11, "bold"), bg="white").pack(side=tk.TOP, fill=tk.X)
+        # Nút zoom/pan ô mặt cắt (cùng quy ước ô vách và renderer
+        # ACI/EC2: −/+/Reset ở góc phải tiêu đề). Checkbox chuyển
+        # sang pack RIGHT để không đè nút.
+        _col_zst = {}
+        _zbtns = tk.Frame(_hdr, bg="white")
+        _zbtns.pack(side=tk.RIGHT, padx=(0, 4))
+        from gui.section_zoom import zoom_reset as _cz_reset
+        from gui.section_zoom import zoom_step as _cz_step
+        tk.Button(_zbtns, text="−", font=("", 9, "bold"), width=2,
+                  bg="white", relief=tk.GROOVE,
+                  command=lambda: _cz_step(_col_zst, 1.25)
+                  ).pack(side=tk.LEFT, padx=1)
+        tk.Button(_zbtns, text="+", font=("", 9, "bold"), width=2,
+                  bg="white", relief=tk.GROOVE,
+                  command=lambda: _cz_step(_col_zst, 0.8)
+                  ).pack(side=tk.LEFT, padx=1)
+        tk.Button(_zbtns, text="Reset", font=("", 8), width=5,
+                  bg="white", relief=tk.GROOVE,
+                  command=lambda: _cz_reset(_col_zst)
+                  ).pack(side=tk.LEFT, padx=1)
         tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
                        font=("", 8), fg="#374151",
                        variable=self._show_compression,
-                       command=lambda: self._redraw_tcvn_section()).place(
-                           relx=1.0, rely=0.5, anchor="e", x=-4)
+                       command=lambda: self._redraw_tcvn_section()).pack(
+                           side=tk.RIGHT, padx=(0, 4))
+        tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
+                 font=("", 11, "bold"), bg="white").pack(side=tk.TOP, fill=tk.X)
         self.ck_var = tk.StringVar(value="")
         # Bỏ hiển thị tên cấu kiện ở sơ đồ (đã có ở textbox panel trái)
         fig_sec, cv_sec = _new_fig(f_tl, (3.9, 3.1))
@@ -1014,6 +1034,14 @@ class TcvnMixin:
         self._sum_inner.rowconfigure(2, weight=0)
         # Gắn lại cuộn chuột cho các widget mới (kể cả hình matplotlib)
         self._bind_wheel(self._sum_inner, self._sum_canvas)
+        # Zoom/pan ô mặt cắt — gắn SAU _bind_wheel (bind thường ghi
+        # đè cuộn tab trên chính widget canvas; cùng quy ước ô vách).
+        try:
+            from gui.section_zoom import attach_section_zoom
+            attach_section_zoom(cv_sec, a1, _col_zst)
+            self._col_zoom = _col_zst
+        except Exception:
+            pass
         # Đẩy nội dung lên đầu sau khi layout xong (xóa vùng trống)
         def _to_top():
             try:
