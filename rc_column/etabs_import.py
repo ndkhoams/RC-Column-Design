@@ -474,6 +474,97 @@ def _strip_edge_empty_fields(line: str) -> str:
     return "\t".join(parts)
 
 
+# Token đơn vị ETABS (khi header bị tách dòng, đơn vị nằm ở đầu dòng
+# của cột tiếp theo, vd "kN\tV2", "kN-m\tM2", hoặc đứng riêng 1 dòng
+# "kN-m" ở cuối đoạn header). Chỉ các token này mới bị bỏ khi gom
+# header; "t" (xoắn) hay "p" (lực dọc) KHÔNG nằm trong tập này.
+_MULTILINE_UNIT_TOKENS = {
+    "kn", "kn-m", "knm", "n", "n-m", "nm", "n-mm", "kn-mm",
+    "kgf", "kgf-m", "kgf-cm", "kg-m", "kg-cm",
+    "tonf", "tonf-m", "ton-m", "tf-m",
+    "kip", "kip-ft", "kip-in", "k-ft", "k-in",
+    "lbf", "lbf-ft", "lbf-in", "lb-ft", "lb-in",
+}
+
+
+def _coalesce_multiline_header(lines):
+    """Gom header ETABS bị tách thành nhiều dòng thành 1 dòng header.
+
+    Khi copy trực tiếp từ bảng ETABS (đặc biệt Pier Forces), header
+    KHÔNG nằm trên 1 dòng: mỗi tên cột nằm trên 1 dòng riêng, đơn vị
+    của cột sau nằm ở đầu dòng cột đó (vd file thật noi_luc_pier.txt:
+    "Story" / "\\tPier" / "\\tOutput Case" / ... / "kN\\tV2" / ... /
+    "kN-m" rồi mới tới dòng dữ liệu). Parser cũ tìm dòng header đơn
+    chứa "output case" trong 5 dòng đầu nên nhặt nhầm đúng dòng
+    "Output Case" rời rạc làm header, rồi pier_idx không thấy "pier"
+    nên rơi về nhánh Columns theo vị trí và loại hết mọi dòng.
+
+    Thuật toán (không hardcode số dòng, không hardcode file nào):
+    - Quét tối đa 30 dòng đầu, tách mỗi dòng theo tab, bỏ ô rỗng và
+      token đơn vị, gom token theo đúng thứ tự xuất hiện, giữ lần
+      xuất hiện đầu tiên của mỗi token.
+    - Dừng khi tập token gom được chứa đủ: "output case" (hoặc
+      "outputcase") + 1 định danh (story/pier/column/frame) + "p" +
+      "m2" + "m3" + 1 vị trí (location/station).
+    - Sau điểm dừng, bỏ qua các dòng chỉ còn token đơn vị (vd dòng
+      "kN-m" cuối đoạn header), dòng đầu tiên còn lại phải là dòng
+      dữ liệu thật: ô tại vị trí cột "p" trong thứ tự token gom được
+      phải là số (kiểm chứng chặt, tránh gom nhầm dữ liệu thành header).
+    - Trả về (dòng header tổng hợp nối bằng tab, chỉ số dòng dữ liệu
+      đầu tiên) hoặc None nếu không thỏa — khi đó đường cũ chạy
+      nguyên, không thay đổi hành vi với header 1 dòng / SAP.
+    """
+    tokens = []
+    seen = set()
+    for j, ln in enumerate(lines[:30]):
+        for raw in ln.split("\t"):
+            tok = raw.strip().lower()
+            if not tok or tok in _MULTILINE_UNIT_TOKENS:
+                continue
+            if tok not in seen:
+                seen.add(tok)
+                tokens.append(tok)
+        has_case = ("output case" in seen or "outputcase" in seen)
+        has_id = bool(seen & {"story", "pier", "column", "frame"})
+        has_pos = bool(seen & {"location", "station"})
+        if has_case and has_id and "p" in seen and "m2" in seen \
+                and "m3" in seen and has_pos:
+            # Tìm dòng dữ liệu đầu tiên sau j, bỏ dòng chỉ còn đơn vị.
+            p_idx = tokens.index("p")
+            for k in range(j + 1, len(lines)):
+                parts = [p.strip() for p in lines[k].split("\t")]
+                if all((not p) or p.lower() in _MULTILINE_UNIT_TOKENS
+                       for p in parts):
+                    continue
+                if p_idx < len(parts):
+                    try:
+                        float(parts[p_idx])
+                    except ValueError:
+                        return None
+                    return "\t".join(tokens), k
+                return None
+            return None
+    return None
+
+
+def _is_full_header_line(line: str) -> bool:
+    """Dòng header 1 dòng đầy đủ: chứa Output Case + định danh + P/M2/M3.
+
+    Dùng để phân biệt header thật 1 dòng với dòng "Output Case" rời
+    rạc trong header tách dòng (dòng đó chỉ có 1 token, không đủ
+    các cột còn lại) — chỉ khi KHÔNG có dòng đầy đủ nào thì mới gom
+    header nhiều dòng.
+    """
+    parts = [p.strip().lower() for p in line.split("\t") if p.strip()]
+    if len(parts) < 6:
+        return False
+    if not ("output case" in parts or "outputcase" in parts):
+        return False
+    if not (set(parts) & {"story", "pier", "column", "frame"}):
+        return False
+    return "p" in parts and "m2" in parts and "m3" in parts
+
+
 def parse_etabs_clipboard(text: str,
                           only_combinations: bool = True) -> List[EtabsForce]:
     """Đọc nội lực từ clipboard copy từ bảng ETABS 'Element Forces - Columns'.
@@ -497,6 +588,13 @@ def parse_etabs_clipboard(text: str,
     Location -> location + Station mã hoá (Bottom 0.0 / Top 1.0, xem
     _parse_pier_clipboard). Trước đây định dạng này rơi vào nhánh
     Columns theo vị trí và bị loại hết (xem báo cáo lỗi paste Pier).
+
+    Nhận thêm header ETABS bị tách nhiều dòng khi copy trực tiếp từ
+    bảng ETABS (vd Pier Forces: mỗi tên cột 1 dòng, đơn vị nằm ở đầu
+    dòng cột sau): header được gom lại theo thứ tự token, bỏ token
+    đơn vị, cho tới khi đủ cột rồi kiểm chứng dòng dữ liệu đầu tiên
+    bằng ô P là số (xem _coalesce_multiline_header). Header 1 dòng
+    cũ không bị ảnh hưởng vì chỉ gom khi không có dòng header đầy đủ.
     """
     # Chuẩn hoá từng dòng TRƯỚC mọi định tuyến/kiểm chứng: bỏ ô rỗng ở
     # đầu/cuối dòng (tab thừa khi copy từ bảng — xem _strip_edge_empty_fields)
@@ -504,6 +602,14 @@ def parse_etabs_clipboard(text: str,
              for ln in text.strip().splitlines() if ln.strip()]
     if len(lines) < 3:
         raise ValueError("Clipboard không có đủ dữ liệu.")
+    # Header tách nhiều dòng (ETABS Pier Forces copy trực tiếp): chỉ gom
+    # khi KHÔNG có dòng header 1 dòng đầy đủ nào trong 10 dòng đầu —
+    # header 1 dòng / SAP cũ chạy nguyên đường cũ, không bị ảnh hưởng.
+    if not any(_is_full_header_line(ln) for ln in lines[:10]):
+        coalesced = _coalesce_multiline_header(lines)
+        if coalesced is not None:
+            synthetic, data_start = coalesced
+            lines = [synthetic] + lines[data_start:]
     # Tìm dòng header chứa "Output Case" (ETABS) hoặc "OutputCase" (SAP2000)
     hi = None
     for i, ln in enumerate(lines[:5]):
