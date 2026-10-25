@@ -69,7 +69,7 @@ def test_sample_rows_match_parts():
     rows = build_wall_shear_rows(full)
     assert len(rows) == 15
     assert [r[0] for r in rows] == [
-        "Thép bố trí", "Lực cắt tính toán, V_Ed",
+        "Thép bố trí", "Lực cắt tính toán, V2 / V3",
         "Kích thước tiết diện, bw × d", "Asw",
         "qsw = Rsw × Asw/s", "Hệ số φn (§8.1.3.3.2)",
         "Điều kiện (96): qsw ≥ 0.25×Rbt×b",
@@ -83,7 +83,7 @@ def test_sample_rows_match_parts():
     # cột trong, kể cả (96) hỏng → Qb theo (97).
     assert _row(rows, "Thép bố trí") == ("2φ12 a200 (CB400-V)",
                                          "2φ12 a200 (CB400-V)")
-    assert _row(rows, "Lực cắt tính toán, V_Ed") == (
+    assert _row(rows, "Lực cắt tính toán, V2 / V3") == (
         "800.0 kN", "300.0 kN (không phóng đại)")
     assert _row(rows, "Kích thước tiết diện, bw × d") == (
         "350 × 2457 mm", "2500 × 307 mm")
@@ -134,15 +134,17 @@ def test_sample_rows_match_parts():
 
 
 def test_seismic_rows():
-    """(b) Phóng đại DCM: trong MP V_Ed = 1200 (1,5×800); ghi chú
-    DCM nằm ở Ô NHÃN (không ở ô giá trị) và KHÔNG hiển thị V_raw
-    (quyết user 2026-10-24); ngoài MP không đổi 300."""
+    """(b) Phóng đại DCM: trong MP V_Ed = 1200 (1,5×800); nhãn về
+    đúng nhãn PDF "Lực cắt tính toán, V2 / V3", hậu tố DCM ở Ô
+    GIÁ TRỊ "(1.5 Ved, TCVN 9386-1:2025 §5.4.2.4(7))" (quyết
+    08:06, như PDF tóm tắt vách); KHÔNG hiển thị V_raw (quyết
+    user 2026-10-24); ngoài MP không đổi 300."""
     full = _full(seis=True)
     rows = build_wall_shear_rows(full)
-    lab = ("Lực cắt tính toán, V_Ed (×1.5 DCM — TCVN 9386-1:2025 "
-           "§5.4.2.4(7))")
+    lab = "Lực cắt tính toán, V2 / V3"
     v_in, v_out = _row(rows, lab)
-    assert v_in == "1200.0 kN"
+    assert v_in == ("1200.0 kN (1.5 Ved, "
+                    "TCVN 9386-1:2025 §5.4.2.4(7))")
     assert "V_raw" not in lab and "V_raw" not in v_in
     assert v_out == "300.0 kN (không phóng đại)"
     assert _row(rows, "Kết luận") == ("✓ ĐẠT (D/C 0.625)",

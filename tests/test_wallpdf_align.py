@@ -286,7 +286,8 @@ def test_wallpdf_shear_in_suffix_1p5_ved_with_citation():
     """Ghi chu user 2026-10-25 07:36–07:37 (anh bang cat) — chi
     PDF tom tat vach, thay cho ghi chu dai da bo o 158fc0e:
     o luc cat trong MP, khi thuc su phong dai DCM 1,5x, ghi
-    hau to ngan "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))" ngay
+    hau to ngan "(1.5 Ved, TCVN 9386-1:2025 §5.4.2.4(7))" (mot
+    ngoac duy nhat, ngan cach bang dau phay — quyet 08:06) ngay
     ben canh gia tri. Chuoi dung §5.4.2.4(7) — tin dau user go
     nham "5.4.2.497" da duoc tin sau sua lai, khong dung ban
     go nham. Dieu kien la co DCM (seismic_applied), khong phai
@@ -300,14 +301,14 @@ def test_wallpdf_shear_in_suffix_1p5_ved_with_citation():
         assert abs(full["shear_in"]["seismic_factor"] - 1.5) < 1e-9
         txt = _txt_of(full, member)
         tail = txt.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[1]
-        assert "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))" in tail
+        assert "(1.5 Ved, TCVN 9386-1:2025 §5.4.2.4(7))" in tail
         assert "5.4.2.497" not in txt
         assert "1.5Ved" not in txt
         assert "phóng đại 1,5" not in txt
         assert "Ghi chú: V2 đã phóng đại" not in txt
         assert "(không phóng đại)" in tail
-    assert "1200.0 kN (1.5 Ved)" in _txt_of(_full(), "VACH")
-    assert "0.0 kN (1.5 Ved)" in _txt_of(_full_ca1(), "CA1")
+    assert "1200.0 kN (1.5 Ved, " in _txt_of(_full(), "VACH")
+    assert "0.0 kN (1.5 Ved, " in _txt_of(_full_ca1(), "CA1")
     # DCM TAT: gia tri tron, khong hau to, khong trich dan.
     full_off = _full_nodcm()
     assert full_off["shear_in"]["seismic_applied"] is False
@@ -332,6 +333,6 @@ def test_wallpdf_shear_in_suffix_1p5_ved_with_citation():
             continue
         for l in b["lines"]:
             lines.append("".join(s["text"] for s in l["spans"]))
-    assert any(l.strip() == "1200.0 kN (1.5 Ved) "
-               "(TCVN 9386-1:2025 §5.4.2.4(7))" for l in lines), \
+    assert any(l.strip() == "1200.0 kN (1.5 Ved, "
+               "TCVN 9386-1:2025 §5.4.2.4(7))" for l in lines), \
         [l for l in lines if "1.5 Ved" in l]

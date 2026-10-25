@@ -98,7 +98,7 @@ def test_extra_frame_title_has_no_gd1(wall_app):
     app = wall_app
     title = app.frm_wall_extra.cget("text")
     assert "GĐ1" not in title
-    assert title == "Bổ sung — thép ngang, đai vùng biên, kháng chấn"
+    assert title == "Thép ngang, đai vùng biên, kháng chấn"
 
 
 def test_pd_tick_maps_to_both_old_values(wall_app):

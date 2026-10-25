@@ -412,7 +412,8 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.set_xlabel("M3 (kN×m)", fontsize=10, fontweight="bold")
     ax.set_ylabel("M2 (kN×m)", fontsize=10, fontweight="bold")
-    ax.set_title("M2–M3", fontsize=11)
+    # Quyết user 2026-10-25: KHÔNG còn tiêu đề trong axes M2–M3
+    # (header ngoài + chip N ở GUI vẫn giữ; bao vẫn vẽ tại N = BN).
     ax.tick_params(labelsize=8)
     from matplotlib.lines import Line2D as _L2D2
     _leg2 = [

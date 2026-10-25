@@ -81,12 +81,12 @@ def _check_b_on_envelope(bx, by, xs, ys, title, bn):
     d = _dist_to_polyline(by, bx, xs, ys)
     assert d / max(mag, 1e-9) < 0.005, (d, mag)
     assert xs[0] == xs[-1] and ys[0] == ys[-1], "polyline phải khép kín"
-    # Quyết user 2026-10-25: tiêu đề axes chỉ còn "M2–M3", KHÔNG còn
+    # Quyết user 2026-10-25: tiêu đề axes KHÔNG còn (đã bỏ "M2–M3"), KHÔNG còn
     # hậu tố "(tại N = … kN)" — chip N xanh ở header vẫn giữ BN.
     # Mức bao vẫn là BN, chứng minh bằng khoảng cách B tới polyline
     # (assert ở trên) và kiểm contour thô 360 điểm tại BN, không
     # còn chứng minh bằng chuỗi trong tiêu đề nữa.
-    assert title == "M2–M3", title
+    assert title == "", title
     assert "(tại N" not in title, title
 
 

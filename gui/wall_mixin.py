@@ -18,7 +18,7 @@ vách BTCT" — mục 2 (loại tiết diện + xoay + Lw/tw), mục 3 (2 chế 
 thép dọc: chu vi / tập trung vùng biên + khối số đọc trực tiếp), mục 4
 (bảng P–δ 2 phương X/Y, ψ tự điền theo LK như bên cột, L0 suy ra
 lúc tính, không hiển thị ở panel). Các ô ngoài phạm vi web (thép
-ngang, đai vùng biên, kháng chấn) gom vào frame "Bổ sung". Mặt cắt
+ngang, đai vùng biên, kháng chấn) gom vào frame "Thép ngang, đai vùng biên, kháng chấn". Mặt cắt
 vách có DIM từng khoảng
 (tổng Lw/tw + Lb/đoạn giữa/Lb ở chế độ vùng biên) và vùng nén khi đã
 CHECK — cùng hàm vẽ cho preview và kết quả.
@@ -553,10 +553,13 @@ def build_wall_shear_rows(full):
     vẽ. Hàng (98) KHÔNG có hàng riêng (quy ước cột: engine vẫn kiểm
     (98), qsw dưới đây đã là giá trị sau khi loại nhóm vi phạm;
     khi có nhóm bị loại thì ghi chú ngay ở hàng qsw).
-    Ghi chú phóng đại DCM nằm ở Ô NHÃN của hàng V_Ed (không ở ô
-    giá trị): ô giá trị chỉ còn "1200.0 kN". Ghi chú KHÔNG hiển
-    thị V_raw (quyết user 2026-10-24: người dùng tự hiểu V2 đã
-    được tự nhân); V_raw vẫn giữ nguyên trong dict kết quả.
+    Quyết user 2026-10-25 08:06: hàng cắt GUI khớp PDF — nhãn về
+    đúng nhãn PDF "Lực cắt tính toán, V2 / V3", thông tin DCM chuyển
+    sang HẬU TỐ ở ô giá trị trong MP khi DCM bật (kể cả V = 0):
+    "1200.0 kN (1.5 Ved, TCVN 9386-1:2025 §5.4.2.4(7))", trơn khi
+    DCM tắt; ngoài MP vẫn "(không phóng đại)". Ghi chú KHÔNG hiển
+    thị V_raw (quyết user 2026-10-24); V_raw vẫn giữ nguyên trong
+    dict kết quả.
     Builder này chỉ dùng cho bảng GUI tab Kết quả + tests (PDF
     tóm tắt/chi tiết có builder riêng, không dùng chung)."""
     full = full or {}
@@ -577,15 +580,15 @@ def build_wall_shear_rows(full):
         pending = (sh or {}).get("V_cap") is None
         if pending:
             return None
-        v_note = None
         v_d = sh.get("V_d")
         if in_plane:
-            # Ô giá trị chỉ còn số trơn; ghi chú DCM chuyển sang ô
-            # nhãn hàng (khóa "_v_ed_note" — không phải một hàng,
-            # vòng dựng rows dưới đây gắn vào nhãn khi có).
-            v_txt = f"{float(v_d):.1f} kN"
-            v_note = ("(×1.5 DCM — TCVN 9386-1:2025 §5.4.2.4(7))"
-                      if sh.get("seismic_applied") else None)
+            # Hậu tố DCM ở Ô GIÁ TRỊ (như PDF tóm tắt vách sau
+            # 08:06); nhãn hàng trơn "Lực cắt tính toán, V2 / V3"
+            # nên không còn trùng lặp thông tin DCM ở nhãn.
+            v_txt = (f"{float(v_d):.1f} kN (1.5 Ved, "
+                     f"TCVN 9386-1:2025 §5.4.2.4(7))"
+                     if sh.get("seismic_applied")
+                     else f"{float(v_d):.1f} kN")
         else:
             v_txt = f"{float(v_d):.1f} kN (không phóng đại)"
         # Thép bố trí + Asw/qsw/req/prov: cùng công thức 2 phương
@@ -619,7 +622,7 @@ def build_wall_shear_rows(full):
                  + f" (D/C {_dc_txt(sh)})")
         return {
             "Thép bố trí": sw_txt,
-            "Lực cắt tính toán, V_Ed": v_txt,
+            "Lực cắt tính toán, V2 / V3": v_txt,
             "Kích thước tiết diện, bw × d":
                 f"{float(parts.get('b', 0.0)):.0f} × "
                 f"{float(parts.get('h0', 0.0)):.0f} mm",
@@ -639,11 +642,10 @@ def build_wall_shear_rows(full):
             "Asw/s yêu cầu (tối thiểu theo (96))": req_txt,
             "Asw/s bố trí": prov_txt,
             "Kết luận": concl,
-            "_v_ed_note": v_note,
         }
 
     labels = ["Thép bố trí",
-              "Lực cắt tính toán, V_Ed",
+              "Lực cắt tính toán, V2 / V3",
               "Kích thước tiết diện, bw × d",
               "Asw",
               "qsw = Rsw × Asw/s",
@@ -663,9 +665,6 @@ def build_wall_shear_rows(full):
     for lab in labels:
         in_txt = col_in[lab] if col_in is not None else "CHƯA KIỂM"
         out_txt = col_out[lab] if col_out is not None else "CHƯA KIỂM"
-        if (lab == "Lực cắt tính toán, V_Ed" and col_in is not None
-                and col_in.get("_v_ed_note")):
-            lab = f"{lab} {col_in['_v_ed_note']}"
         rows.append((lab, in_txt, out_txt))
     return rows
 
@@ -708,7 +707,8 @@ class WallMixin:
     def _sec_wall(self):
         """Dựng các frame nhập liệu vách (ẩn ở chế độ Cột):
         '2. Tiết diện' + '3. Bố trí cốt thép dọc' + '4. Chiều dài tính
-        toán & Uốn dọc' theo format web Vietcons, và frame 'Bổ sung'
+        toán & Uốn dọc' theo format web Vietcons, và frame 'Thép ngang,
+        đai vùng biên, kháng chấn'
         giữ các ô ngoài phạm vi web (thép ngang, đai vùng biên,
         kháng chấn) để không mất plumbing các lát sau."""
         f2 = self._frame(T("2. Tiết diện"))
@@ -717,8 +717,7 @@ class WallMixin:
         self.frm_wall_rebar = f3
         f4 = self._frame(T("4. Chiều dài tính toán & Uốn dọc"))
         self.frm_wall_len = f4
-        fx = self._frame(T("Bổ sung — thép ngang, đai vùng biên, "
-                           "kháng chấn"))
+        fx = self._frame(T("Thép ngang, đai vùng biên, kháng chấn"))
         self.frm_wall_extra = fx
         self._wall_frames = (f2, f3, f4, fx)
         D = WALL_DEFAULTS
@@ -919,7 +918,7 @@ class WallMixin:
         # (Ghi chú xám dưới mục 4 đã bỏ theo ghi chú đỏ của user
         # 2026-10-25 — chỉ xóa hiển thị, không đổi cách suy L₀.)
 
-        # ===== Bổ sung (ngoài format web) =====
+        # ===== Thép ngang, đai vùng biên, kháng chấn (ngoài format web) =====
         _grid4(fx)
         r = 0
         r = _hdr(fx, "Thép phân bố ngang (dùng cho cắt trong mặt phẳng)", r)
@@ -1081,8 +1080,8 @@ class WallMixin:
         if self.w_cb_sectype.get() != _SECTYPES[0]:
             messagebox.showinfo(
                 "Chế độ Vách",
-                "Loại tiết diện này thuộc giai đoạn sau — GĐ1 chỉ hỗ "
-                "trợ 'Vách phẳng chữ nhật'.")
+                "Loại tiết diện này thuộc giai đoạn sau — chỉ hỗ trợ "
+                "'Vách phẳng chữ nhật'.")
             self.w_cb_sectype.set(_SECTYPES[0])
         self._update_wall_rotation_visibility()
         self._refresh_wall_preview()

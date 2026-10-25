@@ -9,6 +9,9 @@ chip). Đợt này đồng bộ nốt các chỗ PDF còn sót:
 - Caption chữ "Mặt cắt M2-M3 (N = …)" / "(NEd = …)" trong PDF tóm
   tắt cột TCVN/ACI/EC2 và vách, và caption "(tại N = …)" trong PDF
   chi tiết vách (wall_pdf_report).
+- NGOẠI LỆ sau quyết user 2026-10-25 08:06: caption PDF TÓM TẮT
+  VÁCH có lại "(N = BN kN)" (khôi phục đúng format trước 39dc9a0);
+  caption cột và PDF chi tiết vách vẫn không hậu tố N.
 - KHÔNG đổi: bao M2–M3 vẫn vẽ tại N = BN (chứng minh bằng D/C
   không đổi + điểm B trên bao ở test_col_m2m3_bn), các câu giải
   thích trong thân thuyết minh ("lát cắt tại N = BN", ghi chú A/B,
@@ -89,7 +92,8 @@ def _wall_full():
 
 
 def test_tcvn_m2m3_image_axes_title_has_no_n_suffix(tmp_path):
-    """Ảnh M2–M3 PDF cột TCVN: tiêu đề axes chỉ còn "M2–M3"."""
+    """Ảnh M2–M3 PDF cột TCVN: tiêu đề axes KHÔNG còn (quyết mới
+    2026-10-25: xóa nốt "M2–M3", chỉ giữ header ngoài + chip N ở GUI)."""
     inp, sec, res, _a, _e = _col_fixtures()
     assert abs(res.dc - 0.6140612962169418) < 1e-12, res.dc
     captured = []
@@ -108,11 +112,12 @@ def test_tcvn_m2m3_image_axes_title_has_no_n_suffix(tmp_path):
     plt.close("all")
     assert len(png) > 10000, "ảnh M2–M3 quá nhỏ"
     assert captured, "không bắt được axes của m2m3_image"
-    assert captured[-1].get_title() == "M2–M3", captured[-1].get_title()
+    assert captured[-1].get_title() == "", captured[-1].get_title()
 
 
 def test_summary_captions_have_no_n(tmp_path):
-    """Caption M2–M3 trong PDF tóm tắt cột 3 chuẩn + vách: không còn N."""
+    """Caption M2–M3 trong PDF tóm tắt cột 3 chuẩn: không còn N;
+    PDF tóm tắt vách (ngoại lệ 08:06): có lại "(N = BN kN)"."""
     inp, sec, res, (conc, steel, ares), (conc2, steel2, eres) = \
         _col_fixtures()
     p = str(tmp_path / "tcvn.pdf")
@@ -152,7 +157,10 @@ def test_summary_captions_have_no_n(tmp_path):
     wtxt = "\n".join((pg.extract_text() or "") for pg in r.pages)
     assert len(r.pages) == 1
     assert "Mặt cắt M2" in wtxt
-    assert "Mặt cắt M2–M3 (N" not in wtxt
+    # Ngoại lệ 08:06 (chỉ PDF tóm tắt vách): caption có lại N = BN,
+    # đúng format cũ "(N = <BN:,.0f> kN)"; không phải "(tại N …)".
+    _n_level = float(full["m2m3"]["N_level"])
+    assert f"(N = {_n_level:,.0f} kN)" in wtxt
     assert "Mặt cắt M2–M3 (tại N" not in wtxt
 
 

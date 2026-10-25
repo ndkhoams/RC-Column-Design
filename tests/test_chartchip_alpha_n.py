@@ -47,28 +47,28 @@ def _title(draw_fn):
 
 
 def test_m2m3_axes_titles_have_no_n_suffix_all_standards():
-    """Tiêu đề axes M2–M3 chỉ còn "M2–M3" ở cả 3 chuẩn cột."""
+    """Tiêu đề axes M2–M3 KHÔNG còn (rỗng) ở cả 3 chuẩn cột — quyết 2026-10-25."""
     inp = ColumnInput(**_BASE, N=1500.0, Mx=80.0, My=60.0)
     sec = build_section(inp)
     res = check_column(inp, n_angles=24)
     # Số tính không đổi so với mốc trước sửa.
     assert abs(res.dc - 0.6140612962169418) < 1e-12, res.dc
-    assert _title(lambda ax: draw_m2m3_ax(ax, sec, inp, res)) == "M2–M3"
+    assert _title(lambda ax: draw_m2m3_ax(ax, sec, inp, res)) == ""
     conc, steel = ACIConcrete(fc=30.0), ACISteel(fy=420.0)
     ares = check_column_aci(sec, conc, steel, 1500.0, 80.0, 60.0,
                             tied=True)
     assert _title(lambda ax: draw_aci_m2m3_ax(
         ax, sec, conc, steel, ares, 1500.0, 80.0, 60.0,
-        tied=True)) == "M2–M3"
+        tied=True)) == ""
     from rc_column.ec2_chart_draw import draw_ec2_m2m3_ax
     conc2, steel2 = EC2Concrete(fck=30.0), EC2Steel(fyk=500.0)
     eres = check_column_ec2(sec, conc2, steel2, 1500.0, 80.0, 60.0)
     assert _title(lambda ax: draw_ec2_m2m3_ax(
-        ax, sec, conc2, steel2, eres, 1500.0, 80.0, 60.0)) == "M2–M3"
+        ax, sec, conc2, steel2, eres, 1500.0, 80.0, 60.0)) == ""
 
 
 def test_wall_m2m3_axes_title_and_chip_sources():
-    """Vách dùng chung hàm vẽ cột nên tiêu đề cũng chỉ còn "M2–M3";
+    """Vách dùng chung hàm vẽ cột nên tiêu đề cũng KHÔNG còn (rỗng);
     nguồn chip vách (α tải, BN) vẫn có trong dict kết quả."""
     from rc_column.materials import (CONCRETE_GRADES, STEEL_GRADES,
                                      ConcreteMaterial, SteelMaterial)
@@ -82,8 +82,7 @@ def test_wall_m2m3_axes_title_and_chip_sources():
     full = wall_tcvn_full(WallInput(cover=13.0), conc, steel,
                           loads=dict(loads))
     sec, inp_ns, res_ns = wall_chart_inputs(full)
-    assert _title(lambda ax: draw_m2m3_ax(ax, sec, inp_ns, res_ns)) \
-        == "M2–M3"
+    assert _title(lambda ax: draw_m2m3_ax(ax, sec, inp_ns, res_ns)) == ""
     # Nguồn chip: α tải và BN đều hữu hạn, lấy từ dict đã tính.
     assert math.isfinite(float(full["alpha_deg"]))
     assert math.isfinite(float(full["BN"])) and full["BN"] != 0

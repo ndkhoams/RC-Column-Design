@@ -885,7 +885,7 @@ class TcvnMixin:
             ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
             ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
             ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
-            ax.set_title("M2–M3", fontsize=11)
+            # Quyết user 2026-10-25: KHÔNG còn tiêu đề trong axes M2–M3.
 
             from matplotlib.lines import Line2D
             leg_elems = [

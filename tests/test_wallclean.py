@@ -112,12 +112,12 @@ def test_ved_note_in_label_no_vraw():
         seismic_shear=True)
     rows = build_wall_shear_rows(full)
     lab = [r[0] for r in rows
-           if r[0].startswith("Lực cắt tính toán, V_Ed")][0]
+           if r[0].startswith("Lực cắt tính toán, V2 / V3")][0]
     val = [r[1] for r in rows
-           if r[0].startswith("Lực cắt tính toán, V_Ed")][0]
-    assert lab == ("Lực cắt tính toán, V_Ed "
-                   "(×1.5 DCM — TCVN 9386-1:2025 §5.4.2.4(7))")
-    assert val == "1200.0 kN"
+           if r[0].startswith("Lực cắt tính toán, V2 / V3")][0]
+    assert lab == "Lực cắt tính toán, V2 / V3"
+    assert val == ("1200.0 kN (1.5 Ved, "
+                   "TCVN 9386-1:2025 §5.4.2.4(7))")
     assert "V_raw" not in lab and "V_raw" not in val
     # V_raw vẫn giữ trong dict kết quả (chỉ không hiển thị).
     assert full["shear_in"]["V_raw"] == 800.0

@@ -338,8 +338,15 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     _m2_title = None
     _m2_el = None
     if full.get("m2m3") is not None:
+        # Quyết user 2026-10-25 08:06: caption PDF tóm tắt vách CÓ LẠI
+        # "(N = …)" (khôi phục đúng format trước 39dc9a0) — CHỈ caption
+        # này; tiêu đề trong axes vẫn rỗng (việc B), caption cột và
+        # PDF chi tiết vách không dùng builder này nên không lan sang.
+        # N_level = BN (wall_engine: _n_level = r["BN"]), khớp chip N
+        # xanh ở GUI (ca user: BN = 8264.8 kN).
         _m2_title = Paragraph(
-            f"<b>Mặt cắt M2–M3</b>",
+            f"<b>Mặt cắt M2–M3</b> "
+            f"(N = {float(full['m2m3']['N_level']):,.0f} kN)",
             st_chart)
         try:
             _m2_el = centered_img(wall_m2m3_figure(full), img_w)
@@ -430,7 +437,8 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     # head 158fc0e theo ghi chú user 2026-10-25 07:12 ("bỏ ghi
     # chú V_Ed ×1,5"). Thay vào đó, ghi chú user 2026-10-25
     # 07:36–07:37 chốt hậu tố NGẮN ngay bên cạnh giá trị lực
-    # cắt trong MP: "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))".
+    # cắt trong MP: "(1.5 Ved, TCVN 9386-1:2025 §5.4.2.4(7))"
+    # (quyết 08:06: đổi ") (" thành ", " trong MỘT ngoặc duy nhất).
     # Lưu ý trích dẫn đúng là §5.4.2.4(7) — tin đầu user gõ
     # nhầm "5.4.2.497" đã được tin sau sửa lại, không dùng bản
     # gõ nhầm. CHỈ là hậu tố hiển thị: phép phóng đại 1,5×
@@ -453,8 +461,8 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
                         and float(_seis_factor) == 1.5))
     if _in_ok:
         _v_in_val = float(sh.get('V_d', full['V_in']))
-        _v_in = (f"{_v_in_val:.1f} kN (1.5 Ved) "
-                 f"(TCVN 9386-1:2025 §5.4.2.4(7))"
+        _v_in = (f"{_v_in_val:.1f} kN (1.5 Ved, "
+                 f"TCVN 9386-1:2025 §5.4.2.4(7))"
                  if _seis_in else f"{_v_in_val:.1f} kN")
     else:
         _v_in = "— (chưa tính được)"
@@ -531,7 +539,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
         sw_data.append([_cell_lab, Paragraph(_bi, _sty),
                         Paragraph(_bo, _sty)])
     # Độ rộng cột bảng cắt: nới cột Trong MP 56 → 68 mm để
-    # hậu tố dài "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))"
+    # hậu tố dài "(1.5 Ved, TCVN 9386-1:2025 §5.4.2.4(7))"
     # nằm gọn 1 dòng ở cỡ 7pt (đo DejaVu: "1200.0 kN …" =
     # 184.8pt < 190.8pt khả dụng ở cột 68 mm); thu nhãn
     # 68 → 60 mm (nhãn dài nhất ~109pt, vẫn thừa) và cột
