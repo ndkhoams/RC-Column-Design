@@ -2,8 +2,12 @@
 
 Quyết user 2026-10-24: ô mặt cắt cột về dạng tĩnh như trước khi có
 zoom (không wheel-zoom/kéo-pan/nút zoom/double-click reset), giữ
-fit legend thép (a5cb3d8) gắn độc lập; vách giữ zoom riêng. Popup
-"Chọn combo động đất" phải hiện ít nhất 20 dòng không cần cuộn.
+fit legend thép (a5cb3d8) gắn độc lập. Quyết user 2026-10-25:
+ô mặt cắt vách cũng khóa khung nhìn như cột (bỏ zoom/pan riêng,
+thêm checkbox "Hiển thị vùng nén" như cột) — test cũ "vách giữ
+zoom riêng" đã lỗi thời và được thay bằng test khóa tĩnh vách
+bên dưới. Popup "Chọn combo động đất" phải hiện ít nhất 20 dòng
+không cần cuộn.
 
 Các test này không cần màn hình: kiểm tra ở mức source (không còn
 cơ chế zoom cột nào) và hàm thuần tính chiều cao list.
@@ -43,11 +47,17 @@ def test_section_zoom_source_has_no_view_bindings():
         assert token not in src, token
 
 
-def test_wall_keeps_own_zoom():
+def test_wall_section_also_static_like_column():
+    """Quyết user 2026-10-25: ô mặt cắt vách khóa khung nhìn như
+    cột — không còn cơ chế zoom/pan riêng, chỉ checkbox vùng nén."""
     src = _src("gui/wall_mixin.py")
-    for token in ("_sec_zoom_step", "_sec_zoom_reset", "_sec_zoom_setup"):
-        assert token in src, token
+    for token in ("_sec_zoom_step", "_sec_zoom_reset", "_sec_zoom_setup",
+                  "_sec_zoom_wheel", "_sec_zoom_press",
+                  "_sec_zoom_motion"):
+        assert token not in src, token
     assert "section_zoom" not in src
+    assert "Hiển thị vùng nén" in src
+    assert "_wall_show_compression" in src
 
 
 def test_list_height_for_rows():

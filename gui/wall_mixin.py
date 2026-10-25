@@ -185,11 +185,11 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     - trên: nhãn 't3' neo ở cy/2 + 1.01cy, đỉnh chữ ~+0.21cy nữa
       (chiều cao chữ theo đơn vị dữ liệu ở tỉ lệ vẽ thường) = 1.72cy;
       chừa tới cy/2 + 1.27cy.
-    - dưới: thấp nhất là đường dim tổng Lw ở -cy/2 - 1.70cy cộng
-      đoạn gióng chìa qua tới -cy/2 - 1.86cy (nhãn 'Lw = ...' từ
+    - dưới: thấp nhất là đường dim tổng Lw ở -cy/2 - 1.45cy cộng
+      đoạn gióng chìa qua tới -cy/2 - 1.61cy (nhãn 'Lw = ...' từ
       2026-10-25 nằm TRÊN đường dim nên không còn quyết định đáy);
       giữ đáy span cũ -cy/2 - 2.29cy để hình không đổi tỉ lệ/vị
-      trí (đệm dưới thêm ~0.43cy, vô hại vì adjustable='box').
+      trí (đệm dưới thêm ~0.68cy, vô hại vì adjustable='box').
     rot_deg: span hiển thị = bao hình của 4 góc span canonical đã
     xoay (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
@@ -334,11 +334,11 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # figsize khởi tạo; canvas bị kéo cao/thấp hơn need ở tab Kết
     # quả; bbox_inches="tight" ở ảnh PDF). "box" cho cùng hình
     # tiết diện (cùng chiều khống chế, cùng tâm) mà không warning
-    # và không đổi lims nên zoom/pan tính trên lims cũng chính
-    # xác hơn. Ở ca bị kẹp chiều cao (tiết diện xoay đứng trong ô
-    # thấp) hộp co theo chiều ngang, nội dung vẫn lấp đầy chiều
-    # cao và căn giữa theo chiều ngang.
-    # Khung home của zoom là span do _wall_section_spans trả.
+    # và không đổi lims (khung nhìn tĩnh, khóa ở home). Ở ca bị
+    # kẹp chiều cao (tiết diện xoay đứng trong ô thấp) hộp co theo
+    # chiều ngang, nội dung vẫn lấp đầy chiều cao và căn giữa
+    # theo chiều ngang.
+    # Khung home tĩnh là span do _wall_section_spans trả.
     ax.set_aspect("equal", adjustable="box")
     cx, cy = float(sec.cx), float(sec.cy)
     DIA_COLORS = ["#DC2626", "#9333EA", "#EA580C", "#0891B2",
@@ -499,9 +499,15 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # trên PDF tóm tắt: "ghi phía trên dim" / "chuyển lên trên
     # đường dim") — nằm trong khoảng giữa hàng phân đoạn và đường
     # dim tổng, cùng mẫu anchor +0.14cy/va="bottom" như nhãn phân
-    # đoạn. Đường dim vẫn ở dưới cùng, chỉ text đổi phía; span đáy
-    # (-cy/2 - 2.29cy) giữ nguyên nên hình không đổi tỉ lệ/vị trí.
-    _y_tot = -cy / 2 - 1.70 * cy
+    # đoạn. Quyết user 2026-10-25 (ảnh tab Kết quả): đẩy dim tổng
+    # sát lên chút nữa — từ -1.70cy về -1.45cy (lên 0.25cy):
+    # khe tới hàng phân đoạn (-0.62cy) còn 0.83cy, nhãn Lw
+    # (-1.31cy) vẫn cách hàng phân đoạn 0.69cy nên không đè;
+    # span đáy (-cy/2 - 2.29cy) giữ nguyên nên hình không đổi
+    # tỉ lệ/vị trí, chỉ đường dim tổng dịch lên trong khung.
+    # Hàm này dùng chung GUI + PDF (wall_pdf_figs) nên PDF tóm
+    # tắt vách cũng dịch dim tổng lên cùng mức.
+    _y_tot = -cy / 2 - 1.45 * cy
     for _xx in (-cx / 2, cx / 2):
         _ext((_xx, -cy / 2 - 0.10 * cy), (_xx, _y_tot - 0.16 * cy))
     _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), f"Lw = {cx:.0f} mm",
@@ -1701,21 +1707,22 @@ class WallMixin:
                      takefocus=0)
         _hdr = tk.Frame(f, bg="white")
         _hdr.pack(fill=tk.X, pady=(2, 2))
+        # Ô mặt cắt VÁCH KHÓA khung nhìn (quyết user 2026-10-25, như
+        # ô cột): không nút zoom/pan, không binding zoom/pan — luôn
+        # trọn khung ở home; chỉ còn checkbox vùng nén ở góc phải
+        # tiêu đề, cùng nhãn/mặc định như cột ("Hiển thị vùng nén",
+        # mặc định bật). _zst chỉ còn mang span home cho logic fit
+        # khung bên dưới, không còn là trạng thái zoom.
         _zst = {}
-        _zbtns = tk.Frame(_hdr, bg="white")
-        _zbtns.pack(side=tk.RIGHT, padx=(0, 4))
-        tk.Button(_zbtns, text="−", font=("", 9, "bold"), width=2,
-                  bg="white", relief=tk.GROOVE,
-                  command=lambda: self._sec_zoom_step(_zst, 1.25)
-                  ).pack(side=tk.LEFT, padx=1)
-        tk.Button(_zbtns, text="+", font=("", 9, "bold"), width=2,
-                  bg="white", relief=tk.GROOVE,
-                  command=lambda: self._sec_zoom_step(_zst, 0.8)
-                  ).pack(side=tk.LEFT, padx=1)
-        tk.Button(_zbtns, text="Reset", font=("", 8), width=5,
-                  bg="white", relief=tk.GROOVE,
-                  command=lambda: self._sec_zoom_reset(_zst)
-                  ).pack(side=tk.LEFT, padx=1)
+        if getattr(self, "_wall_show_compression", None) is None:
+            self._wall_show_compression = tk.BooleanVar(value=True)
+        _eff_show = bool(show_compression
+                         and self._wall_show_compression.get())
+        tk.Checkbutton(_hdr, text="Hiển thị vùng nén", bg="white",
+                       font=("", 8), fg="#374151",
+                       variable=self._wall_show_compression,
+                       command=lambda: self._redraw_wall_section()
+                       ).pack(side=tk.RIGHT, padx=(0, 4))
         tk.Label(_hdr, text="MẶT CẮT TIẾT DIỆN",
                  font=("", 11, "bold"), bg="white").pack(
                      side=tk.TOP, fill=tk.X)
@@ -1725,7 +1732,7 @@ class WallMixin:
                 f, _wall_section_figsize(sec, _nseg, _rot))
             ax = fig.add_subplot(111)
             draw_wall_section_ax(ax, sec, meta=meta, na_info=na_info,
-                                 show_compression=show_compression,
+                                 show_compression=_eff_show,
                                  rot_deg=_rot)
             try:
                 _wall_section_axes_pos(fig, ax)
@@ -1733,9 +1740,13 @@ class WallMixin:
                 pass
             canvas.draw()
             self._sec_fig, self._sec_canvas, self._sec_ax = fig, canvas, ax
-            self._sec_zoom_setup(fig, canvas, ax, _zst)
-            # Home của zoom = span chặt của nội dung vẽ: Reset đặt
-            # lại lims này; mốc kẹp zoom cũng theo span này.
+            # Dữ liệu để checkbox vẽ lại tại chỗ (không tính lại):
+            # tiết diện/meta/na_info đã ở khung canonical sau
+            # _wall_display_geom + cờ show_compression gốc của nơi
+            # gọi (True sau CHECK, False ở preview chưa có na_info).
+            self._wall_sec_cell = (sec, meta, na_info, _rot,
+                                   bool(show_compression))
+            # Span chặt của nội dung vẽ = khung home tĩnh (fit dùng).
             _sp = _wall_section_spans(sec, _nseg, _rot)
             _zst["home"] = ((_sp[0], _sp[1]), (_sp[2], _sp[3]))
             # FIT KHUNG: canvas fill theo CHIỀU NGANG của ô (pack X,
@@ -1937,142 +1948,40 @@ class WallMixin:
         self._sec_card_vars = self._build_section_cards(f, sec)
         return f
 
-    # ---------- Zoom / pan / reset cho ô mặt cắt vách (như web) ----
-    # Cuộn chuột: zoom tại vị trí con trỏ; kéo trái: pan; nút +/− và
-    # Reset ở góc ô; double-click: reset. Gắn ở mức widget SAU
-    # _bind_wheel đệ quy của tab (after_idle) để cuộn trên canvas
-    # mặt cắt không cuộn cả tab; các biểu đồ khác không bị ảnh
-    # hưởng. Sau mỗi lần vẽ lại (CHECK/làm mới), view về khung gốc.
-    def _sec_zoom_setup(self, fig, canvas, ax, zst):
-        zst.update({"fig": fig, "canvas": canvas, "ax": ax,
-                    "home": (ax.get_xlim(), ax.get_ylim()),
-                    "drag": None})
-        self._sec_zoom = zst
-        w = canvas.get_tk_widget()
-        zst["widget"] = w
-
-        def _attach():
-            w.bind("<MouseWheel>",
-                   lambda e: self._sec_zoom_wheel(e, zst))
-            w.bind("<Button-4>",
-                   lambda e: self._sec_zoom_wheel_btn(e, zst, -1))
-            w.bind("<Button-5>",
-                   lambda e: self._sec_zoom_wheel_btn(e, zst, 1))
-            w.bind("<ButtonPress-1>",
-                   lambda e: self._sec_zoom_press(e, zst))
-            w.bind("<B1-Motion>",
-                   lambda e: self._sec_zoom_motion(e, zst))
-            w.bind("<ButtonRelease-1>",
-                   lambda e: self._sec_zoom_release(e, zst))
-            w.bind("<Double-Button-1>",
-                   lambda e: self._sec_zoom_reset(zst))
+    def _redraw_wall_section(self):
+        """Vẽ lại tại chỗ ô mặt cắt vách theo checkbox vùng nén
+        (như _redraw_tcvn_section / redraw_section_figure của cột):
+        chỉ đọc lại dữ liệu đã lưu ở _build_wall_section_cell
+        (sec/meta/na_info canonical + na_info từ dict kết quả CHECK
+        đã tính 1 lần, KHÔNG tính lại), không đụng bảng/biểu đồ
+        khác. Ở preview (show_param=False, chưa có na_info) thì
+        vẽ lại cũng không hiện vùng nén — đúng như cột trước CHECK.
+        """
         try:
-            w.after_idle(_attach)
-        except Exception:
-            _attach()
-
-    def _sec_zoom_data_at(self, zst, event, lims=None):
-        """Toạ độ dữ liệu tại vị trí con trỏ (event Tk trên canvas)
-        theo lims cho trước (mặc định: lims hiện tại của axes)."""
-        ax = zst["ax"]
-        _fw, fh = zst["fig"].canvas.get_width_height()
-        px, py = float(event.x), fh - float(event.y)
-        bb = ax.bbox
-        (x0, x1), (y0, y1) = lims or (ax.get_xlim(), ax.get_ylim())
-        fx = (px - bb.x0) / max(1.0, bb.width)
-        fy = (py - bb.y0) / max(1.0, bb.height)
-        return (x0 + fx * (x1 - x0), y0 + fy * (y1 - y0))
-
-    def _sec_zoom_apply(self, zst, factor, center):
-        ax = zst["ax"]
-        (hx0, hx1), (hy0, hy1) = zst["home"]
-
-        def _new(v0, v1, c, hspan):
-            span = (v1 - v0) * factor
-            span = min(max(span, hspan * 0.02), hspan * 6.0)
-            f2 = span / (v1 - v0) if v1 != v0 else factor
-            return c - (c - v0) * f2, c + (v1 - c) * f2
-
-        x0, x1 = ax.get_xlim()
-        y0, y1 = ax.get_ylim()
-        ax.set_xlim(_new(x0, x1, center[0], hx1 - hx0))
-        ax.set_ylim(_new(y0, y1, center[1], hy1 - hy0))
-        zst["canvas"].draw_idle()
-
-    def _sec_zoom_wheel(self, event, zst):
-        try:
-            d = getattr(event, "delta", 0) or 0
-            c = self._sec_zoom_data_at(zst, event)
-            self._sec_zoom_apply(zst, 0.8 if d > 0 else 1.25, c)
-        except Exception:
-            pass
-        return "break"
-
-    def _sec_zoom_wheel_btn(self, event, zst, sgn):
-        try:
-            c = self._sec_zoom_data_at(zst, event)
-            self._sec_zoom_apply(zst, 0.8 if sgn < 0 else 1.25, c)
-        except Exception:
-            pass
-        return "break"
-
-    def _sec_zoom_step(self, zst, factor):
-        if not zst or "ax" not in zst:
-            return
-        try:
-            x0, x1 = zst["ax"].get_xlim()
-            y0, y1 = zst["ax"].get_ylim()
-            self._sec_zoom_apply(
-                zst, factor, ((x0 + x1) / 2.0, (y0 + y1) / 2.0))
+            _data = getattr(self, "_wall_sec_cell", None)
+            _ax = getattr(self, "_sec_ax", None)
+            _cv = getattr(self, "_sec_canvas", None)
+            if not _data or _ax is None or _cv is None:
+                return
+            _sec, _meta, _na, _rot, _param = _data
+            _show = bool(_param
+                         and getattr(self, "_wall_show_compression",
+                                     None) is not None
+                         and self._wall_show_compression.get())
+            _ax.clear()
+            draw_wall_section_ax(_ax, _sec, meta=_meta, na_info=_na,
+                                 show_compression=_show, rot_deg=_rot)
+            _wall_section_axes_pos(self._sec_fig, _ax)
+            _cv.draw()
         except Exception:
             pass
 
-    def _sec_zoom_reset(self, zst):
-        if zst and "ax" in zst:
-            try:
-                (x0, x1), (y0, y1) = zst["home"]
-                zst["ax"].set_xlim(x0, x1)
-                zst["ax"].set_ylim(y0, y1)
-                zst["canvas"].draw_idle()
-            except Exception:
-                pass
-        return "break"
-
-    def _sec_zoom_press(self, event, zst):
-        try:
-            lims = (zst["ax"].get_xlim(), zst["ax"].get_ylim())
-            zst["drag"] = {"lims": lims,
-                           "data": self._sec_zoom_data_at(
-                               zst, event, lims)}
-            zst["widget"].configure(cursor="fleur")
-        except Exception:
-            zst["drag"] = None
-        return "break"
-
-    def _sec_zoom_motion(self, event, zst):
-        dr = zst.get("drag") if zst else None
-        if dr:
-            try:
-                d1 = self._sec_zoom_data_at(zst, event, dr["lims"])
-                (x0, x1), (y0, y1) = dr["lims"]
-                sx = dr["data"][0] - d1[0]
-                sy = dr["data"][1] - d1[1]
-                zst["ax"].set_xlim(x0 + sx, x1 + sx)
-                zst["ax"].set_ylim(y0 + sy, y1 + sy)
-                zst["canvas"].draw_idle()
-            except Exception:
-                pass
-        return "break"
-
-    def _sec_zoom_release(self, event, zst):
-        if zst:
-            zst["drag"] = None
-            try:
-                zst["widget"].configure(cursor="")
-            except Exception:
-                pass
-        return "break"
-
+    # ---------- (Đã gỡ 2026-10-25) Zoom / pan / reset ô mặt cắt ----
+    # Quyết user 2026-10-25: ô mặt cắt vách khóa khung nhìn như ô
+    # cột — không nút −/+/Reset, không binding cuộn chuột zoom,
+    # kéo pan, double-click reset. Các method _sec_zoom_* cũ đã
+    # xóa hẳn ở đây; _zst trong _build_wall_section_cell chỉ còn
+    # là span home cho logic fit khung, không phải trạng thái zoom.
     def _show_wall_preview(self, sec, winp, meta=None):
         """View xem trước mặt cắt vách (chưa CHECK) ở tab Kết quả —
         cùng lưới với view kết quả: ô hướng dẫn trái, ô mặt cắt phải."""
@@ -2125,15 +2034,9 @@ class WallMixin:
                 draw_wall_section_ax(ax, secD, meta=metaD, rot_deg=_rotD)
                 _wall_section_axes_pos(self._sec_fig, ax)
                 self._sec_canvas.draw_idle()
-                # Vẽ lại xong: view zoom về khung gốc của dữ liệu mới
-                # (home = span gốc như ở _build_wall_section_cell)
-                _zst = getattr(self, "_sec_zoom", None)
-                if _zst is not None and _zst.get("ax") is ax:
-                    _sp = _wall_section_spans(
-                        secD,
-                        len((metaD or {}).get("dim_segments") or []),
-                        _rotD)
-                    _zst["home"] = ((_sp[0], _sp[1]), (_sp[2], _sp[3]))
+                # Cập nhật dữ liệu để checkbox vùng nén vẽ lại đúng
+                # tiết diện mới (preview: chưa có na_info nên cờ False).
+                self._wall_sec_cell = (secD, metaD, None, _rotD, False)
                 # Span đổi (đổi Lw/tw, chế độ thép...) -> fit lại
                 # chiều cao canvas theo tỉ lệ span mới.
                 _sf = getattr(self, "_sec_fit_schedule", None)

@@ -4,8 +4,8 @@ Quyết user 2026-10-24: khung nhìn mặt cắt CỘT KHÓA về dạng tĩnh n
 trước khi có zoom (trước head 375bc8f) — không wheel-zoom, không
 kéo-pan, không nút −/+/Reset, không double-click reset; ô luôn hiển
 thị trọn khung ở home, wheel trên ô cuộn tab như bình thường (qua
-_bind_wheel). Ô mặt cắt VÁCH giữ zoom/pan riêng của nó trong
-gui/wall_mixin.py (không dùng module này).
+_bind_wheel). Từ 2026-10-25 ô mặt cắt VÁCH cũng khóa khung nhìn
+như cột (không zoom/pan, không dùng module này).
 
 Nội dung còn lại duy nhất của module này là fit legend thép
 (head a5cb3d8): legend thép nằm NGOÀI axes (bbox_to_anchor 1.02)
