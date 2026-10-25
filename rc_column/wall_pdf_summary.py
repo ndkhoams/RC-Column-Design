@@ -72,8 +72,9 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     nhiêu, trừ safety) nên chính xác hơn đo wrap (wrap không tính
     spaceBefore/spaceAfter của các Paragraph). Neo dọc: mặt cắt
     CĂN TRÊN (VALIGN TOP của t_main, ngang đỉnh bảng thông tin),
-    N–Mα CĂN GIỮA (2 spacer bằng nhau quanh nó trong right_flow),
-    M2–M3 chảy tự nhiên ở giữa.
+    N–Mα CĂN GIỮA trong khoảng mặt cắt→M2–M3 (2 khe bằng nhau),
+    M2–M3 CĂN DƯỚI (đáy khối chính, sát bảng cắt) — ghi chú
+    user 2026-10-25 06:54, thay quy ước cũ "M2–M3 chảy tự nhiên".
     """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -184,6 +185,22 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
         ("Tiêu chuẩn", "TCVN 5574:2018"),
         ("Cấu kiện", (str(member_name).upper() if member_name else "—")),
     ]))
+    # Thép đai (ghi chú user 2026-10-25, 02:53 — bổ sung vào
+    # MỤC VẬT LIỆU, không vào bảng cắt): mác + Rsw lấy đúng từ
+    # parts cắt của engine (shear_in, fallback shear_out) — chính
+    # Rsw dùng tính qsw = Rsw×Asw/s, không hardcode, không suy
+    # từ tên cấp. Bảng cắt KHÔNG thêm hàng Rsw/mác.
+    _sw_grade = shp.get("steel_grade") or shop.get("steel_grade")
+    _sw_rsw = shp.get("Rsw") if shp.get("Rsw") is not None \
+        else shop.get("Rsw")
+    if _sw_grade and _sw_rsw is not None:
+        _sw_txt = f"{_sw_grade}, Rsw = {_fm(_sw_rsw)} MPa"
+    elif _sw_grade:
+        _sw_txt = str(_sw_grade)
+    elif _sw_rsw is not None:
+        _sw_txt = f"Rsw = {_fm(_sw_rsw)} MPa"
+    else:
+        _sw_txt = "—"
     left_flow.append(sec_table("VẬT LIỆU", [
         ("Bê tông", conc.grade.name),
         ("Cường độ chịu nén, R<sub>b</sub>",
@@ -197,6 +214,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
         ("Cường độ chịu nén, R<sub>sc</sub>",
          f"{_fm(steel.Rsc)} MPa"),
         ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(steel.Es)} MPa"),
+        ("Thép đai", _sw_txt),
     ]))
     left_flow.append(sec_table("TIẾT DIỆN", [
         ("Kích thước Lw × tw",
@@ -225,8 +243,11 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
         ("Lực dọc tính toán, N", f"{float(full['N']):.1f} kN"),
         ("Mô men ban đầu, M2, M3",
          f"{float(full['M_out']):.1f} / {float(full['M_in']):.1f} kN·m"),
-        ("Lực cắt, V2, V3",
-         f"{float(full['V_in']):.1f} / {float(full['V_out']):.1f} kN"),
+        # Hàng "Lực cắt, V2, V3" đã xóa theo ghi chú user 2026-10-25
+        # 06:52 (gạch đỏ ảnh after_vach.pdf): lực cắt đã có đầy đủ
+        # ở bảng kiểm tra chịu cắt phía dưới (kèm phóng đại DCM),
+        # hàng trên là trùng lặp. Chỉ xóa ở PDF tóm tắt vách này;
+        # hàng lực cắt trong bảng cắt phía dưới giữ nguyên.
     ]))
     left_flow.append(sec_table(
         "CHIỀU DÀI TÍNH TOÁN &amp; HIỆU ỨNG UỐN DỌC", [
@@ -275,44 +296,86 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     left_flow.append(sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC",
                                res_rows))
 
-    # Cột phải: 3 hình (mặt cắt neo trên, N–Mα giữa, M2–M3 dưới
-    # theo quy ước neo của PDF tóm tắt cột — spacer giãn đều).
-    right_flow = []
+    # Cột phải — neo dọc theo ghi chú user 2026-10-25 06:54:
+    # mặt cắt CĂN TRÊN, M2–M3 ĐẨY XUỐNG CĂN DƯỚI (đáy khối chính,
+    # sát phía trên bảng cắt), N–Mα (P–M) CĂN GIỮA trong khoảng
+    # giữa mặt cắt và M2–M3. Trước đây M2–M3 chỉ "chảy tự nhiên"
+    # với 2 spacer đều, để lại ~58pt trống dưới nó (đo PyMuPDF
+    # ca VACH/ca1 trước sửa: M2–M3 y1 ≈ 563, bảng cắt y ≈ 622).
+    # Cách tính: chiều cao cột trái = tổng wrap các sec_table;
+    # chiều cao nội dung phải = tổng wrap các phần tử phải.
+    # Phần dư E = trái − phải (>0 khi cột trái cao hơn). Đặt 2
+    # khe bằng nhau E/2 trước và sau N–Mα → N–Mα nằm chính giữa
+    # khoảng mặt cắt→M2–M3, và tổng phải ≈ trái → đáy M2–M3
+    # trùng đáy cột trái (căn dưới). Trừ safety 1pt để tổng phải
+    # không vượt trái do sai số wrap; nếu E ≤ 0 (cột phải đã
+    # cao hơn, M2–M3 vốn đã ở đáy) hoặc thiếu M2–M3 thì giữ
+    # spacer cũ. Chiều cao t_main không tăng do neo này (hoặc
+    # tăng không đáng kể và được vòng fill bảng cắt hấp thụ),
+    # bảng cắt vẫn neo đáy, vẫn 1 trang.
+    # KHÔNG còn dòng kết luận dưới biểu đồ N–Mα (ghi chú user
+    # 2026-10-25 gạch bỏ): kết luận N–M vẫn ở bảng KẾT QUẢ
+    # bên trái (hàng "Kết luận N–M").
+    # KHÔNG còn caption diễn giải dưới biểu đồ M2–M3 (ghi chú
+    # user 2026-10-25 gạch bỏ cùng với dòng kết luận N–Mα):
+    # biểu đồ M2–M3 vẫn giữ nguyên, chỉ là lát cắt tại N = BN
+    # của cùng khả năng N–M.
     try:
-        _sec_png = wall_section_png(
-            full, show_compression=show_compression)
-        right_flow.append(centered_img(_sec_png, img_w))
+        _sec_el = centered_img(wall_section_png(
+            full, show_compression=show_compression), img_w)
     except Exception as ex:
-        right_flow.append(Paragraph(f"(Không vẽ được mặt cắt: {ex})",
-                                    st_cell))
-    right_flow.append(Spacer(1, spacer))
+        _sec_el = Paragraph(f"(Không vẽ được mặt cắt: {ex})", st_cell)
+    _nm_title = Paragraph(
+        f"<b>Biểu đồ tương tác N–Mα</b> "
+        f"(α = {float(full['alpha_deg']):.1f}°)", st_chart)
     try:
-        right_flow.append(Paragraph(
-            f"<b>Biểu đồ tương tác N–Mα</b> "
-            f"(α = {float(full['alpha_deg']):.1f}°)", st_chart))
-        right_flow.append(centered_img(wall_nm_alpha_png(full), img_w))
-        # KHÔNG còn dòng kết luận dưới biểu đồ N–Mα (ghi chú user
-        # 2026-10-25 gạch bỏ): kết luận N–M vẫn ở bảng KẾT QUẢ
-        # bên trái (hàng "Kết luận N–M").
+        _nm_el = centered_img(wall_nm_alpha_png(full), img_w)
     except Exception as ex:
-        right_flow.append(Paragraph(
-            f"(Không vẽ được N–Mα: {ex})", st_cell))
-    right_flow.append(Spacer(1, spacer))
+        _nm_el = Paragraph(f"(Không vẽ được N–Mα: {ex})", st_cell)
+    _m2_title = None
+    _m2_el = None
     if full.get("m2m3") is not None:
+        _m2_title = Paragraph(
+            f"<b>Mặt cắt M2–M3</b> "
+            f"(N = {float(full['m2m3']['N_level']):,.0f} kN)",
+            st_chart)
         try:
-            right_flow.append(Paragraph(
-                f"<b>Mặt cắt M2–M3</b> "
-                f"(N = {float(full['m2m3']['N_level']):,.0f} kN)",
-                st_chart))
-            right_flow.append(centered_img(
-                wall_m2m3_figure(full), img_w))
-            # KHÔNG còn caption diễn giải dưới biểu đồ M2–M3
-            # (ghi chú user 2026-10-25 gạch bỏ cùng với dòng kết
-            # luận N–Mα): biểu đồ M2–M3 vẫn giữ nguyên, chỉ là
-            # lát cắt tại N = BN của cùng khả năng N–M.
+            _m2_el = centered_img(wall_m2m3_figure(full), img_w)
         except Exception as ex:
-            right_flow.append(Paragraph(
-                f"(Không vẽ được M2–M3: {ex})", st_cell))
+            _m2_el = Paragraph(f"(Không vẽ được M2–M3: {ex})", st_cell)
+
+    def _wrap_h(el):
+        try:
+            return float(el.wrap(90 * mm, 10000)[1])
+        except Exception:
+            return 0.0
+
+    right_flow = [_sec_el]
+    if _m2_el is not None:
+        _left_h = sum(_wrap_h(t) for t in left_flow)
+        _right_h = (_wrap_h(_sec_el) + _wrap_h(_nm_title)
+                    + _wrap_h(_nm_el) + _wrap_h(_m2_title)
+                    + _wrap_h(_m2_el))
+        _extra = _left_h - _right_h
+        if _extra > 1.0:
+            _gap = max((_extra - 1.0) / 2.0, 0.0)
+            right_flow.append(Spacer(1, _gap))
+            right_flow.append(_nm_title)
+            right_flow.append(_nm_el)
+            right_flow.append(Spacer(1, _gap))
+            right_flow.append(_m2_title)
+            right_flow.append(_m2_el)
+        else:
+            right_flow.append(Spacer(1, spacer))
+            right_flow.append(_nm_title)
+            right_flow.append(_nm_el)
+            right_flow.append(Spacer(1, spacer))
+            right_flow.append(_m2_title)
+            right_flow.append(_m2_el)
+    else:
+        right_flow.append(Spacer(1, spacer))
+        right_flow.append(_nm_title)
+        right_flow.append(_nm_el)
 
     t_main = Table([[left_flow, right_flow]],
                    colWidths=[90 * mm, 90 * mm], hAlign="CENTER")
@@ -378,14 +441,16 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     _v_out = (f"{float(full['V_out']):.1f} kN (không phóng đại)"
               if _out_ok else "— (chưa tính được)")
     _dash = "—"
-    # Thép bố trí kèm cấp thép (cùng quy ước bảng tab Kết quả);
-    # cột ngoài MP nay có thép thật nên không còn "—".
-    _sw_in = (_dash if not _in_ok else
-              (f"{shp.get('sw_txt', '—')} ({shp.get('steel_grade')})"
-               if shp.get("steel_grade") else shp.get("sw_txt", "—")))
-    _sw_out = (_dash if not _out_ok else
-               (f"{shop.get('sw_txt', '—')} ({shop.get('steel_grade')})"
-                if shop.get("steel_grade") else shop.get("sw_txt", "—")))
+    # Thép bố trí ở PDF TÓM TẮT VÁCH: KHÔNG kèm cấp thép trong
+    # ngoặc (ghi chú user 2026-10-25 06:54 "xoá (CB400) ở bảng"):
+    # mác thép đai nay đã có ở hàng "Thép đai" trong mục VẬT LIỆU
+    # phía trên, để lại ở bảng cắt là trùng lặp. Chỉ strip ở tầng
+    # PDF này (dùng sw_txt trần, không hardcode tên cấp — cấp nào
+    # cũng strip ngoặc); tab Kết quả (wall_mixin.py:596) và thẻ
+    # chi tiết tự dựng chuỗi riêng nên không đổi, engine không đổi.
+    # Cột ngoài MP nay có thép thật nên không còn "—".
+    _sw_in = _dash if not _in_ok else shp.get("sw_txt", "—")
+    _sw_out = _dash if not _out_ok else shop.get("sw_txt", "—")
     # Mỗi hàng: (nhãn, trong MP, ngoài MP, in đậm 2 ô giá trị?).
     sw_rows = [
         ("Thép ngang bố trí", _sw_in, _sw_out, False),
@@ -460,6 +525,14 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
         if i % 2 == 0:
             sw_style.append(("BACKGROUND", (0, i), (-1, i),
                              HexColor("#F2F2F2")))
+    # BUG đã sửa (ghi chú user 2026-10-25: bảng cắt mất căn lề +
+    # không có dải màu): sw_style đã định nghĩa sẵn nhưng CHƯA
+    # BAO GIỜ được áp dụng (thiếu setStyle) nên ReportLab dùng
+    # padding mặc định 6pt → text bảng cắt x0 = 48.5pt thay vì
+    # 42.5pt như bảng trên, và không có BACKGROUND xen kẽ.
+    # Áp đúng style này: LEFTPADDING 0 đưa mép trái về 42.5pt,
+    # BACKGROUND #F2F2F2 đúng nhịp bảng thông tin phía trên.
+    t_sw.setStyle(TableStyle(sw_style))
     # Spacer giữa khối chính và bảng cắt: mặc định 4pt; ở bản
     # build cuối (fill_pts) cộng thêm đúng khoảng trống đo được
     # để bảng cắt — khối cuối trang — neo đáy trang.
