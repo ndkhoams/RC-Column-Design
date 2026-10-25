@@ -1,9 +1,10 @@
 """Bo xoay tiet dien cho vach phang (user chot 2026-10-25).
 
 Ly do: ETABS xuat mac dinh truc 2 trung chieu Lw nen vach phang
-khong can xoay. Vach phang (loai duy nhat GD1): an hang xoay + ghi
-chu hoan doi, ep rotation = 0 o input builder (_collect_wall) va khi
-load file cu (ke ca file luu rot 90). Machinery xoay (engine, ham
+khong can xoay. Vach phang (loai duy nhat GD1): an hang xoay, ep
+rotation = 0 o input builder (_collect_wall) va khi load file cu
+(ke ca file luu rot 90). Ghi chu GD1 duoi muc 2 da bo 2026-10-25
+nen khong con widget ghi chu nao. Machinery xoay (engine, ham
 _rotate_wall, ve rot_deg) giu nguyen cho cac loai vach giai doan sau.
 Test GUI skip khi khong co display; test engine chay moi moi truong.
 """
@@ -51,7 +52,8 @@ def test_flat_wall_hides_rotation_row(wall_app):
     assert app.w_en_Lw.winfo_ismapped()
     assert not app._lbl_wall_rot.winfo_ismapped()
     assert not app.w_rot_fr.winfo_ismapped()
-    assert "hoán đổi" not in app._lbl_wall_rot_note.cget("text")
+    # Ghi chu GD1 duoi muc 2 da bo 2026-10-25: khong con widget nay.
+    assert not hasattr(app, "_lbl_wall_rot_note")
     assert app._wall_rot_deg == 0
     assert app.w_rot_var.get() == "0°"
 
