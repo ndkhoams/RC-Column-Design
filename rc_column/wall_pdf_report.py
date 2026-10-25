@@ -183,8 +183,7 @@ def export_wall_pdf_cards(full, filepath: str, member_name: str = None,
                     ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ]))
                 S.append(_t)
-                S.append(P(f"Mặt cắt M2–M3 (tại N = "
-                           f"{float(full['m2m3']['N_level']):,.0f} kN)",
+                S.append(P("Mặt cắt M2–M3",
                            st["cap"]))
                 # Diễn giải M2–M3 NGAY DƯỚI hình (cùng thẻ trong
                 # builder mục 7): chỉ diễn giải lại kết luận N–M,

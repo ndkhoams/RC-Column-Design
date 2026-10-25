@@ -412,7 +412,7 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.set_xlabel("M3 (kN×m)", fontsize=10, fontweight="bold")
     ax.set_ylabel("M2 (kN×m)", fontsize=10, fontweight="bold")
-    ax.set_title(f"M2–M3 (tại N = {_BN:,.0f} kN)", fontsize=11)
+    ax.set_title("M2–M3", fontsize=11)
     ax.tick_params(labelsize=8)
     from matplotlib.lines import Line2D as _L2D2
     _leg2 = [
@@ -958,7 +958,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
             if isinstance(_m2m3_png, bytes):
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b> (N = {getattr(res, 'BN', res.N):+.1f} kN)",
+                    f"<b>Mặt cắt M2-M3</b>",
                     st_chart_title))
                 _blkC.append(_centered_img(_m2m3_png, _IW))
         except Exception as e:

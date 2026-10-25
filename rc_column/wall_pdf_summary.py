@@ -339,8 +339,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     _m2_el = None
     if full.get("m2m3") is not None:
         _m2_title = Paragraph(
-            f"<b>Mặt cắt M2–M3</b> "
-            f"(N = {float(full['m2m3']['N_level']):,.0f} kN)",
+            f"<b>Mặt cắt M2–M3</b>",
             st_chart)
         try:
             _m2_el = centered_img(wall_m2m3_figure(full), img_w)
