@@ -2287,6 +2287,13 @@ class WallMixin:
         hdr.pack(fill=tk.X, padx=4, pady=(2, 2))
         tk.Label(hdr, text="● Biểu đồ tương tác N–Mα",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
+        # Chip α như mẫu bên cột (quyết user 2026-10-25: hiển thị ở
+        # cả cột và vách): góc tải từ dict kết quả, 1 chữ số thập
+        # phân, cùng màu/format chip α của cột.
+        self._wall_nm_alpha_lbl = tk.Label(
+            hdr, text=f"  α = {float(full['alpha_deg']):.1f}°  ",
+            font=("", 8, "bold"), fg="#065F46", bg="#D1FAE5")
+        self._wall_nm_alpha_lbl.pack(side=tk.LEFT, padx=6)
         if HAS_MPL:
             # Vẽ bằng ĐÚNG hàm vẽ của cột qua adapter (không còn
             # code vẽ N–Mα riêng cho vách): A xanh lá tròn, B cam
@@ -2339,6 +2346,13 @@ class WallMixin:
         hdr2.pack(fill=tk.X, padx=4, pady=(2, 2))
         tk.Label(hdr2, text="● Mặt cắt M2–M3",
                  font=("", 10, "bold"), bg="white").pack(side=tk.LEFT)
+        # Chip N xanh như bên cột (quyết user 2026-10-25: GIỮ chip N,
+        # chỉ bỏ hậu tố "(tại N = …)" trong tiêu đề axes): vách trước
+        # đây chưa có chip này ở header, nay thêm cho đồng bộ với
+        # cột; giá trị là BN (lực dọc điểm giới hạn B), như chip cột.
+        tk.Label(hdr2, text=f"  N = {float(full['BN']):+.1f} kN  ",
+                 font=("", 8, "bold"), fg="#1D4ED8",
+                 bg="#DBEAFE").pack(side=tk.LEFT, padx=6)
         if HAS_MPL:
             from rc_column.chart_draw import draw_m2m3_ax
             from rc_column.wall_chart_adapter import wall_chart_inputs
@@ -2408,6 +2422,19 @@ class WallMixin:
                 angle = float(sel.replace("°", ""))
         except Exception:
             return
+        # Cập nhật chip α như bên cột: về góc tải khi chọn "α (góc
+        # tải)", hiện "xem X°" khi chọn góc xem khác (khối ghi chú
+        # và D/C vẫn giữ số góc tải, không đổi).
+        try:
+            _lbl = getattr(self, "_wall_nm_alpha_lbl", None)
+            if _lbl is not None:
+                if angle is None:
+                    _lbl.config(
+                        text=f"  α = {float(full['alpha_deg']):.1f}°  ")
+                else:
+                    _lbl.config(text=f"  xem {angle:.0f}°  ")
+        except Exception:
+            pass
         try:
             from rc_column.chart_draw import draw_nm_alpha_ax
             from rc_column.wall_chart_adapter import wall_chart_inputs

@@ -122,7 +122,10 @@ def test_wall_m2m3_figure_shared_draw():
     draw_m2m3_ax(ax, sec, inp_ns, res_ns)
     assert ax.get_xlabel().startswith("M3")
     assert ax.get_ylabel().startswith("M2")
-    assert f"{full['BN']:,.0f}" in ax.get_title()
+    # Quyết user 2026-10-25: tiêu đề axes chỉ còn "M2–M3" (chip N ở
+    # header vẫn giữ BN); mức bao vẫn là BN.
+    assert ax.get_title() == "M2–M3", ax.get_title()
+    assert "(tại N" not in ax.get_title()
     plt.close(fig)
     png = wall_m2m3_figure(full)
     assert png[:8] == b"\x89PNG\r\n\x1a\n" and len(png) > 1000

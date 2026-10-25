@@ -140,7 +140,10 @@ def draw_m2m3_ax(ax, sec, inp, res):
     ax.axvline(0, color="#6B7280", linewidth=1.0, zorder=2)
     ax.set_xlabel("M3 (kN·m)", fontweight="bold", fontsize=10)
     ax.set_ylabel("M2 (kN·m)", fontweight="bold", fontsize=10)
-    ax.set_title(f"M2–M3 (tại N = {_BN:,.0f} kN)", fontsize=11)
+    # Quyết user 2026-10-25: tiêu đề axes chỉ còn "M2–M3", KHÔNG còn
+    # hậu tố "(tại N = … kN)" — chip N xanh phía trên biểu đồ (header
+    # GUI) vẫn giữ nguyên và vẫn hiện BN; bao vẫn vẽ tại N = BN.
+    ax.set_title("M2–M3", fontsize=11)
 
     from matplotlib.lines import Line2D
     leg_elems = [

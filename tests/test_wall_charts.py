@@ -118,7 +118,11 @@ def test_render_m2m3_shared_engine():
                       "Điểm tải A", "Điểm giới hạn B"]
     assert ax.get_xlabel().startswith("M3")
     assert ax.get_ylabel().startswith("M2")
-    assert f"{full['BN']:,.0f}" in ax.get_title()
+    # Quyết user 2026-10-25: tiêu đề axes chỉ còn "M2–M3" (chip N ở
+    # header vẫn giữ BN); mức bao vẫn là BN, chứng minh bằng B nằm
+    # trên polyline ở dưới.
+    assert ax.get_title() == "M2–M3", ax.get_title()
+    assert "(tại N" not in ax.get_title()
     # B nằm trên polyline vẽ (đã chèn B đúng góc).
     lines = [ln for ln in ax.lines if len(ln.get_xdata()) > 10]
     assert lines
