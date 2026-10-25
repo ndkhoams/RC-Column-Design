@@ -13,6 +13,10 @@ Ghi chu user 2026-10-25 (anh PDF tom tat vach build cdede78d, ca VACH):
   Test khoa: hang do co trong text, phan text SAU tieu de bang cat
   khong chua "Rsw" (bang cat khong them hang Rsw/mac), so tinh
   khong doi (dc 0.463, trong MP 1828.9, ngoai MP 568.0), dung 1 trang.
+- Dinh chinh 07:12 (anh after_ca1.pdf): hang Thep dai o VAT LIEU
+  tach thanh 2 dong rieng (mac / Rsw), khong gop nua; ghi chu
+  phong dai V_Ed 1,5x trong bang cat bi xoa han (chi xoa text,
+  V_Ed van la gia tri da phong dai). Xem test cuoi file.
 """
 
 import io
@@ -72,9 +76,15 @@ def test_wallpdf_align_and_material_rsw():
     r = PdfReader(io.BytesIO(data))
     assert len(r.pages) == 1
     txt = "\n".join((p.extract_text() or "") for p in r.pages)
-    # Hang VAT LIEU: mac + Rsw trong 1 hang gon.
+    # Hang VAT LIEU: tach 2 dong (ghi chu user 2026-10-25 07:12,
+    # anh after_ca1.pdf khoanh hang Thep dai) — khong gop
+    # "mac, Rsw" vao 1 hang nua.
     assert "Thép đai" in txt
-    assert "CB400-V, Rsw = 280 MPa" in txt
+    assert "Cường độ chịu cắt, Rsw" in txt
+    assert "CB400-V, Rsw = 280 MPa" not in txt
+    _head = txt.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[0]
+    assert "CB400-V" in _head
+    assert "280 MPa" in _head
     # Bang cat KHONG them hang Rsw/mac (dinh chinh 02:53): phan
     # text sau tieu de bang cat khong duoc chua "Rsw".
     tail = txt.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[1]
@@ -121,7 +131,11 @@ def test_wallpdf_no_v2v3_row_and_no_grade_in_shear_and_chart_anchor():
     assert "(CB400-V)" not in tail
     assert "CB400-V" not in tail
     head = txt.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[0]
-    assert "CB400-V, Rsw = 280 MPa" in head
+    # VAT LIEU tach 2 dong (07:12): mac rieng, Rsw rieng.
+    assert "CB400-V, Rsw = 280 MPa" not in head
+    assert "Thép đai" in head
+    assert "Cường độ chịu cắt, Rsw" in head
+    assert "280 MPa" in head
     # 3. Neo doc 2 bieu do (fitz).
     pytest.importorskip("fitz")
     import fitz
@@ -181,3 +195,73 @@ def test_wallpdf_shear_alignment_and_zebra():
     assert shear_fills, "bang cat khong co fill dai mau"
     assert any(abs(r.x0 - 42.5) < 1.0 and r.x1 > 500
                for r in shear_fills)
+
+
+def _full_ca1():
+    """Ca anh user (B30/CB500-V, cover 25, L 5.75, psi 0.8,
+    V_in = V_out = 0) — moc e01d839: dc 0.291393, cat
+    1920.5/579.1. Chi dung de khoa 1 trang + 2 viec 07:12."""
+    conc = ConcreteMaterial(CONCRETE_GRADES["B30"], 0.85)
+    steel = SteelMaterial(STEEL_GRADES["CB500-V"], 1.0)
+    winp = WallInput(
+        steel_mode="boundary", cover=25.0, dia_v=12.0, s_v=200.0,
+        dia_h=12.0, s_h=200.0, layers_h=2, sw_steel_grade="CB400-V",
+        be_Lb=500.0, be_dia=28.0, be_n_Lb=4, be_n_tw=2, be_L_out=2,
+        be_L_in=1, web_dia=12.0, web_s=200.0, Lx_m=5.75, Ly_m=5.75,
+        psi_x=0.8, psi_y=0.8)
+    winp.rot_deg = 0
+    loads = {"N": 2528.65, "M_in": 202.86, "M_out": 275.23,
+             "V_in": 0.0, "V_out": 0.0, "T": 0.0}
+    return wall_tcvn_full(winp, conc, steel, loads=loads,
+                          seismic_shear=True)
+
+
+def _txt_of(full, member):
+    buf = io.BytesIO()
+    export_wall_summary_pdf(full, buf, member_name=member,
+                            show_compression=True)
+    try:
+        from pypdf import PdfReader
+    except Exception:
+        from PyPDF2 import PdfReader
+    r = PdfReader(io.BytesIO(buf.getvalue()))
+    assert len(r.pages) == 1
+    return "\n".join((p.extract_text() or "") for p in r.pages)
+
+
+def test_wallpdf_stirrup_two_rows_and_no_dcm_note():
+    """Ghi chu user 2026-10-25 07:12 (anh after_ca1.pdf) — chi
+    PDF tom tat vach:
+    (A) VAT LIEU: hang Thep dai tach thanh 2 dong rieng
+    (mac / Rsw), giong cac vat lieu khac; khong con chuoi gop.
+    (B) Bang cat: bo han ghi chu \"V2 da phong dai 1,5x...\"
+    trong o nhan hang luc cat; chi xoa text hien thi — gia tri
+    V_Ed (da phong dai) va D/C cat khong doi."""
+    for full, member, dc, vcap_in, vcap_out in (
+            (_full(), "VACH", 0.463114, 1828.9, 568.0),
+            (_full_ca1(), "CA1", 0.291393, 1920.5, 579.1)):
+        assert abs(full["dc"] - dc) < 0.0005
+        assert abs(full["shear_in"]["V_cap"] - vcap_in) < 0.5
+        assert abs(full["shear_out"]["V_cap"] - vcap_out) < 0.5
+        txt = _txt_of(full, member)
+        # (A) 2 hang rieng, khong gop.
+        assert "Thép đai" in txt
+        assert "Cường độ chịu cắt, Rsw" in txt
+        assert "CB400-V, Rsw = 280 MPa" not in txt
+        head = txt.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[0]
+        assert "CB400-V" in head
+        assert "280 MPa" in head
+        # (B) Khong con ghi chu phong dai 1,5x o bat ky cho nao
+        # trong PDF tom tat, nhung gia tri V_Ed van dung va
+        # hang thep bo tri bang cat van khong ngoac cap thep.
+        assert "phóng đại 1,5" not in txt
+        assert "Ghi chú: V2 đã phóng đại" not in txt
+        tail = txt.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[1]
+        assert "Thép ngang bố trí" in tail
+        assert "2φ12 a200" in tail
+        assert "(CB400-V)" not in tail
+    # Rieng ca VACH: V_Ed trong MP van la 1200.0 (da x1,5),
+    # chung minh phep phong dai engine khong bi bo theo text.
+    txt_vach = _txt_of(_full(), "VACH")
+    tail_vach = txt_vach.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[1]
+    assert "1200.0 kN" in tail_vach

@@ -193,14 +193,16 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     _sw_grade = shp.get("steel_grade") or shop.get("steel_grade")
     _sw_rsw = shp.get("Rsw") if shp.get("Rsw") is not None \
         else shop.get("Rsw")
-    if _sw_grade and _sw_rsw is not None:
-        _sw_txt = f"{_sw_grade}, Rsw = {_fm(_sw_rsw)} MPa"
-    elif _sw_grade:
-        _sw_txt = str(_sw_grade)
-    elif _sw_rsw is not None:
-        _sw_txt = f"Rsw = {_fm(_sw_rsw)} MPa"
-    else:
-        _sw_txt = "—"
+    # Tách thành 2 hàng riêng theo ghi chú user 2026-10-25
+    # 07:12 (ảnh after_ca1.pdf khoanh hàng Thép đai): ghi thành
+    # 2 dòng giống các vật liệu khác, không gộp "mác, Rsw" vào
+    # 1 hàng nữa. Nhãn hàng cường độ theo đúng kiểu các hàng
+    # thép dọc (chịu kéo Rs / chịu nén Rsc): thép đai chịu cắt
+    # là Rsw. Thiếu giá trị nào thì hàng đó in "—", giữ hành vi
+    # fallback cũ (không giấu cả hàng khi chỉ thiếu 1 giá trị).
+    _sw_grade_txt = str(_sw_grade) if _sw_grade else "—"
+    _sw_rsw_txt = f"{_fm(_sw_rsw)} MPa" \
+        if _sw_rsw is not None else "—"
     left_flow.append(sec_table("VẬT LIỆU", [
         ("Bê tông", conc.grade.name),
         ("Cường độ chịu nén, R<sub>b</sub>",
@@ -214,7 +216,8 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
         ("Cường độ chịu nén, R<sub>sc</sub>",
          f"{_fm(steel.Rsc)} MPa"),
         ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(steel.Es)} MPa"),
-        ("Thép đai", _sw_txt),
+        ("Thép đai", _sw_grade_txt),
+        ("Cường độ chịu cắt, R<sub>sw</sub>", _sw_rsw_txt),
     ]))
     left_flow.append(sec_table("TIẾT DIỆN", [
         ("Kích thước Lw × tw",
@@ -424,18 +427,15 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     _dc_sho = sho.get("dc") if _out_ok else None
     _dc_sho_txt = (f"{_dc_sho:.3f}" if _dc_sho is not None
                    and math.isfinite(float(_dc_sho)) else "∞")
-    # Hàng V_Ed: ô giá trị chỉ còn số trơn; ghi chú DCM đặt trong
-    # ô nhãn (ghi chú user "ghi chú vào đây" đúng ô nhãn hàng V2,
-    # không phải footnote dưới bảng) — cùng quy ước với bảng cắt
-    # tab Kết quả (build_wall_shear_rows: ghi chú ở ô nhãn, ô giá
-    # trị trơn, không hiện V_raw).
+    # Hàng V_Ed: ô giá trị chỉ còn số trơn, KHÔNG còn ghi chú
+    # DCM trong ô nhãn — ghi chú user 2026-10-25 07:12 ("bỏ ghi
+    # chú V_Ed ×1,5") xóa hẳn đoạn "Ghi chú: V2 đã phóng đại
+    # 1,5× theo TCVN 9386-1:2025 §5.4.2.4(7) (DCM): … → … kN"
+    # khỏi PDF tóm tắt vách này. CHỈ xóa text hiển thị: phép
+    # phóng đại 1,5× trong engine không đổi (giá trị V_d dưới
+    # đây vẫn là V_Ed đã phóng đại), ghi chú DCM ở tab Kết quả
+    # / thẻ chi tiết / PDF chi tiết không đụng (builder riêng).
     _v_lbl = [Paragraph("Lực cắt tính toán, V2 / V3", st_lbl)]
-    if _in_ok and sh.get("seismic_applied"):
-        _v_lbl.append(Paragraph(
-            f"Ghi chú: V2 đã phóng đại 1,5× theo TCVN 9386-1:2025 "
-            f"§5.4.2.4(7) (DCM): {float(full['V_in']):.1f} → "
-            f"{float(sh.get('V_d', full['V_in'])):.1f} kN",
-            st_lbl_note))
     _v_in = (f"{float(sh.get('V_d', full['V_in'])):.1f} kN"
              if _in_ok else "— (chưa tính được)")
     _v_out = (f"{float(full['V_out']):.1f} kN (không phóng đại)"

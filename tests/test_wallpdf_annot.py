@@ -81,10 +81,16 @@ def test_summary_annot_seismic():
     assert "657.6 kN" not in txt
     assert "2φ12 a200" in txt
     assert "0.656" in txt and "0.000" in txt
-    # 4. V2 trơn + ghi chú DCM ở hàng V2 (không parenthetical cũ).
+    # 4. V2 trơn, KHONG con ghi chu DCM o hang V2 — sua ky vong
+    # theo ghi chu user 2026-10-25 07:12 ("bo ghi chu V_Ed x1,5"):
+    # chi xoa text hien thi o PDF tom tat vach; gia tri V_Ed
+    # (1200.0 kN, da phong dai 1,5x trong engine) va D/C cat
+    # khong doi, ghi chu DCM o tab/chi tiet khong dung.
     assert "1,5×800.0" not in txt
-    assert "800.0 → 1200.0 kN" in txt
-    assert "9386-1:2025" in txt
+    assert "800.0 → 1200.0 kN" not in txt
+    assert "phóng đại 1,5" not in txt
+    assert "Ghi chú: V2 đã phóng đại" not in txt
+    assert "1200.0 kN" in txt
     # 5. Ghi chú 02:05 + 02:11: bỏ 3 hàng THÔNG TIN CHUNG, bỏ dòng
     # phụ GĐ1, bỏ HẲN ghi chú phạm vi cuối trang; ghi tiêu chuẩn
     # bên dưới (hàng "Tiêu chuẩn" + tiêu đề bảng cắt) vẫn còn.
