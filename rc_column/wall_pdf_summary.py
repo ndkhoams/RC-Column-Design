@@ -426,17 +426,38 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     _dc_sho = sho.get("dc") if _out_ok else None
     _dc_sho_txt = (f"{_dc_sho:.3f}" if _dc_sho is not None
                    and math.isfinite(float(_dc_sho)) else "∞")
-    # Hàng V_Ed: ô giá trị chỉ còn số trơn, KHÔNG còn ghi chú
-    # DCM trong ô nhãn — ghi chú user 2026-10-25 07:12 ("bỏ ghi
-    # chú V_Ed ×1,5") xóa hẳn đoạn "Ghi chú: V2 đã phóng đại
-    # 1,5× theo TCVN 9386-1:2025 §5.4.2.4(7) (DCM): … → … kN"
-    # khỏi PDF tóm tắt vách này. CHỈ xóa text hiển thị: phép
-    # phóng đại 1,5× trong engine không đổi (giá trị V_d dưới
-    # đây vẫn là V_Ed đã phóng đại), ghi chú DCM ở tab Kết quả
-    # / thẻ chi tiết / PDF chi tiết không đụng (builder riêng).
+    # Hàng V_Ed: ghi chú DCM dài trong ô nhãn đã xóa hẳn ở
+    # head 158fc0e theo ghi chú user 2026-10-25 07:12 ("bỏ ghi
+    # chú V_Ed ×1,5"). Thay vào đó, ghi chú user 2026-10-25
+    # 07:36–07:37 chốt hậu tố NGẮN ngay bên cạnh giá trị lực
+    # cắt trong MP: "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))".
+    # Lưu ý trích dẫn đúng là §5.4.2.4(7) — tin đầu user gõ
+    # nhầm "5.4.2.497" đã được tin sau sửa lại, không dùng bản
+    # gõ nhầm. CHỈ là hậu tố hiển thị: phép phóng đại 1,5×
+    # trong engine không đổi, ghi chú DCM ở tab Kết quả / thẻ
+    # chi tiết / PDF chi tiết không đụng (builder riêng).
+    # Điều kiện hiển thị: CHỈ khi trong MP thực sự phóng đại
+    # DCM — cờ seismic_applied / seismic_factor = 1.5 của
+    # engine (wall_engine.py: V_Ed = 1,5 × V_in khi
+    # seismic_shear=True). Dùng cờ, không so V_d với V_raw:
+    # V_in = 0 mà cờ DCM bật thì V_d vẫn = 0 nhưng hậu tố
+    # vẫn phải có (đúng ca ảnh user khoanh đỏ); cờ tắt thì
+    # không thêm hậu tố dù giá trị có lớn.
     _v_lbl = [Paragraph("Lực cắt tính toán, V2 / V3", st_lbl)]
-    _v_in = (f"{float(sh.get('V_d', full['V_in'])):.1f} kN"
-             if _in_ok else "— (chưa tính được)")
+    _seis_factor = sh.get("seismic_factor")
+    if _seis_factor is None:
+        _seis_factor = shp.get("seismic_factor")
+    _seis_in = bool(sh.get("seismic_applied")
+                    or shp.get("seismic_applied")
+                    or (_seis_factor is not None
+                        and float(_seis_factor) == 1.5))
+    if _in_ok:
+        _v_in_val = float(sh.get('V_d', full['V_in']))
+        _v_in = (f"{_v_in_val:.1f} kN (1.5 Ved) "
+                 f"(TCVN 9386-1:2025 §5.4.2.4(7))"
+                 if _seis_in else f"{_v_in_val:.1f} kN")
+    else:
+        _v_in = "— (chưa tính được)"
     _v_out = (f"{float(full['V_out']):.1f} kN (không phóng đại)"
               if _out_ok else "— (chưa tính được)")
     _dash = "—"
@@ -509,7 +530,15 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
         _sty = st_cell_bc if _bold else st_cell_c
         sw_data.append([_cell_lab, Paragraph(_bi, _sty),
                         Paragraph(_bo, _sty)])
-    t_sw = Table(sw_data, colWidths=[68 * mm, 56 * mm, 56 * mm],
+    # Độ rộng cột bảng cắt: nới cột Trong MP 56 → 68 mm để
+    # hậu tố dài "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))"
+    # nằm gọn 1 dòng ở cỡ 7pt (đo DejaVu: "1200.0 kN …" =
+    # 184.8pt < 190.8pt khả dụng ở cột 68 mm); thu nhãn
+    # 68 → 60 mm (nhãn dài nhất ~109pt, vẫn thừa) và cột
+    # Ngoài MP 56 → 52 mm (giá trị dài nhất "(không phóng
+    # đại)" ~89pt, vẫn thừa). Tổng vẫn 180 mm nên mép trái
+    # bảng cắt giữ nguyên 42.5pt, thẳng với bảng trên.
+    t_sw = Table(sw_data, colWidths=[60 * mm, 68 * mm, 52 * mm],
                  hAlign="CENTER")
     sw_style = [
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),

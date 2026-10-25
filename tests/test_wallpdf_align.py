@@ -265,3 +265,73 @@ def test_wallpdf_stirrup_two_rows_and_no_dcm_note():
     txt_vach = _txt_of(_full(), "VACH")
     tail_vach = txt_vach.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[1]
     assert "1200.0 kN" in tail_vach
+
+
+def _full_nodcm():
+    """Cung ca VACH nhung DCM TAT (seismic_shear=False):
+    V_Ed trong MP = 800.0 kN, khong phong dai -> khong hau to."""
+    winp = WallInput(
+        Lw=2500.0, tw=350.0, cover=13.0, dia_h=12.0, s_h=200.0,
+        layers_h=2, sw_steel_grade="CB400-V",
+        steel_mode="boundary", be_Lb=500.0, be_dia=28.0,
+        be_n_Lb=4, be_n_tw=0, be_L_out=1, be_L_in=0,
+        web_dia=12.0, web_s=200.0,
+        Lx_m=3.3, Ly_m=3.3, psi_x=1.0, psi_y=1.0,
+        seismic_on=False)
+    return wall_tcvn_full(winp, CONC, STEEL, loads=dict(LOADS),
+                          seismic_shear=False)
+
+
+def test_wallpdf_shear_in_suffix_1p5_ved_with_citation():
+    """Ghi chu user 2026-10-25 07:36–07:37 (anh bang cat) — chi
+    PDF tom tat vach, thay cho ghi chu dai da bo o 158fc0e:
+    o luc cat trong MP, khi thuc su phong dai DCM 1,5x, ghi
+    hau to ngan "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))" ngay
+    ben canh gia tri. Chuoi dung §5.4.2.4(7) — tin dau user go
+    nham "5.4.2.497" da duoc tin sau sua lai, khong dung ban
+    go nham. Dieu kien la co DCM (seismic_applied), khong phai
+    so sanh V_d voi V_raw: ca anh V = 0 ma co DCM van co hau
+    to; ca khong DCM thi khong co, du V = 800. Cot ngoai MP
+    van "(không phóng đại)", ghi chu dai khong khoi phuc,
+    so tinh khong doi."""
+    # DCM BAT: VACH 1200.0 + ca anh 0.0 deu co hau to day du.
+    for full, member in ((_full(), "VACH"), (_full_ca1(), "CA1")):
+        assert full["shear_in"]["seismic_applied"] is True
+        assert abs(full["shear_in"]["seismic_factor"] - 1.5) < 1e-9
+        txt = _txt_of(full, member)
+        tail = txt.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[1]
+        assert "(1.5 Ved) (TCVN 9386-1:2025 §5.4.2.4(7))" in tail
+        assert "5.4.2.497" not in txt
+        assert "1.5Ved" not in txt
+        assert "phóng đại 1,5" not in txt
+        assert "Ghi chú: V2 đã phóng đại" not in txt
+        assert "(không phóng đại)" in tail
+    assert "1200.0 kN (1.5 Ved)" in _txt_of(_full(), "VACH")
+    assert "0.0 kN (1.5 Ved)" in _txt_of(_full_ca1(), "CA1")
+    # DCM TAT: gia tri tron, khong hau to, khong trich dan.
+    full_off = _full_nodcm()
+    assert full_off["shear_in"]["seismic_applied"] is False
+    assert abs(full_off["shear_in"]["seismic_factor"] - 1.0) < 1e-9
+    txt_off = _txt_of(full_off, "VACH")
+    tail_off = txt_off.split("KIỂM TRA KHẢ NĂNG CHỊU CẮT", 1)[1]
+    assert "800.0 kN" in tail_off
+    assert "(1.5 Ved)" not in tail_off
+    assert "TCVN 9386-1:2025" not in tail_off
+    # 1 trang + hau to nam gon 1 dong (fitz, ca VACH).
+    pytest.importorskip("fitz")
+    import fitz
+    buf = io.BytesIO()
+    export_wall_summary_pdf(_full(), buf, member_name="VACH",
+                            show_compression=True)
+    doc = fitz.open(stream=buf.getvalue(), filetype="pdf")
+    assert doc.page_count == 1
+    page = doc[0]
+    lines = []
+    for b in page.get_text("dict")["blocks"]:
+        if b["type"] != 0:
+            continue
+        for l in b["lines"]:
+            lines.append("".join(s["text"] for s in l["spans"]))
+    assert any(l.strip() == "1200.0 kN (1.5 Ved) "
+               "(TCVN 9386-1:2025 §5.4.2.4(7))" for l in lines), \
+        [l for l in lines if "1.5 Ved" in l]
