@@ -382,7 +382,12 @@ class EtabsMixin:
             _dc_txt = ""
             if not _is_tdtx:
                 _dc_txt = f"{dc:.3f}" if dc is not None and dc == dc else "—"
-            vals = (f.story, f.column, f.case, f"{f.station:.2f}",
+            # Dòng Pier: cột Station hiện đúng Location Top/Bottom
+            # (Station số chỉ là mã 0.0/1.0, hiển thị số sẽ gây hiểu
+            # nhầm là mét). Dòng cột thường không có location -> số.
+            _st_txt = (getattr(f, "location", "")
+                       if getattr(f, "location", "") else f"{f.station:.2f}")
+            vals = (f.story, f.column, f.case, _st_txt,
                     f"{f.N:.0f}", f"{f.Q2:.0f}", f"{f.Q3:.0f}",
                     f"{f.Mx:.0f}", f"{f.My:.0f}", _dc_txt)
             # Nền xen kẽ; dòng D/C > 1 thêm đỏ text
@@ -420,11 +425,15 @@ class EtabsMixin:
             _sn_f = float(_sn)
         except (TypeError, ValueError):
             _sn_f = None
+        # Dòng Pier hiển thị Location chữ ở cột Station nên tìm theo
+        # location khi ô không phải số; dòng cột thường tìm theo số.
+        _sn_loc = str(_sn).strip() if _sn_f is None else ""
         for f in getattr(self, "etabs_forces", []):
             if (str(f.story).strip() == str(_st).strip() and
                 str(f.column).strip() == str(_lb).strip() and
                 str(f.case).strip() == str(_cs).strip() and
-                _sn_f is not None and abs(f.station - _sn_f) < 0.01):
+                ((_sn_f is not None and abs(f.station - _sn_f) < 0.01) or
+                 (_sn_loc and getattr(f, "location", "") == _sn_loc))):
                 tgt = f
                 break
         if tgt is None:
@@ -477,7 +486,24 @@ class EtabsMixin:
                     _close()
                     return
                 if col_idx == 3:
+                    # Gõ Top/Bottom vào cột Station của dòng Pier: đổi
+                    # cả location lẫn mã station cho khớp; gõ số vào
+                    # dòng Pier thì xoá location để hiển thị theo số.
+                    if new_val in ("Top", "Bottom"):
+                        tgt.location = new_val
+                        tgt.station = 1.0 if new_val == "Top" else 0.0
+                        disp = new_val
+                        new_vals = list(vals)
+                        new_vals[col_idx] = disp
+                        new_vals[9] = "" if str(tgt.case).strip().startswith("TX_") else "—"
+                        t.item(row_id, values=new_vals)
+                        _close()
+                        self.etabs_info.set("Đã sửa dữ liệu — bấm 'KIỂM TRA KHẢ NĂNG "
+                                            "CHỊU LỰC' để tính lại.")
+                        return
                     tgt.station = num
+                    if getattr(tgt, "location", ""):
+                        tgt.location = ""
                     disp = f"{num:.2f}"
                 elif col_idx == 4:
                     tgt.N = num

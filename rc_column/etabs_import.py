@@ -34,6 +34,12 @@ class EtabsForce:
     My: float   # kN·m
     Q2: float = 0.0  # kN, lực cắt V2
     Q3: float = 0.0  # kN, lực cắt V3
+    location: str = ""  # ETABS Pier Forces: "Top"/"Bottom" (cột Location).
+    # Chỉ Pier có location; cột (Frames/Columns) để rỗng. Station của
+    # dòng Pier là MÃ vị trí (Bottom -> 0.0, Top -> 1.0), KHÔNG phải
+    # khoảng cách mét — xem _parse_pier_clipboard. Mã này giữ Top và
+    # Bottom phân biệt trong nhóm/gộp max-min (khóa nhóm dùng station)
+    # và trong cột Station của bảng, nơi hiển thị location khi có.
 
 
 def read_etabs_excel(path: str,
@@ -45,12 +51,20 @@ def read_etabs_excel(path: str,
     if not HAS_OPENPYXL:
         raise ImportError("Cần cài openpyxl: pip install openpyxl")
     wb = openpyxl.load_workbook(path, data_only=True)
-    # tìm sheet chứa "Element Forces"
+    # tìm sheet chứa "Element Forces" (cột) hoặc "Pier" (vách) — cùng
+    # lớp lỗi với clipboard: bảng Pier Forces xuất Excel có sheet
+    # "Pier Forces", không chứa "Element Forces" nên trước đây rơi
+    # về wb.active và có thể đọc nhầm sheet.
     ws = None
     for name in wb.sheetnames:
         if "element forces" in name.lower():
             ws = wb[name]
             break
+    if ws is None:
+        for name in wb.sheetnames:
+            if "pier" in name.lower():
+                ws = wb[name]
+                break
     if ws is None:
         ws = wb.active
 
@@ -142,19 +156,29 @@ def read_etabs_excel(path: str,
         v2 = num(r, "v2", "shear 2-2", "v2-2") * f_force
         v3 = num(r, "v3", "shear 3-3", "v3-3") * f_force
         mx, my = m2, m3  # M2->M2, M3->M3 (không ánh xạ)
+        # Bảng Pier Forces (Excel): cột "Pier" thay "Column"/"Frame",
+        # "Location" (Top/Bottom) thay "Station" -> cùng mã hoá như
+        # clipboard Pier (xem _pier_station_code); cột thường vẫn
+        # dùng Station số như trước.
+        _loc = val(r, "location")
+        _loc_s = str(_loc or "").strip()
+        _loc_norm = ("Top" if _loc_s.lower() == "top" else
+                     "Bottom" if _loc_s.lower() == "bottom" else _loc_s)
         forces.append(EtabsForce(
             # SAP2000 không có cột Story -> mặc định "Story" (user đã duyệt)
             story=str(val(r, "story") or
                       ("Story" if "story" not in col_idx else "")),
-            column=str(val(r, "column", "frame") or ""),
+            column=str(val(r, "column", "frame", "pier") or ""),
             case=str(case),
             case_type=case_type,
-            station=num(r, "station"),
+            station=(_pier_station_code(_loc_s) if "location" in col_idx
+                     else num(r, "station")),
             N=-p,  # ETABS: nén âm -> đổi sang nén dương
             Mx=mx,
             My=my,
             Q2=v2,
             Q3=v3,
+            location=_loc_norm,
         ))
     return forces
 
@@ -224,6 +248,98 @@ def _parse_sap_clipboard(lines, hi, idx, only_combinations,
     if not forces:
         raise ValueError(
             "Không đọc được dòng nội lực nào từ clipboard SAP2000.")
+    return forces
+
+
+def _pier_station_code(location: str) -> float:
+    """Mã Station cho dòng ETABS Pier Forces.
+
+    ETABS Pier Forces không có cột Station mà có Location Top/Bottom
+    (2 đầu đoạn pier của tầng đó, không phải khoảng cách mét). Mã hoá:
+    Bottom -> 0.0, Top -> 1.0, Location khác -> 0.0. Mã này CHỈ để
+    phân biệt Top/Bottom trong nhóm/gộp max-min và trong bảng hiển
+    thị; tuyệt đối không dùng làm chiều dài tính toán L (vách lấy L
+    từ ô nhập panel, cột lấy Station max chỉ cho dữ liệu Frames/
+    Columns có Station thật).
+    """
+    return 1.0 if (location or "").strip().lower() == "top" else 0.0
+
+
+def _parse_pier_clipboard(lines, hi, idx, only_combinations,
+                          unit_factor) -> List[EtabsForce]:
+    """Parse clipboard ETABS Pier Forces (bảng Pier Forces của vách).
+
+    Header theo TÊN cột: Story | Pier | Output Case | Case Type |
+    Step Type | Location | P | V2 | V3 | T | M2 | M3. Dòng đơn vị
+    ngay sau header tự bị bỏ qua vì ô P của nó không phải số (như
+    nhánh SAP). Ánh xạ: Story -> story, Pier -> column (hiển thị là
+    Label), Output Case -> case (gắn hậu tố Step Type max/min theo
+    đúng quy ước cột: "ULS14max"/"ULS14min", Step Type rỗng -> trơn),
+    P âm = nén -> N = -P, M2 -> Mx, M3 -> My, V2 -> Q2, V3 -> Q3.
+    T (xoắn) không có cột trong EtabsForce/bảng nên bỏ (như đường
+    cột: T cũng không được giữ). Location -> location + station mã
+    hoá (xem _pier_station_code); Top và Bottom của cùng combo là
+    2 dòng khác nhau, không bao giờ gộp lẫn nhau.
+    """
+    ip, im2 = idx["p"], idx["m2"]
+    f_force, f_moment = 1.0, 1.0
+    if hi + 1 < len(lines):
+        up = lines[hi + 1].split("\t")
+        if ip is not None and ip < len(up):
+            f_force = unit_factor(up[ip], "force")
+        if im2 is not None and im2 < len(up):
+            f_moment = unit_factor(up[im2], "moment")
+
+    def _num(parts, i):
+        if i is None or i >= len(parts):
+            return 0.0
+        try:
+            return float(parts[i].strip())
+        except ValueError:
+            return 0.0
+
+    def _txt(parts, i):
+        return parts[i].strip() if i is not None and i < len(parts) else ""
+
+    forces: List[EtabsForce] = []
+    for ln in lines[hi + 1:]:
+        parts = ln.split("\t")
+        if ip is None or len(parts) <= ip:
+            continue
+        try:
+            p_raw = float(parts[ip].strip())
+        except (ValueError, AttributeError):
+            continue  # dòng đơn vị / dòng rác: ô P không phải số
+        case = _txt(parts, idx["case"])
+        if not case:
+            continue
+        case_type = _txt(parts, idx["type"])
+        if only_combinations and "combination" not in case_type.lower():
+            continue
+        step = _txt(parts, idx["step"]).lower()
+        if step == "max":
+            case = f"{case}max"
+        elif step == "min":
+            case = f"{case}min"
+        loc = _txt(parts, idx["location"])
+        loc_norm = ("Top" if loc.lower() == "top" else
+                    "Bottom" if loc.lower() == "bottom" else loc)
+        forces.append(EtabsForce(
+            story=_txt(parts, idx["story"]),
+            column=_txt(parts, idx["label"]),
+            case=case,
+            case_type=case_type,
+            station=_pier_station_code(loc),
+            N=-p_raw * f_force,
+            Mx=_num(parts, idx["m2"]) * f_moment,
+            My=_num(parts, idx["m3"]) * f_moment,
+            Q2=_num(parts, idx["v2"]) * f_force,
+            Q3=_num(parts, idx["v3"]) * f_force,
+            location=loc_norm,
+        ))
+    if not forces:
+        raise ValueError(
+            "Không đọc được dòng nội lực nào từ clipboard.")
     return forces
 
 
@@ -374,6 +490,13 @@ def parse_etabs_clipboard(text: str,
     Clipboard SAP2000 KHÔNG có header (chỉ các dòng số liệu) cũng được nhận:
     parse theo VỊ TRÍ cột với kiểm chứng chặt từng dòng
     (xem _parse_sap_clipboard_noheader).
+
+    Nhận thêm clipboard ETABS Pier Forces (bảng Pier Forces của vách):
+    header Story | Pier | Output Case | Case Type | Step Type | Location |
+    P | V2 | V3 | T | M2 | M3 — parse theo TÊN cột, Pier -> Label,
+    Location -> location + Station mã hoá (Bottom 0.0 / Top 1.0, xem
+    _parse_pier_clipboard). Trước đây định dạng này rơi vào nhánh
+    Columns theo vị trí và bị loại hết (xem báo cáo lỗi paste Pier).
     """
     # Chuẩn hoá từng dòng TRƯỚC mọi định tuyến/kiểm chứng: bỏ ô rỗng ở
     # đầu/cuối dòng (tab thừa khi copy từ bảng — xem _strip_edge_empty_fields)
@@ -423,6 +546,32 @@ def parse_etabs_clipboard(text: str,
         }
         if sap_idx["case"] is None or sap_idx["p"] is None:
             sap_idx = None
+    # ETABS Pier Forces (vách): header có "pier" thay vì "column"/"frame"
+    # và có "location" thay vì "station" -> parse theo TÊN cột (vị trí
+    # cột khác hẳn Columns nên không dùng được vị trí cố định bên dưới).
+    # Không có "pier" thì pier_idx = None, đường cũ không đổi.
+    pier_idx = None
+    if "pier" in header_parts and "output case" in header_parts:
+        def _find_pier(*names):
+            for n in names:
+                if n in header_parts:
+                    return header_parts.index(n)
+            return None
+        pier_idx = {
+            "story": _find_pier("story"),
+            "label": _find_pier("pier"),
+            "case": _find_pier("output case", "outputcase"),
+            "type": _find_pier("case type", "casetype"),
+            "step": _find_pier("step type", "steptype"),
+            "location": _find_pier("location"),
+            "p": _find_pier("p"),
+            "v2": _find_pier("v2"),
+            "v3": _find_pier("v3"),
+            "m2": _find_pier("m2"),
+            "m3": _find_pier("m3"),
+        }
+        if pier_idx["case"] is None or pier_idx["p"] is None:
+            pier_idx = None
     # Kiểm tra Step Type trên cả dòng header và các dòng lân cận
     # (ETABS đôi khi xuất header nhiều dòng)
     has_step = "step type" in header_parts
@@ -472,6 +621,11 @@ def parse_etabs_clipboard(text: str,
     if sap_idx is not None:
         return _parse_sap_clipboard(lines, hi, sap_idx,
                                     only_combinations, _unit_factor)
+
+    # Nhánh ETABS Pier Forces: parse theo TÊN cột (xem _parse_pier_clipboard)
+    if pier_idx is not None:
+        return _parse_pier_clipboard(lines, hi, pier_idx,
+                                     only_combinations, _unit_factor)
 
     f_force, f_moment = 1.0, 1.0
     if hi + 1 < len(lines):
@@ -656,7 +810,10 @@ def merge_combo_max_min(forces, selected_bases=None):
             vals[field] = v_max if abs(v_max) >= abs(v_min) else v_min
         merged_row[min(maxs[0], mins[0])] = EtabsForce(
             story=first.story, column=first.column, case=base,
-            case_type=first.case_type, station=first.station, **vals)
+            case_type=first.case_type, station=first.station, **vals,
+            # Dòng Pier gộp giữ Location của cặp (Top/Bottom) để bảng
+            # vẫn phân biệt được sau gộp; dòng cột không có location.
+            location=getattr(first, "location", ""))
         consumed.add(maxs[0])
         consumed.add(mins[0])
     out = []

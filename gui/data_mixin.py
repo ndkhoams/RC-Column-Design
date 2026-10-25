@@ -270,7 +270,10 @@ class DataMixin:
                 {"story": f.story, "column": f.column, "case": f.case,
                  "case_type": f.case_type, "station": f.station,
                  "N": f.N, "Mx": f.Mx, "My": f.My,
-                 "Q2": f.Q2, "Q3": f.Q3}
+                 "Q2": f.Q2, "Q3": f.Q3,
+                 # Dòng Pier: giữ Location để mở lại vẫn hiện Top/Bottom.
+                 # File cũ không có khóa này -> EtabsForce mặc định "".
+                 "location": getattr(f, "location", "")}
                 for f in (getattr(self, "etabs_forces_orig", None)
                           or getattr(self, "etabs_forces", []))
             ],
