@@ -210,18 +210,30 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     xoay (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
     cx, cy = float(sec.cx), float(sec.cy)
-    # Lát 1: đa giác có dim phân đoạn dọc bên trái (C/U: Lr) vẽ tới
-    # -cx/2 - 0.16cx - 0.018cx - bề dày chữ; chừa trái tới -0.21cx
-    # cho mọi poly (rect không đổi, dim trái cũ vẫn -0.105cx).
-    _left = 0.21 if getattr(sec, "kind", "rect") == "poly" else 0.105
+    # Lát hiển thị 2026-10-27: đa giác dùng đơn vị dim riêng
+    # _unit = 0.5*min(cx, cy) thay cho cy. Lý do: với C/U, cy là
+    # cạnh DÀI (3000 mm) trong khi các khoảng dim/trục dọc vốn
+    # tính theo cy sẽ phình span dọc tới 4.56*cy, mặt cắt chỉ
+    # chiếm 22% chiều cao span nên C/U nhỏ xíu giữa khung (ảnh
+    # user 9b6481f). Với _unit, span dọc = cy + 3.56*_unit, mặt
+    # cắt chiếm ~36% span, dim vẫn cách nhau đủ px (đo Agg sau
+    # sửa, xem test_wallsecplot2). Rect giữ nguyên cy (đã
+    # user-verified, test_wallsecplot khóa dim tổng -1.45cy).
+    _is_poly = getattr(sec, "kind", "rect") == "poly"
+    _unit = 0.5 * min(cx, cy) if _is_poly else cy
+    # Đa giác có dim phân đoạn dọc bên trái (C/U: Lr) nay ở cột
+    # -0.28cx (xem draw_wall_section_ax) nên chừa trái tới
+    # -0.38cx cho mọi poly để nhãn dim trái nằm trong span;
+    # rect giữ -0.105cx như cũ.
+    _left = 0.38 if _is_poly else 0.105
     x_lo, x_hi = -cx / 2 - _left * cx, cx / 2 + 0.02 * cx
-    y_hi = cy / 2 + 1.27 * cy
+    y_hi = cy / 2 + 1.27 * _unit
     # Hàng tổng Lw luôn vẽ (kể cả không có phân đoạn) nên đáy span
-    # luôn là -2.29cy; nhánh cũ -1.21cy khi không phân đoạn làm
-    # dim + nhãn Lw tràn khỏi khung (đo Agg: nhãn ở y < 0, ngoài
-    # figure). n_seg giữ lại cho chữ ký hàm, không còn ảnh hưởng
-    # tới span.
-    y_lo = -cy / 2 - 2.29 * cy
+    # luôn là -2.29*_unit; nhánh cũ -1.21cy khi không phân đoạn
+    # làm dim + nhãn Lw tràn khỏi khung (đo Agg: nhãn ở y < 0,
+    # ngoài figure). n_seg giữ lại cho chữ ký hàm, không còn ảnh
+    # hưởng tới span.
+    y_lo = -cy / 2 - 2.29 * _unit
     if int(rot_deg or 0) % 360 == 0:
         return (x_lo, x_hi, y_lo, y_hi)
     pts = [_rot_xy(x, y, rot_deg)
@@ -233,13 +245,21 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
 
 _WALL_SEC_PAD_PX = 9.0
 
-# Cỡ tối thiểu hiển thị của điểm thép vách (đường kính, px màn
-# hình). Thép tỉ lệ thật ở home chỉ ~1.3px (d12 trên nhịp ~2812mm)
-# nên gần như tàng hình; sàn này khôi phục đúng mức nhìn của
-# marker scatter cũ (s=16 -> diện tích 16pt² -> đường kính ~4.5pt
-# ≈ 6px ở dpi 100) mà không lấn át mặt cắt. Khi zoom đủ lớn để tỉ
-# lệ thật vượt sàn, thép theo đúng tỉ lệ thật và scale cùng mặt
-# cắt (đường kính px = max(tỉ lệ thật, sàn)).
+# Cỡ hiển thị của điểm thép vách — Lát hiển thị 2026-10-27:
+# thép vẽ bằng marker scatter CỠ ĐIỂM ẢNH CỐ ĐỊNH (không còn
+# Circle tỉ lệ thật + sàn draw_event). Đường kính marker
+# WALL_BAR_DIAM_PT = 6.0pt = 8.3px ở dpi 100 (preview Tk) và
+# 16.7px ở dpi 200 (ảnh PDF) — cùng kích thước vật lý 2.1mm,
+# nhìn rõ như chấm đỏ web mà không phụ thuộc draw_event/resize/
+# debounce (đó là điểm yếu của cơ chế sàn cũ: ảnh user 9b6481f
+# chỉ còn 9–22px cam, tức chỉ legend, thép gần như không hiện
+# trong Tk dù render Agg trực tiếp vẫn có 6px). Marker cố định
+# nên không co theo tỉ lệ mặt cắt; khoảng cách thanh tối thiểu
+# (s=200, px/mm sau thu span ~0.06) vẫn ~12px > đường kính 8px
+# nên các chấm không chập vào nhau ở s mặc định.
+# WALL_BAR_MIN_DIAM_PX giữ lại cho tương thích (hàm floor cũ
+# nay là no-op, xem _wall_bar_floor_apply).
+WALL_BAR_DIAM_PT = 6.0
 WALL_BAR_MIN_DIAM_PX = 6.0
 
 
@@ -285,34 +305,11 @@ def _dim_h(ax, x1, x2, y, text, text_dy=0.30, fs=8):
 
 
 def _wall_bar_floor_apply(ax):
-    """Áp cỡ sàn hiển thị cho thép vách trên axes đã vẽ.
-
-    Đường kính điểm thép trên màn hình = max(đường kính tỉ lệ thật
-    tại khung nhìn hiện tại, WALL_BAR_MIN_DIAM_PX). Trả True nếu có
-    radius đổi (nơi gọi vẽ lại một lần); False nếu đã đúng. Chỉ
-    đọc transform hiện tại, không đổi lims nên không gây vòng lặp
-    vẽ lại. Với equal aspect, tỉ lệ px/mm 2 phương bằng nhau nên
-    tính theo phương x là đủ.
-    """
-    items = getattr(ax, "_wall_bar_items", None)
-    if not items:
-        return False
-    try:
-        _p0 = ax.transData.transform((0.0, 0.0))
-        _p1 = ax.transData.transform((1.0, 0.0))
-        px_per_mm = abs(float(_p1[0]) - float(_p0[0]))
-        if px_per_mm <= 0:
-            return False
-        changed = False
-        for circ, dia in items:
-            r = max(dia / 2.0,
-                    (WALL_BAR_MIN_DIAM_PX / 2.0) / px_per_mm)
-            if abs(float(circ.radius) - r) > 1e-9:
-                circ.set_radius(r)
-                changed = True
-        return changed
-    except Exception:
-        return False
+    """Tương thích ngược (lát hiển thị 2026-10-27): thép nay vẽ
+    bằng scatter cỡ điểm cố định nên không còn Circle để áp sàn;
+    hàm luôn trả False (không vẽ lại). Giữ tên hàm để code cũ/
+    test ngoài không vỡ khi import."""
+    return False
 
 
 def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
@@ -428,11 +425,17 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
                 closed=True, fill=True,
                 facecolor="#E0E7FF", edgecolor="none", zorder=2.5,
                 alpha=0.55))
-    # Thép theo (layer, dia) — hình tròn trong KHÔNG GIAN DỮ LIỆU
-    # (bán kính đúng dia/2, đơn vị mm) thay cho marker scatter theo
-    # điểm ảnh: zoom/pan thì thép scale cùng mặt cắt, ở home thì cỡ
-    # điểm khớp tỉ lệ thật với cạnh tiết diện. Phép xoay R bảo toàn
-    # hình tròn nên tâm xoay cứng như mọi phần tử khác.
+    # Thép theo (layer, dia) — Lát hiển thị 2026-10-27: marker
+    # scatter CỠ ĐIỂM CỐ ĐỊNH (WALL_BAR_DIAM_PT), không còn Circle
+    # tỉ lệ thật. Scatter có kích thước theo điểm (pt), không theo
+    # dữ liệu, nên chấm thép luôn ~8px ở preview dpi 100 dù mặt
+    # cắt 3000 mm hay 1500 mm, và không cần handler draw_event
+    # (điểm yếu khiến ảnh user 9b6481f gần như không thấy thép).
+    # Màu giữ đúng legend cũ: lớp 1 theo DIA_COLORS, lớp 2 cam
+    # L2_COLOR (thép đa giác toàn lớp 2 nên legend D14 cam như
+    # trước, không đổi màu). Thanh trong ô nút giao cùng nhóm
+    # lớp 2 nên cùng cỡ/màu, nhìn rõ như thanh chu vi. zorder=7
+    # trên cả mũi tên trục (6) để chấm không bị trục che.
     groups = {}
     for r in sec.rebars:
         groups.setdefault((r.layer, r.dia), []).append(r)
@@ -445,18 +448,16 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        for p in pts:
-            _qx, _qy = R(p.x, p.y)
-            _circ = mpatches.Circle(
-                (_qx, _qy), dia / 2.0,
-                fill=True, facecolor=color, edgecolor="white",
-                linewidth=0.8, zorder=5)
-            ax.add_patch(_circ)
-            _bar_items.append((_circ, float(dia)))
+        _xs = [R(p.x, p.y)[0] for p in pts]
+        _ys = [R(p.x, p.y)[1] for p in pts]
+        if _xs:
+            ax.scatter(_xs, _ys, s=WALL_BAR_DIAM_PT ** 2,
+                       marker="o", c=color, edgecolors="white",
+                       linewidths=0.8, zorder=7)
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white",
-            markersize=max(4.0, dia * 0.22),
+            markersize=WALL_BAR_DIAM_PT,
             label=f"D{dia:.0f}"))
     # Legend thép: box viền TRONG góc trên-phải của axes (vùng luôn
     # trống: dải nội dung nằm giữa khung, dim ở mép dưới/trái). Đặt
@@ -472,8 +473,12 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # Trục t2 (ngang, xanh lá) / t3 (đứng, xanh dương) tại tâm —
     # độ dài mũi tên tỉ lệ theo từng phương để nằm gọn trong khung;
     # đầu mũi tên + nhãn đi theo cùng phép xoay R như mọi phần tử.
+    # Lát hiển thị: đa giác dùng _unit (0.5*min(cx,cy)) cho phần
+    # chìa của t3 thay cho cy, cùng lý do thu span ở
+    # _wall_section_spans (tránh t3 chìa 0.85*3000 mm ở C/U).
+    _unit = 0.5 * min(cx, cy) if _is_poly else cy
     a2 = 0.30 * cx
-    a3 = cy / 2 + 0.85 * cy
+    a3 = cy / 2 + 0.85 * _unit
     ax.annotate("", xy=R(a2, 0.0), xytext=(0, 0),
                 arrowprops=dict(arrowstyle="->", color="#16A34A", lw=2.0,
                                 shrinkA=0, shrinkB=0), zorder=6)
@@ -484,7 +489,7 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     _ha, _va = _dir_ha_va(*R(1.0, 0.0))
     ax.text(_lt2[0], _lt2[1], "t2", fontsize=8, color="#15803D",
             weight="bold", va=_va, ha=_ha, zorder=6)
-    _lt3 = R(0.0, a3 + 0.16 * cy)
+    _lt3 = R(0.0, a3 + 0.16 * _unit)
     _ha, _va = _dir_ha_va(*R(0.0, 1.0))
     ax.text(_lt3[0], _lt3[1], "t3", fontsize=8, color="#1D4ED8",
             weight="bold", va=_va, ha=_ha, zorder=6)
@@ -515,13 +520,13 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # DƯỚI CÙNG — ngược thứ tự cũ (tổng ở trên, phân đoạn ở dưới).
     # Hàng 1 (sát đáy): phân đoạn (chỉ chế độ vùng biên).
     if _segs:
-        _y_seg = -cy / 2 - 0.62 * cy
+        _y_seg = -cy / 2 - 0.62 * _unit
         for _x1, _x2, _lab in _segs:
             for _xx in (_x1, _x2):
                 _ext((_xx, -cy / 2 - 0.10 * cy),
-                     (_xx, _y_seg - 0.16 * cy))
+                     (_xx, _y_seg - 0.16 * _unit))
             _dim((_x1, _y_seg), (_x2, _y_seg), _lab,
-                 ((_x1 + _x2) / 2.0, _y_seg + 0.14 * cy),
+                 ((_x1 + _x2) / 2.0, _y_seg + 0.14 * _unit),
                  0, "center", "bottom")
     # Hàng 2 (dưới cùng): kích thước tổng Lw, đường gióng từ 2 mép.
     # Nhãn Lw ở TRÊN đường dim (quyết user 2026-10-25, theo ghi chú
@@ -536,15 +541,15 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # tỉ lệ/vị trí, chỉ đường dim tổng dịch lên trong khung.
     # Hàm này dùng chung GUI + PDF (wall_pdf_figs) nên PDF tóm
     # tắt vách cũng dịch dim tổng lên cùng mức.
-    _y_tot = -cy / 2 - 1.45 * cy
+    _y_tot = -cy / 2 - 1.45 * _unit
     for _xx in (-cx / 2, cx / 2):
-        _ext((_xx, -cy / 2 - 0.10 * cy), (_xx, _y_tot - 0.16 * cy))
+        _ext((_xx, -cy / 2 - 0.10 * _unit), (_xx, _y_tot - 0.16 * _unit))
     # Nhãn tổng theo meta (lát 1): đa giác dùng nhãn riêng theo
     # loại (vd ell: L1/L2, C/U: Bf/Lw); rect giữ Lw/tw như cũ.
     _lab_x = (meta or {}).get("dim_total_x_label") or f"Lw = {cx:.0f} mm"
     _lab_y = (meta or {}).get("dim_total_y_label") or f"tw = {cy:.0f} mm"
     _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), _lab_x,
-         (0.0, _y_tot + 0.14 * cy), 0, "center", "bottom")
+         (0.0, _y_tot + 0.14 * _unit), 0, "center", "bottom")
     # DIM đứng bên trái: kích thước tổng tw (rect) hoặc tổng y
     # của đa giác (C/U: Lw, barbell: Bf, ...).
     _x_dim = -cx / 2 - 0.045 * cx
@@ -556,7 +561,7 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # trục thân, vẽ ở cột riêng bên ngoài dim tổng để không đè.
     _segs_y = (meta or {}).get("dim_segments_y") or []
     if _segs_y:
-        _x_seg_y = -cx / 2 - 0.16 * cx
+        _x_seg_y = -cx / 2 - 0.28 * cx  # lat hien thi: cach cot dim tong (-0.045cx) du de nhan doc khong de nhau
         for _y1, _y2, _lab in _segs_y:
             for _yy in (_y1, _y2):
                 _ext((-cx / 2 - 0.012 * cx, _yy),
@@ -571,28 +576,12 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     ax.set_yticks([])
     for sp in ax.spines.values():
         sp.set_visible(False)
-    # Sàn hiển thị cho thép (xem _wall_bar_floor_apply): lưu danh
-    # sách (Circle, dia) lên axes và gắn 1 lần handler draw_event.
-    # draw_event phát SAU khi Figure.draw xong nên lims/bbox đã
-    # chốt; handler chỉ vẽ lại khi radius thực
-    # sự đổi nên hội tụ sau tối đa 2 lần vẽ, không vòng lặp. Bao
-    # phủ cả 2 đường vẽ: _build_wall_section_cell (axes mới) và
-    # _refresh_wall_preview (ax.clear() + vẽ lại trên axes cũ —
-    # cờ hook sống qua clear(), danh sách được ghi đè mới mỗi lần
-    # vẽ nên handler luôn đọc đúng thép hiện tại).
+    # Lát hiển thị: thép là scatter cố định nên không còn hook
+    # draw_event/sàn Circle. Giữ thuộc tính _wall_bar_items rỗng
+    # cho tương thích code đọc nó (luôn là list rỗng, không phải
+    # danh sách Circle nữa).
     try:
-        ax._wall_bar_items = _bar_items
-        if not getattr(ax, "_wall_bar_floor_hooked", False):
-            ax._wall_bar_floor_hooked = True
-            _fig = ax.figure
-            if _fig is not None and _fig.canvas is not None:
-                def _on_wall_draw(_evt, _ax=ax):
-                    try:
-                        if _wall_bar_floor_apply(_ax):
-                            _ax.figure.canvas.draw_idle()
-                    except Exception:
-                        pass
-                _fig.canvas.mpl_connect("draw_event", _on_wall_draw)
+        ax._wall_bar_items = []
     except Exception:
         pass
 

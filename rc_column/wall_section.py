@@ -425,8 +425,12 @@ def _poly_dims(winp, verts):
         segs = [(x0, x0 + Tf, f"Tf = {Tf:.0f}"),
                 (x0 + Tf, x1 - Tf2, f"{Lw - Tf - Tf2:.0f}"),
                 (x1 - Tf2, x1, f"Tf = {Tf2:.0f}")]
+        # Lat hien thi: nhan dim doc la chieu y (Bf), khong phai
+        # chieu x (Lw) — ban cu ghi "Bf = 3000 mm" trong khi y chi
+        # 1000 mm (anh user 9b6481f). Chi sua nhan ve, khong doi
+        # so tinh (Ac/As khong qua nhan nay).
         return segs, [], f"Lw = {Lw:.0f} mm", \
-            f"Bf = {x1 - x0:.0f} mm"
+            f"Bf = {y1 - y0:.0f} mm"
     if st == "tee":
         t = float(winp.sec_t)
         segs = [(x0, x0 + t, f"t = {t:.0f}"),
