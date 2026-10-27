@@ -9,9 +9,9 @@ B. Tiêu đề trong axes của biểu đồ M2–M3 KHÔNG còn (rỗng) ở c�
    và pdf_export.m2m3_image (PDF cột TCVN); _m2m3_ax chết trong
    tcvn_mixin cũng đã bỏ title theo quét lớp lỗi (không có caller
    live, chỉ kiểm bằng grep trong gate, không test ở đây).
-C. Popup _on_wall_sectype khi chọn loại tiết diện không phải vách
-   phẳng không còn chuỗi "GĐ1", nhưng vẫn cảnh báo rằng chỉ hỗ trợ
-   'Vách phẳng chữ nhật' và vẫn reset về loại đầu.
+C. (Cập nhật lát 1, 2026-10-27) _on_wall_sectype KHÔNG còn popup
+   chặn/reset: chọn loại mới chuyển panel sang loại đó (mặt cắt +
+   thép + preview); CHECK loại mới chặn riêng ở _on_check_wall.
 
 Test GUI skip khi không có display; test Agg/engine chạy mọi môi trường.
 """
@@ -143,7 +143,10 @@ def test_extra_frame_title_exact(wall_app):
 
 
 def test_sectype_popup_has_no_gd1(wall_app):
-    """C: popup loại tiết diện khác không còn GĐ1, vẫn cảnh báo + reset."""
+    """C (cập nhật lát 1, 2026-10-27): chọn loại tiết diện khác KHÔNG
+    còn popup chặn, KHÔNG reset về vách phẳng — panel chuyển sang
+    loại mới (mặt cắt + thép + preview); CHECK mới chặn với thông
+    báo đúng nghĩa (kiểm ở test_wallsec2 / _on_check_wall)."""
     import gui.wall_mixin as wm
     from gui.wall_mixin import _SECTYPES
     app = wall_app
@@ -160,10 +163,10 @@ def test_sectype_popup_has_no_gd1(wall_app):
         app._on_wall_sectype()
     finally:
         wm.messagebox.showinfo = orig
-    assert captured, "popup không hiện"
-    assert "GĐ1" not in captured["message"]
-    assert "Vách phẳng chữ nhật" in captured["message"]
-    assert app.w_cb_sectype.get() == _SECTYPES[0]
+    assert not captured, "lát 1: chọn loại mới không còn popup chặn"
+    assert app.w_cb_sectype.get() == _SECTYPES[1]
+    assert app._wall_sec_code() == "barbell"
+    assert app.w_en_sec_bf.get() == "1000"
 
 
 def test_wallfollow2_0806_pdf_caption_has_bn_and_ved_comma():

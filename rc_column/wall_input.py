@@ -88,8 +88,29 @@ class WallInput:
     T: float = 0.0              # kN·m — GĐ1 chỉ lưu/cảnh báo, không kiểm xoắn
 
     # --- Mục 2 theo format web (2026-10-23) ---
-    section_type: str = "rect"  # GĐ1: chỉ vách phẳng chữ nhật
+    section_type: str = "rect"  # "rect" | "barbell" | "tee" | "ell"
+                                # | "c-core" | "u-core" (lát 1, 2026-10-27:
+                                # 5 loại sau chỉ mặt cắt + thép + preview)
     rot_deg: int = 0            # xoay tiết diện: 0 | 90 | 180 | 270
+
+    # --- Kích thước riêng cho 5 loại mới (lát 1, mặc định web) ---
+    # Barbell: Lw = tổng dài, tw = dày thân, Bf/Tf = rộng/dài đầu mở
+    # rộng (Tf đo theo chiều vách). Tee: Lw = chiều dài thân + t,
+    # Bf = rộng cánh, t = dày chung. Ell: L1/L2 = 2 cạnh, t = dày
+    # chung. C/U: Lw = chiều dài thân, t = dày chung, Bf = dài cánh,
+    # Lr = dài hồi (chỉ C). sec_sym=True -> 1 cặp (2 bên bằng nhau);
+    # False -> cặp 1/2 riêng. File cũ thiếu các khóa này -> mặc định
+    # dưới đây (vách phẳng không dùng chúng nên số cũ không đổi).
+    sec_bf: float = 1000.0      # Barbell Bf / Tee Bf / C-U Bf
+    sec_tf: float = 450.0       # Barbell Tf
+    sec_bf2: float = 1000.0     # Barbell Bf2 / C-U Bf2 (khi không đối xứng)
+    sec_tf2: float = 450.0      # Barbell Tf2
+    sec_lr: float = 600.0       # C Lr
+    sec_lr2: float = 600.0      # C Lr2
+    sec_L1: float = 2000.0      # Ell L1
+    sec_L2: float = 1800.0      # Ell L2
+    sec_t: float = 300.0        # Tee/Ell/C/U: dày chung t
+    sec_sym: bool = True        # Đối xứng (Barbell/C/U)
 
     # --- Mục 3 theo format web: chế độ bố trí thép dọc ---
     steel_mode: str = "perimeter"   # "perimeter" | "boundary"

@@ -81,6 +81,9 @@ def wall_dims(winp):
 
     Xoay 90/270 độ: hoán đổi vai trò Lw/tw trong dựng hình và tính
     toán (tiết diện chữ nhật đối xứng nên 0/180 giống nhau hình học).
+    CHỈ dùng cho vách phẳng (rect) — các loại mới lát 1 dùng polygon
+    canonical riêng (xem _polygon_for_type) và KHÔNG qua hàm này
+    (build_wall_section rẽ trước khi gọi wall_dims cho loại mới).
     """
     Lw = float(winp.Lw)
     tw = float(winp.tw)
@@ -91,6 +94,256 @@ def wall_dims(winp):
     if rot in (90, 270):
         return tw, Lw
     return Lw, tw
+
+
+# ---------------------------------------------------------------------
+# Hình học polygon cho 5 loại mới (lát 1, 2026-10-27)
+# ---------------------------------------------------------------------
+# Quy ước: polygon ở khung CANONICAL, tâm tại gốc, trục x = trục
+# chính của hình vẽ preview (xem từng hàm). Tất cả polygon đều trực
+# giao (chỉ cạnh ngang/dọc) nên offset inward và tính diện tích đều
+# chính xác bằng công thức đa giác. Các quan hệ hình học dưới đây là
+# SUY TỪ Ac web Vietcons (không phải định nghĩa chữ của web — web
+# chỉ cho kích thước + Ac/As, không ghi công thức): đã kiểm chứng
+# Ac khớp web từng loại trong test (sai số < 0,001 m²):
+# - Barbell: Lw = tổng dài, Tf = dài theo vách của đầu mở rộng,
+#   Bf = rộng ngang đầu: Ac = (Lw-2*Tf)*tw + 2*Tf*Bf.
+# - Tee: cánh Bf*t + thân (Lw-t)*t (Lw = chiều dài thân + t).
+# - Ell: L1*t + (L2-t)*t (góc chung t*t tính 1 lần).
+# - C-core: thân Lw*t + 2 cánh (Bf-t)*t + 2 hồi (Lr-t)*t — hồi đo
+#   từ mặt ngoài cánh vào trong (tổng 600), phần chồng cánh đã
+#   trừ t. Bf/Lr đo từ mặt ngoài thân/cánh.
+# - U-core: như C nhưng không hồi: Lw*t + 2*(Bf-t)*t.
+# Đối xứng: đầu/cánh 1 = đầu trên (C/U) hoặc đầu trái (Barbell);
+# đầu 2 = đầu còn lại. Khi sec_sym=True, cặp 2 lấy bằng cặp 1.
+def _poly_barbell(winp):
+    Lw, tw = float(winp.Lw), float(winp.tw)
+    sym = bool(getattr(winp, "sec_sym", True))
+    Bf, Tf = float(winp.sec_bf), float(winp.sec_tf)
+    Bf2, Tf2 = (Bf, Tf) if sym else (float(winp.sec_bf2),
+                                     float(winp.sec_tf2))
+    x0, x1 = -Lw / 2.0, Lw / 2.0
+    return [
+        (x0, -Bf / 2.0), (x0 + Tf, -Bf / 2.0),
+        (x0 + Tf, -tw / 2.0), (x1 - Tf2, -tw / 2.0),
+        (x1 - Tf2, -Bf2 / 2.0), (x1, -Bf2 / 2.0),
+        (x1, Bf2 / 2.0), (x1 - Tf2, Bf2 / 2.0),
+        (x1 - Tf2, tw / 2.0), (x0 + Tf, tw / 2.0),
+        (x0 + Tf, Bf / 2.0), (x0, Bf / 2.0),
+    ]
+
+
+def _poly_tee(winp):
+    Lw, Bf, t = float(winp.Lw), float(winp.sec_bf), float(winp.sec_t)
+    x0, x1 = -Lw / 2.0, Lw / 2.0
+    return [
+        (x0, -Bf / 2.0), (x0 + t, -Bf / 2.0),
+        (x0 + t, -t / 2.0), (x1, -t / 2.0),
+        (x1, t / 2.0), (x0 + t, t / 2.0),
+        (x0 + t, Bf / 2.0), (x0, Bf / 2.0),
+    ]
+
+
+def _poly_ell(winp):
+    L1, L2, t = float(winp.sec_L1), float(winp.sec_L2), float(winp.sec_t)
+    x0, x1, y0, y1 = -L1 / 2.0, L1 / 2.0, -L2 / 2.0, L2 / 2.0
+    return [
+        (x0, y0), (x1, y0), (x1, y0 + t),
+        (x0 + t, y0 + t), (x0 + t, y1), (x0, y1),
+    ]
+
+
+def _poly_c_core(winp):
+    # Khung chưa tâm: thân x in [0, t], y in [-Lw/2, Lw/2]; cánh
+    # x in [0, Bf], hồi x in [Bf-t, Bf]. Sau đó tịnh tiến về tâm
+    # bbox (x về max(Bf1,Bf2)/2, y về 0) để khớp quy ước gốc tại
+    # trọng tâm bbox như các loại khác.
+    Lw, t = float(winp.Lw), float(winp.sec_t)
+    sym = bool(getattr(winp, "sec_sym", True))
+    Bf, Lr = float(winp.sec_bf), float(winp.sec_lr)
+    Bf2, Lr2 = (Bf, Lr) if sym else (float(winp.sec_bf2),
+                                     float(winp.sec_lr2))
+    y0, y1 = -Lw / 2.0, Lw / 2.0
+    raw = [
+        (0.0, y0), (Bf2, y0), (Bf2, y0 + Lr2),
+        (Bf2 - t, y0 + Lr2), (Bf2 - t, y0 + t),
+        (t, y0 + t), (t, y1 - t), (Bf - t, y1 - t),
+        (Bf - t, y1 - Lr), (Bf, y1 - Lr), (Bf, y1), (0.0, y1),
+    ]
+    cx = max(Bf, Bf2) / 2.0
+    return [(x - cx, y) for x, y in raw]
+
+
+def _poly_u_core(winp):
+    Lw, t = float(winp.Lw), float(winp.sec_t)
+    sym = bool(getattr(winp, "sec_sym", True))
+    Bf = float(winp.sec_bf)
+    Bf2 = Bf if sym else float(winp.sec_bf2)
+    y0, y1 = -Lw / 2.0, Lw / 2.0
+    raw = [
+        (0.0, y0), (Bf2, y0), (Bf2, y0 + t),
+        (t, y0 + t), (t, y1 - t), (Bf, y1 - t), (Bf, y1), (0.0, y1),
+    ]
+    cx = max(Bf, Bf2) / 2.0
+    return [(x - cx, y) for x, y in raw]
+
+
+_POLY_BUILDERS = {
+    "barbell": _poly_barbell,
+    "tee": _poly_tee,
+    "ell": _poly_ell,
+    "c-core": _poly_c_core,
+    "u-core": _poly_u_core,
+}
+
+
+def _polygon_area_moments(verts):
+    """Diện tích + mô men quán tính (Ix = ∫y², Iy = ∫x²) của đa giác
+    theo công thức shoelace (tâm tại gốc — polygon đã tâm bbox)."""
+    a2 = 0.0
+    ix = 0.0
+    iy = 0.0
+    n = len(verts)
+    for i in range(n):
+        x0, y0 = verts[i]
+        x1, y1 = verts[(i + 1) % n]
+        cr = x0 * y1 - x1 * y0
+        a2 += cr
+        ix += cr * (y0 * y0 + y0 * y1 + y1 * y1)
+        iy += cr * (x0 * x0 + x0 * x1 + x1 * x1)
+    a = abs(a2) / 2.0
+    return a, abs(ix) / 12.0, abs(iy) / 12.0
+
+
+def _point_in_poly(x, y, verts):
+    """Ray casting (even-odd) cho đa giác trực giao."""
+    inside = False
+    n = len(verts)
+    for i in range(n):
+        x0, y0 = verts[i]
+        x1, y1 = verts[(i + 1) % n]
+        if (y0 > y) != (y1 > y):
+            xin = x0 + (y - y0) * (x1 - x0) / (y1 - y0)
+            if x < xin:
+                inside = not inside
+    return inside
+
+
+def _offset_polygon_orthogonal(verts, d):
+    """Đa giác lùi vào trong d (chỉ đa giác trực giao): mỗi cạnh
+    dịch vào trong theo pháp tuyến trong, giao 2 cạnh kề cho đỉnh
+    mới. Trả về cùng thứ tự đỉnh (đã chuẩn hoá CCW nếu cần)."""
+    s = sum(verts[i][0] * verts[(i + 1) % len(verts)][1]
+            - verts[(i + 1) % len(verts)][0] * verts[i][1]
+            for i in range(len(verts)))
+    v = list(verts)
+    if s < 0:
+        v = v[::-1]
+    n = len(v)
+    out = []
+    for i in range(n):
+        p_prev, p_cur, p_next = v[i - 1], v[i], v[(i + 1) % n]
+
+        def _inward(a, b):
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            L = math.hypot(dx, dy) or 1.0
+            return (-dy / L, dx / L)  # trái của cạnh = trong (CCW)
+
+        n1 = _inward(p_prev, p_cur)
+        n2 = _inward(p_cur, p_next)
+        x = p_cur[0] + d * (n1[0] if n1[0] != 0 else n2[0])
+        y = p_cur[1] + d * (n1[1] if n1[1] != 0 else n2[1])
+        out.append((x, y))
+    return out
+
+
+def _gen_perimeter_poly(verts, cover, d, s, dia_h=0.0):
+    """Thép chu vi tự động cho đa giác (lát 1, chế độ auto của
+    T/L/C/U và chế độ perimeter của Barbell): thanh trên đa giác
+    lùi vào trong inset = cover + dia_h + d/2, mỗi cạnh số khoảng
+    = ceil(chiều_dài/s), bước thực <= s, góc dùng chung (không
+    tính trùng) — cùng quy tắc _gen_perimeter của rect, chỉ tổng
+    quát hoá từ hình chữ nhật sang đa giác trực giao.
+    Trả (bars, extra) với bars = [(x, y, dia)]."""
+    if d <= 0 or s <= 0:
+        raise ValueError("Thép chu vi: đường kính/khoảng cách phải > 0")
+    inset = cover + dia_h + d / 2.0
+    iv = _offset_polygon_orthogonal(verts, inset)
+    bars = []
+    seen = set()
+    extra = {"edges": []}
+    n = len(iv)
+    for i in range(n):
+        a, b = iv[i], iv[(i + 1) % n]
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        if L <= 0:
+            continue
+        ni = max(1, int(math.ceil(L / s)))
+        extra["edges"].append((L, ni, L / ni))
+        for k in range(ni + 1):
+            t = k / ni
+            p = (a[0] + (b[0] - a[0]) * t,
+                 a[1] + (b[1] - a[1]) * t)
+            key = (round(p[0], 6), round(p[1], 6))
+            if key not in seen:
+                seen.add(key)
+                bars.append((p[0], p[1], d))
+    return bars, extra
+
+
+def _poly_dims(winp, verts):
+    """Dim cho preview đa giác: (dim_segments x, dim_segments_y,
+    nhãn tổng x, nhãn tổng y). dim_segments x theo trục chính,
+    dim_segments_y chỉ cho C/U (hồi Lr đo theo trục thân)."""
+    st = str(getattr(winp, "section_type", "rect"))
+    xs = [p[0] for p in verts]
+    ys = [p[1] for p in verts]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    if st == "barbell":
+        Lw, tw = float(winp.Lw), float(winp.tw)
+        Tf = float(winp.sec_tf)
+        Tf2 = Tf if bool(getattr(winp, "sec_sym", True)) \
+            else float(winp.sec_tf2)
+        segs = [(x0, x0 + Tf, f"Tf = {Tf:.0f}"),
+                (x0 + Tf, x1 - Tf2, f"{Lw - Tf - Tf2:.0f}"),
+                (x1 - Tf2, x1, f"Tf = {Tf2:.0f}")]
+        return segs, [], f"Lw = {Lw:.0f} mm", \
+            f"Bf = {x1 - x0:.0f} mm"
+    if st == "tee":
+        t = float(winp.sec_t)
+        segs = [(x0, x0 + t, f"t = {t:.0f}"),
+                (x0 + t, x1, f"{x1 - (x0 + t):.0f}")]
+        return segs, [], f"Lw = {float(winp.Lw):.0f} mm", \
+            f"Bf = {float(winp.sec_bf):.0f} mm"
+    if st == "ell":
+        t = float(winp.sec_t)
+        segs = [(x0, x0 + t, f"t = {t:.0f}"),
+                (x0 + t, x1, f"{x1 - (x0 + t):.0f}")]
+        return segs, [], f"L1 = {float(winp.sec_L1):.0f} mm", \
+            f"L2 = {float(winp.sec_L2):.0f} mm"
+    if st == "c-core":
+        t = float(winp.sec_t)
+        Lr = float(winp.sec_lr)
+        Lr2 = Lr if bool(getattr(winp, "sec_sym", True)) \
+            else float(winp.sec_lr2)
+        segs = [(x0, x0 + t, f"t = {t:.0f}"),
+                (x0 + t, x1 - t, f"{x1 - t - (x0 + t):.0f}"),
+                (x1 - t, x1, f"t = {t:.0f}")]
+        segs_y = [(y0, y0 + Lr2, f"Lr = {Lr2:.0f}"),
+                  (y0 + Lr2, y1 - Lr, f"{y1 - Lr - (y0 + Lr2):.0f}"),
+                  (y1 - Lr, y1, f"Lr = {Lr:.0f}")]
+        return segs, segs_y, f"Bf = {x1 - x0:.0f} mm", \
+            f"Lw = {float(winp.Lw):.0f} mm"
+    if st == "u-core":
+        t = float(winp.sec_t)
+        segs = [(x0, x0 + t, f"t = {t:.0f}"),
+                (x0 + t, x1, f"{x1 - (x0 + t):.0f}")]
+        segs_y = [(y0, y0 + t, f"t = {t:.0f}"),
+                  (y0 + t, y1 - t, f"{y1 - t - (y0 + t):.0f}"),
+                  (y1 - t, y1, f"t = {t:.0f}")]
+        return segs, segs_y, f"Bf = {x1 - x0:.0f} mm", \
+            f"Lw = {float(winp.Lw):.0f} mm"
+    return [], [], f"Lw = {x1 - x0:.0f} mm", f"tw = {y1 - y0:.0f} mm"
 
 
 def _spacing_stats(runs):
@@ -255,6 +508,85 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
     return be_left, be_right, web, runs, extra
 
 
+def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
+                             nx=None, ny=None):
+    """Dựng Section kind="poly" cho 5 loại mới (lát 1).
+
+    Thép: chu vi tự động (per_dia/per_s) cho T/L/C/U; Barbell giữ
+    dropdown nhưng cả 2 chế độ đều dùng thép chu vi đa giác trong
+    lát 1 (vùng biên của Barbell chính là 2 đầu mở rộng — logic
+    vùng biên Lb/db kiểu rect chưa ánh xạ sang đầu Barbell, ghi rõ
+    ở meta.layout_text; file vẫn lưu đúng steel_mode đã chọn).
+    Lưới fiber: ô vuông bước WALL_MESH_STEP, tâm trong đa giác,
+    diện tích mỗi fiber chuẩn hoá để tổng = Ac đa giác chính xác.
+    """
+    from .sections import Fiber, Section
+    verts = _POLY_BUILDERS[str(winp.section_type)](winp)
+    Ac, Ix, Iy = _polygon_area_moments(verts)
+    if Ac <= 0:
+        raise ValueError("Kích thước tiết diện đa giác không hợp lệ")
+    xs = [p[0] for p in verts]
+    ys = [p[1] for p in verts]
+    cx, cy = max(xs) - min(xs), max(ys) - min(ys)
+    step = WALL_MESH_STEP if mesh_step is None else float(mesh_step)
+    fibers = []
+    nx_c = int(math.ceil(cx / step))
+    ny_c = int(math.ceil(cy / step))
+    dx, dy = cx / nx_c, cy / ny_c
+    for i in range(nx_c):
+        for j in range(ny_c):
+            x = min(xs) + (i + 0.5) * dx
+            y = min(ys) + (j + 0.5) * dy
+            if _point_in_poly(x, y, verts):
+                fibers.append(Fiber(x, y, dx * dy))
+    fsum = sum(f.area for f in fibers)
+    if fsum > 0:
+        for f in fibers:
+            f.area *= Ac / fsum
+    sec = Section(kind="poly", cx=cx, cy=cy, concrete=conc, steel=steel,
+                  fibers=fibers, poly_verts=[verts])
+    cover = float(winp.cover)
+    bars, extra = _gen_perimeter_poly(
+        verts, cover, float(winp.per_dia), float(winp.per_s),
+        float(winp.dia_h))
+    sec.rebars = [Rebar(x, y, bar_area(d), d, 2) for x, y, d in bars]
+    segs, segs_y, lab_x, lab_y = _poly_dims(winp, verts)
+    mode = str(getattr(winp, "steel_mode", "perimeter") or "perimeter")
+    rot = int(getattr(winp, "rot_deg", 0) or 0) % 360
+    # Ghi chú Barbell + boundary (xem docstring): thép chu vi đa
+    # giác, không dùng be_Lb/be_dia trong lát 1.
+    layout = (f"Thép chu vi tự động: {len(bars)} thanh "
+              f"d{float(winp.per_dia):.0f} (s nhập "
+              f"{float(winp.per_s):.0f} mm, bước thực <= s)")
+    if str(winp.section_type) == "barbell" and mode == "boundary":
+        layout += (" — chế độ vùng biên của Barbell ở lát 1 dùng "
+                   "chung thép chu vi đa giác (2 đầu mở rộng là vùng "
+                   "biên); be_Lb/be_dia chưa ánh xạ sang đầu Barbell.")
+    meta = {
+        "nx": nx_c, "ny": ny_c, "mesh_step_x": dx, "mesh_step_y": dy,
+        "steel_mode": "perimeter",
+        "steel_mode_input": mode,
+        "section_type": str(winp.section_type),
+        "Lw_eff": cx, "tw_eff": cy, "rot_deg": rot,
+        "n_bars": len(bars), "n_web": len(bars),
+        "n_be_left": 0, "n_be_right": 0,
+        "s_v_actual": None,
+        "As_web": bar_area(float(winp.per_dia)) * len(bars),
+        "As_be": 0.0, "As_total": sec.steel_area,
+        "mu": sec.reinforcement_ratio,
+        "web_a": min(xs), "web_b": max(xs),
+        "bars_web": bars, "bars_be_left": [], "bars_be_right": [],
+        "warnings": [],
+        "zones": [("Chu vi", len(bars), float(winp.per_dia))],
+        "smax": None, "s_step_min": None, "sclear_min": None,
+        "dim_segments": segs, "dim_segments_y": segs_y,
+        "dim_total_x_label": lab_x, "dim_total_y_label": lab_y,
+        "poly_ac": Ac, "poly_Ix": Ix, "poly_Iy": Iy,
+        "layout_text": layout,
+    }
+    return sec, meta
+
+
 def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
                        mesh_step: float = None,
                        nx: int = None, ny: int = None):
@@ -264,6 +596,17 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
     thực, As từng nhóm, lưới fiber) để hiển thị/kiểm chứng — không nơi
     nào được suy lại từ công thức khác.
     """
+    # ---- Nhánh đa giác (lát 1): 5 loại mới, chỉ mặt cắt + thép +
+    # preview. Engine N–M/cắt của vách dùng công thức Lw/tw chữ nhật
+    # (độ mảnh, Ig, b/h0) nên KHÔNG generic cho đa giác — CHECK cho
+    # loại mới bị chặn ở GUI (_on_check_wall), không vào nhánh này
+    # để tính. Nhánh này chỉ dựng Section kind="poly" để preview/
+    # thẻ thép đọc đúng Ac/As; lưới fiber lấy mẫu trong đa giác
+    # (diện tích fiber được chuẩn hoá về đúng Ac đa giác).
+    _stype = str(getattr(winp, "section_type", "rect") or "rect")
+    if _stype in _POLY_BUILDERS:
+        return _build_wall_section_poly(winp, conc, steel, mesh_step,
+                                        nx, ny)
     Lw, tw = wall_dims(winp)
     if Lw <= 0 or tw <= 0:
         raise ValueError(f"Kích thước vách không hợp lệ: Lw={Lw}, tw={tw}")
@@ -466,8 +809,16 @@ def wall_readouts(winp, sec, meta) -> dict:
     theo Lw): Ix = tw*Lw^3/12 (quán tính trong mặt phẳng), Iy =
     Lw*tw^3/12. Đơn vị: Ac (m²), Ix/Iy (m⁴), As (mm²), khoảng cách mm.
     """
-    Lw, tw = wall_dims(winp)
-    Ac = Lw * tw
+    if str(getattr(winp, "section_type", "rect")) in _POLY_BUILDERS:
+        verts = _POLY_BUILDERS[str(winp.section_type)](winp)
+        Ac, Ix, Iy = _polygon_area_moments(verts)
+        # (Ix/Iy đa giác tính ở dưới theo công thức đa giác, không
+        # qua Lw*tw — xem return ở cuối hàm qua biến _poly_moments.)
+        _poly_moments = (Ix, Iy)
+    else:
+        Lw, tw = wall_dims(winp)
+        Ac = Lw * tw
+        _poly_moments = None
     # Tóm tắt thép theo đường kính (đường kính lớn trước)
     by_dia = {}
     for r in sec.rebars:
@@ -479,14 +830,20 @@ def wall_readouts(winp, sec, meta) -> dict:
         az = bar_area(d) * n if d > 0 else 0.0
         zones.append({"name": name, "n": n, "dia": d, "As": az,
                       "mu": az / Ac if Ac > 0 else 0.0})
+    if _poly_moments is not None:
+        _ix_m4 = _poly_moments[0] / 1e12
+        _iy_m4 = _poly_moments[1] / 1e12
+    else:
+        _ix_m4 = tw * Lw ** 3 / 12.0 / 1e12
+        _iy_m4 = Lw * tw ** 3 / 12.0 / 1e12
     return {
         "n_bars": len(sec.rebars),
         "summary": " + ".join(parts),
         "As": sec.steel_area,
         "mu": sec.reinforcement_ratio,
         "Ac_m2": Ac / 1e6,
-        "Ix_m4": tw * Lw ** 3 / 12.0 / 1e12,
-        "Iy_m4": Lw * tw ** 3 / 12.0 / 1e12,
+        "Ix_m4": _ix_m4,
+        "Iy_m4": _iy_m4,
         "sclear_min": meta.get("sclear_min"),
         "smax": meta.get("smax"),
         "s_step_min": meta.get("s_step_min"),

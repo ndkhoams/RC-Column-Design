@@ -59,9 +59,25 @@ _L0_OPTS = [("Khớp – Khớp (hệ số 1.0)", 1.0),
             ("Ngàm – Ngàm (hệ số 0.5)", 0.5),
             ("Ngàm – Tự do (hệ số 2.0)", 2.0)]
 _ACI_CLASS = [("special", "Đặc biệt (Ch.18)"), ("ordinary", "Thường (Ch.11)")]
-# Mục 2 (web): 6 loại tiết diện — GĐ1 chỉ loại đầu hoạt động
+# Mục 2 (web): 6 loại tiết diện — lát 1 (2026-10-27) cả 6 loại đều
+# chọn được ở mức mặt cắt + thép + preview; CHECK N–M/cắt vẫn chỉ
+# mở cho vách phẳng (xem _on_check_wall).
 _SECTYPES = ["Vách phẳng chữ nhật", "Vách mở rộng hai đầu (Barbell)",
              "Vách chữ T", "Vách chữ L", "Lõi chữ C", "Lõi chữ U"]
+_SEC_CODES = ["rect", "barbell", "tee", "ell", "c-core", "u-core"]
+# Mặc định web khi LẦN ĐẦU chuyển sang loại đó (mm; chỉ điền 1 lần
+# khi loại chưa từng thấy trong phiên — chuyển qua lại giữ nguyên
+# giá trị user đã nhập). Vách phẳng giữ nguyên mặc định app.
+_SEC_WEB_DEFAULTS = {
+    "barbell": {"Lw": 3000, "tw": 300, "sec_bf": 1000, "sec_tf": 450,
+                "sec_bf2": 1000, "sec_tf2": 450},
+    "tee": {"Lw": 2500, "sec_bf": 1500, "sec_t": 300},
+    "ell": {"sec_L1": 2000, "sec_L2": 1800, "sec_t": 300},
+    "c-core": {"Lw": 3000, "sec_bf": 1500, "sec_lr": 600,
+               "sec_bf2": 1500, "sec_lr2": 600, "sec_t": 300},
+    "u-core": {"Lw": 3000, "sec_bf": 1500, "sec_bf2": 1500,
+               "sec_t": 300},
+}
 # Mục 3 (web): 2 chế độ bố trí thép dọc
 _STEEL_MODES = [("perimeter", "Phân bố đều theo chu vi"),
                 ("boundary", "Tập trung vùng biên")]
@@ -194,7 +210,11 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     xoay (sec truyền vào luôn ở khung canonical: x = Lw, y = tw).
     """
     cx, cy = float(sec.cx), float(sec.cy)
-    x_lo, x_hi = -cx / 2 - 0.105 * cx, cx / 2 + 0.02 * cx
+    # Lát 1: đa giác có dim phân đoạn dọc bên trái (C/U: Lr) vẽ tới
+    # -cx/2 - 0.16cx - 0.018cx - bề dày chữ; chừa trái tới -0.21cx
+    # cho mọi poly (rect không đổi, dim trái cũ vẫn -0.105cx).
+    _left = 0.21 if getattr(sec, "kind", "rect") == "poly" else 0.105
+    x_lo, x_hi = -cx / 2 - _left * cx, cx / 2 + 0.02 * cx
     y_hi = cy / 2 + 1.27 * cy
     # Hàng tổng Lw luôn vẽ (kể cả không có phân đoạn) nên đáy span
     # luôn là -2.29cy; nhánh cũ -1.21cy khi không phân đoạn làm
@@ -348,7 +368,13 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     ax.grid(True, color="#E8EDF3", linewidth=0.7)
     _rect = [(-cx / 2, -cy / 2), (cx / 2, -cy / 2),
              (cx / 2, cy / 2), (-cx / 2, cy / 2)]
-    ax.add_patch(MplPolygon(RP(_rect), closed=True, fill=True,
+    # Lát 1 (2026-10-27): tiết diện đa giác vẽ theo poly_verts, không
+    # theo hình chữ nhật bao. _outline dùng cho cả đường bao, vùng
+    # nén (Sutherland–Hodgman) và dim — rect giữ nguyên _rect.
+    _is_poly = (getattr(sec, "kind", "rect") == "poly"
+                and getattr(sec, "poly_verts", None))
+    _outline = list(sec.poly_verts[0]) if _is_poly else _rect
+    ax.add_patch(MplPolygon(RP(_outline), closed=True, fill=True,
                             facecolor="#F4F7FB", edgecolor="black",
                             lw=2.0, zorder=2))
     # --- Vùng nén + đường trung hòa (chỉ khi đã CHECK và có na_info) ---
@@ -359,9 +385,9 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
         def _naval(_x, _y):
             return -_x * _st + _y * _ct - _yp
         _pts = []
-        for _i in range(len(_rect)):
-            _cur = _rect[_i]
-            _prv = _rect[_i - 1]
+        for _i in range(len(_outline)):
+            _cur = _outline[_i]
+            _prv = _outline[_i - 1]
             _vc, _vp = _naval(*_cur), _naval(*_prv)
             _ci, _pi = _vc >= -1e-9, _vp >= -1e-9
             if _ci != _pi:
@@ -376,7 +402,8 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
                                     edgecolor="#2563EB", lw=1.5,
                                     zorder=3, alpha=0.7))
         _ints = []
-        _edges = [(_rect[i], _rect[(i + 1) % 4]) for i in range(4)]
+        _edges = [(_outline[i], _outline[(i + 1) % len(_outline)])
+                  for i in range(len(_outline))]
         for (_x1, _y1), (_x2, _y2) in _edges:
             _v1, _v2 = _naval(_x1, _y1), _naval(_x2, _y2)
             if _v1 * _v2 < 0:
@@ -390,8 +417,10 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
             ax.plot([_p1[0], _p2[0]], [_p1[1], _p2[1]],
                     "--", color="#DC2626", linewidth=1.5, zorder=4)
     # Tô phân biệt vùng biên ở chế độ vùng biên (nền xám nhạt 2 đầu)
+    # — chỉ rect: đa giác lát 1 không tô dải theo dim_segments x
+    # (dải full-height sẽ tô sai vùng lõm của T/L/C/U).
     _segs = (meta or {}).get("dim_segments") or []
-    if _segs:
+    if _segs and not _is_poly:
         for _x1, _x2, _lab in (_segs[0], _segs[-1]):
             ax.add_patch(MplPolygon(
                 RP([(_x1, -cy / 2), (_x2, -cy / 2),
@@ -510,14 +539,31 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     _y_tot = -cy / 2 - 1.45 * cy
     for _xx in (-cx / 2, cx / 2):
         _ext((_xx, -cy / 2 - 0.10 * cy), (_xx, _y_tot - 0.16 * cy))
-    _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), f"Lw = {cx:.0f} mm",
+    # Nhãn tổng theo meta (lát 1): đa giác dùng nhãn riêng theo
+    # loại (vd ell: L1/L2, C/U: Bf/Lw); rect giữ Lw/tw như cũ.
+    _lab_x = (meta or {}).get("dim_total_x_label") or f"Lw = {cx:.0f} mm"
+    _lab_y = (meta or {}).get("dim_total_y_label") or f"tw = {cy:.0f} mm"
+    _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), _lab_x,
          (0.0, _y_tot + 0.14 * cy), 0, "center", "bottom")
-    # DIM đứng bên trái: kích thước tổng tw.
+    # DIM đứng bên trái: kích thước tổng tw (rect) hoặc tổng y
+    # của đa giác (C/U: Lw, barbell: Bf, ...).
     _x_dim = -cx / 2 - 0.045 * cx
     for _yy in (-cy / 2, cy / 2):
         _ext((-cx / 2 - 0.012 * cx, _yy), (_x_dim - 0.008 * cx, _yy))
-    _dim((_x_dim, -cy / 2), (_x_dim, cy / 2), f"tw = {cy:.0f} mm",
+    _dim((_x_dim, -cy / 2), (_x_dim, cy / 2), _lab_y,
          (_x_dim - 0.018 * cx, 0.0), 90, "right", "center")
+    # DIM phân đoạn dọc bên trái — chỉ C/U (lát 1): hồi Lr đo theo
+    # trục thân, vẽ ở cột riêng bên ngoài dim tổng để không đè.
+    _segs_y = (meta or {}).get("dim_segments_y") or []
+    if _segs_y:
+        _x_seg_y = -cx / 2 - 0.16 * cx
+        for _y1, _y2, _lab in _segs_y:
+            for _yy in (_y1, _y2):
+                _ext((-cx / 2 - 0.012 * cx, _yy),
+                     (_x_seg_y - 0.008 * cx, _yy))
+            _dim((_x_seg_y, _y1), (_x_seg_y, _y2), _lab,
+                 (_x_seg_y - 0.018 * cx, (_y1 + _y2) / 2.0),
+                 90, "right", "center")
     x_lo, x_hi, y_lo, y_hi = _wall_section_spans(sec, len(_segs), rot)
     ax.set_xlim(x_lo, x_hi)
     ax.set_ylim(y_lo, y_hi)
@@ -798,8 +844,85 @@ class WallMixin:
         r += 1
         self.w_en_Lw = _entry(f2, D["Lw"])
         self.w_en_tw = _entry(f2, D["tw"])
-        _pair(f2, r, "Lw (mm)", self.w_en_Lw, "tw (mm)", self.w_en_tw)
+        _ll_main, _rl_main = _pair(f2, r, "Lw (mm)", self.w_en_Lw,
+                                   "tw (mm)", self.w_en_tw)
+        self._lbl_wall_main_l, self._lbl_wall_main_r = _ll_main, _rl_main
+        # Các ô động theo loại (lát 1): cùng hàng chính nhưng widget
+        # phải luân phiên (tee/ell/C/U đổi nhãn + ô phải/trái); các
+        # ô này được grid/grid_remove trong
+        # _update_wall_sectype_fields — không tạo widget mới mỗi lần
+        # đổi loại (giữ nguyên giá trị user đã nhập khi chuyển qua
+        # lại, trừ lần đầu sang loại đó thì điền mặc định web).
+        self.w_en_sec_L1 = _entry(f2, D.get("sec_L1", 2000))
+        self.w_en_sec_L2 = _entry(f2, D.get("sec_L2", 1800))
+        self.w_en_sec_t = _entry(f2, D.get("sec_t", 300))
+        _r_main = r
         r += 1
+        # Hàng tiêu đề phụ (Barbell/C: "KÍCH THƯỚC HAI ĐẦU", U:
+        # "KÍCH THƯỚC HAI CÁNH" — đúng chữ web; T/L không có).
+        self.w_lbl_sec_sub = ttk.Label(f2, text="", font=("", 9, "bold"))
+        self.w_lbl_sec_sub.grid(row=r, column=0, columnspan=4,
+                                sticky=tk.W, padx=4, pady=5)
+        _r_sub = r
+        r += 1
+        # Checkbox Đối xứng (Barbell/C/U; bật: 1 cặp, tắt: 2 cặp 1/2).
+        self.w_var_sec_sym = tk.BooleanVar(
+            value=bool(D.get("sec_sym", True)))
+        self.w_chk_sec_sym = tk.Checkbutton(
+            f2, text="Đối xứng hai đầu", variable=self.w_var_sec_sym,
+            bg="white", activebackground="white", highlightthickness=0,
+            command=self._on_wall_sec_sym)
+        self.w_chk_sec_sym.grid(row=r, column=0, columnspan=4,
+                                sticky=tk.W, padx=4, pady=5)
+        _r_sym = r
+        r += 1
+        # Hàng Bf/Tf (Barbell) — T/L/C/U dùng các hàng riêng dưới.
+        self.w_en_sec_bf = _entry(f2, D.get("sec_bf", 1000))
+        self.w_en_sec_tf = _entry(f2, D.get("sec_tf", 450))
+        _ll, _rl = _pair(f2, r, "Bf (mm)", self.w_en_sec_bf,
+                         "Tf (mm)", self.w_en_sec_tf)
+        self._lbl_sec_bf, self._lbl_sec_tf = _ll, _rl
+        _r_bf_tf = r
+        r += 1
+        # Hàng Bf2/Tf2 (Barbell không đối xứng).
+        self.w_en_sec_bf2 = _entry(f2, D.get("sec_bf2", 1000))
+        self.w_en_sec_tf2 = _entry(f2, D.get("sec_tf2", 450))
+        _ll, _rl = _pair(f2, r, "Bf2 (mm)", self.w_en_sec_bf2,
+                         "Tf2 (mm)", self.w_en_sec_tf2)
+        self._lbl_sec_bf2, self._lbl_sec_tf2 = _ll, _rl
+        _r_bf2_tf2 = r
+        r += 1
+        # Hàng Bf đơn (Tee/C) / Bf đôi (U không đối xứng) dùng CHUNG
+        # hàng Bf/Tf trên: ô phải luân phiên Tf (Barbell) / Bf2 (U),
+        # ô trái luôn Bf; Tee/C ẩn ô phải. (Không tạo hàng riêng vì
+        # 1 widget Tk chỉ có 1 vị trí grid — _update_wall_sectype_
+        # fields grid lại tường minh mỗi lần đổi loại.)
+        # Hàng Lr/Lr2 (C) — đối xứng: chỉ Lr, ô phải ẩn.
+        self.w_en_sec_lr = _entry(f2, D.get("sec_lr", 600))
+        self.w_en_sec_lr2 = _entry(f2, D.get("sec_lr2", 600))
+        _ll, _rl = _pair(f2, r, "Lr (mm)", self.w_en_sec_lr,
+                         "Lr2 (mm)", self.w_en_sec_lr2)
+        self._lbl_sec_lr, self._lbl_sec_lr2 = _ll, _rl
+        _r_lr = r
+        r += 1
+        # Hàng t đơn (Ell) — full-width.
+        self._lbl_sec_t = _single(f2, r, "t (mm)", self.w_en_sec_t)
+        _r_t = r
+        r += 1
+        self._wall_sec_rows = {
+            "main": _r_main, "sub": _r_sub, "sym": _r_sym,
+            "bf_tf": _r_bf_tf, "bf2_tf2": _r_bf2_tf2,
+            "lr": _r_lr, "t": _r_t,
+        }
+        self._wall_sectypes_seen = {"rect"}
+        # Giá trị theo từng loại (lát 1): chuyển qua lại khôi phục
+        # đúng giá trị user đã nhập ở loại đó (các khóa dùng chung
+        # như sec_bf/sec_t không bị mặc định của loại mới ghi đè).
+        self._wall_sec_current = "rect"
+        self._wall_sec_values = {}
+        # Nhãn hàng chế độ thép mục 3 (để ẩn khi loại mới không có
+        # dropdown — xem _update_wall_sectype_fields).
+        self._lbl_wall_steel_mode = None
         # (Ghi chú GĐ1 dưới mục 2 đã bỏ theo ghi chú đỏ của user
         # 2026-10-25 — chỉ xóa hiển thị, không đổi loại tiết diện
         # hay logic xoay; hàng xoay vẫn ẩn/hiện qua
@@ -812,7 +935,9 @@ class WallMixin:
             f3, [lab for _, lab in _STEEL_MODES],
             _label_of(_STEEL_MODES, D["steel_mode"],
                       "Phân bố đều theo chu vi"), width=24)
-        _single(f3, r, "Chế độ bố trí thép", self.w_cb_steel_mode)
+        self._lbl_wall_steel_mode = _single(
+            f3, r, "Chế độ bố trí thép", self.w_cb_steel_mode)
+        self._wall_steel_mode_row = r
         r += 1
         self.w_en_cover = _entry(f3, D["cover"])
         # Ô đơn trước 2 khung con — giữ full-width (không ghép với ô
@@ -1009,6 +1134,7 @@ class WallMixin:
         # (Ghi chú xám dưới khối Kháng chấn đã bỏ theo ghi chú đỏ
         # của user 2026-10-25 — chỉ xóa hiển thị.)
         # Khởi tạo hiển thị theo chế độ thép + ψ
+        self._update_wall_sectype_fields()
         self._update_wall_rotation_visibility()
         self._on_wall_steel_mode()
         self._auto_psi_wall()
@@ -1021,7 +1147,12 @@ class WallMixin:
                    self.w_en_be_nTw, self.w_en_be_Lout,
                    self.w_en_be_Lin,
                    self.w_en_web_s, self.w_en_hstory, self.w_en_htotal,
-                   self.w_en_s_h, self.w_en_tie_s, self.w_en_tie_legs):
+                   self.w_en_s_h, self.w_en_tie_s, self.w_en_tie_legs,
+                   self.w_en_sec_bf, self.w_en_sec_tf,
+                   self.w_en_sec_bf2, self.w_en_sec_tf2,
+                   self.w_en_sec_L1, self.w_en_sec_L2,
+                   self.w_en_sec_t, self.w_en_sec_lr,
+                   self.w_en_sec_lr2):
             _w.bind("<FocusOut>", lambda e: self._refresh_wall_preview())
         for _w in (self.w_en_Lx_m, self.w_en_Ly_m, self.w_en_psi_x,
                    self.w_en_psi_y):
@@ -1066,11 +1197,11 @@ class WallMixin:
 
     def _update_wall_rotation_visibility(self):
         """Ẩn/hiện hàng xoay theo loại tiết diện (user chốt 2026-10-25):
-        vách phẳng (loại duy nhất GĐ1) không cần xoay vì ETABS xuất
-        mặc định trục 2 trùng chiều Lw -> ẩn hàng xoay, ép rotation
-        về 0. Loại khác (giai đoạn sau) hiện lại hàng xoay, machinery
-        xoay giữ nguyên. Hàm này không refresh preview; caller
-        (_on_wall_sectype/_apply_wall/khởi tạo panel) refresh.
+        vách phẳng không cần xoay vì ETABS xuất mặc định trục 2
+        trùng chiều Lw -> ẩn hàng xoay, ép rotation về 0. Loại khác
+        (lát 1: mặt cắt + thép + preview) hiện lại hàng xoay,
+        machinery xoay giữ nguyên. Hàm này không refresh preview;
+        caller (_on_wall_sectype/_apply_wall/khởi tạo panel) refresh.
         (Ghi chú GĐ1 dưới mục 2 đã bỏ 2026-10-25 nên hàm này không
         còn cập nhật widget ghi chú nào.)"""
         if self.w_cb_sectype.get() == _SECTYPES[0]:
@@ -1082,13 +1213,191 @@ class WallMixin:
             self._lbl_wall_rot.grid()
             self.w_rot_fr.grid()
 
+    def _wall_sec_code(self):
+        try:
+            return _SEC_CODES[_SECTYPES.index(self.w_cb_sectype.get())]
+        except Exception:
+            return "rect"
+
+    def _on_wall_sec_sym(self):
+        self._update_wall_sectype_fields()
+        self._refresh_wall_preview()
+
+    def _update_wall_sectype_fields(self):
+        """Hiện đúng ô nhập của loại đang chọn ở mục 2 + mục 3
+        (lát 1, 2026-10-27). Grid lại tường minh từng widget (1
+        widget Tk chỉ có 1 vị trí grid — các ô luân phiên như t ở
+        hàng chính/hàng t, Bf2 ở hàng Bf/Tf + hàng Bf2/Tf2 đều phải
+        grid lại đúng hàng mỗi lần đổi loại, không dựa vào grid()
+        không tham số). Lần đầu sang loại mới: điền mặc định web
+        (_SEC_WEB_DEFAULTS); chuyển qua lại giữ nguyên giá trị user
+        đã nhập (tập _wall_sectypes_seen)."""
+        st = self._wall_sec_code()
+        _setters = {
+            "Lw": self.w_en_Lw, "tw": self.w_en_tw,
+            "sec_bf": self.w_en_sec_bf, "sec_tf": self.w_en_sec_tf,
+            "sec_bf2": self.w_en_sec_bf2,
+            "sec_tf2": self.w_en_sec_tf2,
+            "sec_L1": self.w_en_sec_L1,
+            "sec_L2": self.w_en_sec_L2, "sec_t": self.w_en_sec_t,
+            "sec_lr": self.w_en_sec_lr,
+            "sec_lr2": self.w_en_sec_lr2,
+        }
+        # Lưu giá trị loại cũ trước khi đổi, rồi khôi phục loại mới
+        # (đã từng vào -> giá trị user; chưa từng vào -> mặc định
+        # web). Nhờ vậy khóa dùng chung (sec_bf/sec_t) không bị
+        # mặc định của loại mới ghi đè khi chuyển qua lại.
+        _old = getattr(self, "_wall_sec_current", None)
+        if _old is not None and _old != st:
+            self._wall_sec_values[_old] = {
+                _k: _w.get() for _k, _w in _setters.items()}
+        if st in self._wall_sec_values:
+            for _k, _v in self._wall_sec_values[st].items():
+                _w = _setters.get(_k)
+                if _w is not None:
+                    _w.delete(0, tk.END)
+                    _w.insert(0, str(_v))
+        elif st not in self._wall_sectypes_seen:
+            self._wall_sectypes_seen.add(st)
+            for _k, _v in _SEC_WEB_DEFAULTS.get(st, {}).items():
+                _w = _setters.get(_k)
+                if _w is not None:
+                    _w.delete(0, tk.END)
+                    _w.insert(0, str(_v))
+        self._wall_sec_current = st
+        sym = bool(self.w_var_sec_sym.get())
+        R = self._wall_sec_rows
+
+        def _show(w, row, col, colspan=1, sticky=tk.EW):
+            w.grid(row=row, column=col, columnspan=colspan,
+                   sticky=sticky, padx=4, pady=5)
+
+        def _show_lbl(w, row, col):
+            w.grid(row=row, column=col, sticky=tk.W, padx=(4, 8),
+                   pady=5)
+
+        def _hide(*ws):
+            for _w in ws:
+                _w.grid_remove()
+
+        # --- Hàng chính: nhãn + ô trái/phải theo loại ---
+        _hide(self.w_en_Lw, self.w_en_tw, self.w_en_sec_L1,
+              self.w_en_sec_L2, self.w_en_sec_t)
+        if st == "rect":
+            self._lbl_wall_main_l.config(text="Lw (mm)")
+            self._lbl_wall_main_r.config(text="tw (mm)")
+            _show(self.w_en_Lw, R["main"], 1)
+            _show(self.w_en_tw, R["main"], 3)
+        elif st == "barbell":
+            self._lbl_wall_main_l.config(text="Lw (mm)")
+            self._lbl_wall_main_r.config(text="tw (mm)")
+            _show(self.w_en_Lw, R["main"], 1)
+            _show(self.w_en_tw, R["main"], 3)
+        elif st == "tee":
+            self._lbl_wall_main_l.config(text="Lw (mm)")
+            self._lbl_wall_main_r.config(text="t (mm)")
+            _show(self.w_en_Lw, R["main"], 1)
+            _show(self.w_en_sec_t, R["main"], 3)
+        elif st == "ell":
+            self._lbl_wall_main_l.config(text="L1 (mm)")
+            self._lbl_wall_main_r.config(text="L2 (mm)")
+            _show(self.w_en_sec_L1, R["main"], 1)
+            _show(self.w_en_sec_L2, R["main"], 3)
+        else:  # c-core / u-core
+            self._lbl_wall_main_l.config(text="Lw (mm)")
+            self._lbl_wall_main_r.config(text="t (mm)")
+            _show(self.w_en_Lw, R["main"], 1)
+            _show(self.w_en_sec_t, R["main"], 3)
+        _show_lbl(self._lbl_wall_main_l, R["main"], 0)
+        _show_lbl(self._lbl_wall_main_r, R["main"], 2)
+        # --- Tiêu đề phụ + Đối xứng ---
+        _sub = {"barbell": "KÍCH THƯỚC HAI ĐẦU",
+                "c-core": "KÍCH THƯỚC HAI ĐẦU",
+                "u-core": "KÍCH THƯỚC HAI CÁNH"}.get(st)
+        if _sub:
+            self.w_lbl_sec_sub.config(text=_sub)
+            self.w_lbl_sec_sub.grid(row=R["sub"], column=0,
+                                    columnspan=4, sticky=tk.W,
+                                    padx=4, pady=5)
+        else:
+            self.w_lbl_sec_sub.grid_remove()
+        if st in ("barbell", "c-core", "u-core"):
+            self.w_chk_sec_sym.config(
+                text="Đối xứng hai cánh" if st == "u-core"
+                else "Đối xứng hai đầu")
+            self.w_chk_sec_sym.grid(row=R["sym"], column=0,
+                                    columnspan=4, sticky=tk.W,
+                                    padx=4, pady=5)
+        else:
+            self.w_chk_sec_sym.grid_remove()
+        # --- Các hàng phụ: ẩn hết trước, hiện đúng hàng của loại ---
+        _hide(self.w_en_sec_bf, self.w_en_sec_tf, self.w_en_sec_bf2,
+              self.w_en_sec_tf2, self.w_en_sec_lr, self.w_en_sec_lr2,
+              self._lbl_sec_bf, self._lbl_sec_tf, self._lbl_sec_bf2,
+              self._lbl_sec_tf2, self._lbl_sec_lr, self._lbl_sec_lr2,
+              self._lbl_sec_t)
+        if st == "barbell":
+            self._lbl_sec_bf.config(text="Bf (mm)")
+            self._lbl_sec_tf.config(text="Tf (mm)")
+            _show_lbl(self._lbl_sec_bf, R["bf_tf"], 0)
+            _show(self.w_en_sec_bf, R["bf_tf"], 1)
+            _show_lbl(self._lbl_sec_tf, R["bf_tf"], 2)
+            _show(self.w_en_sec_tf, R["bf_tf"], 3)
+            if not sym:
+                self._lbl_sec_bf2.config(text="Bf2 (mm)")
+                self._lbl_sec_tf2.config(text="Tf2 (mm)")
+                _show_lbl(self._lbl_sec_bf2, R["bf2_tf2"], 0)
+                _show(self.w_en_sec_bf2, R["bf2_tf2"], 1)
+                _show_lbl(self._lbl_sec_tf2, R["bf2_tf2"], 2)
+                _show(self.w_en_sec_tf2, R["bf2_tf2"], 3)
+        elif st == "tee":
+            self._lbl_sec_bf.config(text="Bf (mm)")
+            _show_lbl(self._lbl_sec_bf, R["bf_tf"], 0)
+            _show(self.w_en_sec_bf, R["bf_tf"], 1)
+        elif st == "c-core":
+            self._lbl_sec_bf.config(text="Bf (mm)")
+            _show_lbl(self._lbl_sec_bf, R["bf_tf"], 0)
+            _show(self.w_en_sec_bf, R["bf_tf"], 1)
+            self._lbl_sec_lr.config(text="Lr (mm)")
+            _show_lbl(self._lbl_sec_lr, R["lr"], 0)
+            _show(self.w_en_sec_lr, R["lr"], 1)
+            if not sym:
+                self._lbl_sec_lr2.config(text="Lr2 (mm)")
+                _show_lbl(self._lbl_sec_lr2, R["lr"], 2)
+                _show(self.w_en_sec_lr2, R["lr"], 3)
+        elif st == "u-core":
+            self._lbl_sec_bf.config(text="Bf (mm)")
+            _show_lbl(self._lbl_sec_bf, R["bf_tf"], 0)
+            _show(self.w_en_sec_bf, R["bf_tf"], 1)
+            if not sym:
+                self._lbl_sec_bf2.config(text="Bf2 (mm)")
+                _show_lbl(self._lbl_sec_bf2, R["bf_tf"], 2)
+                _show(self.w_en_sec_bf2, R["bf_tf"], 3)
+        elif st == "ell":
+            self._lbl_sec_t.config(text="t (mm)")
+            _show_lbl(self._lbl_sec_t, R["t"], 0)
+            _show(self.w_en_sec_t, R["t"], 1, colspan=3)
+        # --- Mục 3: dropdown chế độ thép chỉ phẳng + Barbell; loại
+        # mới ẩn dropdown và ép khung chu vi (thép tự động theo chu
+        # vi, c/d/s giữ nguyên) — _collect_wall ép steel_mode.
+        if self._lbl_wall_steel_mode is not None:
+            if st in ("rect", "barbell"):
+                _show_lbl(self._lbl_wall_steel_mode,
+                          self._wall_steel_mode_row, 0)
+                _show(self.w_cb_steel_mode, self._wall_steel_mode_row,
+                      1, colspan=3)
+                self._on_wall_steel_mode()
+            else:
+                self._lbl_wall_steel_mode.grid_remove()
+                self.w_cb_steel_mode.grid_remove()
+                self.w_frm_be.grid_remove()
+                self.w_frm_per.grid()
+
     def _on_wall_sectype(self):
-        if self.w_cb_sectype.get() != _SECTYPES[0]:
-            messagebox.showinfo(
-                "Chế độ Vách",
-                "Loại tiết diện này thuộc giai đoạn sau — chỉ hỗ trợ "
-                "'Vách phẳng chữ nhật'.")
-            self.w_cb_sectype.set(_SECTYPES[0])
+        # Lát 1 (2026-10-27): bỏ chặn popup cũ — 5 loại mới chọn
+        # được ở mức mặt cắt + thép + preview; CHECK vẫn chặn ở
+        # _on_check_wall với thông báo đúng nghĩa (xem đó).
+        self._update_wall_sectype_fields()
         self._update_wall_rotation_visibility()
         self._refresh_wall_preview()
 
@@ -1280,8 +1589,15 @@ class WallMixin:
             return int(v) if float(v).is_integer() else v
 
         D = WALL_DEFAULTS
-        mode = _code_of(_STEEL_MODES, self.w_cb_steel_mode.get(),
-                        "perimeter")
+        # Lát 1: loại mới (T/L/C/U) không có dropdown chế độ thép —
+        # ép perimeter (thép tự động theo chu vi); phẳng + Barbell
+        # giữ dropdown như cũ.
+        _st = self._wall_sec_code()
+        if _st not in ("rect", "barbell"):
+            mode = "perimeter"
+        else:
+            mode = _code_of(_STEEL_MODES, self.w_cb_steel_mode.get(),
+                            "perimeter")
         rev_bn = {v: k for k, v in BOUNDARY_NAMES.items()}
         psi_y = num(self.w_en_psi_y, D["psi_y"])
         be_Lb = num(self.w_en_be_Lb, D["be_Lb"])
@@ -1303,7 +1619,7 @@ class WallMixin:
             dia_v = cnum(self.w_cb_web_dia, D["web_dia"])
             s_v = num(self.w_en_web_s, D["web_s"])
         # Vách phẳng: ép rotation = 0 (ETABS xuất trục 2 trùng Lw);
-        # loại khác (giai đoạn sau) giữ góc xoay đã nhập.
+        # loại khác giữ góc xoay đã nhập.
         _rot = int(getattr(self, "_wall_rot_deg", 0)) % 360
         try:
             if self.w_cb_sectype.get() == _SECTYPES[0]:
@@ -1344,9 +1660,19 @@ class WallMixin:
                                       self.w_cb_aci_class.get(),
                                       "special"),
             "seismic_on": bool(self.w_var_seismic.get()),
-            # --- Format web (2026-10-23) ---
-            "section_type": "rect",
+            # --- Format web (2026-10-23) + 5 loại mới (lát 1) ---
+            "section_type": _st,
             "rot_deg": _rot,
+            "sec_bf": num(self.w_en_sec_bf, D["sec_bf"]),
+            "sec_tf": num(self.w_en_sec_tf, D["sec_tf"]),
+            "sec_bf2": num(self.w_en_sec_bf2, D["sec_bf2"]),
+            "sec_tf2": num(self.w_en_sec_tf2, D["sec_tf2"]),
+            "sec_lr": num(self.w_en_sec_lr, D["sec_lr"]),
+            "sec_lr2": num(self.w_en_sec_lr2, D["sec_lr2"]),
+            "sec_L1": num(self.w_en_sec_L1, D["sec_L1"]),
+            "sec_L2": num(self.w_en_sec_L2, D["sec_L2"]),
+            "sec_t": num(self.w_en_sec_t, D["sec_t"]),
+            "sec_sym": bool(self.w_var_sec_sym.get()),
             "steel_mode": mode,
             "per_dia": cnum(self.w_cb_per_dia, D["per_dia"]),
             "per_s": num(self.w_en_per_s, D["per_s"]),
@@ -1429,22 +1755,39 @@ class WallMixin:
                 return str(v)
             return str(int(fv)) if fv.is_integer() else str(fv)
 
-        # Mục 2 (load luôn ép về vách phẳng — loại duy nhất GĐ1)
-        self.w_cb_sectype.set(_SECTYPES[0])
+        # Mục 2 (lát 1): khôi phục đúng loại đã lưu; file cũ thiếu
+        # section_type -> "rect" (mặc định WALL_DEFAULTS). Vách phẳng
+        # load lại luôn về 0° (kể cả file cũ lưu 90°); loại khác giữ
+        # góc đã lưu. _wall_sectypes_seen đánh dấu loại đã load để
+        # _update_wall_sectype_fields không ghi đè mặc định web lên
+        # giá trị vừa khôi phục.
+        _st_loaded = str(d.get("section_type", "rect"))
+        if _st_loaded not in _SEC_CODES:
+            _st_loaded = "rect"
+        self.w_cb_sectype.set(_SECTYPES[_SEC_CODES.index(_st_loaded)])
+        self._wall_sectypes_seen.add(_st_loaded)
         try:
             rot = int(float(d["rot_deg"])) % 360
         except Exception:
             rot = 0
         if rot not in (0, 90, 180, 270):
             rot = 0
-        # Vách phẳng load lại luôn về 0° (kể cả file cũ lưu 90°);
-        # loại khác (giai đoạn sau) giữ góc đã lưu.
         if self.w_cb_sectype.get() == _SECTYPES[0]:
             rot = 0
         self._wall_rot_deg = rot
         self.w_rot_var.set(f"{rot}°")
         se(self.w_en_Lw, sv(d["Lw"]))
         se(self.w_en_tw, sv(d["tw"]))
+        se(self.w_en_sec_bf, sv(d["sec_bf"]))
+        se(self.w_en_sec_tf, sv(d["sec_tf"]))
+        se(self.w_en_sec_bf2, sv(d["sec_bf2"]))
+        se(self.w_en_sec_tf2, sv(d["sec_tf2"]))
+        se(self.w_en_sec_L1, sv(d["sec_L1"]))
+        se(self.w_en_sec_L2, sv(d["sec_L2"]))
+        se(self.w_en_sec_t, sv(d["sec_t"]))
+        se(self.w_en_sec_lr, sv(d["sec_lr"]))
+        se(self.w_en_sec_lr2, sv(d["sec_lr2"]))
+        self.w_var_sec_sym.set(bool(d["sec_sym"]))
         # Mục 3
         self.w_cb_steel_mode.set(_label_of(
             _STEEL_MODES, d["steel_mode"], "Phân bố đều theo chu vi"))
@@ -1500,6 +1843,14 @@ class WallMixin:
         self.w_var_seismic.set(bool(d["seismic_on"]))
         self._update_wall_rotation_visibility()
         self._on_wall_steel_mode()
+        # _update cuối để loại mới ép lại khung chu vi (tránh
+        # _on_wall_steel_mode bật lại khung vùng biên khi combo cũ
+        # còn ở boundary — file loại mới luôn lưu perimeter).
+        # Đặt current = loại vừa load TRƯỚC để _update không lưu
+        # đè giá trị file vừa khôi phục vào kho loại cũ rồi khôi
+        # phục lại kho cũ.
+        self._wall_sec_current = _st_loaded
+        self._update_wall_sectype_fields()
         # Cảnh báo migration cover (nếu c_mới bị kẹp về 0).
         for _w in _wall_cover_warns:
             messagebox.showwarning("Lớp bảo vệ vách (migration file cũ)",
@@ -1522,8 +1873,18 @@ class WallMixin:
         """CHECK ở chế độ Vách: rẽ theo nguồn nội lực + tiêu chuẩn.
 
         Lát 1: chỉ nhập tay + TCVN. ETABS (batch pier) -> lát 5;
-        ACI/EC2 vách -> lát 2.
+        ACI/EC2 vách -> lát 2. 5 loại mới (lát 1, 2026-10-27): chỉ
+        mặt cắt + thép + preview — engine vách dùng công thức
+        Lw/tw chữ nhật (độ mảnh, Ig, b/h0 trong wall_engine.py)
+        nên KHÔNG generic cho đa giác; CHECK loại mới bị chặn ở đây
+        với thông báo đúng nghĩa, không rơi vào engine rect.
         """
+        if self._wall_sec_code() != "rect":
+            messagebox.showinfo(
+                "Chế độ Vách",
+                "Mặt cắt + thép cho loại tiết diện này đã xong, "
+                "tính N–M/cắt cho loại này đang làm ở lát sau.")
+            return
         if self.var_load_mode.get() == "etabs":
             self._wall_notice("Kiểm tra theo Pier Forces (ETABS)", "lát 5")
             return
