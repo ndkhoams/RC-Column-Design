@@ -257,37 +257,155 @@ def _offset_polygon_orthogonal(verts, d):
     return out
 
 
-def _gen_perimeter_poly(verts, cover, d, s, dia_h=0.0):
+def _node_boxes_poly(winp, inset):
+    """Ô nút giao cho T/L/C/U (lát 3, 2026-10-27 — suy từ dữ liệu
+    web Vietcons, không phải công thức web công bố; đã kiểm chứng
+    khớp bảng số thanh web theo s và theo kích thước, xem test
+    lát 3).
+
+    Mỗi đoạn giao giữa 2 nhánh là 1 ô = giao của 2 dải lùi trong:
+    dải nhánh này (rộng t, lùi inset 2 bên) cắt dải nhánh kia. Ô
+    có cạnh = t - 2*inset (vd T t=300, inset app 43 -> 214 mm).
+    Tọa độ tính theo khung canonical của _poly_* (cùng gốc), từ
+    đúng tham số winp — KHÔNG hardcode 238 mm của web (web lùi
+    c + d/2 = 31 mm, app lùi c_đai + dia_h + d/2 theo quy ước
+    cover đã chốt, nên cạnh ô app khác web là đúng).
+    - tee: 1 ô (cánh–thân): dải cánh x [x0, x0+t] cắt dải thân
+      y [-t/2, t/2].
+    - ell: 1 ô (2 nhánh gặp ở góc): dải đứng x [x0, x0+t] cắt
+      dải ngang y [y0, y0+t].
+    - u-core: 2 ô (đáy–cánh): dải đứng trái x [-cx, -cx+t] cắt
+      dải đáy y [y0, y0+t] và dải đỉnh y [y1-t, y1]. Bf/Bf2 chỉ
+      kéo dài dải ngang sang phải, không đổi vị trí ô.
+    - c-core: 4 ô (2 thân–cánh + 2 cánh–hồi): 2 ô như u-core cộng
+      2 ô dải hồi (dưới: x [Bf2-t-cx, Bf2-cx]; trên: x
+      [Bf-t-cx, Bf-cx]) cắt dải cánh dưới/trên.
+    - barbell: KHÔNG có ô (góc lõm thân–cánh đã nằm trên chu vi
+      chữ I, không phát sinh thanh trong hay chia đoạn thừa).
+    Ô suy biến (cạnh <= 0 khi cover quá lớn so với t) thì bỏ qua.
+    Trả list (x0, x1, y0, y1) theo tọa độ lùi (tim thép)."""
+    st = str(getattr(winp, "section_type", "rect"))
+    if st not in ("tee", "ell", "c-core", "u-core"):
+        return []
+    t = float(winp.sec_t)
+    Lw = float(winp.Lw)
+    boxes = []
+
+    def _box(ax, bx, ay, by):
+        x0, x1 = ax + inset, bx - inset
+        y0, y1 = ay + inset, by - inset
+        if x1 > x0 and y1 > y0:
+            boxes.append((x0, x1, y0, y1))
+
+    if st == "tee":
+        x0 = -Lw / 2.0
+        _box(x0, x0 + t, -t / 2.0, t / 2.0)
+    elif st == "ell":
+        x0, y0 = -float(winp.sec_L1) / 2.0, -float(winp.sec_L2) / 2.0
+        _box(x0, x0 + t, y0, y0 + t)
+    elif st in ("c-core", "u-core"):
+        sym = bool(getattr(winp, "sec_sym", True))
+        Bf = float(winp.sec_bf)
+        Bf2 = Bf if sym else float(winp.sec_bf2)
+        cx = max(Bf, Bf2) / 2.0
+        y0, y1 = -Lw / 2.0, Lw / 2.0
+        _box(-cx, -cx + t, y0, y0 + t)
+        _box(-cx, -cx + t, y1 - t, y1)
+        if st == "c-core":
+            _box(Bf2 - t - cx, Bf2 - cx, y0, y0 + t)
+            _box(Bf - t - cx, Bf - cx, y1 - t, y1)
+    return boxes
+
+
+def _gen_perimeter_poly(verts, cover, d, s, dia_h=0.0, boxes=None):
     """Thép chu vi tự động cho đa giác (lát 1, chế độ auto của
     T/L/C/U và chế độ perimeter của Barbell): thanh trên đa giác
     lùi vào trong inset = cover + dia_h + d/2, mỗi cạnh số khoảng
     = ceil(chiều_dài/s), bước thực <= s, góc dùng chung (không
     tính trùng) — cùng quy tắc _gen_perimeter của rect, chỉ tổng
     quát hoá từ hình chữ nhật sang đa giác trực giao.
-    Trả (bars, extra) với bars = [(x, y, dia)]."""
+
+    Lát 3 (boxes != None, chỉ T/L/C/U): thêm 2 quy tắc ô nút giao
+    (đã kiểm chứng khớp bảng web theo s và theo kích thước):
+    (a) chu vi được CHIA ĐOẠN tại các biên ô: mỗi cạnh chu vi bị
+    đường biên ô (x = x0/x1, y = y0/y1 của ô) cắt thì chia tại
+    điểm cắt rồi chia riêng từng đoạn bằng ceil(len/s) — không
+    chia nguyên cạnh dài thành một dãy duy nhất; (b) mỗi cạnh ô
+    chia ceil(len/s) khoảng, thanh trung gian được GIỮ cả khi
+    nằm hẳn trong tiết diện; mọi điểm trùng tọa độ (góc ô trùng
+    thanh chu vi, trung gian trùng điểm chia đoạn) chỉ tính 1 lần.
+    Trả (bars, extra) với bars = [(x, y, dia)]; extra giữ "edges"
+    (cạnh chu vi gốc) và thêm "segments" (đoạn sau khi chia) +
+    "node_boxes" (ô đã áp)."""
     if d <= 0 or s <= 0:
         raise ValueError("Thép chu vi: đường kính/khoảng cách phải > 0")
     inset = cover + dia_h + d / 2.0
     iv = _offset_polygon_orthogonal(verts, inset)
+    boxes = list(boxes or [])
     bars = []
     seen = set()
-    extra = {"edges": []}
+
+    def _add(x, y):
+        key = (round(x, 6), round(y, 6))
+        if key not in seen:
+            seen.add(key)
+            bars.append((x, y, d))
+
+    extra = {"edges": [], "segments": [], "node_boxes": boxes}
     n = len(iv)
     for i in range(n):
         a, b = iv[i], iv[(i + 1) % n]
         L = math.hypot(b[0] - a[0], b[1] - a[1])
         if L <= 0:
             continue
-        ni = max(1, int(math.ceil(L / s)))
-        extra["edges"].append((L, ni, L / ni))
-        for k in range(ni + 1):
-            t = k / ni
-            p = (a[0] + (b[0] - a[0]) * t,
-                 a[1] + (b[1] - a[1]) * t)
-            key = (round(p[0], 6), round(p[1], 6))
-            if key not in seen:
-                seen.add(key)
-                bars.append((p[0], p[1], d))
+        ni0 = max(1, int(math.ceil(L / s)))
+        extra["edges"].append((L, ni0, L / ni0))
+        if a[1] == b[1]:  # cạnh ngang: chia tại đường biên đứng của ô
+            y = a[1]
+            cuts = {a[0], b[0]}
+            for (x0, x1, y0, y1) in boxes:
+                if y0 <= y <= y1:
+                    for bx in (x0, x1):
+                        if min(a[0], b[0]) < bx < max(a[0], b[0]):
+                            cuts.add(bx)
+            cs = sorted(cuts)
+            for c0, c1 in zip(cs, cs[1:]):
+                seg = abs(c1 - c0)
+                ni = max(1, int(math.ceil(seg / s)))
+                extra["segments"].append((seg, ni, seg / ni))
+                for k in range(ni + 1):
+                    _add(c0 + (c1 - c0) * k / ni, y)
+        elif a[0] == b[0]:  # cạnh đứng: chia tại đường biên ngang của ô
+            x = a[0]
+            cuts = {a[1], b[1]}
+            for (x0, x1, y0, y1) in boxes:
+                if x0 <= x <= x1:
+                    for by in (y0, y1):
+                        if min(a[1], b[1]) < by < max(a[1], b[1]):
+                            cuts.add(by)
+            cs = sorted(cuts)
+            for c0, c1 in zip(cs, cs[1:]):
+                seg = abs(c1 - c0)
+                ni = max(1, int(math.ceil(seg / s)))
+                extra["segments"].append((seg, ni, seg / ni))
+                for k in range(ni + 1):
+                    _add(x, c0 + (c1 - c0) * k / ni)
+        else:  # đa giác trực giao không có cạnh xiên — phòng thủ
+            ni = ni0
+            for k in range(ni + 1):
+                t = k / ni
+                _add(a[0] + (b[0] - a[0]) * t,
+                     a[1] + (b[1] - a[1]) * t)
+    for (x0, x1, y0, y1) in boxes:
+        for (ax, ay), (bx, by) in (((x0, y0), (x1, y0)),
+                                   ((x1, y0), (x1, y1)),
+                                   ((x1, y1), (x0, y1)),
+                                   ((x0, y1), (x0, y0))):
+            seg = math.hypot(bx - ax, by - ay)
+            ni = max(1, int(math.ceil(seg / s)))
+            for k in range(ni + 1):
+                _add(ax + (bx - ax) * k / ni,
+                     ay + (by - ay) * k / ni)
     return bars, extra
 
 
@@ -510,13 +628,14 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
 
 def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
                              nx=None, ny=None):
-    """Dựng Section kind="poly" cho 5 loại mới (lát 1).
+    """Dựng Section kind="poly" cho 5 loại mới (lát 1, thép lát 3).
 
-    Thép: chu vi tự động (per_dia/per_s) cho T/L/C/U; Barbell giữ
-    dropdown nhưng cả 2 chế độ đều dùng thép chu vi đa giác trong
-    lát 1 (vùng biên của Barbell chính là 2 đầu mở rộng — logic
-    vùng biên Lb/db kiểu rect chưa ánh xạ sang đầu Barbell, ghi rõ
-    ở meta.layout_text; file vẫn lưu đúng steel_mode đã chọn).
+    Thép: chu vi tự động (per_dia/per_s) cho T/L/C/U, từ lát 3 áp
+    thêm ô nút giao (_node_boxes_poly); Barbell giữ dropdown nhưng
+    cả 2 chế độ đều dùng thép chu vi đa giác (vùng biên của Barbell
+    chính là 2 đầu mở rộng — logic vùng biên Lb/db kiểu rect chưa
+    ánh xạ sang đầu Barbell, ghi rõ ở meta.layout_text; file vẫn
+    lưu đúng steel_mode đã chọn).
     Lưới fiber: ô vuông bước WALL_MESH_STEP, tâm trong đa giác,
     diện tích mỗi fiber chuẩn hoá để tổng = Ac đa giác chính xác.
     """
@@ -546,7 +665,15 @@ def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
     sec = Section(kind="poly", cx=cx, cy=cy, concrete=conc, steel=steel,
                   fibers=fibers, poly_verts=[verts])
     cover = float(winp.cover)
+    # Lát 3: T/L/C/U áp ô nút giao; Barbell giữ chu vi đơn (không ô).
+    _inset = cover + float(winp.dia_h) + float(winp.per_dia) / 2.0
+    _boxes = _node_boxes_poly(winp, _inset)
     bars, extra = _gen_perimeter_poly(
+        verts, cover, float(winp.per_dia), float(winp.per_s),
+        float(winp.dia_h), boxes=_boxes)
+    # Số thanh tăng ròng do ô (chu vi chia đoạn + thanh trong ô,
+    # sau khử trùng) so với chu vi nguyên cạnh lát 1.
+    _bars0, _ = _gen_perimeter_poly(
         verts, cover, float(winp.per_dia), float(winp.per_s),
         float(winp.dia_h))
     sec.rebars = [Rebar(x, y, bar_area(d), d, 2) for x, y, d in bars]
@@ -558,6 +685,10 @@ def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
     layout = (f"Thép chu vi tự động: {len(bars)} thanh "
               f"d{float(winp.per_dia):.0f} (s nhập "
               f"{float(winp.per_s):.0f} mm, bước thực <= s)")
+    if _boxes:
+        layout += (f" + ô nút giao: {len(_boxes)} ô, "
+                   f"+{len(bars) - len(_bars0)} thanh so với chu "
+                   f"vi nguyên cạnh ({len(_bars0)} thanh)")
     if str(winp.section_type) == "barbell" and mode == "boundary":
         layout += (" — chế độ vùng biên của Barbell ở lát 1 dùng "
                    "chung thép chu vi đa giác (2 đầu mở rộng là vùng "
@@ -583,6 +714,9 @@ def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
         "dim_total_x_label": lab_x, "dim_total_y_label": lab_y,
         "poly_ac": Ac, "poly_Ix": Ix, "poly_Iy": Iy,
         "layout_text": layout,
+        "node_boxes": _boxes,
+        "n_perimeter_only": len(_bars0),
+        "n_node_extra": len(bars) - len(_bars0),
     }
     return sec, meta
 

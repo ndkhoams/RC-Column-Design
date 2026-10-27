@@ -4,10 +4,10 @@
 - Hinh hoc: Ac polygon khop Ac web Vietcons trong 0,001 m2 (cac
   quan he suy tu Ac web, ghi ro trong wall_section.py — khong phai
   dinh nghia chu cua web).
-- Thep chu vi (d12 s200, c 25, dia_h 12): Barbell khop web; T/L/C/U
-  lech web (thieu thanh) vi web cong them thep o goc/nut giao/dau
-  tu do ngoai chu vi don — test khoa dung lech nay, KHONG ep
-  spacing de khop so.
+- Thep (d12 s200, c 25, dia_h 12): lat 1 chu vi don lech web o
+  T/L/C/U; tu lat 3 (2026-10-27, xem test_wallsec3.py) ap o nut
+  giao nen so thanh/As trong bang duoi day DA BANG web — test nay
+  khoa so moi, khong giu so lech lat 1.
 - JSON round-trip + file cu (thieu khoa moi) mo duoc mac dinh
   phang; draw polygon o 4 goc xoay khong loi, dim tong dung nhan.
 - Panel (can display, chay duoi Xvfb): o nhap dong theo loai,
@@ -34,17 +34,19 @@ from gui.wall_mixin import (_wall_section_figsize, draw_wall_section_ax)
 
 # (loai, kwargs mac dinh web, Ac web m2, so thanh web, As web,
 #  so thanh app, As app) — As app = so thanh x 113,097 (d12).
+# Tu lat 3: so app = so web ca 5 loai (o nut giao, xem
+# test_wallsec3.py); Barbell khong o nen giu nguyen.
 _CASES = [
     ("barbell", dict(Lw=3000, tw=300, sec_bf=1000, sec_tf=450),
      1.530, 48, 5429, 48, 5429),
     ("tee", dict(Lw=2500, sec_bf=1500, sec_t=300),
-     1.110, 45, 5089, 42, 4750),
+     1.110, 45, 5089, 45, 5089),
     ("ell", dict(sec_L1=2000, sec_L2=1800, sec_t=300),
-     1.050, 44, 4976, 40, 4524),
+     1.050, 44, 4976, 44, 4976),
     ("c-core", dict(Lw=3000, sec_bf=1500, sec_lr=600, sec_t=300),
-     1.800, 82, 9274, 68, 7691),
+     1.800, 82, 9274, 82, 9274),
     ("u-core", dict(Lw=3000, sec_bf=1500, sec_t=300),
-     1.620, 66, 7464, 60, 6786),
+     1.620, 66, 7464, 66, 7464),
 ]
 
 
@@ -79,18 +81,14 @@ def test_poly_ac_matches_web(st, kw, ac_web, n_web, as_web,
                          _CASES)
 def test_perimeter_bars_vs_web(st, kw, ac_web, n_web, as_web,
                                n_app, as_app):
-    """So thanh/As: Barbell khop web; T/L/C/U lech dung so da ghi
-    (nguyen nhan quy tac: web cong them thep goc/nut giao/dau tu
-    do; chu vi don khong ep spacing)."""
+    """So thanh/As: tu lat 3 ca 5 loai bang web (o nut giao);
+    khong ep spacing — so ra tu dung quy tac chu vi chia doan +
+    o nut giao (xem test_wallsec3.py)."""
     conc, steel = _mat()
     sec, meta = build_wall_section(_mk(st, kw), conc, steel)
     assert len(sec.rebars) == n_app, (st, len(sec.rebars), n_app)
     assert abs(sec.steel_area - as_app) < 1.0, (st, sec.steel_area)
-    assert n_web - n_app == n_web - n_app  # lech ghi ro, khong ep
-    if st == "barbell":
-        assert n_app == n_web and abs(as_app - as_web) < 1.0
-    else:
-        assert n_app < n_web, (st, n_app, n_web)
+    assert n_app == n_web and abs(as_app - as_web) < 1.0
     # Mọi thanh nằm trong polygon (trên đa giác lùi vào trong).
     verts = sec.poly_verts[0]
     for rb in sec.rebars:
