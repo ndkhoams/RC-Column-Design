@@ -137,17 +137,24 @@ def _m2m3_reinterpret_card(full):
 
 
 def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
-              M_star, M_orig, pd_method, phi_L):
+              M_star, M_orig, pd_method, phi_L,
+              m_sym=None, m_star_sym=None):
     """Thẻ hệ số uốn dọc 1 phương. direction: 'X' (trong MP) hoặc
     'Y' (ngoài MP). M_star/M_orig: mô men đã/ chưa phóng đại của
-    phương đó (M_in_d/M_in cho X, M_out_d/M_out cho Y)."""
+    phương đó (M_in_d/M_in cho X, M_out_d/M_out cho Y).
+    m_sym/m_star_sym: ký hiệu solver của mô men phương đó —
+    mặc định X = M3, Y = M2 (vách phẳng); đa giác C/U (trục trong
+    MP là y) đảo thành X = M2, Y = M3 (xem build_wall_detail_sections)."""
+    if m_sym is None or m_star_sym is None:
+        if direction == "X":
+            m_sym, m_star_sym = "M3", "M3*"
+        else:
+            m_sym, m_star_sym = "M2", "M2*"
     if direction == "X":
         title = "η & mô men phóng đại — Phương X (trong MP)"
-        m_sym, m_star_sym = "M3", "M3*"
         ref = "Mục 8.1.2.1.2 & 8.1.2.4.2"
     else:
         title = "η & mô men phóng đại — Phương Y (ngoài MP)"
-        m_sym, m_star_sym = "M2", "M2*"
         ref = "Mục 8.1.2.1.2 & 8.1.2.4.2"
     if pd_method == "none":
         lines = [
@@ -237,6 +244,12 @@ def build_wall_detail_sections(full):
     As = float(sec.steel_area)
     mu = float(sec.reinforcement_ratio) * 100.0
     rot = int(getattr(winp, "rot_deg", 0) or 0) % 360
+    # Lát N–M: đa giác dùng Ag/I thật (không Lw×tw, không h/√12);
+    # ký hiệu solver theo trục trong MP (C/U: trong = M2).
+    _is_poly = sec.kind == "poly"
+    _axis_y = bool(full.get("wall_axis_in") == "y")
+    _sym_in = "M2" if _axis_y else "M3"
+    _sym_out = "M3" if _axis_y else "M2"
     mode = str(meta.get("steel_mode") or getattr(winp, "steel_mode",
                                                  "boundary"))
     mode_txt = {"perimeter": "Phân bố đều theo chu vi",
@@ -267,6 +280,20 @@ def build_wall_detail_sections(full):
     iy = tw_eff / math.sqrt(12.0)
     L0h_in = l0_in_m / (Lw_eff / 1000.0) if Lw_eff > 0 else 0.0
     L0h_out = l0_out_m / (tw_eff / 1000.0) if tw_eff > 0 else 0.0
+    if _is_poly:
+        # full["Ix"]/["Iy"] là quán tính khung đã xoay (quanh
+        # trọng tâm): trong MP -> Iy nếu trục 'x', Ix nếu 'y'.
+        Ag = sec.gross_area
+        _I_in = float(full["Iy"]) if not _axis_y else float(full["Ix"])
+        _I_out = float(full["Ix"]) if not _axis_y else float(full["Iy"])
+        ix = math.sqrt(_I_in / Ag) if Ag > 0 else 0.0
+        iy = math.sqrt(_I_out / Ag) if Ag > 0 else 0.0
+        _cx_r = float(sec.cy) if rot in (90, 270) else float(sec.cx)
+        _cy_r = float(sec.cx) if rot in (90, 270) else float(sec.cy)
+        _c_in = _cx_r if not _axis_y else _cy_r
+        _c_out = _cy_r if not _axis_y else _cx_r
+        L0h_in = l0_in_m / (_c_in / 1000.0) if _c_in > 0 else 0.0
+        L0h_out = l0_out_m / (_c_out / 1000.0) if _c_out > 0 else 0.0
 
     sections = []
 
@@ -318,6 +345,20 @@ def build_wall_detail_sections(full):
         f"(c_dọc = c + dia_h = "
         f"{cover_long(float(winp.cover), float(getattr(winp, 'dia_h', 0.0) or 0.0)):.0f} mm)",
     ]
+    if _is_poly:
+        # Đa giác: dòng đầu + Ag/Ix/Iy theo số thật (quanh trọng
+        # tâm); dòng cover giữ nguyên (dòng cuối của sec_lines).
+        sec_lines = [
+            f"Loại tiết diện đa giác: "
+            f"{str(getattr(winp, 'section_type', ''))} "
+            f"(khung trọng tâm; trục trong MP: "
+            f"{'y (thân Lw)' if _axis_y else 'x (Lw/L1)'}; "
+            f"bbox sau xoay {rot}° = {Lw_eff:.0f} × {tw_eff:.0f} mm)",
+            f"Ag = diện tích đa giác = {Ag:,.0f} mm²",
+            f"Ix (trong MP, quanh trọng tâm) = {_I_in / 1e12:.4g} m⁴",
+            f"Iy (ngoài MP, quanh trọng tâm) = {_I_out / 1e12:.4g} m⁴",
+            sec_lines[-1],
+        ]
     steel2_lines = [f"Chế độ: {mode_txt}"]
     layout_txt = meta.get("layout_text")
     if layout_txt:
@@ -336,7 +377,8 @@ def build_wall_detail_sections(full):
         steel2_lines += _wrap(f"Cảnh báo bố trí: {_w}")
     sections.append({
         "num": 2, "title": "TIẾT DIỆN & BỐ TRÍ THÉP",
-        "ref": "Vách chữ nhật đặc — GĐ1",
+        "ref": ("Tiết diện đa giác — lát N–M" if _is_poly
+                else "Vách chữ nhật đặc — GĐ1"),
         "cards": [
             _card("Tiết diện", "", sec_lines,
                   f"{Lw_eff:.0f} × {tw_eff:.0f} mm;  "
@@ -349,25 +391,45 @@ def build_wall_detail_sections(full):
     # ================= MỤC 3: L0 & ĐỘ MẢNH =================
     def _l0_card(direction):
         if direction == "X":
+            if _is_poly:
+                _ix_lines = [
+                    f"ix = √(Ix/Ag) = {_f(ix, 2)} mm "
+                    f"(Ix quanh trọng tâm)",
+                    f"L0x / c = {_f(L0h_in, 2)}"]
+            else:
+                _ix_lines = [
+                    f"ix = Lw / √12 = {Lw_eff:.0f} / 3,464 = "
+                    f"{_f(ix, 2)} mm",
+                    f"L0x / Lw = {_f(L0h_in, 2)}"]
             return _card(
                 "L0 & độ mảnh — Phương X (trong MP)",
                 "Mục 8.1.2.4.4 & 10.2.2",
                 [f"L0x = ψx × Lx = {_fm(psi_x)} × {_f(Lx_m, 2)} "
                  f"= {_f(l0_in_m, 3)} m ({l0_in_m * 1000.0:.0f} mm)",
-                 f"ix = Lw / √12 = {Lw_eff:.0f} / 3,464 = {_f(ix, 2)} mm",
+                 _ix_lines[0],
                  f"λx = L0x / ix = {l0_in_m * 1000.0:.0f} / {_f(ix, 2)} "
                  f"= {_f(lam_in, 2)}",
-                 f"L0x / Lw = {_f(L0h_in, 2)}"],
+                 _ix_lines[1]],
                 _lam_badge(lam_in))
+        if _is_poly:
+            _iy_lines = [
+                f"iy = √(Iy/Ag) = {_f(iy, 2)} mm "
+                f"(Iy quanh trọng tâm)",
+                f"L0y / c = {_f(L0h_out, 2)}"]
+        else:
+            _iy_lines = [
+                f"iy = tw / √12 = {tw_eff:.0f} / 3,464 = "
+                f"{_f(iy, 2)} mm",
+                f"L0y / tw = {_f(L0h_out, 2)}"]
         return _card(
             "L0 & độ mảnh — Phương Y (ngoài MP)",
             "Mục 8.1.2.4.4 & 10.2.2",
             [f"L0y = ψy × Ly = {_fm(psi_y)} × {_f(Ly_m, 2)} "
              f"= {_f(l0_out_m, 3)} m ({l0_out_m * 1000.0:.0f} mm)",
-             f"iy = tw / √12 = {tw_eff:.0f} / 3,464 = {_f(iy, 2)} mm",
+             _iy_lines[0],
              f"λy = L0y / iy = {l0_out_m * 1000.0:.0f} / {_f(iy, 2)} "
              f"= {_f(lam_out, 2)}",
-             f"L0y / tw = {_f(L0h_out, 2)}"],
+             _iy_lines[1]],
             _lam_badge(lam_out))
 
     sections.append({
@@ -394,30 +456,39 @@ def build_wall_detail_sections(full):
 
     # ================= MỤC 4: ĐỘ LỆCH TÂM =================
     def _ecc_card(direction):
+        # Ký hiệu mô men trong công thức e1 theo trục solver
+        # (C/U: trong MP = M2, ngoài MP = M3); nhãn e1x/e0x ở
+        # đây là "theo phương X (trong MP)" của thẻ, giữ nguyên
+        # cho cả 2 trường hợp. c trong ea: đa giác dùng bề rộng
+        # bbox đã xoay theo phương (c_in/c_out), phẳng dùng Lw/tw.
+        _cx_txt = f"{_c_in:.0f}" if _is_poly else "Lw"
+        _cy_txt = f"{_c_out:.0f}" if _is_poly else "tw"
+        _cx30 = _c_in / 30.0 if _is_poly else Lw_eff / 30.0
+        _cy30 = _c_out / 30.0 if _is_poly else tw_eff / 30.0
         if direction == "X":
-            e1_txt = (f"e1x = |M3| / N = {_f(abs(M_in), 2)} × 1000 / "
-                      f"{_f(N, 1)} = {_f(e1_in, 2)} mm"
+            e1_txt = (f"e1x = |{_sym_in}| / N = {_f(abs(M_in), 2)} "
+                      f"× 1000 / {_f(N, 1)} = {_f(e1_in, 2)} mm"
                       if e1_in is not None else
                       "e1x: N ≤ 0 — không xác định e1")
             lines = [
                 e1_txt,
-                f"eax = max(Lx/600, Lw/30, 10) = max("
+                f"eax = max(Lx/600, {_cx_txt}/30, 10) = max("
                 f"{_f(Lx_m * 1000.0 / 600.0, 2)}, "
-                f"{_f(Lw_eff / 30.0, 2)}, 10) = {_f(ea_in, 2)} mm",
+                f"{_f(_cx30, 2)}, 10) = {_f(ea_in, 2)} mm",
                 f"e0x = max(e1x, eax) = {_f(e0_in, 2)} mm",
             ]
             return _card("Độ lệch tâm — Phương X (trong MP)",
                          "Mục 8.1.2.2.4", lines,
                          f"e0x = {_f(e0_in, 2)} mm")
-        e1_txt = (f"e1y = |M2| / N = {_f(abs(M_out), 2)} × 1000 / "
-                  f"{_f(N, 1)} = {_f(e1_out, 2)} mm"
+        e1_txt = (f"e1y = |{_sym_out}| / N = {_f(abs(M_out), 2)} "
+                  f"× 1000 / {_f(N, 1)} = {_f(e1_out, 2)} mm"
                   if e1_out is not None else
                   "e1y: N ≤ 0 — không xác định e1")
         lines = [
             e1_txt,
-            f"eay = max(Ly/600, tw/30, 10) = max("
+            f"eay = max(Ly/600, {_cy_txt}/30, 10) = max("
             f"{_f(Ly_m * 1000.0 / 600.0, 2)}, "
-            f"{_f(tw_eff / 30.0, 2)}, 10) = {_f(ea_out, 2)} mm",
+            f"{_f(_cy30, 2)}, 10) = {_f(ea_out, 2)} mm",
             f"e0y = max(e1y, eay) = {_f(e0_out, 2)} mm",
         ]
         return _card("Độ lệch tâm — Phương Y (ngoài MP)",
@@ -449,7 +520,10 @@ def build_wall_detail_sections(full):
     _note4 = _card("Đối chiếu nhãn độ lệch tâm với trang web", "",
                    note4_lines, "")
     _note4["full"] = True
-    sections[-1]["cards"].append(_note4)
+    # Ghi chú đối chiếu web chỉ có nghĩa cho vách phẳng (web gắn
+    # nhãn X/Y cho tiết diện chữ nhật); đa giác bỏ qua.
+    if not _is_poly:
+        sections[-1]["cards"].append(_note4)
 
     # ================= MỤC 5: η & M* =================
     sections.append({
@@ -460,12 +534,14 @@ def build_wall_detail_sections(full):
                       float(sl.get("factor_in", 1.0) or 1.0),
                       float(sl.get("Ncr_in", 0.0) or 0.0),
                       float(full["M_in_d"]), M_in, pd_method,
-                      float(full["phi_L"])),
+                      float(full["phi_L"]),
+                      m_sym=_sym_in, m_star_sym=f"{_sym_in}*"),
             _eta_card("Y", lam_out, l0_out_m, tw_eff, N, e0_out, ea_out,
                       float(sl.get("factor_out", 1.0) or 1.0),
                       float(sl.get("Ncr_out", 0.0) or 0.0),
                       float(full["M_out_d"]), M_out, pd_method,
-                      float(full["phi_L"])),
+                      float(full["phi_L"]),
+                      m_sym=_sym_out, m_star_sym=f"{_sym_out}*"),
         ]})
     # Kết quả mục 5 ở CUỐI mục: mô men thiết kế dùng cho mục 6
     # (không phải ĐẠT/KHÔNG ĐẠT — η/M* là đầu vào, không phải
@@ -473,13 +549,13 @@ def build_wall_detail_sections(full):
     _sec5_res = _card(
         "Kết quả mục 5 — Mô men thiết kế",
         "Dùng cho kiểm tra N–M (mục 6)",
-        [f"M3* (trong MP) = {_f(float(full['M_in_d']), 2)} kN·m",
-         f"M2* (ngoài MP) = {_f(float(full['M_out_d']), 2)} kN·m",
+        [f"{_sym_in}* (trong MP) = {_f(float(full['M_in_d']), 2)} kN·m",
+         f"{_sym_out}* (ngoài MP) = {_f(float(full['M_out_d']), 2)} kN·m",
          f"α = {_f(float(full['alpha_deg']), 2)}° "
          f"(từ trục M3, chuẩn hoá [0, 360))"],
         f"Mô men dùng cho kiểm tra N–M (mục 6): "
-        f"M3* = {_f(float(full['M_in_d']), 2)} kN·m;  "
-        f"M2* = {_f(float(full['M_out_d']), 2)} kN·m;  "
+        f"{_sym_in}* = {_f(float(full['M_in_d']), 2)} kN·m;  "
+        f"{_sym_out}* = {_f(float(full['M_out_d']), 2)} kN·m;  "
         f"Mα = {_f(float(full['Malpha']), 2)} kN·m")
     _sec5_res["full"] = True
     sections[-1]["cards"].append(_sec5_res)
@@ -523,8 +599,8 @@ def build_wall_detail_sections(full):
             _card("Điểm tải A",
                   "Mô men đã phóng đại (mục 5)",
                   [f"N = {_f(N, 1)} kN",
-                   f"M3* (trong MP) = {_f(float(full['M_in_d']), 2)} kN·m",
-                   f"M2* (ngoài MP) = {_f(float(full['M_out_d']), 2)} kN·m",
+                   f"{_sym_in}* (trong MP) = {_f(float(full['M_in_d']), 2)} kN·m",
+                   f"{_sym_out}* (ngoài MP) = {_f(float(full['M_out_d']), 2)} kN·m",
                    f"α = {_f(float(full['alpha_deg']), 2)}° "
                    f"(từ trục M3, chuẩn hoá [0, 360))",
                    f"Mα = {_f(Malpha, 2)} kN·m"],
@@ -848,11 +924,14 @@ def build_wall_detail_sections(full):
 
 def wall_detail_header(full):
     """Dòng tiêu đề + nội lực cho đầu tab/PDF chi tiết."""
+    _axis_y = bool(full.get("wall_axis_in") == "y")
+    _sym_in = "M2" if _axis_y else "M3"
+    _sym_out = "M3" if _axis_y else "M2"
     return {
         "title": "THUYẾT MINH KIỂM TRA VÁCH — TCVN 5574:2018",
         "loads": (f"N = {_f(float(full['N']), 1)} kN, "
-                  f"M3 (trong MP) = {_f(float(full['M_in']), 1)} kN·m, "
-                  f"M2 (ngoài MP) = {_f(float(full['M_out']), 1)} kN·m, "
+                  f"{_sym_in} (trong MP) = {_f(float(full['M_in']), 1)} kN·m, "
+                  f"{_sym_out} (ngoài MP) = {_f(float(full['M_out']), 1)} kN·m, "
                   f"V2 = {_f(float(full['V_in']), 1)} kN, "
                   f"V3 = {_f(float(full['V_out']), 1)} kN"),
     }

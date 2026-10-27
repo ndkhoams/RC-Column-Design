@@ -239,14 +239,25 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     # ngang nên vẫn nằm trong lề figure, đo Agg không chồng);
     # rect giữ -0.105cx như cũ.
     _left = 0.34 if _is_poly else 0.105
-    x_lo, x_hi = -cx / 2 - _left * cx, cx / 2 + 0.02 * cx
-    y_hi = cy / 2 + 1.27 * _unit
+    # Lát N–M: span theo bbox outline thật (đa giác ở khung trọng
+    # tâm nên bbox lệch khỏi ±cx/2; rect: bbox outline = ±cx/2
+    # nên trùng hệt cũ).
+    if _is_poly and getattr(sec, "poly_verts", None):
+        _ov = list(sec.poly_verts[0])
+        _bx0 = min(p[0] for p in _ov)
+        _bx1 = max(p[0] for p in _ov)
+        _by0 = min(p[1] for p in _ov)
+        _by1 = max(p[1] for p in _ov)
+    else:
+        _bx0, _bx1, _by0, _by1 = -cx / 2, cx / 2, -cy / 2, cy / 2
+    x_lo, x_hi = _bx0 - _left * cx, _bx1 + 0.02 * cx
+    y_hi = _by1 + 1.27 * _unit
     # Hàng tổng Lw luôn vẽ (kể cả không có phân đoạn) nên đáy span
     # luôn là -2.29*_unit; nhánh cũ -1.21cy khi không phân đoạn
     # làm dim + nhãn Lw tràn khỏi khung (đo Agg: nhãn ở y < 0,
     # ngoài figure). n_seg giữ lại cho chữ ký hàm, không còn ảnh
     # hưởng tới span.
-    y_lo = -cy / 2 - 2.29 * _unit
+    y_lo = _by0 - 2.29 * _unit
     if int(rot_deg or 0) % 360 == 0:
         return (x_lo, x_hi, y_lo, y_hi)
     pts = [_rot_xy(x, y, rot_deg)
@@ -485,6 +496,15 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     _is_poly = (getattr(sec, "kind", "rect") == "poly"
                 and getattr(sec, "poly_verts", None))
     _outline = list(sec.poly_verts[0]) if _is_poly else _rect
+    # Lát N–M: outline đa giác ở khung trọng tâm, dim_segments ở
+    # khung bbox cũ — dịch dim theo bbox của outline để khớp mép:
+    # _sx/_sy = -(trọng tâm) theo từng trục (rect: bbox đối xứng
+    # nên _sx = _sy = 0, mọi công thức dưới đây trùng hệt cũ).
+    _oxs = [p[0] for p in _outline]
+    _oys = [p[1] for p in _outline]
+    _ox0, _ox1, _oy0, _oy1 = min(_oxs), max(_oxs), min(_oys), max(_oys)
+    _sx = (_ox0 + _ox1) / 2.0
+    _sy = (_oy0 + _oy1) / 2.0
     ax.add_patch(MplPolygon(RP(_outline), closed=True, fill=True,
                             facecolor="#F4F7FB", edgecolor="black",
                             lw=2.0, zorder=2))
@@ -530,7 +550,9 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # Tô phân biệt vùng biên ở chế độ vùng biên (nền xám nhạt 2 đầu)
     # — chỉ rect: đa giác lát 1 không tô dải theo dim_segments x
     # (dải full-height sẽ tô sai vùng lõm của T/L/C/U).
-    _segs = (meta or {}).get("dim_segments") or []
+    _segs = [(x1 + _sx, x2 + _sx, lab)
+             for (x1, x2, lab) in ((meta or {}).get("dim_segments")
+                                   or [])]
     if _segs and not _is_poly:
         for _x1, _x2, _lab in (_segs[0], _segs[-1]):
             ax.add_patch(MplPolygon(
@@ -640,10 +662,10 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # DƯỚI CÙNG — ngược thứ tự cũ (tổng ở trên, phân đoạn ở dưới).
     # Hàng 1 (sát đáy): phân đoạn (chỉ chế độ vùng biên).
     if _segs:
-        _y_seg = -cy / 2 - 0.62 * _unit
+        _y_seg = _oy0 - 0.62 * _unit
         for _x1, _x2, _lab in _segs:
             for _xx in (_x1, _x2):
-                _ext((_xx, -cy / 2 - 0.10 * cy),
+                _ext((_xx, _oy0 - 0.10 * _unit),
                      (_xx, _y_seg - 0.16 * _unit))
             _dim((_x1, _y_seg), (_x2, _y_seg), _lab,
                  ((_x1 + _x2) / 2.0, _y_seg + 0.14 * _unit),
@@ -661,30 +683,32 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # tỉ lệ/vị trí, chỉ đường dim tổng dịch lên trong khung.
     # Hàm này dùng chung GUI + PDF (wall_pdf_figs) nên PDF tóm
     # tắt vách cũng dịch dim tổng lên cùng mức.
-    _y_tot = -cy / 2 - 1.45 * _unit
-    for _xx in (-cx / 2, cx / 2):
-        _ext((_xx, -cy / 2 - 0.10 * _unit), (_xx, _y_tot - 0.16 * _unit))
+    _y_tot = _oy0 - 1.45 * _unit
+    for _xx in (_ox0, _ox1):
+        _ext((_xx, _oy0 - 0.10 * _unit), (_xx, _y_tot - 0.16 * _unit))
     # Nhãn tổng theo meta (lát 1): đa giác dùng nhãn riêng theo
     # loại (vd ell: L1/L2, C/U: Bf/Lw); rect giữ Lw/tw như cũ.
     _lab_x = (meta or {}).get("dim_total_x_label") or f"Lw = {cx:.0f} mm"
     _lab_y = (meta or {}).get("dim_total_y_label") or f"tw = {cy:.0f} mm"
-    _dim((-cx / 2, _y_tot), (cx / 2, _y_tot), _lab_x,
-         (0.0, _y_tot + 0.14 * _unit), 0, "center", "bottom")
+    _dim((_ox0, _y_tot), (_ox1, _y_tot), _lab_x,
+         (_sx, _y_tot + 0.14 * _unit), 0, "center", "bottom")
     # DIM đứng bên trái: kích thước tổng tw (rect) hoặc tổng y
     # của đa giác (C/U: Lw, barbell: Bf, ...).
-    _x_dim = -cx / 2 - 0.045 * cx
-    for _yy in (-cy / 2, cy / 2):
-        _ext((-cx / 2 - 0.012 * cx, _yy), (_x_dim - 0.008 * cx, _yy))
-    _dim((_x_dim, -cy / 2), (_x_dim, cy / 2), _lab_y,
-         (_x_dim - 0.018 * cx, 0.0), 90, "right", "center")
+    _x_dim = _ox0 - 0.045 * cx
+    for _yy in (_oy0, _oy1):
+        _ext((_ox0 - 0.012 * cx, _yy), (_x_dim - 0.008 * cx, _yy))
+    _dim((_x_dim, _oy0), (_x_dim, _oy1), _lab_y,
+         (_x_dim - 0.018 * cx, _sy), 90, "right", "center")
     # DIM phân đoạn dọc bên trái — chỉ C/U (lát 1): hồi Lr đo theo
     # trục thân, vẽ ở cột riêng bên ngoài dim tổng để không đè.
-    _segs_y = (meta or {}).get("dim_segments_y") or []
+    _segs_y = [(y1 + _sy, y2 + _sy, lab)
+               for (y1, y2, lab) in
+               ((meta or {}).get("dim_segments_y") or [])]
     if _segs_y:
-        _x_seg_y = -cx / 2 - 0.28 * cx  # lat hien thi: cach cot dim tong (-0.045cx) du de nhan doc khong de nhau
+        _x_seg_y = _ox0 - 0.28 * cx  # lat hien thi: cach cot dim tong (-0.045cx) du de nhan doc khong de nhau
         for _y1, _y2, _lab in _segs_y:
             for _yy in (_y1, _y2):
-                _ext((-cx / 2 - 0.012 * cx, _yy),
+                _ext((_ox0 - 0.012 * cx, _yy),
                      (_x_seg_y - 0.008 * cx, _yy))
             _dim((_x_seg_y, _y1), (_x_seg_y, _y2), _lab,
                  (_x_seg_y - 0.018 * cx, (_y1 + _y2) / 2.0),
@@ -1503,9 +1527,9 @@ class WallMixin:
                 self.w_frm_per.grid()
 
     def _on_wall_sectype(self):
-        # Lát 1 (2026-10-27): bỏ chặn popup cũ — 5 loại mới chọn
-        # được ở mức mặt cắt + thép + preview; CHECK vẫn chặn ở
-        # _on_check_wall với thông báo đúng nghĩa (xem đó).
+        # Lát N–M (2026-10-27): 5 loại mới chọn được ở mức mặt cắt
+        # + thép + preview và CHECK nhập tay + TCVN đã MỞ ở
+        # _on_check_wall; cắt/PDF cho loại mới vẫn chặn (xem đó).
         self._update_wall_sectype_fields()
         self._update_wall_rotation_visibility()
         self._refresh_wall_preview()
@@ -1981,19 +2005,13 @@ class WallMixin:
     def _on_check_wall(self):
         """CHECK ở chế độ Vách: rẽ theo nguồn nội lực + tiêu chuẩn.
 
-        Lát 1: chỉ nhập tay + TCVN. ETABS (batch pier) -> lát 5;
-        ACI/EC2 vách -> lát 2. 5 loại mới (lát 1, 2026-10-27): chỉ
-        mặt cắt + thép + preview — engine vách dùng công thức
-        Lw/tw chữ nhật (độ mảnh, Ig, b/h0 trong wall_engine.py)
-        nên KHÔNG generic cho đa giác; CHECK loại mới bị chặn ở đây
-        với thông báo đúng nghĩa, không rơi vào engine rect.
+        Chỉ nhập tay + TCVN (như vách phẳng). ETABS (batch pier)
+        -> lát 5; ACI/EC2 vách -> lát 2 — 2 đường này vẫn chặn
+        cho cả 5 loại mới. Lát N–M (2026-10-27): 5 loại mới đã
+        tính được N–M (khung trọng tâm, wall_engine) nên CHECK
+        nhập tay + TCVN được MỞ; cắt/PDF cho loại mới vẫn chặn
+        (cắt pending trong engine, PDF chặn ở _export_pdf).
         """
-        if self._wall_sec_code() != "rect":
-            messagebox.showinfo(
-                "Chế độ Vách",
-                "Mặt cắt + thép cho loại tiết diện này đã xong, "
-                "tính N–M/cắt cho loại này đang làm ở lát sau.")
-            return
         if self.var_load_mode.get() == "etabs":
             self._wall_notice("Kiểm tra theo Pier Forces (ETABS)", "lát 5")
             return
@@ -2144,6 +2162,14 @@ class WallMixin:
             rot = int((meta or {}).get("rot_deg", 0) or 0) % 360
         except Exception:
             rot = 0
+        if getattr(sec, "kind", "rect") == "poly":
+            # Đa giác (lát N–M): engine tính trên tiết diện
+            # canonical + khung trọng tâm, na_info cũng ở khung
+            # đó — KHÔNG dựng lại/đổi na như rect (rect engine
+            # dựng sec đã hoán đổi Lw/tw nên na phải chuyển về
+            # canonical). Hình xoay cứng qua draw_wall_section_ax
+            # rot_deg từ đúng sec/na canonical này.
+            return sec, meta, na_info, rot
         if rot not in (90, 270):
             return sec, meta, na_info, rot
         try:
@@ -2836,13 +2862,21 @@ class WallMixin:
         c = full["c_neutral"]
         c_txt = (f"{c:.0f} mm" if c is not None and math.isfinite(c)
                  else "—")
+        # Ký hiệu solver cho mô men (lát N–M): phẳng + barbell/
+        # tee/ell: trong MP = M3, ngoài MP = M2 như cũ; c-core/
+        # u-core (trục trong MP là y): trong MP = M2, ngoài MP
+        # = M3 — đổi nhãn để ký hiệu khớp khung solver, giá trị
+        # M_in/M_out không đổi.
+        _axis_y = full.get("wall_axis_in") == "y"
+        _sym_in = "M2" if _axis_y else "M3"
+        _sym_out = "M3" if _axis_y else "M2"
         # Bỏ 5 hàng Lw/tw/Ab/As/μ (user chốt 2026-10-22): Lw/tw đã có
         # nhãn kích thước trên hình mặt cắt, As/Ab/μ đã có ở hàng thẻ.
         rows = [
             ("N", "Lực dọc tính toán", f"{full['N']:+.1f} kN"),
-            ("M3", "Mô men trong mặt phẳng ban đầu",
+            (_sym_in, "Mô men trong mặt phẳng ban đầu",
              f"{full['M_in']:.1f} kN·m"),
-            ("M2", "Mô men ngoài mặt phẳng ban đầu",
+            (_sym_out, "Mô men ngoài mặt phẳng ban đầu",
              f"{full['M_out']:.1f} kN·m"),
             ("V2", "Lực cắt trong mặt phẳng",
              f"{full['V_in']:.1f} kN"),
@@ -2868,9 +2902,9 @@ class WallMixin:
              f"{sl.get('Ncr_in', 0.0):,.0f} kN"),
             ("ηx", "Hệ số uốn dọc trong mặt phẳng",
              f"{sl.get('factor_in', 1.0):.3f}"),
-            ("M2*", "Mô men ngoài mặt phẳng đã phóng đại",
+            (f"{_sym_out}*", "Mô men ngoài mặt phẳng đã phóng đại",
              f"{full['M_out_d']:.1f} kN·m"),
-            ("M3*", "Mô men trong mặt phẳng đã phóng đại",
+            (f"{_sym_in}*", "Mô men trong mặt phẳng đã phóng đại",
              f"{full['M_in_d']:.1f} kN·m"),
             ("α", "Góc mô men (từ trục M3)", f"{full['alpha_deg']:.1f} °"),
             ("Mα", "Mô men tổng hợp", f"{full['Malpha']:.1f} kN·m"),

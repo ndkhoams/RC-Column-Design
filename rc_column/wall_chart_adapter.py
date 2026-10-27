@@ -36,8 +36,15 @@ def wall_chart_inputs(full, view_angle_deg=None):
     """
     sec = full["sec"]
     inp_ns = SimpleNamespace(concrete_model=full["model"])
-    m_out = float(full["M_out_d"])
-    m_in = float(full["M_in_d"])
+    # Khung solver cho biểu đồ: đa giác dùng Mx_d/My_d + Bx_can/
+    # By_can (khung canonical/trọng tâm mà cap đã tính); rect
+    # không có các khóa này thì Mx_d = M_out_d, My_d = M_in_d
+    # như cũ nên không đổi số. KHÔNG dùng M_out_d/M_in_d vật lý
+    # cho đa giác C/U (ở đó M_in ↔ Mx, M_out ↔ My, đảo so với
+    # phẳng) — dùng chúng sẽ vẽ điểm A/B sai khung với đường
+    # bao tính từ tiết diện canonical.
+    m_out = float(full.get("Mx_d", full["M_out_d"]))
+    m_in = float(full.get("My_d", full["M_in_d"]))
     if view_angle_deg is None:
         mx_star, my_star = m_out, m_in
     else:
@@ -50,8 +57,8 @@ def wall_chart_inputs(full, view_angle_deg=None):
         N=float(full["N"]),
         Mx_star=mx_star,
         My_star=my_star,
-        Bx=float(full["Bx"]),
-        By=float(full["By"]),
+        Bx=float(full.get("Bx_can", full["Bx"])),
+        By=float(full.get("By_can", full["By"])),
         BN=float(full["BN"]),
     )
     return sec, inp_ns, res_ns
@@ -66,11 +73,13 @@ def wall_chart_notes(full):
     ok = bool(full["ok"])
     dc = float(full["dc"])
     alpha = float(full["alpha_deg"])
-    m_out = float(full["M_out_d"])
-    m_in = float(full["M_in_d"])
+    # Ghi chú A/B theo trục solver M2/Mx – M3/My (khớp biểu đồ):
+    # đa giác dùng Mx_d/My_d, rect trùng M_out_d/M_in_d như cũ.
+    m_out = float(full.get("Mx_d", full["M_out_d"]))
+    m_in = float(full.get("My_d", full["M_in_d"]))
     malpha = float(full["Malpha"])
-    bx = float(full["Bx"])
-    by = float(full["By"])
+    bx = float(full.get("Bx_can", full["Bx"]))
+    by = float(full.get("By_can", full["By"]))
     mb = math.hypot(bx, by)
     okt = "ĐẠT" if ok else "KHÔNG ĐẠT"
     okc = "#059669" if ok else "#DC2626"

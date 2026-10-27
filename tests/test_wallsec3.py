@@ -160,19 +160,30 @@ def test_tee_box_intermediates_present_at_s200_absent_at_s300():
     trong (-1207, +/-107) van ton tai."""
     conc, steel = _mat()
     kw = dict(Lw=2500, sec_bf=1500, sec_t=300)
-    sec, _ = build_wall_section(_mk("tee", kw, s=200), conc, steel)
+    # Lát N–M (2026-10-27): thép dịch về khung trọng tâm nên
+    # tọa độ tuyệt đối = tọa độ bbox cũ trừ centroid_offset
+    # (Tee: gx = -356.757, gy = 0); số thanh/vị trí tương đối
+    # không đổi, chỉ đổi khung. Điểm kỳ vọng tính từ offset
+    # của meta thay vì hardcode khung mới.
+    sec, meta = build_wall_section(_mk("tee", kw, s=200), conc, steel)
+    _gx, _gy = meta["centroid_offset"]
+
+    def _sh(p):
+        return (round(p[0] - _gx, 6), round(p[1] - _gy, 6))
+
     pts = _pts(sec)
     for p in [(-1100.0, 107.0), (-1100.0, -107.0),
               (-1207.0, 0.0), (-993.0, 0.0),
               (-1207.0, 107.0), (-1207.0, -107.0)]:
-        assert p in pts, ("s200 thieu thanh o", p)
-    sec, _ = build_wall_section(_mk("tee", kw, s=300), conc, steel)
+        assert _sh(p) in pts, ("s200 thieu thanh o", p, _sh(p))
+    sec, meta = build_wall_section(_mk("tee", kw, s=300), conc, steel)
+    _gx, _gy = meta["centroid_offset"]
     pts = _pts(sec)
     for p in [(-1100.0, 107.0), (-1100.0, -107.0),
               (-1207.0, 0.0), (-993.0, 0.0)]:
-        assert p not in pts, ("s300 con trung gian o", p)
+        assert _sh(p) not in pts, ("s300 con trung gian o", p)
     for p in [(-1207.0, 107.0), (-1207.0, -107.0)]:
-        assert p in pts, ("s300 thieu goc trong o", p)
+        assert _sh(p) in pts, ("s300 thieu goc trong o", p)
 
 
 def test_cover_equivalence_web_vs_app():

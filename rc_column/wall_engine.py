@@ -18,8 +18,9 @@ import math
 from .checker import section_inertia
 from .interaction import BiaxialCapacity, neutral_axis_at_N
 from .materials import STEEL_GRADES, SteelMaterial
-from .stability import (LongTermLoads, buckling_factors, eccentricities,
-                        phi_L, slenderness)
+from .stability import (EccentricityResult, LongTermLoads,
+                        buckling_factors, eccentricities, phi_L,
+                        slenderness)
 from .wall_m2m3 import build_wall_m2m3
 from .wall_section import build_wall_section, wall_dims
 from .wall_shear import (check_wall_shear_in_plane,
@@ -45,6 +46,48 @@ PENDING_DETAIL = "Chưa kiểm ở lát 1 (cấu tạo/ρmin: lát 3)"
 # mặt phẳng (chảy dẻo uốn trong MP tại chân vách là cơ chế mà (6)P
 # nhắm tới); cắt ngoài mặt phẳng KHÔNG phóng đại (không tự mở rộng).
 SEISMIC_SHEAR_FACTOR_DCM = 1.5
+
+
+def _rot_vec(x, y, deg):
+    """Xoay vectơ (x, y) ngược chiều kim đồng hồ deg độ
+    (deg ∈ {0, 90, 180, 270}) — cùng quy ước _rot_xy của GUI."""
+    deg = int(deg or 0) % 360
+    if deg == 90:
+        return (-y, x)
+    if deg == 180:
+        return (-x, -y)
+    if deg == 270:
+        return (y, -x)
+    return (x, y)
+
+
+def _rot_vec_inv(x, y, deg):
+    """Xoay ngược của _rot_vec (xoay −deg)."""
+    return _rot_vec(x, y, (-int(deg or 0)) % 360)
+
+
+# Trục trong mặt phẳng (hướng dài chính) của từng loại đa giác ở
+# rot = 0, theo khung canonical của _poly_* (xem wall_section.py):
+# barbell/tee/ell: x (Lw / L1); c-core/u-core: y (thân Lw dọc).
+# Rot 90/270° hoán đổi trục này (như wall_dims của rect hoán đổi
+# Lw/tw). Ánh xạ solver: trục trong MP 'x' -> M_in ↔ My (M3),
+# M_out ↔ Mx (M2) như vách phẳng; trục 'y' -> M_in ↔ Mx (M2),
+# M_out ↔ My (M3) — mô men uốn trong mặt phẳng của thân vách
+# (mặt y–z) có vectơ mô men dọc trục x. Đây là QUY ƯỚC ÁNH XẠ
+# của app (tải pier M2/M3 gắn với phương uốn), không phải điều
+# khoản TCVN — TCVN không định nghĩa "trong/ngoài MP" cho lõi
+# C/U; các thẻ hiển thị đổi nhãn M2/M3 theo trục này (xem
+# wall_detail / param table) để không ghi sai ký hiệu solver.
+_POLY_AXIS_IN = {"barbell": "x", "tee": "x", "ell": "x",
+                 "c-core": "y", "u-core": "y"}
+
+
+def _poly_axis_in_rot(section_type, rot_deg):
+    """Trục trong MP sau khi áp góc xoay (90/270° hoán đổi)."""
+    ax = _POLY_AXIS_IN.get(str(section_type), "x")
+    if int(rot_deg or 0) % 360 in (90, 270):
+        return "y" if ax == "x" else "x"
+    return ax
 
 
 def wall_tcvn_full(winp, conc, steel, model: str = "3line",
@@ -77,83 +120,300 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     T = float(loads.get("T", 0.0))
 
     sec, meta = build_wall_section(winp, conc, steel, mesh_step=mesh_step)
-    # Kích thước HIỆU DỤNG (đã áp góc xoay tiết diện của mục 2)
-    Lw, tw = wall_dims(winp)
-    Ix, Iy, ix, iy, Isx, Isy = section_inertia(sec)
+    _is_poly = (getattr(sec, "kind", "rect") == "poly")
+    _stype = str(getattr(winp, "section_type", "rect") or "rect")
+    if not _is_poly:
+        # Kích thước HIỆU DỤNG (đã áp góc xoay tiết diện của mục 2)
+        Lw, tw = wall_dims(winp)
+        Ix, Iy, ix, iy, Isx, Isy = section_inertia(sec)
 
-    # --- Độ mảnh + uốn dọc 2 phương ---
-    # Ánh xạ vào khe của buckling_factors: phương ngoài MP <-> khe "x"
-    # (Mx = M_out, Ix = Lw·tw³/12 theo tw, cy = tw, L0 = L0_out);
-    # phương trong MP <-> khe "y" (My = M_in, Iy = tw·Lw³/12 theo Lw,
-    # cx = Lw, L0 = L0_in) — cùng công thức độ cứng/Ncr, cùng φL.
-    # Mục 4 (format web 2026-10-23): L0 = ψ x L lấy từ các ô mục 4 TẠI
-    # THỜI ĐIỂM TÍNH (Phương X = trong mặt phẳng theo Lw, Phương Y =
-    # ngoài mặt phẳng theo tw); L0 KHÔNG lưu riêng, không ghi ngược.
-    # File cũ thiếu khóa mới -> wall_from_dict đã dịch h_story/
-    # l0_out_factor sang (ở đây vẫn fallback an toàn nếu thiếu).
-    pd_method = str(getattr(winp, "pd_method", "tcvn") or "tcvn")
-    Lx_m = float(getattr(winp, "Lx_m", 0.0) or 0.0) \
-        or float(winp.h_story) / 1000.0
-    Ly_m = float(getattr(winp, "Ly_m", 0.0) or 0.0) \
-        or float(winp.h_story) / 1000.0
-    psi_x = float(getattr(winp, "psi_x", 0.0) or 0.0) \
-        or float(winp.l0_out_factor)
-    psi_y = float(getattr(winp, "psi_y", 0.0) or 0.0) \
-        or float(winp.l0_out_factor)
-    l0_in_m = psi_x * Lx_m
-    l0_out_m = psi_y * Ly_m
-    lam_out = slenderness(l0_out_m, tw)
-    lam_in = slenderness(l0_in_m, Lw)
-    # Chưa có dữ liệu dài hạn riêng cho vách ở GĐ1 -> phi_L = 2.0
-    # (giới hạn trên, thiên an toàn — như cột khi không khai dài hạn).
-    lt = LongTermLoads()
-    phi = phi_L(N, M_out, M_in, lt)
-    ecc = eccentricities(N, M_out, M_in, Lx_m, Ly_m, Lw, tw)
-    # Ánh xạ λ vào khe buckling_factors: khe "x" = ngoài MP (lam_out),
-    # khe "y" = trong MP (lam_in) — cổng η §8.1.2.1.2 (λ > 14 mới
-    # nhân η, từng phương độc lập) nằm trong hàm dùng chung, cột và
-    # vách chịu cùng một luật. Ca mẫu: lam_in = 6.37 → η_in = 1.0,
-    # lam_out = 45.53 → η_out giữ 1.138.
-    buck = buckling_factors(ecc.e0x, ecc.e0y, Lw, tw, phi, conc.Eb,
-                            Ix, Iy, Isx, Isy, l0_out_m, l0_in_m,
-                            N, M_out, M_in,
-                            lambda_x=lam_out, lambda_y=lam_in)
-    eta_out = buck.etax
-    Ncr_out = buck.Ncrx
-    M_out_d = buck.Mx_star
-    eta_in = buck.etay
-    Ncr_in = buck.Ncry
-    if pd_method == "none":
-        # "Không xét bổ sung uốn dọc": η = 1 cả 2 phương. Sàn độ lệch
-        # tâm e0 = max(e1, ea) ở dưới VẪN áp cho phương trong mặt
-        # phẳng — đó là độ lệch tâm thiết kế tối thiểu, tách khỏi η.
-        eta_out = 1.0
-        eta_in = 1.0
-        M_out_d = M_out
-    # --- Phóng đại mô men TRONG mặt phẳng (user chốt 2026-10-24) ---
-    # M_in* = N x max(e1_in, ea_in) x ηx; ecc.e0x đã là max(e1x, eax)
-    # với eax = max(L/600, Lw/30, 10) — tức ea_in = Lw/30 khi Lw lớn
-    # (đúng số web Vietcons dùng: 2500/30 = 83.3 mm). ηx = buck.etay
-    # = 1/(1 − N/Ncr,x) từ cùng công thức độ cứng TCVN (khe "y"),
-    # ĐÃ QUA cổng §8.1.2.1.2: λ_in ≤ 14 → ηx = 1.0 (ca mẫu: 6.37).
-    if N > 0:
-        M_in_d = (math.copysign(N * ecc.e0x * eta_in / 1000.0, M_in)
-                  if M_in != 0.0 else 0.0)
+        # --- Độ mảnh + uốn dọc 2 phương ---
+        # Ánh xạ vào khe của buckling_factors: phương ngoài MP <-> khe "x"
+        # (Mx = M_out, Ix = Lw·tw³/12 theo tw, cy = tw, L0 = L0_out);
+        # phương trong MP <-> khe "y" (My = M_in, Iy = tw·Lw³/12 theo Lw,
+        # cx = Lw, L0 = L0_in) — cùng công thức độ cứng/Ncr, cùng φL.
+        # Mục 4 (format web 2026-10-23): L0 = ψ x L lấy từ các ô mục 4 TẠI
+        # THỜI ĐIỂM TÍNH (Phương X = trong mặt phẳng theo Lw, Phương Y =
+        # ngoài mặt phẳng theo tw); L0 KHÔNG lưu riêng, không ghi ngược.
+        # File cũ thiếu khóa mới -> wall_from_dict đã dịch h_story/
+        # l0_out_factor sang (ở đây vẫn fallback an toàn nếu thiếu).
+        pd_method = str(getattr(winp, "pd_method", "tcvn") or "tcvn")
+        Lx_m = float(getattr(winp, "Lx_m", 0.0) or 0.0) \
+            or float(winp.h_story) / 1000.0
+        Ly_m = float(getattr(winp, "Ly_m", 0.0) or 0.0) \
+            or float(winp.h_story) / 1000.0
+        psi_x = float(getattr(winp, "psi_x", 0.0) or 0.0) \
+            or float(winp.l0_out_factor)
+        psi_y = float(getattr(winp, "psi_y", 0.0) or 0.0) \
+            or float(winp.l0_out_factor)
+        l0_in_m = psi_x * Lx_m
+        l0_out_m = psi_y * Ly_m
+        lam_out = slenderness(l0_out_m, tw)
+        lam_in = slenderness(l0_in_m, Lw)
+        # Chưa có dữ liệu dài hạn riêng cho vách ở GĐ1 -> phi_L = 2.0
+        # (giới hạn trên, thiên an toàn — như cột khi không khai dài hạn).
+        lt = LongTermLoads()
+        phi = phi_L(N, M_out, M_in, lt)
+        ecc = eccentricities(N, M_out, M_in, Lx_m, Ly_m, Lw, tw)
+        # Ánh xạ λ vào khe buckling_factors: khe "x" = ngoài MP (lam_out),
+        # khe "y" = trong MP (lam_in) — cổng η §8.1.2.1.2 (λ > 14 mới
+        # nhân η, từng phương độc lập) nằm trong hàm dùng chung, cột và
+        # vách chịu cùng một luật. Ca mẫu: lam_in = 6.37 → η_in = 1.0,
+        # lam_out = 45.53 → η_out giữ 1.138.
+        buck = buckling_factors(ecc.e0x, ecc.e0y, Lw, tw, phi, conc.Eb,
+                                Ix, Iy, Isx, Isy, l0_out_m, l0_in_m,
+                                N, M_out, M_in,
+                                lambda_x=lam_out, lambda_y=lam_in)
+        eta_out = buck.etax
+        Ncr_out = buck.Ncrx
+        M_out_d = buck.Mx_star
+        eta_in = buck.etay
+        Ncr_in = buck.Ncry
+        if pd_method == "none":
+            # "Không xét bổ sung uốn dọc": η = 1 cả 2 phương. Sàn độ lệch
+            # tâm e0 = max(e1, ea) ở dưới VẪN áp cho phương trong mặt
+            # phẳng — đó là độ lệch tâm thiết kế tối thiểu, tách khỏi η.
+            eta_out = 1.0
+            eta_in = 1.0
+            M_out_d = M_out
+        # --- Phóng đại mô men TRONG mặt phẳng (user chốt 2026-10-24) ---
+        # M_in* = N x max(e1_in, ea_in) x ηx; ecc.e0x đã là max(e1x, eax)
+        # với eax = max(L/600, Lw/30, 10) — tức ea_in = Lw/30 khi Lw lớn
+        # (đúng số web Vietcons dùng: 2500/30 = 83.3 mm). ηx = buck.etay
+        # = 1/(1 − N/Ncr,x) từ cùng công thức độ cứng TCVN (khe "y"),
+        # ĐÃ QUA cổng §8.1.2.1.2: λ_in ≤ 14 → ηx = 1.0 (ca mẫu: 6.37).
+        if N > 0:
+            M_in_d = (math.copysign(N * ecc.e0x * eta_in / 1000.0, M_in)
+                      if M_in != 0.0 else 0.0)
+        else:
+            # N <= 0 (kéo/không tải): không dựng mô men từ sàn lệch tâm
+            # (không xác định được dấu) — giữ nguyên M_in, cùng hành vi
+            # hiện tại của engine khi N <= 0.
+            M_in_d = M_in
+        # Khung solver cho đường rect: Mx = M_out, My = M_in (như cũ).
+        _Mx_d, _My_d = M_out_d, M_in_d
+        _axis_in_rot = "x"
+        _slend_note = (
+            "TCVN §8.1.2.1.2: η mỗi phương chỉ nhân khi λ phương đó "
+            "> 14 (λ ≤ 14 → η = 1,0; cổng trong "
+            "buckling_factors, chung với cột); trong mặt phẳng "
+            "M_in* = N·max(e1, ea = Lw/30)·ηx "
+            "(theo web Vietcons, user chốt 2026-10-24). "
+            "L0 = ψ x L lấy từ mục 4 tại thời điểm tính.")
+
     else:
-        # N <= 0 (kéo/không tải): không dựng mô men từ sàn lệch tâm
-        # (không xác định được dấu) — giữ nguyên M_in, cùng hành vi
-        # hiện tại của engine khi N <= 0.
-        M_in_d = M_in
-
+        # ---- Nhánh đa giác (lát N–M, 2026-10-27): tổng quát hoá
+        # từ công thức chữ nhật sang đa giác theo bảng giả định
+        # dưới đây. Mọi điều khoản TCVN trích đúng số điều; phần
+        # nào chuẩn không định nghĩa trực tiếp cho đa giác thì
+        # ghi rõ là GIẢ ĐỊNH TƯƠNG ĐƯƠNG (không trình bày như
+        # điều khoản chuẩn, không mượn diễn giải của web/Prokon).
+        #
+        # BẢNG GIẢ ĐỊNH chữ nhật -> đa giác:
+        # - Khung tính: tải N/M hiểu tại TRỌNG TÂM tiết diện
+        #   nguyên. Tiết diện đã dịch về trọng tâm ở
+        #   _build_wall_section_poly nên solver, Ix/Iy, Is,
+        #   vùng nén, biểu đồ cùng khung trọng tâm (không còn
+        #   khung bbox). Đây là khung của Section ("gốc tại
+        #   trọng tâm") và của polygon_gross_props.
+        # - Trục trong MP: hướng dài chính — barbell/tee/ell: x
+        #   (Lw/L1); c-core/u-core: y (thân Lw). Rot 90/270°
+        #   hoán đổi trục (như wall_dims của rect). Ánh xạ
+        #   solver: trục 'x' -> M_in ↔ My, M_out ↔ Mx (như
+        #   phẳng); trục 'y' -> M_in ↔ Mx, M_out ↔ My.
+        # - Độ mảnh (TCVN §8.1.2.1.2 + cổng λ > 14 giữ nguyên
+        #   từng phương trong buckling_factors): λ = L0/i với
+        #   i = √(I/A) từ Ix/Iy đa giác QUANH TRỌNG TÂM
+        #   (section_inertia), KHÔNG dùng i = h/√12 chữ nhật.
+        #   i của phương uốn = bán kính quán tính quanh trục
+        #   vuông góc với phương uốn đó (uốn Mx -> ix, uốn
+        #   My -> iy). Giới hạn mảnh vách 120 (§10.2.2) xét ở
+        #   thẻ chi tiết như rect, không đổi kết luận N–M.
+        # - Độ lệch tâm ngẫu nhiên (TCVN §8.1.2.2.4:
+        #   ea = max(L/600, c/30, 10)): c = chiều sâu tiết diện
+        #   theo phương uốn đang xét, lấy bằng bề rộng bbox
+        #   của tiết diện ĐÃ XOAY theo phương đó (trong MP:
+        #   bề rộng theo trục trong MP; ngoài MP: bề rộng
+        #   theo trục còn lại). GIẢ ĐỊNH TƯƠNG ĐƯƠNG (chuẩn
+        #   chỉ viết c cho tiết diện chữ nhật): với C/U/T/L,
+        #   bbox là bao ngoài của nhánh nên c này là phía
+        #   bảo thủ cho ea (c lớn -> ea lớn -> e0 lớn).
+        # - Ncr/η: cùng CT (44)–(48) qua buckling_factors với
+        #   Ix/Iy/Isx/Isy đa giác quanh trọng tâm (khung đã
+        #   xoay: rot 90/270° hoán đổi Ix↔Iy, Isx↔Isy, cx↔cy
+        #   như rect hoán đổi Lw/tw). Cổng λ > 14 từng
+        #   phương giữ nguyên.
+        # - M_in* (trong MP): giữ đúng quy tắc vách phẳng đã
+        #   chốt 2026-10-24: M_in* = N·max(e1_in, ea_in)·η_in
+        #   (η_in của khe trong MP), N ≤ 0 giữ M_in nguyên;
+        #   M_out* = η_out·M_out (η_out của khe ngoài MP);
+        #   pd_method "none" -> η = 1 hai phương nhưng sàn
+        #   e0 trong MP vẫn áp (như rect).
+        # - Ag = diện tích đa giác thật (sec.gross_area), KHÔNG
+        #   Lw×tw. Ig_in = quán tính quanh trục vuông góc với
+        #   trục trong MP (trục 'x' -> Iy, trục 'y' -> Ix).
+        #   σ_mép: N/Ag + |M_in|·d_mép/Ig_in với d_mép =
+        #   khoảng cách mép xa nhất từ trọng tâm theo trục
+        #   trong MP (2 phía lấy max — phía bảo thủ; công
+        #   thức Lw/2 chữ nhật không còn đúng với T/L/C/U
+        #   không đối xứng). σ này chỉ là đầu vào tiêu chí
+        #   vùng biên lát 3, không đổi kết luận N–M.
+        # - Xoay: engine KHÔNG xoay lại hình học (tiết diện
+        #   dựng ở khung canonical + khung trọng tâm); thay
+        #   vào đó (a) tính độ mảnh/Ncr/ea trong khung đã
+        #   xoay (hoán đổi I/cx/cy khi 90/270°), (b) chạy
+        #   solver trên tiết diện canonical với vectơ mô men
+        #   thiết kế đã xoay ngược (−rot), rồi (c) mọi số
+        #   hiển thị theo khung vật lý (M_in/M_out, M*, α
+        #   vật lý ghi ở details; α solver canonical ghi ở
+        #   alpha_deg để biểu đồ + vùng nén nhất quán với
+        #   tiết diện canonical mà chart vẽ). Phép xoay cứng
+        #   bảo toàn D/C nên test xoay 90° + xoay tải theo
+        #   phải cho D/C không đổi (xem test_wallnm_poly).
+        # - Thép: dùng đúng thép chu vi + ô nút giao hiện có
+        #   (lát thép 9b6481f); Barbell chế độ boundary vẫn
+        #   dùng thép chu vi (be_Lb/be_dia chưa ánh xạ sang
+        #   đầu Barbell — giới hạn đã ghi ở meta.layout_text,
+        #   không bịa thép vùng biên Barbell).
+        _rot = int(getattr(winp, "rot_deg", 0) or 0) % 360
+        _axis_in = _poly_axis_in_rot(_stype, _rot)
+        _Ix_c, _Iy_c, _ix_c, _iy_c, _Isx_c, _Isy_c = \
+            section_inertia(sec)
+        if _rot in (90, 270):
+            Ix, Iy, Isx, Isy = _Iy_c, _Ix_c, _Isy_c, _Isx_c
+            cx_r, cy_r = float(sec.cy), float(sec.cx)
+        else:
+            Ix, Iy, Isx, Isy = _Ix_c, _Iy_c, _Isx_c, _Isy_c
+            cx_r, cy_r = float(sec.cx), float(sec.cy)
+        Ag = sec.gross_area
+        _ix_r = math.sqrt(Ix / Ag) if Ag > 0 else 0.0
+        _iy_r = math.sqrt(Iy / Ag) if Ag > 0 else 0.0
+        pd_method = str(getattr(winp, "pd_method", "tcvn") or "tcvn")
+        Lx_m = float(getattr(winp, "Lx_m", 0.0) or 0.0) \
+            or float(winp.h_story) / 1000.0
+        Ly_m = float(getattr(winp, "Ly_m", 0.0) or 0.0) \
+            or float(winp.h_story) / 1000.0
+        psi_x = float(getattr(winp, "psi_x", 0.0) or 0.0) \
+            or float(winp.l0_out_factor)
+        psi_y = float(getattr(winp, "psi_y", 0.0) or 0.0) \
+            or float(winp.l0_out_factor)
+        l0_in_m = psi_x * Lx_m
+        l0_out_m = psi_y * Ly_m
+        # Ánh xạ mô men vào khe solver ở khung đã xoay.
+        if _axis_in == "x":
+            _Mx_r, _My_r = M_out, M_in
+            _mx_is_in = False
+        else:
+            _Mx_r, _My_r = M_in, M_out
+            _mx_is_in = True
+        # eccentricities(Lx_arg, Ly_arg): Lx_arg cho khe My,
+        # Ly_arg cho khe Mx (xem stability.eccentricities).
+        _Lx_arg = Lx_m if _axis_in == "x" else Ly_m
+        _Ly_arg = Ly_m if _axis_in == "x" else Lx_m
+        _ecc_r = eccentricities(N, _Mx_r, _My_r, _Lx_arg, _Ly_arg,
+                                cx_r, cy_r)
+        if _axis_in == "x":
+            e0_in, ea_in = _ecc_r.e0x, _ecc_r.eax
+            e0_out, ea_out = _ecc_r.e0y, _ecc_r.eay
+        else:
+            e0_in, ea_in = _ecc_r.e0y, _ecc_r.eay
+            e0_out, ea_out = _ecc_r.e0x, _ecc_r.eax
+        _l0_Mx = l0_in_m if _mx_is_in else l0_out_m
+        _l0_My = l0_out_m if _mx_is_in else l0_in_m
+        _lam_Mx = _l0_Mx * 1000.0 / _ix_r if _ix_r > 0 \
+            else float("inf")
+        _lam_My = _l0_My * 1000.0 / _iy_r if _iy_r > 0 \
+            else float("inf")
+        lam_in = _lam_My if _axis_in == "x" else _lam_Mx
+        lam_out = _lam_Mx if _axis_in == "x" else _lam_My
+        lt = LongTermLoads()
+        phi = phi_L(N, _Mx_r, _My_r, lt)
+        _buck_r = buckling_factors(
+            _ecc_r.e0x, _ecc_r.e0y, cx_r, cy_r, phi, conc.Eb,
+            Ix, Iy, Isx, Isy, _l0_Mx, _l0_My, N, _Mx_r, _My_r,
+            lambda_x=_lam_Mx, lambda_y=_lam_My)
+        if _axis_in == "x":
+            eta_in, eta_out = _buck_r.etay, _buck_r.etax
+            Ncr_in, Ncr_out = _buck_r.Ncry, _buck_r.Ncrx
+        else:
+            eta_in, eta_out = _buck_r.etax, _buck_r.etay
+            Ncr_in, Ncr_out = _buck_r.Ncrx, _buck_r.Ncry
+        if pd_method == "none":
+            eta_out = 1.0
+            eta_in = 1.0
+            M_out_d = M_out
+        else:
+            # M_out nằm ở khe Mx khi trục trong MP là 'x', ở khe
+            # My khi trục trong MP là 'y' (M_in chiếm khe còn lại).
+            M_out_d = _buck_r.Mx_star if _axis_in == "x" \
+                else _buck_r.My_star
+        if N > 0:
+            M_in_d = (math.copysign(N * e0_in * eta_in / 1000.0,
+                                    M_in) if M_in != 0.0 else 0.0)
+        else:
+            M_in_d = M_in
+        # Vectơ mô men thiết kế ở khung đã xoay -> khung solver
+        # canonical (xoay ngược −rot) để chạy trên tiết diện
+        # canonical; độ lớn không đổi (xoay cứng).
+        if _axis_in == "x":
+            _Mx_dr, _My_dr = M_out_d, M_in_d
+        else:
+            _Mx_dr, _My_dr = M_in_d, M_out_d
+        _Mx_d, _My_d = _rot_vec_inv(_Mx_dr, _My_dr, _rot)
+        # Các biến dùng chung ở dưới (đường rect đặt tên này).
+        Lw, tw = cx_r, cy_r
+        Ig_in = Iy if _axis_in == "x" else Ix
+        # Khoảng cách mép xa nhất từ trọng tâm theo trục trong
+        # MP, đo trên đa giác đã xoay (xoay cứng verts trọng
+        # tâm): trục 'x' -> tọa độ x, trục 'y' -> tọa độ y.
+        _rv = [_rot_vec(x, y, _rot) for (x, y) in sec.poly_verts[0]] \
+            if sec.poly_verts else []
+        if _rv:
+            _coords = [p[0] if _axis_in == "x" else p[1]
+                       for p in _rv]
+            _d_edge = max(abs(min(_coords)), abs(max(_coords)))
+        else:
+            _d_edge = (cx_r if _axis_in == "x" else cy_r) / 2.0
+        sigma_edge = N * 1000.0 / Ag + abs(M_in) * 1e6 * _d_edge \
+            / Ig_in if Ig_in > 0 else float("inf")
+        _e1_in = abs(M_in) * 1000.0 / N if N > 0 else 0.0
+        _e1_out = abs(M_out) * 1000.0 / N if N > 0 else 0.0
+        # Quy ước chung của app (như nhánh rect: full["e0_in"] =
+        # ecc.e0x): trường x của EccentricityResult luôn là
+        # TRONG MP, trường y là NGOÀI MP — cả 2 nhánh đều ghi
+        # theo thứ tự in-first, không đảo theo slot solver.
+        ecc = EccentricityResult(_e1_in, _e1_out, ea_in, ea_out,
+                                 e0_in, e0_out)
+        _c_in = cx_r if _axis_in == "x" else cy_r
+        _c_out = cy_r if _axis_in == "x" else cx_r
+        _slend_note = (
+            "Đa giác (lát N–M): TCVN 5574:2018 §8.1.2.1.2 — η mỗi "
+            "phương chỉ nhân khi λ phương đó > 14 (λ = L0/i, "
+            "i = √(I/A) quanh trọng tâm từ đa giác thật; cổng "
+            "trong buckling_factors, chung với cột/vách phẳng). "
+            "§8.1.2.2.4 — ea = max(L/600, c/30, 10) với c = chiều "
+            f"sâu tiết diện theo phương uốn (trong MP c = {_c_in:.0f} "
+            f"mm theo trục {_axis_in}, ngoài MP c = {_c_out:.0f} mm; "
+            "c lấy bằng bề rộng bbox đã xoay — GIẢ ĐỊNH TƯƠNG "
+            "ĐƯƠNG cho đa giác, phía bảo thủ). Tải N/M hiểu tại "
+            "trọng tâm tiết diện nguyên (khung trọng tâm). "
+            "Trong MP: M_in* = N·max(e1, ea)·η_in. "
+            "Cắt/PDF cho loại này: lát sau.")
+        _axis_in_rot = _axis_in
     # --- Sức bền tiết diện: solver fiber exact (tia song trục) ---
     cap = BiaxialCapacity(sec, model=model, n_angles=n_angles)
-    r = cap.dc_ratio(N, M_out_d, M_in_d)
+    # Solver chạy trên khung solver: rect (_Mx_d, _My_d) =
+    # (M_out_d, M_in_d) như cũ; đa giác = mô men thiết kế đã xoay
+    # ngược về khung canonical/trọng tâm (xem nhánh đa giác).
+    r = cap.dc_ratio(N, _Mx_d, _My_d)
     dc = r["dc"]
     fs_val = 1.0 / dc if dc > 1e-12 else float("inf")
-    # α chuẩn hoá [0, 360) theo quy ước chung của app (mốc ETABS)
-    alpha_deg = (math.degrees(math.atan2(M_out_d, M_in_d)) % 360.0) \
-        if abs(M_out_d) + abs(M_in_d) > 1e-9 else 0.0
-    Malpha = math.hypot(M_out_d, M_in_d)
+    # α chuẩn hoá [0, 360) theo quy ước chung của app (mốc ETABS):
+    # góc của vectơ mô men solver (Mx, My); rect trùng góc vật lý
+    # atan2(M_out_d, M_in_d) như cũ.
+    alpha_deg = (math.degrees(math.atan2(_Mx_d, _My_d)) % 360.0) \
+        if abs(_Mx_d) + abs(_My_d) > 1e-9 else 0.0
+    Malpha = math.hypot(_Mx_d, _My_d)
     M_cap = cap.moment_capacity(N, alpha_deg) if Malpha > 1e-9 else 0.0
 
     # Chiều cao vùng nén tại điểm biên B của tia (BN = lambda*N)
@@ -168,209 +428,275 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
 
     # Ứng suất nén mép (đàn hồi, tiết diện nguyên) — đầu vào cho tiêu
     # chí kích hoạt vùng biên ở lát 3, tính sẵn từ lát 1 theo §5.
-    Ag = Lw * tw
-    Ig_in = tw * Lw ** 3 / 12.0
-    sigma_edge = N * 1000.0 / Ag + abs(M_in) * 1e6 * (Lw / 2.0) / Ig_in
+    # Đa giác đã có Ag/Ig_in/sigma_edge từ nhánh đa giác.
+    if not _is_poly:
+        Ag = Lw * tw
+        Ig_in = tw * Lw ** 3 / 12.0
+        sigma_edge = N * 1000.0 / Ag + abs(M_in) * 1e6 * (Lw / 2.0) \
+            / Ig_in
 
-    if N > 0:
-        _in_line = (
-            f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
-            f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}, "
-            f"e1 = {abs(M_in) * 1000.0 / N:.1f} mm, "
-            f"ea = {ecc.eax:.1f} mm, e0 = {ecc.e0x:.1f} mm, "
-            f"Ncr = {Ncr_in:.0f} kN, η = {eta_in:.3f} "
-            f"-> M_in* = {M_in_d:.1f} kN·m")
+    if _is_poly:
+        _alpha_phys = (math.degrees(math.atan2(_Mx_dr, _My_dr)) % 360.0) \
+            if abs(_Mx_dr) + abs(_My_dr) > 1e-9 else 0.0
+        if N > 0:
+            _in_line_poly = (
+                f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
+                f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}, "
+                f"e1 = {abs(M_in) * 1000.0 / N:.1f} mm, "
+                f"ea = {ea_in:.1f} mm, e0 = {e0_in:.1f} mm, "
+                f"Ncr = {Ncr_in:.0f} kN, η = {eta_in:.3f} "
+                f"-> M_in* = {M_in_d:.1f} kN·m")
+        else:
+            _in_line_poly = (
+                f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
+                f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}; "
+                f"N <= 0 nên không áp phóng đại/sàn lệch tâm "
+                f"-> M_in* = {M_in_d:.1f} kN·m")
+        details = [
+            f"Tiết diện vách đa giác {_stype} (bbox {float(sec.cx):.0f}x{float(sec.cy):.0f} mm, "
+            f"khung trọng tâm; trục trong MP: {_axis_in_rot} — "
+            f"Ag = {Ag:.0f} mm², "
+            f"As = {sec.steel_area:.0f} mm² (µ = {sec.reinforcement_ratio*100:.2f}%)",
+            meta.get("layout_text") or "",
+            f"Ngoài mặt phẳng (Phương Y): L0 = ψ x L = {psi_y:g} x "
+            f"{Ly_m:.2f} = {l0_out_m:.2f} m, λ = {lam_out:.1f}, "
+            f"e0 = {e0_out:.1f} mm, φL = {phi:.2f}, Ncr = {Ncr_out:.0f} kN, "
+            f"η = {eta_out:.3f} -> M_out* = {M_out_d:.1f} kN·m",
+            _in_line_poly,
+            f"Góc α (khung solver trọng tâm) = {alpha_deg:.1f}°, "
+            f"α vật lý (theo M_in/M_out) = {_alpha_phys:.1f}°, "
+            f"Mα = {Malpha:.1f} kN·m, "
+            f"Mα,u = {M_cap:.1f} kN·m tại N = {N:.1f} kN",
+            f"D/C = {dc:.3f} (FS = {fs_val:.2f}) -> "
+            f"{'ĐẠT' if r['ok'] else 'KHÔNG ĐẠT'} (chỉ N–M; cắt/PDF cho loại này đang làm ở lát sau)",
+        ]
+        if pd_method == "none":
+            details.append("Phương pháp uốn dọc: KHÔNG xét bổ sung uốn dọc "
+                           "(η = 1 cả 2 phương theo mục 4; sàn lệch tâm "
+                           "e0 = max(e1, ea) trong mặt phẳng vẫn áp).")
+        if c_neutral is not None and math.isfinite(c_neutral):
+            details.append(f"Chiều cao vùng nén tại điểm biên B: "
+                           f"c = {c_neutral:.0f} mm")
+        details.append(f"Ứng suất nén mép (đàn hồi): σ = {sigma_edge:.2f} MPa "
+                       f"(tiêu chí vùng biên xét ở lát 3)")
     else:
-        _in_line = (
-            f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
-            f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}; "
-            f"N <= 0 nên không áp phóng đại/sàn lệch tâm "
-            f"-> M_in* = {M_in_d:.1f} kN·m")
-    _layout_line = meta.get("layout_text") or (
-        f"Thép: biên {meta['n_be_left'] + meta['n_be_right']} thanh "
-        f"d{float(winp.dia_be):.0f}, phân bố đứng {meta['n_web']} thanh "
-        f"d{float(winp.dia_v):.0f} (bước thực "
-        f"{meta['s_v_actual'] if meta['s_v_actual'] else 0:.0f} mm)")
-    details = [
-        f"Tiết diện vách {Lw:.0f}x{tw:.0f} mm, Ag = {Ag:.0f} mm², "
-        f"As = {sec.steel_area:.0f} mm² (µ = {sec.reinforcement_ratio*100:.2f}%)",
-        _layout_line,
-        f"Ngoài mặt phẳng (Phương Y): L0 = ψ x L = {psi_y:g} x "
-        f"{Ly_m:.2f} = {l0_out_m:.2f} m, λ = {lam_out:.1f}, "
-        f"e0 = {ecc.e0y:.1f} mm, φL = {phi:.2f}, Ncr = {Ncr_out:.0f} kN, "
-        f"η = {eta_out:.3f} -> M_out* = {M_out_d:.1f} kN·m",
-        _in_line,
-        f"Góc α = {alpha_deg:.1f}°, Mα = {Malpha:.1f} kN·m, "
-        f"Mα,u = {M_cap:.1f} kN·m tại N = {N:.1f} kN",
-        f"D/C = {dc:.3f} (FS = {fs_val:.2f}) -> "
-        f"{'ĐẠT' if r['ok'] else 'KHÔNG ĐẠT'} (chỉ N–M, phạm vi lát 1)",
-    ]
-    if pd_method == "none":
-        details.append("Phương pháp uốn dọc: KHÔNG xét bổ sung uốn dọc "
-                       "(η = 1 cả 2 phương theo mục 4; sàn lệch tâm "
-                       "e0 = max(e1, ea) trong mặt phẳng vẫn áp).")
-    if c_neutral is not None and math.isfinite(c_neutral):
-        details.append(f"Chiều cao vùng nén tại điểm biên B: "
-                       f"c = {c_neutral:.0f} mm")
-    details.append(f"Ứng suất nén mép (đàn hồi): σ = {sigma_edge:.2f} MPa "
-                   f"(tiêu chí vùng biên xét ở lát 3)")
+        if N > 0:
+            _in_line = (
+                f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
+                f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}, "
+                f"e1 = {abs(M_in) * 1000.0 / N:.1f} mm, "
+                f"ea = {ecc.eax:.1f} mm, e0 = {ecc.e0x:.1f} mm, "
+                f"Ncr = {Ncr_in:.0f} kN, η = {eta_in:.3f} "
+                f"-> M_in* = {M_in_d:.1f} kN·m")
+        else:
+            _in_line = (
+                f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
+                f"{Lx_m:.2f} = {l0_in_m:.2f} m, λ = {lam_in:.1f}; "
+                f"N <= 0 nên không áp phóng đại/sàn lệch tâm "
+                f"-> M_in* = {M_in_d:.1f} kN·m")
+        _layout_line = meta.get("layout_text") or (
+            f"Thép: biên {meta['n_be_left'] + meta['n_be_right']} thanh "
+            f"d{float(winp.dia_be):.0f}, phân bố đứng {meta['n_web']} thanh "
+            f"d{float(winp.dia_v):.0f} (bước thực "
+            f"{meta['s_v_actual'] if meta['s_v_actual'] else 0:.0f} mm)")
+        details = [
+            f"Tiết diện vách {Lw:.0f}x{tw:.0f} mm, Ag = {Ag:.0f} mm², "
+            f"As = {sec.steel_area:.0f} mm² (µ = {sec.reinforcement_ratio*100:.2f}%)",
+            _layout_line,
+            f"Ngoài mặt phẳng (Phương Y): L0 = ψ x L = {psi_y:g} x "
+            f"{Ly_m:.2f} = {l0_out_m:.2f} m, λ = {lam_out:.1f}, "
+            f"e0 = {ecc.e0y:.1f} mm, φL = {phi:.2f}, Ncr = {Ncr_out:.0f} kN, "
+            f"η = {eta_out:.3f} -> M_out* = {M_out_d:.1f} kN·m",
+            _in_line,
+            f"Góc α = {alpha_deg:.1f}°, Mα = {Malpha:.1f} kN·m, "
+            f"Mα,u = {M_cap:.1f} kN·m tại N = {N:.1f} kN",
+            f"D/C = {dc:.3f} (FS = {fs_val:.2f}) -> "
+            f"{'ĐẠT' if r['ok'] else 'KHÔNG ĐẠT'} (chỉ N–M, phạm vi lát 1)",
+        ]
+        if pd_method == "none":
+            details.append("Phương pháp uốn dọc: KHÔNG xét bổ sung uốn dọc "
+                           "(η = 1 cả 2 phương theo mục 4; sàn lệch tâm "
+                           "e0 = max(e1, ea) trong mặt phẳng vẫn áp).")
+        if c_neutral is not None and math.isfinite(c_neutral):
+            details.append(f"Chiều cao vùng nén tại điểm biên B: "
+                           f"c = {c_neutral:.0f} mm")
+        details.append(f"Ứng suất nén mép (đàn hồi): σ = {sigma_edge:.2f} MPa "
+                       f"(tiêu chí vùng biên xét ở lát 3)")
 
     # --- Biểu đồ M2–M3 (chỉ THÊM khóa "m2m3", không đổi số nào trên) ---
     # Đường bao = lát cắt mặt tương tác tại N = BN (xem wall_m2m3.py:
     # chỉ lát cắt này mới đi đúng qua B; lát cắt tại N tải lệch B
     # 8–19% ở các ca vách). Dùng đúng cap đã dựng cho D/C ở trên.
     _n_level = r["BN"] if math.isfinite(r["BN"]) else N
-    _m2m3 = build_wall_m2m3(cap, _n_level, M_out_d, M_in_d,
+    _m2m3 = build_wall_m2m3(cap, _n_level, _Mx_d, _My_d,
                             r["Bx"], r["By"])
 
-    # --- Cắt trong mặt phẳng (lát 4 — phần 2 của chương trình vách) ---
-    # Tính SAU và ĐỘC LẬP với N–M: không động vào bất kỳ số N–M nào ở
-    # trên; lỗi cắt (nếu có) chỉ làm shear_in pending, không đánh sập
-    # kết quả N–M. ok_all giữ = ok của N–M chỉ để tương thích
-    # dict cũ — không còn render thành kết luận chung, hiển thị
-    # kết luận riêng từng phần (phần 2/7).
-    # Phóng đại kháng chấn (phần 5/7): V_Ed đưa vào check_shear là
-    # lực cắt THIẾT KẾ đã phóng đại — toàn bộ §8.1.3 (kể cả ĐK (98)
-    # với s_max theo V_Ed) xét ở V_Ed, không chỉ nhân D/C sau cùng.
-    _seis_factor = SEISMIC_SHEAR_FACTOR_DCM if seismic_shear else 1.0
-    _V_in_d = _seis_factor * V_in
-    shear_in = {"V_d": _V_in_d, "V_raw": V_in,
-                "seismic_factor": _seis_factor,
-                "seismic_applied": bool(seismic_shear),
-                "V_cap": None, "dc": None,
-                "ok": None, "parts": {},
-                "note": "Cắt trong mặt phẳng: lỗi khi tính (xem chi tiết)"}
-    shear_lines = []
-    try:
-        # Thép ngang RIÊNG (phần 3/7): ưu tiên steel_sw do caller (GUI)
-        # truyền; nếu không có, suy từ winp.sw_steel_grade (file mới);
-        # cấp lạ/None -> fallback thép dọc (file cũ, hành vi cũ).
-        _sw_grade = getattr(winp, "sw_steel_grade", None)
-        if steel_sw is None and isinstance(_sw_grade, str) \
-                and _sw_grade in STEEL_GRADES:
-            steel_sw = SteelMaterial(STEEL_GRADES[_sw_grade],
-                                     float(getattr(steel, "gamma_s", 1.0)))
-        shear_in = check_wall_shear_in_plane(winp, conc, steel, _V_in_d,
-                                             N, Lw=Lw, tw=tw,
-                                             steel_sw=steel_sw)
-        shear_in["V_raw"] = V_in
-        shear_in["seismic_factor"] = _seis_factor
-        shear_in["seismic_applied"] = bool(seismic_shear)
-        shear_in["parts"]["V_raw"] = V_in
-        shear_in["parts"]["seismic_factor"] = _seis_factor
-        shear_in["parts"]["seismic_applied"] = bool(seismic_shear)
-        _p = shear_in["parts"]
-        _dc_txt = (f"{shear_in['dc']:.3f}" if shear_in["dc"] is not None
-                   and math.isfinite(shear_in["dc"]) else "∞")
-        if seismic_shear:
-            shear_lines.append(
-                f"Phóng đại cắt kháng chấn DCM (TCVN 9386-1:2025 "
-                f"§5.4.2.4(7)): V_Ed = 1,5 × V2 = 1,5 × {V_in:.1f} = "
-                f"{_V_in_d:.1f} kN — toàn bộ kiểm tra §8.1.3 dưới đây "
-                f"xét ở V_Ed này; cắt ngoài mặt phẳng không phóng đại.")
-        shear_lines.append(
-            f"Cắt trong mặt phẳng (TCVN 5574:2018 §8.1.3, ánh xạ vách): "
-            f"V2 = {V_in:.1f} kN; b = tw = {_p['b']:.0f} mm, "
-            f"h0 = {_p['h0']:.0f} mm, thép ngang {_p['sw_txt']} "
-            f"(Rsw = {_p['Rsw']:.0f} MPa, Asw = {_p['Asw']:.0f} mm²); "
-            f"qsw bố trí = {_p['qsw_arr']:.1f} N/mm, "
-            f"qsw được kể = {_p['qsw']:.1f} N/mm; "
-            f"φn = {_p['phi_n']:.3f}")
-        shear_lines.append(
-            f"  ĐK1 (dải nén xiên, (88)): [Q]1 = φn×0.3×Rb×b×h0 "
-            f"= {_p['Qcap1']:.1f} kN -> "
-            f"{'ĐẠT' if _p['ok1'] else 'KHÔNG ĐẠT'}; "
-            f"ĐK2 (vết nứt xiên): C = {_p['C_opt']:.0f} mm, "
-            f"Qb = {_p['Qb']:.1f} kN, Qsw = {_p['Qsw']:.1f} kN, "
-            f"[Q]2 = {_p['Qcap2']:.1f} kN -> "
-            f"{'ĐẠT' if _p['ok2'] else 'KHÔNG ĐẠT'}")
-        if not _p["cond98_ok"]:
-            shear_lines.append(
-                f"  ĐK (98) KHÔNG thỏa: s_h = {_p['s_h']:.0f} mm > "
-                f"s_max = {_p['s_max']:.0f} mm -> thép ngang không "
-                f"được kể, Qsw = 0")
-        if not _p["cond96_ok"]:
-            shear_lines.append(
-                f"  ĐK (96) KHÔNG thỏa: qsw = {_p['qsw']:.1f} < "
-                f"0.25×Rbt×b = {_p['qsw_min96']:.1f} N/mm -> Qb theo "
-                f"(97), thép ngang vẫn được kể")
-        shear_lines.append(
-            f"  V_cap = min([Q]1, [Q]2) = {shear_in['V_cap']:.1f} kN, "
-            f"D/C cắt = {_dc_txt} -> "
-            f"{'ĐẠT' if shear_in['ok'] else 'KHÔNG ĐẠT'} "
-            f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
-    except Exception as ex:
+    if _is_poly:
+        shear_in = {"V_d": V_in, "V_raw": V_in,
+                    "seismic_factor": 1.0, "seismic_applied": False,
+                    "V_cap": None, "dc": None,
+                    "ok": None, "parts": {},
+                    "note": "N–M đã xong, cắt/PDF cho loại này đang làm ở lát sau "
+                            "(cắt trong mặt phẳng chưa tính — không dùng công thức b/h0 chữ nhật)"}
+        shear_lines = [shear_in["note"]]
+        details += shear_lines
+    else:
+        # --- Cắt trong mặt phẳng (lát 4 — phần 2 của chương trình vách) ---
+        # Tính SAU và ĐỘC LẬP với N–M: không động vào bất kỳ số N–M nào ở
+        # trên; lỗi cắt (nếu có) chỉ làm shear_in pending, không đánh sập
+        # kết quả N–M. ok_all giữ = ok của N–M chỉ để tương thích
+        # dict cũ — không còn render thành kết luận chung, hiển thị
+        # kết luận riêng từng phần (phần 2/7).
+        # Phóng đại kháng chấn (phần 5/7): V_Ed đưa vào check_shear là
+        # lực cắt THIẾT KẾ đã phóng đại — toàn bộ §8.1.3 (kể cả ĐK (98)
+        # với s_max theo V_Ed) xét ở V_Ed, không chỉ nhân D/C sau cùng.
+        _seis_factor = SEISMIC_SHEAR_FACTOR_DCM if seismic_shear else 1.0
+        _V_in_d = _seis_factor * V_in
         shear_in = {"V_d": _V_in_d, "V_raw": V_in,
                     "seismic_factor": _seis_factor,
                     "seismic_applied": bool(seismic_shear),
                     "V_cap": None, "dc": None,
                     "ok": None, "parts": {},
-                    "note": f"Cắt trong mặt phẳng: lỗi khi tính: {ex}"}
-        shear_lines.append(f"Cắt trong mặt phẳng: lỗi khi tính: {ex}")
-    details += shear_lines
+                    "note": "Cắt trong mặt phẳng: lỗi khi tính (xem chi tiết)"}
+        shear_lines = []
+        try:
+            # Thép ngang RIÊNG (phần 3/7): ưu tiên steel_sw do caller (GUI)
+            # truyền; nếu không có, suy từ winp.sw_steel_grade (file mới);
+            # cấp lạ/None -> fallback thép dọc (file cũ, hành vi cũ).
+            _sw_grade = getattr(winp, "sw_steel_grade", None)
+            if steel_sw is None and isinstance(_sw_grade, str) \
+                    and _sw_grade in STEEL_GRADES:
+                steel_sw = SteelMaterial(STEEL_GRADES[_sw_grade],
+                                         float(getattr(steel, "gamma_s", 1.0)))
+            shear_in = check_wall_shear_in_plane(winp, conc, steel, _V_in_d,
+                                                 N, Lw=Lw, tw=tw,
+                                                 steel_sw=steel_sw)
+            shear_in["V_raw"] = V_in
+            shear_in["seismic_factor"] = _seis_factor
+            shear_in["seismic_applied"] = bool(seismic_shear)
+            shear_in["parts"]["V_raw"] = V_in
+            shear_in["parts"]["seismic_factor"] = _seis_factor
+            shear_in["parts"]["seismic_applied"] = bool(seismic_shear)
+            _p = shear_in["parts"]
+            _dc_txt = (f"{shear_in['dc']:.3f}" if shear_in["dc"] is not None
+                       and math.isfinite(shear_in["dc"]) else "∞")
+            if seismic_shear:
+                shear_lines.append(
+                    f"Phóng đại cắt kháng chấn DCM (TCVN 9386-1:2025 "
+                    f"§5.4.2.4(7)): V_Ed = 1,5 × V2 = 1,5 × {V_in:.1f} = "
+                    f"{_V_in_d:.1f} kN — toàn bộ kiểm tra §8.1.3 dưới đây "
+                    f"xét ở V_Ed này; cắt ngoài mặt phẳng không phóng đại.")
+            shear_lines.append(
+                f"Cắt trong mặt phẳng (TCVN 5574:2018 §8.1.3, ánh xạ vách): "
+                f"V2 = {V_in:.1f} kN; b = tw = {_p['b']:.0f} mm, "
+                f"h0 = {_p['h0']:.0f} mm, thép ngang {_p['sw_txt']} "
+                f"(Rsw = {_p['Rsw']:.0f} MPa, Asw = {_p['Asw']:.0f} mm²); "
+                f"qsw bố trí = {_p['qsw_arr']:.1f} N/mm, "
+                f"qsw được kể = {_p['qsw']:.1f} N/mm; "
+                f"φn = {_p['phi_n']:.3f}")
+            shear_lines.append(
+                f"  ĐK1 (dải nén xiên, (88)): [Q]1 = φn×0.3×Rb×b×h0 "
+                f"= {_p['Qcap1']:.1f} kN -> "
+                f"{'ĐẠT' if _p['ok1'] else 'KHÔNG ĐẠT'}; "
+                f"ĐK2 (vết nứt xiên): C = {_p['C_opt']:.0f} mm, "
+                f"Qb = {_p['Qb']:.1f} kN, Qsw = {_p['Qsw']:.1f} kN, "
+                f"[Q]2 = {_p['Qcap2']:.1f} kN -> "
+                f"{'ĐẠT' if _p['ok2'] else 'KHÔNG ĐẠT'}")
+            if not _p["cond98_ok"]:
+                shear_lines.append(
+                    f"  ĐK (98) KHÔNG thỏa: s_h = {_p['s_h']:.0f} mm > "
+                    f"s_max = {_p['s_max']:.0f} mm -> thép ngang không "
+                    f"được kể, Qsw = 0")
+            if not _p["cond96_ok"]:
+                shear_lines.append(
+                    f"  ĐK (96) KHÔNG thỏa: qsw = {_p['qsw']:.1f} < "
+                    f"0.25×Rbt×b = {_p['qsw_min96']:.1f} N/mm -> Qb theo "
+                    f"(97), thép ngang vẫn được kể")
+            shear_lines.append(
+                f"  V_cap = min([Q]1, [Q]2) = {shear_in['V_cap']:.1f} kN, "
+                f"D/C cắt = {_dc_txt} -> "
+                f"{'ĐẠT' if shear_in['ok'] else 'KHÔNG ĐẠT'} "
+                f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
+        except Exception as ex:
+            shear_in = {"V_d": _V_in_d, "V_raw": V_in,
+                        "seismic_factor": _seis_factor,
+                        "seismic_applied": bool(seismic_shear),
+                        "V_cap": None, "dc": None,
+                        "ok": None, "parts": {},
+                        "note": f"Cắt trong mặt phẳng: lỗi khi tính: {ex}"}
+            shear_lines.append(f"Cắt trong mặt phẳng: lỗi khi tính: {ex}")
+        details += shear_lines
 
-    # --- Cắt ngoài mặt phẳng (lát 4 — phần 4 của chương trình vách) ---
-    # Cùng khuôn với cắt trong MP: tính SAU và ĐỘC LẬP với N–M và với
-    # cắt trong MP; lỗi cắt (nếu có) chỉ làm shear_out pending, không
-    # đánh sập kết quả N–M. ok_all giữ = ok của N–M chỉ để tương
-    # thích dict cũ (không render thành kết luận chung); phần này
-    # chỉ kết luận RIÊNG trong thẻ chi tiết + số trong dict.
-    # V_out = V3 (Q3 nhập tay / V3 pier —
-    # xem _collect_wall_loads + WallInput: V_in = V2 trong MP,
-    # V_out = V3 ngoài MP); thép ngang ngoài MP mặc định 2 nhánh ×
-    # φ(dia_h) @ s_h cùng cấp thép với trong MP (quyết user
-    # 2026-10-25, thay thế quyết P4 cũ Qsw = 0) — cùng steel_sw
-    # đã suy cho cắt trong MP.
-    shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
-                 "ok": None, "parts": {},
-                 "note": "Cắt ngoài mặt phẳng: lỗi khi tính (xem chi tiết)"}
-    shear_out_lines = []
-    try:
-        shear_out = check_wall_shear_out_of_plane(winp, conc, steel,
-                                                  V_out, N, Lw=Lw, tw=tw,
-                                                  steel_sw=steel_sw)
-        _q = shear_out["parts"]
-        _dc_o_txt = (f"{shear_out['dc']:.3f}"
-                     if shear_out["dc"] is not None
-                     and math.isfinite(shear_out["dc"]) else "∞")
-        shear_out_lines.append(
-            f"Cắt ngoài mặt phẳng (TCVN 5574:2018 §8.1.3, ánh xạ vách): "
-            f"V3 = {V_out:.1f} kN; b = Lw = {_q['b']:.0f} mm, "
-            f"h0 = {_q['h0']:.0f} mm (tw - cover - dia_v - dia_h/2), "
-            f"thép ngang {_q['sw_txt']} "
-            f"(Rsw = {_q['Rsw']:.0f} MPa, Asw = {_q['Asw']:.0f} mm²); "
-            f"qsw bố trí = {_q['qsw_arr']:.1f} N/mm, "
-            f"qsw được kể = {_q['qsw']:.1f} N/mm; "
-            f"φn = {_q['phi_n']:.3f}")
-        shear_out_lines.append(
-            f"  ĐK1 (dải nén xiên, (88)): [Q]1 = φn×0.3×Rb×b×h0 "
-            f"= {_q['Qcap1']:.1f} kN -> "
-            f"{'ĐẠT' if _q['ok1'] else 'KHÔNG ĐẠT'}; "
-            f"ĐK2 (vết nứt xiên): C = {_q['C_opt']:.0f} mm, "
-            f"Qb = {_q['Qb']:.1f} kN, Qsw = {_q['Qsw']:.1f} kN, "
-            f"[Q]2 = {_q['Qcap2']:.1f} kN -> "
-            f"{'ĐẠT' if _q['ok2'] else 'KHÔNG ĐẠT'}")
-        if not _q["cond98_ok"]:
-            shear_out_lines.append(
-                f"  ĐK (98) KHÔNG thỏa: s_h = {_q['s_h']:.0f} mm > "
-                f"s_max = {_q['s_max']:.0f} mm -> thép ngang không "
-                f"được kể, Qsw = 0")
-        if not _q["cond96_ok"]:
-            shear_out_lines.append(
-                f"  ĐK (96) KHÔNG thỏa: qsw = {_q['qsw']:.1f} < "
-                f"0.25×Rbt×b = {_q['qsw_min96']:.1f} N/mm -> Qb theo "
-                f"(97), thép ngang vẫn được kể")
-        shear_out_lines.append(
-            f"  V_cap = min([Q]1, [Q]2) = {shear_out['V_cap']:.1f} kN, "
-            f"D/C cắt ngoài MP = {_dc_o_txt} -> "
-            f"{'ĐẠT' if shear_out['ok'] else 'KHÔNG ĐẠT'} "
-            f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
-    except Exception as ex:
+    if _is_poly:
         shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
                      "ok": None, "parts": {},
-                     "note": f"Cắt ngoài mặt phẳng: lỗi khi tính: {ex}"}
-        shear_out_lines.append(f"Cắt ngoài mặt phẳng: lỗi khi tính: {ex}")
-    details += shear_out_lines
+                     "note": "N–M đã xong, cắt/PDF cho loại này đang làm ở lát sau "
+                             "(cắt ngoài mặt phẳng chưa tính — không dùng công thức b/h0 chữ nhật)"}
+        shear_out_lines = [shear_out["note"]]
+        details += shear_out_lines
+    else:
+        # --- Cắt ngoài mặt phẳng (lát 4 — phần 4 của chương trình vách) ---
+        # Cùng khuôn với cắt trong MP: tính SAU và ĐỘC LẬP với N–M và với
+        # cắt trong MP; lỗi cắt (nếu có) chỉ làm shear_out pending, không
+        # đánh sập kết quả N–M. ok_all giữ = ok của N–M chỉ để tương
+        # thích dict cũ (không render thành kết luận chung); phần này
+        # chỉ kết luận RIÊNG trong thẻ chi tiết + số trong dict.
+        # V_out = V3 (Q3 nhập tay / V3 pier —
+        # xem _collect_wall_loads + WallInput: V_in = V2 trong MP,
+        # V_out = V3 ngoài MP); thép ngang ngoài MP mặc định 2 nhánh ×
+        # φ(dia_h) @ s_h cùng cấp thép với trong MP (quyết user
+        # 2026-10-25, thay thế quyết P4 cũ Qsw = 0) — cùng steel_sw
+        # đã suy cho cắt trong MP.
+        shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
+                     "ok": None, "parts": {},
+                     "note": "Cắt ngoài mặt phẳng: lỗi khi tính (xem chi tiết)"}
+        shear_out_lines = []
+        try:
+            shear_out = check_wall_shear_out_of_plane(winp, conc, steel,
+                                                      V_out, N, Lw=Lw, tw=tw,
+                                                      steel_sw=steel_sw)
+            _q = shear_out["parts"]
+            _dc_o_txt = (f"{shear_out['dc']:.3f}"
+                         if shear_out["dc"] is not None
+                         and math.isfinite(shear_out["dc"]) else "∞")
+            shear_out_lines.append(
+                f"Cắt ngoài mặt phẳng (TCVN 5574:2018 §8.1.3, ánh xạ vách): "
+                f"V3 = {V_out:.1f} kN; b = Lw = {_q['b']:.0f} mm, "
+                f"h0 = {_q['h0']:.0f} mm (tw - cover - dia_v - dia_h/2), "
+                f"thép ngang {_q['sw_txt']} "
+                f"(Rsw = {_q['Rsw']:.0f} MPa, Asw = {_q['Asw']:.0f} mm²); "
+                f"qsw bố trí = {_q['qsw_arr']:.1f} N/mm, "
+                f"qsw được kể = {_q['qsw']:.1f} N/mm; "
+                f"φn = {_q['phi_n']:.3f}")
+            shear_out_lines.append(
+                f"  ĐK1 (dải nén xiên, (88)): [Q]1 = φn×0.3×Rb×b×h0 "
+                f"= {_q['Qcap1']:.1f} kN -> "
+                f"{'ĐẠT' if _q['ok1'] else 'KHÔNG ĐẠT'}; "
+                f"ĐK2 (vết nứt xiên): C = {_q['C_opt']:.0f} mm, "
+                f"Qb = {_q['Qb']:.1f} kN, Qsw = {_q['Qsw']:.1f} kN, "
+                f"[Q]2 = {_q['Qcap2']:.1f} kN -> "
+                f"{'ĐẠT' if _q['ok2'] else 'KHÔNG ĐẠT'}")
+            if not _q["cond98_ok"]:
+                shear_out_lines.append(
+                    f"  ĐK (98) KHÔNG thỏa: s_h = {_q['s_h']:.0f} mm > "
+                    f"s_max = {_q['s_max']:.0f} mm -> thép ngang không "
+                    f"được kể, Qsw = 0")
+            if not _q["cond96_ok"]:
+                shear_out_lines.append(
+                    f"  ĐK (96) KHÔNG thỏa: qsw = {_q['qsw']:.1f} < "
+                    f"0.25×Rbt×b = {_q['qsw_min96']:.1f} N/mm -> Qb theo "
+                    f"(97), thép ngang vẫn được kể")
+            shear_out_lines.append(
+                f"  V_cap = min([Q]1, [Q]2) = {shear_out['V_cap']:.1f} kN, "
+                f"D/C cắt ngoài MP = {_dc_o_txt} -> "
+                f"{'ĐẠT' if shear_out['ok'] else 'KHÔNG ĐẠT'} "
+                f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
+        except Exception as ex:
+            shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
+                         "ok": None, "parts": {},
+                         "note": f"Cắt ngoài mặt phẳng: lỗi khi tính: {ex}"}
+            shear_out_lines.append(f"Cắt ngoài mặt phẳng: lỗi khi tính: {ex}")
+        details += shear_out_lines
     details.append("Trượt mạch ngừng chân vách: CHƯA kiểm — "
                    + PENDING_SLIDING)
 
@@ -382,6 +708,14 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         "N": N, "M_in": M_in, "M_out": M_out,
         "V_in": V_in, "V_out": V_out, "T": T,
         "M_in_d": M_in_d, "M_out_d": M_out_d,
+        # Khung solver (canonical/trọng tâm) cho biểu đồ: rect
+        # trùng (M_out_d, M_in_d); đa giác là mô men đã xoay ngược.
+        "Mx_d": _Mx_d, "My_d": _My_d,
+        "Bx_can": r["Bx"], "By_can": r["By"],
+        # Trục trong MP sau xoay ("x" cho phẳng + barbell/tee/ell;
+        # "y" cho c-core/u-core ở rot 0, hoán đổi khi 90/270°).
+        "wall_axis_in": _axis_in_rot,
+        "wall_section_type": _stype,
         "dc": dc, "fs": fs_val, "ok": bool(r["ok"]),
         "alpha_deg": alpha_deg, "Malpha": Malpha, "M_capacity": M_cap,
         "Bx": r["Bx"], "By": r["By"], "BN": r["BN"],
@@ -401,12 +735,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             "second_order": bool(eta_out > 1.0 or eta_in > 1.0),
             "factor_out": eta_out, "Ncr_out": Ncr_out,
             "factor_in": eta_in, "Ncr_in": Ncr_in,
-            "note": "TCVN §8.1.2.1.2: η mỗi phương chỉ nhân khi λ phương đó "
-                    "> 14 (λ ≤ 14 → η = 1,0; cổng trong "
-                    "buckling_factors, chung với cột); trong mặt phẳng "
-                    "M_in* = N·max(e1, ea = Lw/30)·ηx "
-                    "(theo web Vietcons, user chốt 2026-10-24). "
-                    "L0 = ψ x L lấy từ mục 4 tại thời điểm tính.",
+            "note": _slend_note,
         },
         "boundary": {
             "required": None, "criterion": None,

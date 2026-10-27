@@ -197,6 +197,24 @@ _POLY_BUILDERS = {
 }
 
 
+def _polygon_centroid(verts):
+    """Trọng tâm đa giác (shoelace) theo khung tọa độ của verts."""
+    a2 = 0.0
+    cx = 0.0
+    cy = 0.0
+    n = len(verts)
+    for i in range(n):
+        x0, y0 = verts[i]
+        x1, y1 = verts[(i + 1) % n]
+        cr = x0 * y1 - x1 * y0
+        a2 += cr
+        cx += (x0 + x1) * cr
+        cy += (y0 + y1) * cr
+    if abs(a2) < 1e-12:
+        return 0.0, 0.0
+    return cx / (3.0 * a2), cy / (3.0 * a2)
+
+
 def _polygon_area_moments(verts):
     """Diện tích + mô men quán tính (Ix = ∫y², Iy = ∫x²) của đa giác
     theo công thức shoelace (tâm tại gốc — polygon đã tâm bbox)."""
@@ -681,7 +699,34 @@ def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
         verts, cover, float(winp.per_dia), float(winp.per_s),
         float(winp.dia_h))
     sec.rebars = [Rebar(x, y, bar_area(d), d, 2) for x, y, d in bars]
-    segs, segs_y, lab_x, lab_y = _poly_dims(winp, verts)
+    # LÁT N–M (2026-10-27): dịch toàn bộ tiết diện về KHUNG TRỌNG
+    # TÂM — fiber, thép, poly_verts cùng trừ (gx, gy) là trọng tâm
+    # đa giác trong khung bbox cũ. Lý do: Section quy ước "gốc tại
+    # trọng tâm" (sections.py), section_inertia qua
+    # polygon_gross_props giả định verts đã tâm trọng tâm, và
+    # solver fiber tính mô men quanh gốc — để gốc bbox (lệch về
+    # cánh với T, lệch 2 trục với L, lệch về thân/đáy với C/U)
+    # sẽ làm solver tính mô men quanh điểm sai, Ix/Iy theo định
+    # lý trục song song bị phình A·d², và tải N/M của user (hiểu
+    # tại trọng tâm tiết diện nguyên) không cùng khung với khả
+    # năng. Sau dịch: poly_verts/fiber/thép cùng khung trọng tâm
+    # nên solver, section_inertia, vùng nén, biểu đồ đều nhất
+    # quán; dim_segments giữ khung bbox cũ và được draw_wall_
+    # section_ax tự dịch theo bbox của poly_verts khi vẽ (xem đó)
+    # nên preview không đổi hình. Tiết diện đối xứng (phẳng,
+    # Barbell đối xứng) có gx = gy = 0 nên không đổi số.
+    _gx, _gy = _polygon_centroid(verts)
+    if abs(_gx) > 1e-9 or abs(_gy) > 1e-9:
+        for _f in sec.fibers:
+            _f.x -= _gx
+            _f.y -= _gy
+        sec.rebars = [Rebar(r.x - _gx, r.y - _gy, r.area, r.dia,
+                            r.layer) for r in sec.rebars]
+        verts = [(x - _gx, y - _gy) for x, y in verts]
+        sec.poly_verts = [verts]
+        _Ac2, Ix, Iy = _polygon_area_moments(verts)
+    segs, segs_y, lab_x, lab_y = _poly_dims(winp, _POLY_BUILDERS[
+        str(winp.section_type)](winp))
     mode = str(getattr(winp, "steel_mode", "perimeter") or "perimeter")
     rot = int(getattr(winp, "rot_deg", 0) or 0) % 360
     # Ghi chú Barbell + boundary (xem docstring): thép chu vi đa
@@ -724,6 +769,9 @@ def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
         "dim_segments": segs, "dim_segments_y": segs_y,
         "dim_total_x_label": lab_x, "dim_total_y_label": lab_y,
         "poly_ac": Ac, "poly_Ix": Ix, "poly_Iy": Iy,
+        # Khung trọng tâm (lát N–M): offset trọng tâm trong khung
+        # bbox cũ; Ix/Iy trên đã là quanh trọng tâm (sau dịch).
+        "centroid_offset": (_gx, _gy),
         "layout_text": layout,
         "node_boxes": _boxes,
         "n_perimeter_only": len(_bars0),
@@ -741,13 +789,10 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
     thực, As từng nhóm, lưới fiber) để hiển thị/kiểm chứng — không nơi
     nào được suy lại từ công thức khác.
     """
-    # ---- Nhánh đa giác (lát 1): 5 loại mới, chỉ mặt cắt + thép +
-    # preview. Engine N–M/cắt của vách dùng công thức Lw/tw chữ nhật
-    # (độ mảnh, Ig, b/h0) nên KHÔNG generic cho đa giác — CHECK cho
-    # loại mới bị chặn ở GUI (_on_check_wall), không vào nhánh này
-    # để tính. Nhánh này chỉ dựng Section kind="poly" để preview/
-    # thẻ thép đọc đúng Ac/As; lưới fiber lấy mẫu trong đa giác
-    # (diện tích fiber được chuẩn hoá về đúng Ac đa giác).
+    # ---- Nhánh đa giác (lát N–M, 2026-10-27): 5 loại mới đã tính
+    # được N–M (khung trọng tâm, xem _build_wall_section_poly);
+    # cắt vẫn pending ở engine, PDF vẫn chặn ở GUI. Lưới fiber lấy
+    # mẫu trong đa giác (diện tích fiber chuẩn hoá về đúng Ac).
     _stype = str(getattr(winp, "section_type", "rect") or "rect")
     if _stype in _POLY_BUILDERS:
         return _build_wall_section_poly(winp, conc, steel, mesh_step,
@@ -962,8 +1007,14 @@ def wall_readouts(winp, sec, meta) -> dict:
     if str(getattr(winp, "section_type", "rect")) in _POLY_BUILDERS:
         verts = _POLY_BUILDERS[str(winp.section_type)](winp)
         Ac, Ix, Iy = _polygon_area_moments(verts)
-        # (Ix/Iy đa giác tính ở dưới theo công thức đa giác, không
-        # qua Lw*tw — xem return ở cuối hàm qua biến _poly_moments.)
+        # Ix/Iy QUANH TRỌNG TÂM (lát N–M): trừ số hạng trục song
+        # song A·d² khỏi mô men quanh gốc bbox; trước lát này
+        # wall_readouts in Ix/Iy quanh gốc bbox (sai với tiết diện
+        # không đối xứng) trong khi section_inertia đã giả định
+        # verts tâm trọng tâm — nay 2 nguồn khớp nhau.
+        _cgx, _cgy = _polygon_centroid(verts)
+        Ix = Ix - Ac * _cgy * _cgy
+        Iy = Iy - Ac * _cgx * _cgx
         _poly_moments = (Ix, Iy)
     else:
         Lw, tw = wall_dims(winp)
