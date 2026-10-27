@@ -13,8 +13,8 @@ Khung tính (ghi ở wall_engine.py, nhánh đa giác):
   η λ > 14 TCVN §8.1.2.1.2 giữ nguyên từng phương; ea theo
   §8.1.2.2.4 với c = bề rộng bbox đã xoay theo phương uốn (giả định
   tương đương, phía bảo thủ — chuẩn chỉ viết c cho chữ nhật).
-- Cắt/PDF cho loại mới vẫn pending/chặn (không tính bằng b/h0 chữ
-  nhật rồi trình bày như kết quả).
+- Cắt cho loại mới đã xong ở lát cắt (C/U ngoài MP vẫn pending —
+  xem test_wallshear_poly); PDF cho loại mới vẫn chặn (lát sau).
 
 Kiểm chứng:
 (a) vách phẳng + VACH không đổi (0.44520 / 0.463114 / ca ảnh
@@ -24,7 +24,7 @@ Kiểm chứng:
     (B nằm trên bao: moment_capacity(BN, α) ≈ |B|, hướng B ≈ α).
 (c) xoay 90° + xoay tải theo -> D/C không đổi.
 (d) JSON round-trip + detail/shear-rows/draw không crash, cắt
-    báo lát sau.
+    đã tính (lát cắt) — PDF vẫn chặn ở lát sau.
 Thép/Ac đã khóa ở lát thép (48/45/44/82/66) không kiểm lại ở đây
 ngoài As dùng cho Ncap (đọc từ sec, không hardcode).
 """
@@ -168,11 +168,16 @@ def test_poly_biaxial_on_envelope():
         w = _mk(st, kw)
         f = wall_tcvn_full(w, _CONC, _STEEL, loads=_loads(N, Mi, Mo))
         assert f["m2m3"]["N_level"] == f["BN"]
-        assert f["shear_in"]["V_cap"] is None
-        assert f["shear_out"]["V_cap"] is None
-        assert "lát sau" in f["shear_in"]["note"]
-        assert "lát sau" in f["shear_out"]["note"]
-        assert f["checks_included"] == ["N-M"]
+        # Lát cắt: trong MP mở cả 5 loại; ngoài MP mở trừ C/U
+        # (lõi hở pending — xem test_wallshear_poly).
+        assert f["shear_in"]["V_cap"] is not None
+        if st in ("c-core", "u-core"):
+            assert f["shear_out"]["V_cap"] is None
+            assert f["checks_included"] == ["N-M", "shear_in"]
+        else:
+            assert f["shear_out"]["V_cap"] is not None
+            assert f["checks_included"] == ["N-M", "shear_in",
+                                            "shear_out"]
         _biaxial_check(f)
 
 
@@ -224,12 +229,16 @@ def test_poly_json_roundtrip_and_render():
         assert w2.section_type == st
         f = wall_tcvn_full(w2, _CONC, _STEEL, loads=_loads(N, Mi, Mo))
         # Thẻ chi tiết + bảng cắt đọc dict, không tính lại, không
-        # crash; cắt báo CHƯA KIỂM cả 2 phương.
+        # crash; cắt trong MP hiện số cả 5 loại, ngoài MP hiện số
+        # trừ C/U (pending lõi hở).
         secs = build_wall_detail_sections(f)
         assert len(secs) >= 7
         rows = build_wall_shear_rows(f)
-        assert all(r[1] == "CHƯA KIỂM" and r[2] == "CHƯA KIỂM"
-                   for r in rows)
+        assert all(r[1] != "CHƯA KIỂM" for r in rows)
+        if st in ("c-core", "u-core"):
+            assert all(r[2] == "CHƯA KIỂM" for r in rows)
+        else:
+            assert all(r[2] != "CHƯA KIỂM" for r in rows)
         fig, ax = plt.subplots(figsize=(5, 5))
         draw_wall_section_ax(ax, f["sec"], meta=f["meta"],
                              na_info=f["na_info"],
@@ -247,7 +256,8 @@ def test_poly_json_roundtrip_and_render():
 
 def test_poly_gui_check_tee_xvfb():
     """GUI (skip khi không có display; chạy dưới Xvfb ở CI/local):
-    CHECK vách chữ T nhập tay + TCVN hiện tab Kết quả, cắt pending."""
+    CHECK vách chữ T nhập tay + TCVN hiện tab Kết quả, cắt hiện số
+    cả 2 phương (lát cắt)."""
     try:
         import tkinter as tk
         _r = tk.Tk()
@@ -285,8 +295,9 @@ def test_poly_gui_check_tee_xvfb():
         assert full is not None
         assert full["winp"].section_type == "tee"
         assert math.isfinite(full["dc"]) and full["dc"] > 0
-        assert full["shear_in"]["V_cap"] is None
-        assert full["shear_out"]["V_cap"] is None
+        # Lát cắt: Tee mở cả 2 phương (V = 0 nên D/C cắt = 0).
+        assert full["shear_in"]["V_cap"] is not None
+        assert full["shear_out"]["V_cap"] is not None
         assert getattr(app, "_wall_view_active", False) is True
     finally:
         try:

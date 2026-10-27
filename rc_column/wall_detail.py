@@ -733,6 +733,10 @@ def build_wall_detail_sections(full):
             f"[Q]2 = {shp.get('Qcap2', 0):,.1f} kN → "
             f"{'ĐẠT' if shp.get('ok2') else 'KHÔNG ĐẠT'}",
         ]
+        if shp.get("geom_note"):
+            # Đa giác: ghi rõ ánh xạ là giả định tương đương (phẳng
+            # không có khóa này nên không đổi chữ nào).
+            sh_lines.append(f"Ánh xạ: {shp.get('geom_note')}")
         if not shp.get("cond98_ok", True):
             sh_lines.append(
                 f"ĐK (98) KHÔNG thỏa: s_h = {shp.get('s_h', 0):.0f} mm > "
@@ -840,6 +844,19 @@ def build_wall_detail_sections(full):
             f"[Q]2 = {shop.get('Qcap2', 0):,.1f} kN → "
             f"{'ĐẠT' if shop.get('ok2') else 'KHÔNG ĐẠT'}",
         ]
+        if shop.get("h0_expansion"):
+            # Đa giác: thay dòng khai triển phẳng (Lw/tw) bằng khai
+            # triển đúng của hình học vật lý đang kiểm (phẳng không
+            # có khóa này nên không đổi chữ nào).
+            for _i, _ln in enumerate(_o_lines):
+                if _ln.startswith("b × h0 = Lw"):
+                    _o_lines[_i] = (
+                        f"b × h0 = {shop.get('b', 0):.0f} × "
+                        f"h0 = {shop.get('b', 0):.0f} × "
+                        f"({shop.get('h0_expansion')})")
+                    break
+        if shop.get("geom_note"):
+            _o_lines.append(f"Ánh xạ: {shop.get('geom_note')}")
         if not shop.get("cond98_ok", True):
             _o_lines.append(
                 f"ĐK (98) KHÔNG thỏa: s_h = {shop.get('s_h', 0):.0f} mm > "
@@ -878,6 +895,37 @@ def build_wall_detail_sections(full):
         "cards": sh_cards})
 
     # ================= MỤC 9: PHẠM VI & CHƯA KIỂM =================
+    # Dòng ánh xạ cắt: phẳng giữ nguyên văn cũ; đa giác thay bằng
+    # ánh xạ của lát cắt (giả định tương đương, kèm phương pending
+    # nếu có) — không để thẻ đa giác ghi sai ánh xạ phẳng.
+    _stype9 = str(full.get("wall_section_type", "rect") or "rect")
+    if _stype9 == "rect":
+        _shear_map_line = (
+            "Ánh xạ cắt §8.1.3 sang vách (trong MP: b = tw, h0 "
+            "theo Lw, qsw từ thép ngang phân bố; ngoài MP: "
+            "b = Lw, h0 theo tw, thép ngang mặc định 2 nhánh "
+            "× φ(dia_h) @ s_h cùng cấp thép với trong MP) là "
+            "quyết định kỹ thuật "
+            "của lát, KHÔNG phải điều khoản riêng cho vách "
+            "trong tiêu chuẩn — cần thẩm tra xác nhận trước "
+            "khi dùng cho thiết kế chính thức.")
+    else:
+        _pin9 = (full.get("shear_in") or {}).get("parts") or {}
+        _pout9 = (full.get("shear_out") or {}).get("parts") or {}
+        _in9 = (f"trong MP: b = {_pin9.get('b', 0):.0f} mm, "
+                f"h0 = {_pin9.get('h0', 0):.0f} mm"
+                if _pin9 else "trong MP: CHƯA KIỂM")
+        _out9 = (f"ngoài MP: b = {_pout9.get('b', 0):.0f} mm, "
+                 f"h0 = {_pout9.get('h0', 0):.0f} mm"
+                 if _pout9 else "ngoài MP: CHƯA KIỂM (lõi hở C/U — "
+                 "xem thẻ mục 8)")
+        _shear_map_line = (
+            f"Ánh xạ cắt §8.1.3 sang tiết diện đa giác {_stype9} "
+            f"({_in9}; {_out9}; b = thân mỏng nhất, h0 theo bbox "
+            f"trừ cover, thép ngang theo quy đổi phẳng) là GIẢ "
+            f"ĐỊNH TƯƠNG ĐƯƠNG, KHÔNG phải điều khoản riêng cho "
+            f"đa giác trong tiêu chuẩn — cần thẩm tra xác nhận "
+            f"trước khi dùng cho thiết kế chính thức.")
     bnd = full.get("boundary") or {}
     sections.append({
         "num": 9, "title": "PHẠM VI & PHẦN CHƯA KIỂM",
@@ -908,14 +956,7 @@ def build_wall_detail_sections(full):
                     "kháng chấn trong lần tính này (combo không phải "
                     "động đất / cờ DCM đang tắt): V_Ed = V2; cắt ngoài "
                     "mặt phẳng không bao giờ phóng đại."),
-                   "Ánh xạ cắt §8.1.3 sang vách (trong MP: b = tw, h0 "
-                   "theo Lw, qsw từ thép ngang phân bố; ngoài MP: "
-                   "b = Lw, h0 theo tw, thép ngang mặc định 2 nhánh "
-                   "× φ(dia_h) @ s_h cùng cấp thép với trong MP) là "
-                   "quyết định kỹ thuật "
-                   "của lát, KHÔNG phải điều khoản riêng cho vách "
-                   "trong tiêu chuẩn — cần thẩm tra xác nhận trước "
-                   "khi dùng cho thiết kế chính thức."],
+                   _shear_map_line],
                   "Không có kết luận chung — xem kết luận từng mục"),
         ]})
 

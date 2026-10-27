@@ -50,17 +50,17 @@ class PdfMixin:
                 messagebox.showwarning("Xuất PDF",
                                        "Chưa có kết quả để xuất.")
                 return
-            # Lát N–M (2026-10-27): PDF cho 5 loại vách mới vẫn
-            # chặn — N–M đã xong nhưng cắt/PDF cho loại này đang
-            # làm ở lát sau (không xuất PDF thiếu cắt).
+            # Lát cắt (2026-10-27): PDF cho 5 loại vách mới VẪN
+            # chặn — N–M + cắt đã xong nhưng PDF cho loại này
+            # đang làm ở lát sau (không xuất PDF thiếu thuyết minh).
             if _is_wall and _wfull is not None:
                 _st = str(getattr(_wfull.get("winp"), "section_type",
                                   "rect") or "rect")
                 if _st != "rect":
                     messagebox.showinfo(
                         "Chế độ Vách",
-                        "N–M cho loại tiết diện này đã xong, "
-                        "cắt/PDF cho loại này đang làm ở lát sau.")
+                        "N–M + cắt cho loại tiết diện này đã xong, "
+                        "PDF cho loại này đang làm ở lát sau.")
                     return
             # Kiểm tra kết quả theo tiêu chuẩn đang chọn
             # (trước đây chỉ kiểm tra _last_sec của TCVN nên ACI/EC2 báo lỗi)

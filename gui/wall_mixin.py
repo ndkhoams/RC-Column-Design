@@ -866,16 +866,21 @@ def wall_qb_formula_note(full):
         p_in = (full.get("shear_in") or {}).get("parts") or {}
         p_out = (full.get("shear_out") or {}).get("parts") or {}
         rbt = float(full["sec"].concrete.Rbt)
-        if not p_in or not p_out:
+        if not p_in and not p_out:
             return ""
-        return (
+        _head = (
             "Qb (TCVN 5574:2018 §8.1.3): khảo sát C ∈ [h0, 2h0], "
             "lấy [Q]2 = Qb + Qsw nhỏ nhất; (90) Qb = "
             "φn×1,5×Rbt×b×h0²/C khi (96) đạt; (97) Qb = "
             "φn×4×1,5×h0²×qsw/C khi (96) không đạt; "
-            "Qsw = 0,75×qsw×C; Qb chặn trong [0,5; 2,5]×Rbt×b×h0. "
-            f"Trong MP: {qb_formula_sub(p_in, rbt)} "
-            f"Ngoài MP: {qb_formula_sub(p_out, rbt)}")
+            "Qsw = 0,75×qsw×C; Qb chặn trong [0,5; 2,5]×Rbt×b×h0. ")
+        # Lát cắt đa giác: 1 phương pending (C/U ngoài MP) thì chỉ
+        # hiện thay số của phương còn mở, không ẩn cả 2 như trước.
+        _in_txt = (f"Trong MP: {qb_formula_sub(p_in, rbt)}"
+                   if p_in else "Trong MP: CHƯA KIỂM")
+        _out_txt = (f"Ngoài MP: {qb_formula_sub(p_out, rbt)}"
+                    if p_out else "Ngoài MP: CHƯA KIỂM")
+        return _head + _in_txt + " " + _out_txt
     except Exception:
         return ""
 

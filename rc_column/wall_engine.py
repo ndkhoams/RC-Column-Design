@@ -24,7 +24,9 @@ from .stability import (EccentricityResult, LongTermLoads,
 from .wall_m2m3 import build_wall_m2m3
 from .wall_section import build_wall_section, wall_dims
 from .wall_shear import (check_wall_shear_in_plane,
-                           check_wall_shear_out_of_plane)
+                           check_wall_shear_out_of_plane,
+                           check_wall_shear_poly,
+                           wall_shear_geometry_poly)
 
 PENDING_BOUNDARY = "Chưa kiểm ở lát 1 (vùng biên: lát 3)"
 PENDING_SLIDING = ("Chưa kiểm (trượt mạch ngừng chân vách: chưa xác minh "
@@ -398,7 +400,8 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             "ĐƯƠNG cho đa giác, phía bảo thủ). Tải N/M hiểu tại "
             "trọng tâm tiết diện nguyên (khung trọng tâm). "
             "Trong MP: M_in* = N·max(e1, ea)·η_in. "
-            "Cắt/PDF cho loại này: lát sau.")
+            "Cắt: lát cắt đa giác (xem mục cắt dưới — mỗi phương "
+            "kết luận riêng); PDF cho loại này: lát sau.")
         _axis_in_rot = _axis_in
     # --- Sức bền tiết diện: solver fiber exact (tia song trục) ---
     cap = BiaxialCapacity(sec, model=model, n_angles=n_angles)
@@ -468,7 +471,8 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             f"Mα = {Malpha:.1f} kN·m, "
             f"Mα,u = {M_cap:.1f} kN·m tại N = {N:.1f} kN",
             f"D/C = {dc:.3f} (FS = {fs_val:.2f}) -> "
-            f"{'ĐẠT' if r['ok'] else 'KHÔNG ĐẠT'} (chỉ N–M; cắt/PDF cho loại này đang làm ở lát sau)",
+            f"{'ĐẠT' if r['ok'] else 'KHÔNG ĐẠT'} (chỉ N–M; cắt kết "
+            f"luận riêng ở dưới, PDF cho loại này đang làm ở lát sau)",
         ]
         if pd_method == "none":
             details.append("Phương pháp uốn dọc: KHÔNG xét bổ sung uốn dọc "
@@ -532,13 +536,127 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                             r["Bx"], r["By"])
 
     if _is_poly:
-        shear_in = {"V_d": V_in, "V_raw": V_in,
-                    "seismic_factor": 1.0, "seismic_applied": False,
-                    "V_cap": None, "dc": None,
-                    "ok": None, "parts": {},
-                    "note": "N–M đã xong, cắt/PDF cho loại này đang làm ở lát sau "
-                            "(cắt trong mặt phẳng chưa tính — không dùng công thức b/h0 chữ nhật)"}
-        shear_lines = [shear_in["note"]]
+        # --- Cắt đa giác (lát cắt, 2026-10-27) ---
+        # Tính SAU và ĐỘC LẬP với N–M như phẳng; lỗi 1 phương chỉ
+        # làm phương đó pending. Hình học VẬT LÝ (thân/ngang) từ
+        # wall_shear_geometry_poly, rồi hoán đổi theo rot như
+        # wall_dims của phẳng (khung V2/V3 cố định): rot 90/270°
+        # thì shear_in (V2) lấy hình học ngang vật lý và ngược
+        # lại — pending của C/U ngoài MP vật lý vì vậy cũng đổi
+        # nhãn cột khi xoay (pending là tính chất của HƯỚNG, không
+        # phải của nhãn). DCM 1,5× chỉ shear_in (V2), như phẳng.
+        _seis_factor = SEISMIC_SHEAR_FACTOR_DCM if seismic_shear else 1.0
+        _V_in_d = _seis_factor * V_in
+        _sw_grade = getattr(winp, "sw_steel_grade", None)
+        if steel_sw is None and isinstance(_sw_grade, str) \
+                and _sw_grade in STEEL_GRADES:
+            steel_sw = SteelMaterial(STEEL_GRADES[_sw_grade],
+                                     float(getattr(steel, "gamma_s", 1.0)))
+        try:
+            _pgeom = wall_shear_geometry_poly(winp)
+        except Exception as ex:
+            _pgeom = None
+            _pgeom_err = str(ex)
+        if _pgeom is None:
+            shear_in = {"V_d": _V_in_d, "V_raw": V_in,
+                        "seismic_factor": _seis_factor,
+                        "seismic_applied": bool(seismic_shear),
+                        "V_cap": None, "dc": None,
+                        "ok": None, "parts": {},
+                        "note": f"Cắt trong mặt phẳng: lỗi khi tính: "
+                                f"{_pgeom_err}"}
+            shear_lines = [shear_in["note"]]
+        else:
+            _rot_p = int(getattr(winp, "rot_deg", 0) or 0) % 360
+            if _rot_p in (90, 270):
+                _gin, _gout = _pgeom["geom_out"], _pgeom["geom_in"]
+            else:
+                _gin, _gout = _pgeom["geom_in"], _pgeom["geom_out"]
+            _A_sec_poly = float(sec.gross_area)
+            shear_in = {"V_d": _V_in_d, "V_raw": V_in,
+                        "seismic_factor": _seis_factor,
+                        "seismic_applied": bool(seismic_shear),
+                        "V_cap": None, "dc": None,
+                        "ok": None, "parts": {},
+                        "note": "Cắt trong mặt phẳng: lỗi khi tính (xem chi tiết)"}
+            shear_lines = []
+            if _gin is None:
+                shear_in["note"] = _pgeom["pending_out"]
+                shear_lines.append(shear_in["note"])
+            else:
+                try:
+                    shear_in = check_wall_shear_poly(
+                        winp, conc, steel, _V_in_d, N, _gin,
+                        _A_sec_poly, steel_sw=steel_sw)
+                    shear_in["V_raw"] = V_in
+                    shear_in["seismic_factor"] = _seis_factor
+                    shear_in["seismic_applied"] = bool(seismic_shear)
+                    shear_in["parts"]["V_raw"] = V_in
+                    shear_in["parts"]["seismic_factor"] = _seis_factor
+                    shear_in["parts"]["seismic_applied"] = \
+                        bool(seismic_shear)
+                    _p = shear_in["parts"]
+                    _dc_txt = (f"{shear_in['dc']:.3f}"
+                               if shear_in["dc"] is not None
+                               and math.isfinite(shear_in["dc"]) else "∞")
+                    if seismic_shear:
+                        shear_lines.append(
+                            f"Phóng đại cắt kháng chấn DCM (TCVN "
+                            f"9386-1:2025 §5.4.2.4(7)): V_Ed = 1,5 × "
+                            f"V2 = 1,5 × {V_in:.1f} = {_V_in_d:.1f} kN "
+                            f"— toàn bộ kiểm tra §8.1.3 dưới đây xét "
+                            f"ở V_Ed này; cắt ngoài mặt phẳng không "
+                            f"phóng đại.")
+                    shear_lines.append(
+                        f"Cắt trong mặt phẳng (TCVN 5574:2018 "
+                        f"§8.1.3, ánh xạ đa giác — GIẢ ĐỊNH TƯƠNG "
+                        f"ĐƯƠNG): V2 = {V_in:.1f} kN; "
+                        f"b = {_p['b']:.0f} mm, h0 = {_p['h0']:.0f} "
+                        f"mm, thép ngang {_p['sw_txt']} "
+                        f"(Rsw = {_p['Rsw']:.0f} MPa, Asw = "
+                        f"{_p['Asw']:.0f} mm²); qsw bố trí = "
+                        f"{_p['qsw_arr']:.1f} N/mm, qsw được kể = "
+                        f"{_p['qsw']:.1f} N/mm; "
+                        f"φn = {_p['phi_n']:.3f}")
+                    shear_lines.append(
+                        f"  {_p['geom_note']}")
+                    shear_lines.append(
+                        f"  ĐK1 (dải nén xiên, (88)): [Q]1 = "
+                        f"φn×0.3×Rb×b×h0 = {_p['Qcap1']:.1f} kN -> "
+                        f"{'ĐẠT' if _p['ok1'] else 'KHÔNG ĐẠT'}; "
+                        f"ĐK2 (vết nứt xiên): C = {_p['C_opt']:.0f} "
+                        f"mm, Qb = {_p['Qb']:.1f} kN, Qsw = "
+                        f"{_p['Qsw']:.1f} kN, [Q]2 = "
+                        f"{_p['Qcap2']:.1f} kN -> "
+                        f"{'ĐẠT' if _p['ok2'] else 'KHÔNG ĐẠT'}")
+                    if not _p["cond98_ok"]:
+                        shear_lines.append(
+                            f"  ĐK (98) KHÔNG thỏa: s_h = "
+                            f"{_p['s_h']:.0f} mm > s_max = "
+                            f"{_p['s_max']:.0f} mm -> thép ngang "
+                            f"không được kể, Qsw = 0")
+                    if not _p["cond96_ok"]:
+                        shear_lines.append(
+                            f"  ĐK (96) KHÔNG thỏa: qsw = "
+                            f"{_p['qsw']:.1f} < 0.25×Rbt×b = "
+                            f"{_p['qsw_min96']:.1f} N/mm -> Qb theo "
+                            f"(97), thép ngang vẫn được kể")
+                    shear_lines.append(
+                        f"  V_cap = min([Q]1, [Q]2) = "
+                        f"{shear_in['V_cap']:.1f} kN, D/C cắt = "
+                        f"{_dc_txt} -> "
+                        f"{'ĐẠT' if shear_in['ok'] else 'KHÔNG ĐẠT'} "
+                        f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
+                except Exception as ex:
+                    shear_in = {"V_d": _V_in_d, "V_raw": V_in,
+                                "seismic_factor": _seis_factor,
+                                "seismic_applied": bool(seismic_shear),
+                                "V_cap": None, "dc": None,
+                                "ok": None, "parts": {},
+                                "note": f"Cắt trong mặt phẳng: lỗi khi "
+                                        f"tính: {ex}"}
+                    shear_lines.append(
+                        f"Cắt trong mặt phẳng: lỗi khi tính: {ex}")
         details += shear_lines
     else:
         # --- Cắt trong mặt phẳng (lát 4 — phần 2 của chương trình vách) ---
@@ -628,12 +746,89 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         details += shear_lines
 
     if _is_poly:
-        shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
-                     "ok": None, "parts": {},
-                     "note": "N–M đã xong, cắt/PDF cho loại này đang làm ở lát sau "
-                             "(cắt ngoài mặt phẳng chưa tính — không dùng công thức b/h0 chữ nhật)"}
-        shear_out_lines = [shear_out["note"]]
-        details += shear_out_lines
+        # Hình học đã tính ở khối shear_in (_gout/_pgeom); nếu khối
+        # đó lỗi hình học thì tính lại ở đây, vẫn pending riêng
+        # từng phương, không đánh sập N–M.
+        try:
+            _gout_poly = _gout
+            _pending_poly = _pgeom["pending_out"]
+        except Exception:
+            _gout_poly = None
+            _pending_poly = None
+            try:
+                _pg2 = wall_shear_geometry_poly(winp)
+                _rot_p2 = int(getattr(winp, "rot_deg", 0) or 0) % 360
+                _gout_poly = _pg2["geom_in"] if _rot_p2 in (90, 270) \
+                    else _pg2["geom_out"]
+                _pending_poly = _pg2["pending_out"]
+            except Exception as ex:
+                _pending_poly = (f"Cắt ngoài mặt phẳng: lỗi khi "
+                                 f"tính: {ex}")
+        if _gout_poly is None:
+            shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
+                         "ok": None, "parts": {},
+                         "note": _pending_poly or
+                         "Cắt ngoài mặt phẳng: CHƯA KIỂM"}
+            shear_out_lines = [shear_out["note"]]
+            details += shear_out_lines
+        else:
+            shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
+                         "ok": None, "parts": {},
+                         "note": "Cắt ngoài mặt phẳng: lỗi khi tính (xem chi tiết)"}
+            shear_out_lines = []
+            try:
+                shear_out = check_wall_shear_poly(
+                    winp, conc, steel, V_out, N, _gout_poly,
+                    float(sec.gross_area), steel_sw=steel_sw)
+                _q = shear_out["parts"]
+                _dc_o_txt = (f"{shear_out['dc']:.3f}"
+                             if shear_out["dc"] is not None
+                             and math.isfinite(shear_out["dc"]) else "∞")
+                shear_out_lines.append(
+                    f"Cắt ngoài mặt phẳng (TCVN 5574:2018 §8.1.3, "
+                    f"ánh xạ đa giác — GIẢ ĐỊNH TƯƠNG ĐƯƠNG): "
+                    f"V3 = {V_out:.1f} kN; b = {_q['b']:.0f} mm, "
+                    f"h0 = {_q['h0']:.0f} mm, thép ngang "
+                    f"{_q['sw_txt']} (Rsw = {_q['Rsw']:.0f} MPa, "
+                    f"Asw = {_q['Asw']:.0f} mm²); qsw bố trí = "
+                    f"{_q['qsw_arr']:.1f} N/mm, qsw được kể = "
+                    f"{_q['qsw']:.1f} N/mm; "
+                    f"φn = {_q['phi_n']:.3f} (không phóng đại DCM)")
+                shear_out_lines.append(f"  {_q['geom_note']}")
+                shear_out_lines.append(
+                    f"  ĐK1 (dải nén xiên, (88)): [Q]1 = "
+                    f"φn×0.3×Rb×b×h0 = {_q['Qcap1']:.1f} kN -> "
+                    f"{'ĐẠT' if _q['ok1'] else 'KHÔNG ĐẠT'}; "
+                    f"ĐK2 (vết nứt xiên): C = {_q['C_opt']:.0f} mm, "
+                    f"Qb = {_q['Qb']:.1f} kN, Qsw = {_q['Qsw']:.1f} "
+                    f"kN, [Q]2 = {_q['Qcap2']:.1f} kN -> "
+                    f"{'ĐẠT' if _q['ok2'] else 'KHÔNG ĐẠT'}")
+                if not _q["cond98_ok"]:
+                    shear_out_lines.append(
+                        f"  ĐK (98) KHÔNG thỏa: s_h = "
+                        f"{_q['s_h']:.0f} mm > s_max = "
+                        f"{_q['s_max']:.0f} mm -> thép ngang không "
+                        f"được kể, Qsw = 0")
+                if not _q["cond96_ok"]:
+                    shear_out_lines.append(
+                        f"  ĐK (96) KHÔNG thỏa: qsw = "
+                        f"{_q['qsw']:.1f} < 0.25×Rbt×b = "
+                        f"{_q['qsw_min96']:.1f} N/mm -> Qb theo "
+                        f"(97), thép ngang vẫn được kể")
+                shear_out_lines.append(
+                    f"  V_cap = min([Q]1, [Q]2) = "
+                    f"{shear_out['V_cap']:.1f} kN, D/C cắt ngoài "
+                    f"MP = {_dc_o_txt} -> "
+                    f"{'ĐẠT' if shear_out['ok'] else 'KHÔNG ĐẠT'} "
+                    f"(kết luận cắt RIÊNG, không đổi kết luận N–M)")
+            except Exception as ex:
+                shear_out = {"V_d": V_out, "V_cap": None, "dc": None,
+                             "ok": None, "parts": {},
+                             "note": f"Cắt ngoài mặt phẳng: lỗi khi "
+                                     f"tính: {ex}"}
+                shear_out_lines.append(
+                    f"Cắt ngoài mặt phẳng: lỗi khi tính: {ex}")
+            details += shear_out_lines
     else:
         # --- Cắt ngoài mặt phẳng (lát 4 — phần 4 của chương trình vách) ---
         # Cùng khuôn với cắt trong MP: tính SAU và ĐỘC LẬP với N–M và với

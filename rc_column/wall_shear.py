@@ -47,7 +47,28 @@ import math
 from .materials import STEEL_GRADES, SteelMaterial
 from .sections import bar_area
 from .stirrup import check_shear
-from .wall_section import wall_dims
+from .wall_section import _POLY_BUILDERS, wall_dims
+
+# Trục trong mặt phẳng (vật lý, rot = 0) của từng loại đa giác —
+# CÙNG định nghĩa với _POLY_AXIS_IN của wall_engine.py (lát N–M):
+# barbell/tee/ell: x; c-core/u-core: y (thân Lw dọc). Đây là QUY ƯỚC
+# ÁNH XẠ của app, không phải điều khoản TCVN (TCVN không định nghĩa
+# trong/ngoài MP cho lõi C/U).
+_POLY_AXIS_IN = {"barbell": "x", "tee": "x", "ell": "x",
+                 "c-core": "y", "u-core": "y"}
+
+# Lý do pending cắt ngoài MP của lõi C/U (xem wall_shear_geometry_poly):
+# tại mặt cắt ngoài MP, tiết diện gồm 2 cánh RỜI + thân ở mặt phẳng
+# khác — không có 1 hình chữ nhật (b, h0) nào bảo thủ cho cả [Q]1
+# và [Q]2; mô hình cộng 2 cánh là mô hình mới, không làm ở lát này.
+_PENDING_OUT_CU = (
+    "CHƯA KIỂM — cắt ngoài mặt phẳng của lõi hở C/U: mặt cắt cắt "
+    "qua 2 cánh rời (trên/dưới) + thân ở mặt phẳng khác nên không "
+    "định nghĩa được 1 hình chữ nhật (b, h0) duy nhất theo §8.1.3 "
+    "một cách bảo thủ cho cả [Q]1 và [Q]2 (lấy b = t thì bỏ cánh "
+    "thứ 2, lấy b = 2t thì thành mô hình cộng 2 tiết diện — cần "
+    "duyệt riêng, không ép số ở lát này). PDF cho loại này đang "
+    "làm ở lát sau.")
 
 
 def wall_shear_geometry(winp, Lw: float = None, tw: float = None):
@@ -73,6 +94,199 @@ def wall_shear_geometry(winp, Lw: float = None, tw: float = None):
     return {"Lw": Lw, "tw": tw, "b": tw, "h0": max(h0, 1.0),
             "h0_raw": h0, "cover": cover, "dia_h": dia_h,
             "dia_v": dia_v}
+
+
+def wall_shear_geometry_poly(winp):
+    """Hình học cắt VẬT LÝ (chưa xoay) cho 5 loại đa giác.
+
+    Trả về dict với 2 hình học vật lý:
+    - geom_in: hướng thân (trong MP ở rot 0): b = bề dày nhánh mỏng
+      nhất (tw của Barbell, sec_t của T/L/C/U), h0 = E_thân − cover
+      − dia_h − per_dia/2, thép ngang layers_h nhánh × φ(dia_h) @ s_h.
+    - geom_out: hướng ngang (ngoài MP ở rot 0): b = cùng bề dày
+      nhánh mỏng nhất, h0 = E_ngang − cover − per_dia − dia_h/2
+      (gương phẳng, hoán đổi dia_h/per_dia), thép ngang 2 nhánh ×
+      φ(dia_h) @ s_h (quyết 2026-10-25 cho phẳng, giữ nguyên).
+      geom_out = None + pending_out_reason cho c-core/u-core
+      (lõi hở — xem _PENDING_OUT_CU).
+    E_thân/E_ngang = bề rộng bbox của đa giác canonical theo trục
+    thân / trục còn lại (Bf lấy max(Bf, Bf2) theo bbox; Barbell
+    Bf là bề rộng ngang đầu, Lw là tổng dài). per_dia = đường kính
+    thép đứng chu vi (thay dia_v của phẳng — đa giác chỉ có thép
+    đứng chu vi, không có dia_v riêng). GIẢ ĐỊNH TƯƠNG ĐƯƠNG
+    (TCVN §8.1.3 chỉ viết cho tiết diện chữ nhật): b lấy theo thân
+    mỏng nhất (bảo thủ, không lấy cánh/hồi làm tăng b), h0 lấy theo
+    bbox trừ cover — không trình bày như điều khoản chuẩn.
+    Engine tự hoán đổi geom_in/geom_out khi rot 90/270° (khung
+    V2/V3 cố định như wall_dims của phẳng).
+    """
+    stype = str(getattr(winp, "section_type", "rect") or "rect")
+    if stype not in _POLY_BUILDERS:
+        raise ValueError(f"Không phải tiết diện đa giác: {stype}")
+    verts = _POLY_BUILDERS[stype](winp)
+    xs = [p[0] for p in verts]
+    ys = [p[1] for p in verts]
+    bx, by = max(xs) - min(xs), max(ys) - min(ys)
+    axis = _POLY_AXIS_IN[stype]
+    e_stem = bx if axis == "x" else by
+    e_trans = by if axis == "x" else bx
+    t_branch = float(winp.tw) if stype == "barbell" \
+        else float(winp.sec_t)
+    cover = float(getattr(winp, "cover", 0.0) or 0.0)
+    dia_h = float(getattr(winp, "dia_h", 0.0) or 0.0)
+    per_dia = float(getattr(winp, "per_dia", 0.0) or 0.0)
+    s_h = float(getattr(winp, "s_h", 0.0) or 0.0)
+    try:
+        layers_h = int(getattr(winp, "layers_h", 0) or 0)
+    except Exception:
+        layers_h = 0
+    ah = bar_area(dia_h) if dia_h > 0 else 0.0
+    h0_in = e_stem - cover - dia_h - per_dia / 2.0
+    h0_out = e_trans - cover - per_dia - dia_h / 2.0
+    base = {"section_type": stype, "axis_canonical": axis,
+            "bbox_x": bx, "bbox_y": by, "E_stem": e_stem,
+            "E_trans": e_trans, "t_branch": t_branch,
+            "cover": cover, "dia_h": dia_h, "per_dia": per_dia,
+            "s_h": s_h, "layers_h": layers_h}
+    geom_in = dict(base)
+    geom_in.update({
+        "direction": "in", "physical": "stem",
+        "b": t_branch, "h0": max(h0_in, 1.0), "h0_raw": h0_in,
+        "E_depth": e_stem, "E_other": e_trans,
+        "branches": layers_h,
+        "Asw": layers_h * ah if layers_h > 0 else 0.0,
+        "h0_expansion":
+            f"{e_stem:.0f} − {cover:.0f} − {dia_h:.0f} − "
+            f"{per_dia / 2.0:.1f} = {max(h0_in, 1.0):.0f} mm",
+        "geom_note":
+            f"đa giác {stype} (GIẢ ĐỊNH TƯƠNG ĐƯƠNG, §8.1.3 chỉ "
+            f"viết cho chữ nhật): b = thân mỏng nhất {t_branch:.0f} "
+            f"mm, h0 = {e_stem:.0f} − cover {cover:.0f} − dia_h "
+            f"{dia_h:.0f} − per_dia/2 {per_dia / 2.0:.1f} = "
+            f"{max(h0_in, 1.0):.0f} mm; thép ngang "
+            f"{layers_h}φ{dia_h:.0f} a{s_h:.0f} (thép ngang hiện "
+            f"có" + (" — Barbell không dùng be_Lb/be_dia, chưa "
+                      "ánh xạ sang đầu Barbell" if stype == "barbell"
+                      else "") + ").",
+    })
+    if stype in ("c-core", "u-core"):
+        geom_out = None
+        pending_out = _PENDING_OUT_CU
+    else:
+        geom_out = dict(base)
+        geom_out.update({
+            "direction": "out", "physical": "transverse",
+            "b": t_branch, "h0": max(h0_out, 1.0),
+            "h0_raw": h0_out,
+            "E_depth": e_trans, "E_other": e_stem,
+            "branches": 2,
+            "Asw": 2 * ah if dia_h > 0 else 0.0,
+            "h0_expansion":
+                f"{e_trans:.0f} − {cover:.0f} − {per_dia:.0f} − "
+                f"{dia_h / 2.0:.1f} = {max(h0_out, 1.0):.0f} mm",
+            "geom_note":
+                f"đa giác {stype} (GIẢ ĐỊNH TƯƠNG ĐƯƠNG, §8.1.3 "
+                f"chỉ viết cho chữ nhật): b = thân mỏng nhất "
+                f"{t_branch:.0f} mm, h0 = {e_trans:.0f} − cover "
+                f"{cover:.0f} − per_dia {per_dia:.0f} − dia_h/2 "
+                f"{dia_h / 2.0:.1f} = {max(h0_out, 1.0):.0f} mm; "
+                f"thép ngang ngoài MP mặc định 2φ{dia_h:.0f} "
+                f"a{s_h:.0f} (quyết 2026-10-25, cùng cấp thép "
+                f"với trong MP).",
+        })
+        pending_out = None
+    return {"geom_in": geom_in, "geom_out": geom_out,
+            "pending_out": pending_out, "base": base}
+
+
+def _resolve_sw_poly(winp, steel, steel_sw):
+    """Rsw cho cắt đa giác — cùng luật phẳng (không đổi số phẳng):
+    steel_sw truyền vào thắng; rồi sw_steel_grade hợp lệ (cùng γs
+    thép dọc); rồi fallback thép dọc."""
+    if steel_sw is not None:
+        return steel_sw
+    _g = getattr(winp, "sw_steel_grade", None)
+    if isinstance(_g, str) and _g in STEEL_GRADES:
+        return SteelMaterial(STEEL_GRADES[_g],
+                             float(getattr(steel, "gamma_s", 1.0)))
+    return steel
+
+
+def check_wall_shear_poly(winp, conc, steel, V: float, N: float,
+                          geom: dict, A_sec: float,
+                          steel_sw=None) -> dict:
+    """Kiểm tra cắt 1 phương cho tiết diện đa giác (engine thuần).
+
+    geom: 1 hình học vật lý từ wall_shear_geometry_poly (geom_in
+    hoặc geom_out, đã hoán đổi theo rot ở caller nếu cần). Công thức
+    NGUYÊN VẸN qua stirrup.check_shear (§8.1.3) như phẳng — chỉ ánh
+    xạ (b, h0, Asw, A_sec) khác. Khung dict trả về giống hệt hàm
+    phẳng (V_d, V_cap, dc, ok, parts, sh, note) để GUI/Chi tiết đọc
+    chung không tính lại; parts thêm geom_note / h0_expansion /
+    section_type để thẻ chi tiết ghi rõ giả định tương đương.
+    V là lực cắt thiết kế đã áp DCM nếu caller áp (hàm này không tự
+    nhân 1,5× — như hàm phẳng).
+    """
+    b, h0 = float(geom["b"]), float(geom["h0"])
+    dia_h = float(geom["dia_h"])
+    s_h = float(geom["s_h"])
+    branches = int(geom["branches"])
+    Asw = float(geom["Asw"])
+    sw_mat = _resolve_sw_poly(winp, steel, steel_sw)
+    Rsw = float(sw_mat.Rsw)
+    groups = [(Asw, s_h)] if Asw > 0 and s_h > 0 else []
+    qsw_arr = Rsw * Asw / s_h if Asw > 0 and s_h > 0 else 0.0
+    sh = check_shear(float(V), b, h0, float(conc.Rb), float(conc.Rbt),
+                     Asw, Rsw, s_h,
+                     direction=geom["direction"],
+                     N=float(N), A_sec=float(A_sec), groups=groups)
+    V_cap = min(sh.Qcap1, sh.Qcap2)
+    V_d = float(V)
+    if V_cap > 0:
+        dc = abs(V_d) / V_cap
+    else:
+        dc = 0.0 if abs(V_d) <= 1e-12 else float("inf")
+    try:
+        steel_name = sw_mat.grade.name
+    except Exception:
+        steel_name = ""
+    if groups:
+        sw_txt = f"{branches}φ{dia_h:.0f} a{s_h:.0f}"
+    else:
+        sw_txt = "không có thép ngang"
+    parts = {
+        "b": b, "h0": h0, "Lw": float(geom["E_stem"]),
+        "tw": float(geom["E_trans"]),
+        "cover": float(geom["cover"]), "dia_h": dia_h,
+        "dia_v": float(geom["per_dia"]),
+        "s_h": s_h, "layers_h": branches, "Asw": Asw,
+        "Asw_counted": sh.Asw_counted, "Rsw": Rsw,
+        "steel_grade": steel_name, "sw_steel_grade": steel_name,
+        "sw_txt": sw_txt,
+        "qsw_arr": qsw_arr, "qsw": sh.qsw,
+        "qsw_min96": sh.qsw_min96, "cond96_ok": sh.cond96_ok,
+        "qb_mode": sh.qb_mode, "s_max": sh.s_max,
+        "cond98_ok": sh.cond98_ok, "dropped98": list(sh.dropped98),
+        "phi_n": sh.phi_n, "sigma_m": sh.sigma_m,
+        "sigma_t": sh.sigma_t, "Qcap1": sh.Qcap1,
+        "Qcap2": sh.Qcap2, "Qb": sh.Qb_opt, "Qsw": sh.Qsw_opt,
+        "C_opt": sh.C_opt, "ok1": sh.ok1, "ok2": sh.ok2,
+        "section_type": geom["section_type"],
+        "geom_note": geom["geom_note"],
+        "h0_expansion": geom["h0_expansion"],
+        "physical": geom["physical"],
+        "t_branch": float(geom["t_branch"]),
+    }
+    note = (
+        "TCVN 5574:2018 §8.1.3 (công thức cắt cấu kiện, qua "
+        "rc_column/stirrup.check_shear — cùng bộ công thức của cột; "
+        "ánh xạ đa giác: " + geom["geom_note"] + " φn "
+        "(§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb). V_d là "
+        "lực cắt thiết kế truyền vào (engine vách áp 1,5× theo "
+        "TCVN 9386-1:2025 §5.4.2.4(7) trước khi gọi khi combo động "
+        "đất/DCM bật — chỉ shear_in/V2, không bao giờ shear_out).")
+    return {"V_d": V_d, "V_cap": V_cap, "dc": dc, "ok": bool(sh.ok),
+            "parts": parts, "sh": sh, "note": note}
 
 
 def qb_formula_sub(parts, rbt):
