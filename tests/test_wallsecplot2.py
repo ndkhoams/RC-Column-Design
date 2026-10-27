@@ -13,14 +13,14 @@ Nguyen nhan goc (do truoc khi sua):
   doan cach nhau 0.115cx, nhan doc dai hon doan dim ngan).
 
 Sua (chi gui/wall_mixin.py + nhan dim Barbell):
-- Thep = scatter co dinh WALL_BAR_DIAM_PT=6.0pt (~8.3px o dpi
-  100), khong Circle, khong hook draw_event; mau giu dung legend
+- Thep = scatter co dinh WALL_BAR_DIAM_PT=4.0pt (~5.6px o dpi
+  100, tinh chinh sau 55b781a — xem test_wallsecplot3), khong Circle, khong hook draw_event; mau giu dung legend
   (lop 1 theo DIA_COLORS, lop 2 cam L2_COLOR).
-- Da giac dung don vi dim _unit=0.5*min(cx,cy) cho dim doc/
+- Da giac dung don vi dim _unit=0.35*min(cx,cy) cho dim doc/ (tinh chinh sau 55b781a, xem test_wallsecplot3; ban dau 0.5)
   truc t3 va span doc; rect giu nguyen cy (test_wallsecplot khoa
   dim tong rect -1.45cy khong doi).
 - Cot dim phan doan doc C/U doi tu -0.16cx sang -0.28cx, span
-  trai poly tu -0.21cx sang -0.38cx de nhan doc khong de cot
+  trai poly tu -0.21cx sang -0.38cx (sau tinh chinh -0.34cx) de nhan doc khong de cot
   dim tong.
 - Nhan dim doc Barbell: "Bf = 1000 mm" (chieu y) thay cho
   "Bf = 3000 mm" (ban cu lay chieu x) — chi sua nhan ve, so
@@ -93,7 +93,8 @@ def _scatter_points(ax):
 
 @pytest.mark.parametrize("st,kw,exp", _CASES)
 def test_bars_fixed_pixel_scatter_count_matches(st, kw, exp):
-    """So marker scatter = so thanh ky vong, co dinh 6pt, khong
+    """So marker scatter = so thanh ky vong, co dinh 4pt (sau tinh
+    chinh), khong
     con Circle thep (chi legend Line2D)."""
     fig, ax, sec, meta = _render(st, kw)
     try:
@@ -101,10 +102,10 @@ def test_bars_fixed_pixel_scatter_count_matches(st, kw, exp):
         pts, sizes = _scatter_points(ax)
         assert len(pts) == exp, (st, len(pts), exp)
         assert sizes == {WALL_BAR_DIAM_PT ** 2}, (st, sizes)
-        assert WALL_BAR_DIAM_PT == 6.0
+        assert WALL_BAR_DIAM_PT == 4.0  # tinh chinh 2026-10-27, xem test_wallsecplot3
         # Duong kinh px o dpi 100 = 6pt * 100/72 = 8.3px (trong
         # khoang 7-9px brief yeu cau).
-        assert 7.0 <= WALL_BAR_DIAM_PT * 100.0 / 72.0 <= 9.0
+        assert 5.0 <= WALL_BAR_DIAM_PT * 100.0 / 72.0 <= 6.5
         # Khong con Circle thep tren axes (patch tron chi con
         # polygon mat cat/vung nen, khong phai Circle).
         import matplotlib.patches as mpatches

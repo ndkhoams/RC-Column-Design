@@ -211,21 +211,34 @@ def _wall_section_spans(sec, n_seg=0, rot_deg=0):
     """
     cx, cy = float(sec.cx), float(sec.cy)
     # Lát hiển thị 2026-10-27: đa giác dùng đơn vị dim riêng
-    # _unit = 0.5*min(cx, cy) thay cho cy. Lý do: với C/U, cy là
-    # cạnh DÀI (3000 mm) trong khi các khoảng dim/trục dọc vốn
-    # tính theo cy sẽ phình span dọc tới 4.56*cy, mặt cắt chỉ
-    # chiếm 22% chiều cao span nên C/U nhỏ xíu giữa khung (ảnh
-    # user 9b6481f). Với _unit, span dọc = cy + 3.56*_unit, mặt
-    # cắt chiếm ~36% span, dim vẫn cách nhau đủ px (đo Agg sau
-    # sửa, xem test_wallsecplot2). Rect giữ nguyên cy (đã
+    # _unit = 0.35*min(cx, cy) thay cho cy (55b781a dùng 0.5,
+    # tinh chỉnh sau phản hồi "hình hơi nhỏ" xuống 0.35). Lý do:
+    # với C/U, cy là cạnh DÀI (3000 mm) trong khi các khoảng
+    # dim/trục dọc vốn tính theo cy sẽ phình span dọc tới
+    # 4.56*cy, mặt cắt chỉ chiếm 22% chiều cao span nên C/U nhỏ
+    # xíu giữa khung (ảnh user 9b6481f). Với _unit, span dọc =
+    # cy + 3.56*_unit, mặt cắt chiếm ~45% span (T/L/Barbell) và
+    # ~62% span (C/U), dim vẫn cách nhau đủ px (đo Agg sau sửa,
+    # xem test_wallsecplot3). Rect giữ nguyên cy (đã
     # user-verified, test_wallsecplot khóa dim tổng -1.45cy).
     _is_poly = getattr(sec, "kind", "rect") == "poly"
-    _unit = 0.5 * min(cx, cy) if _is_poly else cy
+    # Tinh chỉnh 2026-10-27 (sau phản hồi "chấm hơi to, hình hơi
+    # nhỏ" ở 55b781a): _unit đa giác 0.5 -> 0.35*min(cx,cy), áp
+    # ĐỒNG BỘ ở cả spans và draw (mọi offset dim/trục t3 đều theo
+    # _unit nên thu span không làm dim tràn span). Span dọc poly
+    # từ cy + 3.56*0.5*min xuống cy + 3.56*0.35*min: C/U lấp cao
+    # 0.53 -> 0.62, T/L/Barbell 0.36 -> 0.45 (đo Agg, xem
+    # test_wallsecplot3); khe dim phân đoạn-tổng còn
+    # 0.83*_unit (~39px ở axes cao 440px) nên dim không chồng.
+    # Rect giữ nguyên cy (đã user-verified, test khóa 0.22).
+    _unit = 0.35 * min(cx, cy) if _is_poly else cy
     # Đa giác có dim phân đoạn dọc bên trái (C/U: Lr) nay ở cột
     # -0.28cx (xem draw_wall_section_ax) nên chừa trái tới
-    # -0.38cx cho mọi poly để nhãn dim trái nằm trong span;
+    # -0.34cx cho mọi poly (thu từ -0.38cx: lấp rộng poly
+    # 0.71 -> 0.74; nhãn dim dọc xoay 90° chỉ chiếm ~11px bề
+    # ngang nên vẫn nằm trong lề figure, đo Agg không chồng);
     # rect giữ -0.105cx như cũ.
-    _left = 0.38 if _is_poly else 0.105
+    _left = 0.34 if _is_poly else 0.105
     x_lo, x_hi = -cx / 2 - _left * cx, cx / 2 + 0.02 * cx
     y_hi = cy / 2 + 1.27 * _unit
     # Hàng tổng Lw luôn vẽ (kể cả không có phân đoạn) nên đáy span
@@ -248,19 +261,31 @@ _WALL_SEC_PAD_PX = 9.0
 # Cỡ hiển thị của điểm thép vách — Lát hiển thị 2026-10-27:
 # thép vẽ bằng marker scatter CỠ ĐIỂM ẢNH CỐ ĐỊNH (không còn
 # Circle tỉ lệ thật + sàn draw_event). Đường kính marker
-# WALL_BAR_DIAM_PT = 6.0pt = 8.3px ở dpi 100 (preview Tk) và
+# WALL_BAR_DIAM_PT từng là 6.0pt = 8.3px ở dpi 100 (preview Tk) và
 # 16.7px ở dpi 200 (ảnh PDF) — cùng kích thước vật lý 2.1mm,
 # nhìn rõ như chấm đỏ web mà không phụ thuộc draw_event/resize/
 # debounce (đó là điểm yếu của cơ chế sàn cũ: ảnh user 9b6481f
 # chỉ còn 9–22px cam, tức chỉ legend, thép gần như không hiện
-# trong Tk dù render Agg trực tiếp vẫn có 6px). Marker cố định
-# nên không co theo tỉ lệ mặt cắt; khoảng cách thanh tối thiểu
-# (s=200, px/mm sau thu span ~0.06) vẫn ~12px > đường kính 8px
-# nên các chấm không chập vào nhau ở s mặc định.
+# trong Tk dù render Agg trực tiếp vẫn có 6px).
+# Tinh chỉnh 2026-10-27 (phản hồi user 55b781a "chấm hơi to"):
+# đo Agg cho thấy khoảng cách thanh nhỏ nhất theo dữ liệu là
+# ~107 mm (nửa cạnh ô nút giao 214 mm) ở mọi loại đa giác; ở
+# axes bị giới hạn chiều cao của C/U, khoảng cách này chỉ
+# ~8.3px nên chấm 6pt (8.3px, tỉ lệ 1.00) chạm nhau thành vệt.
+# Mục tiêu ≤40% khoảng cách không đạt được ở cỡ axes C/U nếu
+# giữ sàn nhìn rõ ~5px (40% của 8.3px = 3.3px < sàn), nên sàn
+# nhìn rõ thắng: chọn cỡ cố định 4.0pt = 5.6px ở dpi 100
+# (11.1px ở dpi 200, 1.4mm vật lý), viền trắng 0.5pt tách chấm
+# kề nhau; sau khi thu span, khoảng cách C/U lên ~9.7px nên
+# tỉ lệ chấm/khoảng cách còn ~0.58 (trước 1.00), các loại khác
+# ≤0.49. KHÔNG trở lại Circle tỉ lệ thật, KHÔNG khôi phục hook
+# draw_event. Ở s=100 khoảng cách giảm một nửa nên chấm ở vùng
+# dày sẽ chạm nhau — giới hạn đã ghi, s mặc định 200 mới là
+# trường hợp thiết kế.
 # WALL_BAR_MIN_DIAM_PX giữ lại cho tương thích (hàm floor cũ
 # nay là no-op, xem _wall_bar_floor_apply).
-WALL_BAR_DIAM_PT = 6.0
-WALL_BAR_MIN_DIAM_PX = 6.0
+WALL_BAR_DIAM_PT = 4.0
+WALL_BAR_MIN_DIAM_PX = 4.0
 
 
 def _wall_section_axes_pos(fig, ax, pad_px=_WALL_SEC_PAD_PX):
@@ -428,7 +453,8 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # Thép theo (layer, dia) — Lát hiển thị 2026-10-27: marker
     # scatter CỠ ĐIỂM CỐ ĐỊNH (WALL_BAR_DIAM_PT), không còn Circle
     # tỉ lệ thật. Scatter có kích thước theo điểm (pt), không theo
-    # dữ liệu, nên chấm thép luôn ~8px ở preview dpi 100 dù mặt
+    # dữ liệu, nên chấm thép luôn ~5.6px ở preview dpi 100
+    # (WALL_BAR_DIAM_PT = 4.0, tinh chỉnh sau 55b781a) dù mặt
     # cắt 3000 mm hay 1500 mm, và không cần handler draw_event
     # (điểm yếu khiến ảnh user 9b6481f gần như không thấy thép).
     # Màu giữ đúng legend cũ: lớp 1 theo DIA_COLORS, lớp 2 cam
@@ -453,7 +479,7 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
         if _xs:
             ax.scatter(_xs, _ys, s=WALL_BAR_DIAM_PT ** 2,
                        marker="o", c=color, edgecolors="white",
-                       linewidths=0.8, zorder=7)
+                       linewidths=0.5, zorder=7)
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white",
@@ -473,10 +499,10 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     # Trục t2 (ngang, xanh lá) / t3 (đứng, xanh dương) tại tâm —
     # độ dài mũi tên tỉ lệ theo từng phương để nằm gọn trong khung;
     # đầu mũi tên + nhãn đi theo cùng phép xoay R như mọi phần tử.
-    # Lát hiển thị: đa giác dùng _unit (0.5*min(cx,cy)) cho phần
+    # Lát hiển thị: đa giác dùng _unit (0.35*min(cx,cy)) cho phần
     # chìa của t3 thay cho cy, cùng lý do thu span ở
     # _wall_section_spans (tránh t3 chìa 0.85*3000 mm ở C/U).
-    _unit = 0.5 * min(cx, cy) if _is_poly else cy
+    _unit = 0.35 * min(cx, cy) if _is_poly else cy
     a2 = 0.30 * cx
     a3 = cy / 2 + 0.85 * _unit
     ax.annotate("", xy=R(a2, 0.0), xytext=(0, 0),
