@@ -625,6 +625,10 @@ def build_wall_detail_sections(full):
                    f"{_sym_out}* (ngoài MP) = {_f(float(full['M_out_d']), 2)} kN·m",
                    f"α = {_f(float(full['alpha_deg']), 2)}° "
                    f"(từ trục M3, chuẩn hoá [0, 360))",
+                   "Ghi chú: α web đo theo khung sơ đồ web nên "
+                   "không cùng định nghĩa với α ETABS này "
+                   "(đối chiếu 27/10: L/U lệch 90°); chỉ đối "
+                   "chiếu D/C/Mα, không so α trực tiếp.",
                    f"Mα = {_f(Malpha, 2)} kN·m"],
                   f"A: N = {_f(N, 1)} kN;  Mα = {_f(Malpha, 2)} kN·m"),
             _card("Điểm giới hạn B",

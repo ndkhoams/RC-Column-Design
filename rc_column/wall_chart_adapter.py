@@ -19,9 +19,13 @@ chỉ đổi tên/khung dữ liệu:
 - Ghi chú A/B/O (`wall_chart_notes`) theo đúng format khối ghi
   chú cột TCVN, nhưng KHÔNG có combo: vách hiện nhập tay, chưa
   có combo nên dòng A không kèm "[...]". Góc α trong ghi chú
-  luôn là góc tải của dict (`alpha_deg`), kể cả khi dropdown
+  luôn là góc tải HIỂN THỊ của dict (`alpha_deg` = α ETABS
+  atan2(M_out_d, M_in_d)), kể cả khi dropdown
   đang ở góc xem khác — handler đổi góc chỉ vẽ lại biểu đồ
   N–Mα, không vẽ lại khối ghi chú (đúng như bên cột).
+  Với C/U, α hiển thị này
+  khác góc solver (xem `alpha_solver_deg`): chỉ nhãn α đổi,
+  tọa độ A/B và đường bao (khung solver) giữ nguyên.
 """
 
 import math

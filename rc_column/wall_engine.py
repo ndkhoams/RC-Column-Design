@@ -270,9 +270,10 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         #   xoay (hoán đổi I/cx/cy khi 90/270°), (b) chạy
         #   solver trên tiết diện canonical với vectơ mô men
         #   thiết kế đã xoay ngược (−rot), rồi (c) mọi số
-        #   hiển thị theo khung vật lý (M_in/M_out, M*, α
-        #   vật lý ghi ở details; α solver canonical ghi ở
-        #   alpha_deg để biểu đồ + vùng nén nhất quán với
+        #   hiển thị theo khung vật lý (M_in/M_out, M*;
+        #   α hiển thị = α ETABS ở dưới, ghi ở alpha_deg;
+        #   α solver canonical ghi riêng ở alpha_solver_deg
+        #   để Mα,u/vùng nén/biểu đồ vẫn nhất quán với
         #   tiết diện canonical mà chart vẽ). Phép xoay cứng
         #   bảo toàn D/C nên test xoay 90° + xoay tải theo
         #   phải cho D/C không đổi (xem test_wallnm_poly).
@@ -426,19 +427,33 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
     r = cap.dc_ratio(N, _Mx_d, _My_d)
     dc = r["dc"]
     fs_val = 1.0 / dc if dc > 1e-12 else float("inf")
-    # α chuẩn hoá [0, 360) theo quy ước chung của app (mốc ETABS):
-    # góc của vectơ mô men solver (Mx, My); rect trùng góc vật lý
-    # atan2(M_out_d, M_in_d) như cũ.
-    alpha_deg = (math.degrees(math.atan2(_Mx_d, _My_d)) % 360.0) \
+    # Góc SOLVER (khung canonical/trọng tâm) — CHỈ dùng nội bộ
+    # cho Mα,u và vùng nén tại B, không phải α hiển thị.
+    _alpha_solver = (math.degrees(math.atan2(_Mx_d, _My_d)) % 360.0) \
         if abs(_Mx_d) + abs(_My_d) > 1e-9 else 0.0
+    # α HIỂN THỊ duy nhất (quy ước ETABS đã chốt, AGENTS.md §4):
+    # α = atan2(M2, M3) với M2 = M_out_d (ngoài MP),
+    # M3 = M_in_d (trong MP) — đúng cặp mô men thiết kế đã
+    # phóng đại, có dấu, chuẩn hoá [0, 360). Với phẳng +
+    # Barbell/T/L (trục trong MP = x) góc này trùng góc solver
+    # nên không đổi số; với C/U (trục trong MP = y) góc solver
+    # cũ là atan2(M_in_d, M_out_d) (76,0° ở ca 800/200) — nay
+    # chỉ đổi nhãn hiển thị thành 14,0°, D/C/điểm B/Mα/vị trí
+    # điểm A trên tia giữ nguyên (tia vẫn dùng cặp (M_in_d,
+    # M_out_d) có dấu; biểu đồ vẫn vẽ bằng Mx_d/My_d/Bx_can/
+    # By_can của solver, không vẽ lại theo α hiển thị).
+    alpha_deg = (math.degrees(math.atan2(M_out_d, M_in_d)) % 360.0) \
+        if abs(M_out_d) + abs(M_in_d) > 1e-9 else 0.0
     Malpha = math.hypot(_Mx_d, _My_d)
-    M_cap = cap.moment_capacity(N, alpha_deg) if Malpha > 1e-9 else 0.0
+    M_cap = cap.moment_capacity(N, _alpha_solver) \
+        if Malpha > 1e-9 else 0.0
 
     # Chiều cao vùng nén tại điểm biên B của tia (BN = lambda*N)
     c_neutral = None
     na_info = None
     try:
-        na_info = neutral_axis_at_N(cap.fs, r["BN"], alpha_deg, model)
+        na_info = neutral_axis_at_N(cap.fs, r["BN"], _alpha_solver,
+                                    model)
         if na_info.get("found"):
             c_neutral = na_info.get("na_depth")
     except Exception:
@@ -454,8 +469,6 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             / Ig_in
 
     if _is_poly:
-        _alpha_phys = (math.degrees(math.atan2(_Mx_dr, _My_dr)) % 360.0) \
-            if abs(_Mx_dr) + abs(_My_dr) > 1e-9 else 0.0
         if N > 0:
             _in_line_poly = (
                 f"Trong mặt phẳng (Phương X): L0 = ψ x L = {psi_x:g} x "
@@ -481,8 +494,10 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             f"e0 = {e0_out:.1f} mm, φL = {phi:.2f}, Ncr = {Ncr_out:.0f} kN, "
             f"η = {eta_out:.3f} -> M_out* = {M_out_d:.1f} kN·m",
             _in_line_poly,
-            f"Góc α (khung solver trọng tâm) = {alpha_deg:.1f}°, "
-            f"α vật lý (theo M_in/M_out) = {_alpha_phys:.1f}°, "
+            f"Góc α hiển thị (ETABS: atan2(M_out*, M_in*)) "
+            f"= {alpha_deg:.1f}°, "
+            f"góc solver (khung trọng tâm, dùng cho Mα,u/vùng "
+            f"nén) = {_alpha_solver:.1f}°, "
             f"Mα = {Malpha:.1f} kN·m, "
             f"Mα,u = {M_cap:.1f} kN·m tại N = {N:.1f} kN",
             f"D/C = {dc:.3f} (FS = {fs_val:.2f}) -> "
@@ -927,7 +942,8 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         "wall_axis_in": _axis_in_rot,
         "wall_section_type": _stype,
         "dc": dc, "fs": fs_val, "ok": bool(r["ok"]),
-        "alpha_deg": alpha_deg, "Malpha": Malpha, "M_capacity": M_cap,
+        "alpha_deg": alpha_deg, "alpha_solver_deg": _alpha_solver,
+        "Malpha": Malpha, "M_capacity": M_cap,
         "Bx": r["Bx"], "By": r["By"], "BN": r["BN"],
         "lambda_ray": r["lambda_max"],
         "m2m3": _m2m3,

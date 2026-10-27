@@ -106,8 +106,13 @@ def _biaxial_check(full, tol=0.005):
     d = _dist_to_polyline(by, bx, m["M3"], m["M2"])
     assert d / bmag <= tol, (d, bmag)
     ang = math.degrees(math.atan2(bx, by)) % 360.0
-    dd = abs((ang - full["alpha_deg"] + 180.0) % 360.0 - 180.0)
-    assert dd <= 1.0, (ang, full["alpha_deg"])
+    # Hướng B so với góc SOLVER (alpha_solver_deg), không phải
+    # α hiển thị ETABS (alpha_deg): với C/U hai góc này lệch
+    # nhau (sửa hiển thị α 2026-10-27, chỉ đổi nhãn, không đổi
+    # tia/B/D/C); với phẳng + Barbell/T/L hai góc trùng nhau.
+    _sol = full.get("alpha_solver_deg", full["alpha_deg"])
+    dd = abs((ang - _sol + 180.0) % 360.0 - 180.0)
+    assert dd <= 1.0, (ang, _sol)
     assert abs(full["dc"] - full["Malpha"] / bmag) <= 0.02, \
         (full["dc"], full["Malpha"] / bmag)
 
@@ -169,7 +174,10 @@ def test_poly_pure_bending():
         f = wall_tcvn_full(w, _CONC, _STEEL,
                            loads=_loads(0.0, 800.0, 0.0))
         cap = BiaxialCapacity(f["sec"], model="3line", n_angles=24)
-        mc = cap.moment_capacity(0.0, f["alpha_deg"])
+        # Khả năng theo hướng tải = góc solver, không phải
+        # α hiển thị ETABS (khác nhau ở C/U, xem _biaxial_check).
+        mc = cap.moment_capacity(
+            0.0, f.get("alpha_solver_deg", f["alpha_deg"]))
         assert mc > 0
         assert abs(f["dc"] - 800.0 / mc) <= 0.02, (st, f["dc"], mc)
 
