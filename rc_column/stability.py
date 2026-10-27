@@ -190,3 +190,22 @@ def buckling_factors(e0x: float, e0y: float, cx: float, cy: float,
     etay = raw_etay if lambda_y > ETA_SLENDERNESS_LIMIT else 1.0
     return BucklingResult(d_ex, d_ey, kbx, kby, Dx, Dy, Ncrx, Ncry,
                           etax, etay, etax * Mx, etay * My)
+
+
+def design_moment(N: float, M: float, e0_mm: float, eta: float,
+                  floor_sign: float = 1.0) -> float:
+    """Mô men thiết kế theo sàn lệch tâm, TCVN 5574:2018 §8.1.2.2.4
+    (e0 = max(e1, ea)) + §8.1.2.1.2 (cổng η) + CT (44)–(48).
+
+    M* = sign·N·e0·η / 1000 (N kN, e0 mm → kN·m). Chỉ gọi khi N > 0
+    (N ≤ 0: đầu gọi giữ mô men gốc, không dựng mô men từ sàn).
+    Dấu: M ≠ 0 → dấu của M gốc; M = 0 → floor_sign (dấu sàn).
+    Khi e1 ≥ ea thì N·e0 = |M| nên công thức này trùng hệt η·M
+    (không đổi ca thường); nó chỉ chạm các trường hợp e1 < ea,
+    kể cả M gốc = 0. Sàn ea KHÔNG phải bao bảo thủ theo D/C ở
+    tiết diện không đối xứng: xoay tia tải sang góc khỏe hơn có
+    thể làm D/C giảm (vd vách L thuần ngoài MP).
+    """
+    if M != 0.0:
+        return math.copysign(N * e0_mm * eta / 1000.0, M)
+    return floor_sign * N * e0_mm * eta / 1000.0

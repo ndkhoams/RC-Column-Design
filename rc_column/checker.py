@@ -11,8 +11,9 @@ from .sections import (Section, bar_area, clear_spacing, layout_circle_bars,
                        layout_vietconsoft_bars,
                        make_circle_section, make_rect_section)
 from .interaction import BiaxialCapacity
-from .stability import (LongTermLoads, buckling_factors, eccentricities,
-                        effective_length, phi_L, slenderness)
+from .stability import (LongTermLoads, buckling_factors, design_moment,
+                        eccentricities, effective_length, phi_L,
+                        slenderness)
 
 
 @dataclass
@@ -210,16 +211,28 @@ def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
                             inp.N, inp.Mx, inp.My,
                             lambda_x=lam_x, lambda_y=lam_y)
 
+    # --- Sàn lệch tâm (user duyệt 2026-10-27, mức vách + cột TCVN) ---
+    # M* = sign·N·e0·η mỗi phương độc lập (e0 = max(e1, ea)); khi
+    # e1 ≥ ea thì trùng η·M nên ca thường không đổi. Tiết diện cột
+    # đối xứng nên dấu sàn khi M = 0 không đổi D/C — dùng dấu +
+    # cho cả 2 phương (khóa bằng test). N ≤ 0 giữ nguyên η·M.
+    # Mx ↔ e0y/ηx, My ↔ e0x/ηy (xem eccentricities).
+    if inp.N > 0:
+        Mx_star = design_moment(inp.N, inp.Mx, ecc.e0y, buck.etax, +1.0)
+        My_star = design_moment(inp.N, inp.My, ecc.e0x, buck.etay, +1.0)
+    else:
+        Mx_star, My_star = buck.Mx_star, buck.My_star
+
     # --- NDM: D/C theo tia 3D với mô men đã phóng đại ---
     cap = BiaxialCapacity(sec, model=inp.concrete_model, n_angles=n_angles)
-    r = cap.dc_ratio(inp.N, buck.Mx_star, buck.My_star)
+    r = cap.dc_ratio(inp.N, Mx_star, My_star)
     dc = r["dc"]
     fs_val = 1.0 / dc if dc > 1e-12 else float("inf")
 
-    Mres = math.hypot(buck.Mx_star, buck.My_star)
+    Mres = math.hypot(Mx_star, My_star)
     Mcap_pt = cap.moment_capacity(inp.N,
-                                  math.degrees(math.atan2(buck.Mx_star,
-                                                          buck.My_star))
+                                  math.degrees(math.atan2(Mx_star,
+                                                          My_star))
                                   if Mres > 1e-12 else 0.0)
 
     mu = sec.reinforcement_ratio
@@ -230,7 +243,7 @@ def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
     return CheckResult(
         ok=r["ok"], utilization=dc, dc=dc, fs=fs_val,
         N=inp.N, Mx=inp.Mx, My=inp.My,
-        Mx_star=buck.Mx_star, My_star=buck.My_star,
+        Mx_star=Mx_star, My_star=My_star,
         M_resultant=Mres, M_capacity=Mcap_pt,
         Bx=r["Bx"], By=r["By"], BN=r["BN"], lambda_max=r["lambda_max"],
         phi_L=phi, L0x=L0x, L0y=L0y, lambda_x=lam_x, lambda_y=lam_y,
@@ -277,23 +290,33 @@ class BatchChecker:
             else float("inf")
         lam_y = (self.L0y * 1000.0 / self.iy) if self.iy > 0 \
             else float("inf")
-        return buckling_factors(ecc.e0x, ecc.e0y, self.inp.cx, self.inp.cy,
-                                phi, self._Eb, self.Ix, self.Iy,
-                                self.Isx, self.Isy, self.L0x, self.L0y,
-                                N, Mx, My,
-                                lambda_x=lam_x, lambda_y=lam_y)
+        return (buckling_factors(ecc.e0x, ecc.e0y, self.inp.cx,
+                                 self.inp.cy, phi, self._Eb, self.Ix,
+                                 self.Iy, self.Isx, self.Isy, self.L0x,
+                                 self.L0y, N, Mx, My,
+                                 lambda_x=lam_x, lambda_y=lam_y), ecc)
+
+    def _stars(self, N: float, Mx: float, My: float, buck, ecc):
+        """Mô men thiết kế dùng chung với check_column (sàn ea):
+        N > 0 → design_moment từng phương (dấu sàn + cho cột đối
+        xứng); N ≤ 0 → η·M như buckling_factors."""
+        if N > 0:
+            return (design_moment(N, Mx, ecc.e0y, buck.etax, +1.0),
+                    design_moment(N, My, ecc.e0x, buck.etay, +1.0))
+        return (buck.Mx_star, buck.My_star)
 
     def check_one(self, N: float, Mx: float, My: float,
                   lt: "LongTermLoads" = None) -> dict:
         """Kiểm tra 1 tổ hợp. Trả về dict {dc, fs, ok, Mx_star, ...}."""
         from .stability import LongTermLoads as _LT
         lt = lt or _LT()
-        buck = self._buckling(N, Mx, My, lt)
-        r = self.cap.dc_ratio(N, buck.Mx_star, buck.My_star)
+        buck, ecc = self._buckling(N, Mx, My, lt)
+        Mx_star, My_star = self._stars(N, Mx, My, buck, ecc)
+        r = self.cap.dc_ratio(N, Mx_star, My_star)
         dc = r["dc"]
         return {
             "N": N, "Mx": Mx, "My": My,
-            "Mx_star": buck.Mx_star, "My_star": buck.My_star,
+            "Mx_star": Mx_star, "My_star": My_star,
             "etax": buck.etax, "etay": buck.etay,
             "dc": dc,
             "fs": 1.0 / dc if dc > 1e-12 else float("inf"),
@@ -318,9 +341,9 @@ class BatchChecker:
             stars = []
             bucks = []
             for (N, Mx, My, lt) in part:
-                buck = self._buckling(N, Mx, My, lt or _LT())
+                buck, ecc = self._buckling(N, Mx, My, lt or _LT())
                 bucks.append(buck)
-                stars.append((N, buck.Mx_star, buck.My_star))
+                stars.append((N, *self._stars(N, Mx, My, buck, ecc)))
             try:
                 rs = self.cap.dc_ratio_batch(stars)
             except Exception:
@@ -329,9 +352,10 @@ class BatchChecker:
             for k, ((N, Mx, My, lt), buck, r) in enumerate(
                     zip(part, bucks, rs)):
                 dc = r["dc"]
+                _sx, _sy = stars[k][1], stars[k][2]
                 out[s + k] = {
                     "N": N, "Mx": Mx, "My": My,
-                    "Mx_star": buck.Mx_star, "My_star": buck.My_star,
+                    "Mx_star": _sx, "My_star": _sy,
                     "etax": buck.etax, "etay": buck.etay,
                     "dc": dc,
                     "fs": 1.0 / dc if dc > 1e-12 else float("inf"),

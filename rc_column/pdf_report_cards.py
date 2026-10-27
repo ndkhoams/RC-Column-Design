@@ -396,8 +396,10 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                        "ĐỘ LỆCH TÂM BAN ĐẦU",
                        "TCVN 5574:2018 Mục 8.1.2.2.4"))
     N = abs(res.N) if res.N else 1.0
-    M2 = abs(res.Mx_star / res.etax) if res.etax else 0.0
-    M3 = abs(res.My_star / res.etay) if res.etay else 0.0
+    # Mô men gốc thật (không suy từ Mx_star/η: sau sàn ea, Mx_star/η
+    # = N·e0, không còn bằng mô men gốc khi e1 < ea).
+    M2 = abs(inp.Mx)
+    M3 = abs(inp.My)
     S.extend(_two(P, st,
         _mk( "Độ lệch tâm tĩnh học phương 2 (e12)",
               "Mục 8.1.2.2.4",
@@ -491,9 +493,11 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         if kind == "Ms":
             return _mk( f"Mô men tính toán phương {d} (M{d}*)",
                          "Mục 8.1.2.4",
-                         [f"M{d}* = η{d} · M{d}",
-                          f"= {_f(eta, 3)} × {_f(Morig, 2)}",
-                          f"= {_f(abs(Mstar), 2)} kN·m"])
+                         [f"M{d}* = sign·N·e0·η{d} / 1000 (dấu theo "
+                          f"M{d}; M{d} = 0 → dấu +)",
+                          f"= {_f(N, 1)} × {_f(e0, 2)} × "
+                          f"{_f(eta, 3)} / 1000",
+                          f"= {_f(Mstar, 2)} kN·m"])
         return None
     for kind in ["phi", "de", "kb", "D", "Ncr", "eta", "Ms"]:
         c1 = _mk5(*dirs[0], kind)

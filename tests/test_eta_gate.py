@@ -164,9 +164,14 @@ def test_gate_wall_rot90_and_old_and_pd_none():
                                "M_out": 202.86, "V_in": 0.0,
                                "V_out": 0.0, "T": 0.0})
     assert fr["slend"]["factor_out"] == 1.0
-    assert abs(fr["M_out_d"] - 202.86) < 0.01
+    # Sàn ea (2026-10-27): cổng η vẫn giữ (factor_out = 1,0) nhưng
+    # M_out* không còn bằng M_out khi e1 < ea — ở rot90, ea ngoài
+    # MP = 83,33 mm (bề dày sau xoay) > e1 = 80,2 mm nên sàn nâng
+    # M_out* lên N·e0·η = 210,72, giữ dấu M_out gốc (dấu sàn chỉ
+    # áp khi M gốc = 0).
+    assert abs(fr["M_out_d"] - 210.72) < 0.01
     assert abs(fr["slend"]["factor_in"] - 1.1375729051035446) < 1e-9
-    assert abs(fr["dc"] - 0.44526) <= 1e-4
+    assert abs(fr["dc"] - 0.44583) <= 1e-4
     fo = wall_tcvn_full(wall_from_dict(migrate_wall_dict(_OLD)[0]), _CONC, _STEEL,  # MIGRATION COVER qua helper
                         loads={"N": 2500.0, "M_in": 3000.0,
                                "M_out": 60.0, "V_in": 0.0,

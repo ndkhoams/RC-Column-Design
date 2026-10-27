@@ -143,13 +143,24 @@ def test_vach_lock_unchanged():
 # ---------------- (b) 3 ca × loại ----------------
 
 def test_poly_pure_compression():
+    # Sàn ea (2026-10-27): nén thuần túy không còn là nén đúng tâm —
+    # cả 2 phương đều có mô men sàn (M_in +, M_out − theo dấu W),
+    # nên D/C cao hơn N/ncap. Khóa đúng dấu + độ lớn sàn và mức
+    # tăng hợp lý, thay cho giả định cũ D/C ≈ N/ncap.
     for st, kw, _N, _Mi, _Mo in _CASES:
         w = _mk(st, kw)
         N = 4000.0
         f = wall_tcvn_full(w, _CONC, _STEEL, loads=_loads(N, 0.0, 0.0))
         ncap = (_CONC.Rb * f["sec"].gross_area
                 + _STEEL.Rsc * f["sec"].steel_area) / 1000.0
-        assert abs(f["dc"] - N / ncap) <= 0.01, (st, f["dc"], N / ncap)
+        sl = f["slend"]
+        assert abs(f["M_in_d"]
+                   - N * f["e0_in"] * sl["factor_in"] / 1000.0) <= 0.11
+        assert abs(f["M_out_d"]
+                   + N * f["e0_out"] * sl["factor_out"] / 1000.0) <= 0.11
+        assert f["M_in_d"] > 0 and f["M_out_d"] < 0
+        assert 0.0 < f["dc"] - N / ncap <= 0.04, \
+            (st, f["dc"], N / ncap)
 
 
 def test_poly_pure_bending():

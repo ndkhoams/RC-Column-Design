@@ -168,6 +168,12 @@ def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
                 f"{m_star_sym} = N × e0x × ηx / 1000 "
                 f"= {_f(N, 1)} × {_f(e0, 2)} × 1.000 / 1000 "
                 f"(sàn lệch tâm e0 trong MP vẫn áp)")
+        elif N > 0:
+            lines.append(
+                f"{m_star_sym} = N × e0 × η / 1000 "
+                f"= {_f(N, 1)} × {_f(e0, 2)} × 1.000 / 1000 "
+                f"(sàn lệch tâm e0 ngoài MP vẫn áp; dấu theo M gốc, "
+                f"M gốc = 0 → dấu sàn −)")
         else:
             lines.append(f"{m_star_sym} = {m_sym} (không nhân η)")
         result = f"{m_star_sym} = {_f(M_star, 2)} kN·m (η = 1,000)"
@@ -194,6 +200,12 @@ def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
                 lines.append(
                     f"{m_star_sym} = {m_sym} (N ≤ 0: không dựng mô men "
                     f"từ sàn lệch tâm; η = 1,000)")
+        elif N > 0:
+            lines.append(
+                f"{m_star_sym} = N × e0 × η / 1000 "
+                f"= {_f(N, 1)} × {_f(e0, 2)} × 1.000 / 1000 "
+                f"(sàn lệch tâm e0; dấu theo M gốc, M gốc = 0 → "
+                f"dấu sàn −)")
         else:
             lines.append(
                 f"{m_star_sym} = ηy × {m_sym} "
@@ -208,6 +220,12 @@ def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
         lines.append(
             f"{m_star_sym} = N × e0x × ηx / 1000 "
             f"= {_f(N, 1)} × {_f(e0, 2)} × {_f(eta, 3)} / 1000")
+    elif N > 0:
+        lines.append(
+            f"{m_star_sym} = N × e0 × ηy / 1000 "
+            f"= {_f(N, 1)} × {_f(e0, 2)} × {_f(eta, 3)} / 1000 "
+            f"(sàn lệch tâm e0; dấu theo M gốc, M gốc = 0 → "
+            f"dấu sàn −)")
     else:
         lines.append(
             f"{m_star_sym} = ηy × {m_sym} "
@@ -552,7 +570,11 @@ def build_wall_detail_sections(full):
         [f"{_sym_in}* (trong MP) = {_f(float(full['M_in_d']), 2)} kN·m",
          f"{_sym_out}* (ngoài MP) = {_f(float(full['M_out_d']), 2)} kN·m",
          f"α = {_f(float(full['alpha_deg']), 2)}° "
-         f"(từ trục M3, chuẩn hoá [0, 360))"],
+         f"(từ trục M3, chuẩn hoá [0, 360))",
+         "M* = sign·N·e0·η mỗi phương độc lập (e0 = max(e1, ea); "
+         "M gốc = 0 → dấu sàn: trong MP +, ngoài MP −). Sàn ea "
+         "không phải bao bảo thủ theo D/C ở tiết diện không đối "
+         "xứng (có thể làm D/C giảm, vd L thuần ngoài MP)."],
         f"Mô men dùng cho kiểm tra N–M (mục 6): "
         f"{_sym_in}* = {_f(float(full['M_in_d']), 2)} kN·m;  "
         f"{_sym_out}* = {_f(float(full['M_out_d']), 2)} kN·m;  "

@@ -3,10 +3,12 @@
 LÁT 1: khả năng chịu N–M theo TCVN 5574:2018 bằng đúng primitive của
 bản cột (BiaxialCapacity exact + buckling_factors/eccentricities của
 stability.py), KHÔNG qua check_column của cột (hàm đó gói uốn dọc cột
-2 phương). Uốn dọc vách: NGOÀI mặt phẳng η·M_out theo bề dày tw;
-TRONG mặt phẳng M_in* = N·max(e1_in, ea_in = Lw/30)·ηx — bổ sung
-2026-10-24 theo mô hình web Vietcons (user chốt, THAY thiết kế lát 1
-§5.2 "không phóng đại mô men trong mặt phẳng").
+2 phương). Uốn dọc vách (user duyệt 2026-10-27, mức vách + cột TCVN):
+MỖI phương độc lập M* = sign·N·e0·η (e0 = max(e1, ea)); dấu: M ≠ 0 →
+dấu M gốc, M = 0 → dấu sàn W: trong MP +, ngoài MP − (khung
+(M_in, M_out); loại trục trong MP = y (C/U) chờ ánh xạ web riêng).
+Khi e1 ≥ ea thì trùng η·M nên ca thường không đổi; sàn chỉ chạm
+các trường hợp e1 < ea, kể cả M gốc = 0.
 
 Khung dict kết quả theo §5 bản thiết kế: các khóa vùng biên / cắt /
 mạch ngừng / cấu tạo có mặt từ lát 1 với ok=None + ghi chú lát sẽ làm,
@@ -19,8 +21,8 @@ from .checker import section_inertia
 from .interaction import BiaxialCapacity, neutral_axis_at_N
 from .materials import STEEL_GRADES, SteelMaterial
 from .stability import (EccentricityResult, LongTermLoads,
-                        buckling_factors, eccentricities, phi_L,
-                        slenderness)
+                        buckling_factors, design_moment, eccentricities,
+                        phi_L, slenderness)
 from .wall_m2m3 import build_wall_m2m3
 from .wall_section import build_wall_section, wall_dims
 from .wall_shear import (check_wall_shear_in_plane,
@@ -173,20 +175,20 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         Ncr_in = buck.Ncry
         if pd_method == "none":
             # "Không xét bổ sung uốn dọc": η = 1 cả 2 phương. Sàn độ lệch
-            # tâm e0 = max(e1, ea) ở dưới VẪN áp cho phương trong mặt
-            # phẳng — đó là độ lệch tâm thiết kế tối thiểu, tách khỏi η.
+            # tâm e0 = max(e1, ea) ở dưới VẪN áp cả 2 phương — đó là độ
+            # lệch tâm thiết kế tối thiểu, tách khỏi η.
             eta_out = 1.0
             eta_in = 1.0
             M_out_d = M_out
-        # --- Phóng đại mô men TRONG mặt phẳng (user chốt 2026-10-24) ---
-        # M_in* = N x max(e1_in, ea_in) x ηx; ecc.e0x đã là max(e1x, eax)
-        # với eax = max(L/600, Lw/30, 10) — tức ea_in = Lw/30 khi Lw lớn
-        # (đúng số web Vietcons dùng: 2500/30 = 83.3 mm). ηx = buck.etay
-        # = 1/(1 − N/Ncr,x) từ cùng công thức độ cứng TCVN (khe "y"),
-        # ĐÃ QUA cổng §8.1.2.1.2: λ_in ≤ 14 → ηx = 1.0 (ca mẫu: 6.37).
+        # --- Mô men thiết kế 2 phương (sàn ea, user duyệt 2026-10-27) ---
+        # M* = sign·N·e0·η mỗi phương độc lập; ecc.e0x = e0 trong MP
+        # (eax = max(L/600, Lw/30, 10) — tức ea_in = Lw/30 khi Lw lớn),
+        # ecc.e0y = e0 ngoài MP. Dấu sàn W (khi M gốc = 0): trong MP +,
+        # ngoài MP −. η qua cổng §8.1.2.1.2: λ ≤ 14 → η = 1.0.
+        # N ≤ 0 giữ nguyên hành vi hiện tại (không dựng mô men sàn).
         if N > 0:
-            M_in_d = (math.copysign(N * ecc.e0x * eta_in / 1000.0, M_in)
-                      if M_in != 0.0 else 0.0)
+            M_out_d = design_moment(N, M_out, ecc.e0y, eta_out, -1.0)
+            M_in_d = design_moment(N, M_in, ecc.e0x, eta_in, +1.0)
         else:
             # N <= 0 (kéo/không tải): không dựng mô men từ sàn lệch tâm
             # (không xác định được dấu) — giữ nguyên M_in, cùng hành vi
@@ -198,9 +200,11 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         _slend_note = (
             "TCVN §8.1.2.1.2: η mỗi phương chỉ nhân khi λ phương đó "
             "> 14 (λ ≤ 14 → η = 1,0; cổng trong "
-            "buckling_factors, chung với cột); trong mặt phẳng "
-            "M_in* = N·max(e1, ea = Lw/30)·ηx "
-            "(theo web Vietcons, user chốt 2026-10-24). "
+            "buckling_factors, chung với cột); mỗi phương độc lập "
+            "M* = sign·N·e0·η (e0 = max(e1, ea); M gốc = 0 → dấu sàn "
+            "W: trong MP +, ngoài MP −; user duyệt 2026-10-27). "
+            "Sàn ea không phải bao bảo thủ theo D/C ở tiết diện "
+            "không đối xứng (có thể làm D/C giảm). "
             "L0 = ψ x L lấy từ mục 4 tại thời điểm tính.")
 
     else:
@@ -349,9 +353,20 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             # My khi trục trong MP là 'y' (M_in chiếm khe còn lại).
             M_out_d = _buck_r.Mx_star if _axis_in == "x" \
                 else _buck_r.My_star
+        # --- Sàn ea (user duyệt 2026-10-27, xác nhận web C/U
+        # 2026-10-27) --- Quy tắc dấu sàn W THỐNG NHẤT trong khung
+        # (M_in, M_out) cho cả 2 loại trục: sàn M_in +, sàn M_out −.
+        # Web C/U thuần: C (Mx 0 → sàn M_out −200; My 0 → sàn
+        # M_in +100), U (Mx 0 → sàn M_out −100; My 0 → sàn
+        # M_in +200) — đúng dấu này sau khi dịch M_in = My_web,
+        # M_out = −Mx_web. N ≤ 0 giữ nguyên hành vi hiện tại.
+        # Lưu ý độ lớn ea của C khác web (app: sàn M_in 200 /
+        # M_out 100 do bbox 3000×1500; web: 100 / 200) — đã báo
+        # rõ, KHÔNG tự đổi ea theo web ở lát này; D/C thuần
+        # của C so web còn lệch riêng, ngoài phạm vi sàn ea.
         if N > 0:
-            M_in_d = (math.copysign(N * e0_in * eta_in / 1000.0,
-                                    M_in) if M_in != 0.0 else 0.0)
+            M_out_d = design_moment(N, M_out, e0_out, eta_out, -1.0)
+            M_in_d = design_moment(N, M_in, e0_in, eta_in, +1.0)
         else:
             M_in_d = M_in
         # Vectơ mô men thiết kế ở khung đã xoay -> khung solver

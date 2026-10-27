@@ -194,8 +194,8 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     b.line("D_{2} / D_{3}", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
     b.line("N_{cr,2} / N_{cr,3}", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
     b.line("η_{2} / η_{3}", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
-    b.line("M_{2}* = η_{2}·M_{2}", "", f"{_f(res.Mx_star, 1)} kN·m")
-    b.line("M_{3}* = η_{3}·M_{3}", "", f"{_f(res.My_star, 1)} kN·m")
+    b.line("M_{2}* = N·e_{02}·η_{2}/1000", "", f"{_f(res.Mx_star, 1)} kN·m")
+    b.line("M_{3}* = N·e_{03}·η_{3}/1000", "", f"{_f(res.My_star, 1)} kN·m")
 
     # ---- 6. NDM ----
     b.section(6, "KIỂM TRA THEO MÔ HÌNH PHI TUYẾN (NDM)",

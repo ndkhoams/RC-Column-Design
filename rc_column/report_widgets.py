@@ -283,8 +283,10 @@ def _build_sec4(g, inp: ColumnInput, res: CheckResult, sec, case_info=None):
                  font=("", 9), fg="#374151", bg=WHITE,
                  anchor="w").pack(fill=tk.X, padx=8, pady=4)
     N = abs(res.N) if res.N else 1.0
-    M2 = abs(res.Mx_star / res.etax) if res.etax else 0.0
-    M3 = abs(res.My_star / res.etay) if res.etay else 0.0
+    # Mô men gốc thật (không suy từ Mx_star/η: sau sàn ea, Mx_star/η
+    # = N·e0, không còn bằng mô men gốc khi e1 < ea).
+    M2 = abs(inp.Mx)
+    M3 = abs(inp.My)
     grid = _grid2(g)
     # e1: tĩnh học
     c = _param_card(grid, "Độ lệch tâm tĩnh học phương 2 (e12)",
@@ -332,8 +334,8 @@ def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
     # Giá trị cho từng phương: 2 (X) và 3 (Y)
     # Phương 2: dùng e03, t2, Ix, Isx ; Phương 3: dùng e02, t3, Iy, Isy
     N = abs(res.N)
-    M2_orig = abs(res.Mx_star / res.etax) if res.etax else 0.0
-    M3_orig = abs(res.My_star / res.etay) if res.etay else 0.0
+    M2_orig = abs(inp.Mx)
+    M3_orig = abs(inp.My)
     grid = _grid2(g)
     # Dữ liệu từng phương: (tên, e0, t, I, Is, delta, kb, D, Ncr, eta,
     # M_star, M_orig, L0, lambda) — lambda để thẻ η in đúng cổng
@@ -394,9 +396,10 @@ def _build_sec5(g, inp: ColumnInput, res: CheckResult, sec):
         ("Mstar", f"Mô men tính toán (M*)",
          "Mục 8.1.2.4",
          lambda d, e0, t, I, Is, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam:
-             [f"M{d}* = η{d} · M{d}",
-              f"= {_f(eta, 3)} × {_f(Morig, 2)}",
-              f"= {_f(abs(Mstar), 2)} kN·m"]),
+             [f"M{d}* = sign·N·e0·η{d} / 1000 (dấu theo M{d}; "
+              f"M{d} = 0 → dấu +)",
+              f"= {_f(N, 1)} × {_f(e0, 2)} × {_f(eta, 3)} / 1000",
+              f"= {_f(Mstar, 2)} kN·m"]),
     ]
     for r, (key, title, ref, fn) in enumerate(card_defs):
         for (d, e0, t, I, Is, delta, kb, D, Ncr, eta,
