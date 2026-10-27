@@ -703,6 +703,13 @@ def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
         "steel_mode_input": mode,
         "section_type": str(winp.section_type),
         "Lw_eff": cx, "tw_eff": cy, "rot_deg": rot,
+        # Lát hiển thị 2026-10-27 (chấm thích ứng): bề dày nhánh
+        # nhỏ nhất để vẽ chấm thép theo đơn vị dữ liệu —
+        # Barbell: tw (thân), T/L/C/U: sec_t (cánh/thân/hồi).
+        # Chỉ dùng để hiển thị, không tham gia tính toán.
+        "bar_branch_t": (float(winp.tw)
+                         if str(winp.section_type) == "barbell"
+                         else float(winp.sec_t)),
         "n_bars": len(bars), "n_web": len(bars),
         "n_be_left": 0, "n_be_right": 0,
         "s_v_actual": None,
@@ -762,6 +769,11 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
     base_meta = {"nx": nx, "ny": ny,
                  "mesh_step_x": Lw / nx, "mesh_step_y": tw / ny,
                  "steel_mode": mode, "Lw_eff": Lw, "tw_eff": tw,
+                 # Lát hiển thị 2026-10-27 (chấm thích ứng): bề dày
+                 # nhánh nhỏ nhất để vẽ chấm thép theo đơn vị dữ
+                 # liệu (rect: chính tw). Chỉ dùng để hiển thị,
+                 # không tham gia tính toán.
+                 "bar_branch_t": float(tw),
                  "rot_deg": int(getattr(winp, "rot_deg", 0) or 0) % 360}
 
     if mode == "perimeter":

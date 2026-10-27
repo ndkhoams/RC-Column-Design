@@ -82,36 +82,42 @@ def _render(st, kw, rot=0):
 
 
 def _scatter_points(ax):
+    # Lát chấm thích ứng 2026-10-27: thép nay là Circle theo đơn
+    # vị dữ liệu, không còn scatter — hàm giữ tên cũ để các test
+    # còn lại dùng chung, trả tâm đĩa + bán kính (mm).
+    import matplotlib.patches as mpatches
     pts = []
     sizes = set()
     for c in ax.collections:
         if isinstance(c, PathCollection):
             pts.extend([tuple(o) for o in c.get_offsets()])
             sizes.update([round(float(s), 1) for s in c.get_sizes()])
+    for p in ax.patches:
+        if isinstance(p, mpatches.Circle):
+            pts.append(tuple(p.center))
+            sizes.add(round(float(p.radius) * 2.0, 1))
     return pts, sizes
 
 
 @pytest.mark.parametrize("st,kw,exp", _CASES)
 def test_bars_fixed_pixel_scatter_count_matches(st, kw, exp):
-    """So marker scatter = so thanh ky vong, co dinh 4pt (sau tinh
-    chinh), khong
-    con Circle thep (chi legend Line2D)."""
+    """Số đĩa thép theo đơn vị dữ liệu = số thanh kỳ vọng,
+    đường kính = _wall_bar_dot_diam (42 mm đa giác, 49 mm
+    phẳng); legend vẫn dùng WALL_BAR_DIAM_PT = 4.0pt."""
+    from gui.wall_mixin import _wall_bar_dot_diam
     fig, ax, sec, meta = _render(st, kw)
     try:
         assert len(sec.rebars) == exp, (st, len(sec.rebars))
         pts, sizes = _scatter_points(ax)
         assert len(pts) == exp, (st, len(pts), exp)
-        assert sizes == {WALL_BAR_DIAM_PT ** 2}, (st, sizes)
-        assert WALL_BAR_DIAM_PT == 4.0  # tinh chinh 2026-10-27, xem test_wallsecplot3
-        # Duong kinh px o dpi 100 = 6pt * 100/72 = 8.3px (trong
-        # khoang 7-9px brief yeu cau).
-        assert 5.0 <= WALL_BAR_DIAM_PT * 100.0 / 72.0 <= 6.5
-        # Khong con Circle thep tren axes (patch tron chi con
-        # polygon mat cat/vung nen, khong phai Circle).
+        assert sizes == {round(_wall_bar_dot_diam(sec, meta), 1)}, \
+            (st, sizes)
+        assert WALL_BAR_DIAM_PT == 4.0  # cỡ legend, không đổi
+        # Đĩa thép là Circle (không còn scatter); bán kính đúng D/2.
         import matplotlib.patches as mpatches
         circs = [p for p in ax.patches
                  if isinstance(p, mpatches.Circle)]
-        assert circs == [], (st, len(circs))
+        assert len(circs) == exp, (st, len(circs))
         # Moi diem scatter nam trong polygon (khong mat/roi ra
         # ngoai sau khi doi cach ve).
         from rc_column.wall_section import _point_in_poly

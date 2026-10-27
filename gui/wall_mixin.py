@@ -284,8 +284,97 @@ _WALL_SEC_PAD_PX = 9.0
 # trường hợp thiết kế.
 # WALL_BAR_MIN_DIAM_PX giữ lại cho tương thích (hàm floor cũ
 # nay là no-op, xem _wall_bar_floor_apply).
+# Lát hiển thị 2026-10-27 (phản hồi user 8dd839c "nên linh động
+# giảm kích thước chấm thép xuống để phù hợp với mặt cắt"):
+# chấm CỐ ĐỊNH 4.0pt vẫn thô ở mặt cắt nhỏ/dày — đo đúng điều
+# kiện Agg figsize của app: chấm 5.6px chiếm 20.8% bề dày 300 mm
+# hiển thị ở C/U (300 mm × 0.089 px/mm = 26.7px) và 58% khoảng
+# cách thanh nhỏ nhất (107 mm × 0.089 = 9.5px), trong khi ở
+# phẳng chỉ 10.0% bề dày và 23% khoảng cách. Một cỡ cho mọi
+# loại không thể vừa cả hai đầu, nên chấm chuyển sang ĐĨA THEO
+# ĐƠN VỊ DỮ LIỆU (xem _wall_bar_dot_diam): đường kính theo mm,
+# tự co giãn theo tỉ lệ hiển thị (axes to/thưa -> chấm to theo
+# px, axes nhỏ/dày -> chấm nhỏ theo px) và tự thích ứng khi
+# Tk resize figure hay khi sang PDF dpi 200, KHÔNG cần handler
+# draw_event (điểm yếu đã bỏ ở 55b781a) và KHÔNG quay lại
+# Circle tỉ lệ thật: đường kính đĩa = 14% bề dày nhánh, tức
+# 42 mm với nhánh 300 mm, gấp 3.5 lần đường kính thanh d12
+# thật (12 mm) nên ở tỉ lệ C/U vẫn ~3.7px (không phải ~1px
+# như thời Circle tỉ lệ thật), ở phẳng 49 mm ~9.0px.
+# WALL_BAR_DIAM_PT nay chỉ còn là cỡ chấm của LEGEND (biểu
+# tượng, không phải chấm trên mặt cắt), giữ 4.0pt để legend
+# không đổi so với các lát trước.
 WALL_BAR_DIAM_PT = 4.0
 WALL_BAR_MIN_DIAM_PX = 4.0
+# Hệ số chấm thích ứng (đơn vị dữ liệu, xem _wall_bar_dot_diam):
+# 0.14 = chấm / bề dày nhánh (mục tiêu ≤15% bề dày hiển thị);
+# 0.40 = chấm / khoảng cách thanh nhỏ nhất theo dữ liệu
+# (mục tiêu ≤40%, để chấm không chạm nhau ở s200);
+# 2.5 = sàn đường kính theo đường kính thanh (để chấm không
+# nhỏ hơn 2.5 lần thanh thật khi nhánh rất mỏng).
+WALL_BAR_DOT_FRAC_T = 0.14
+WALL_BAR_DOT_FRAC_SPACING = 0.40
+WALL_BAR_DOT_MIN_DIA_FACTOR = 2.5
+
+
+def _wall_bar_dot_diam(sec, meta=None):
+    """Đường kính chấm thép (mm, đơn vị dữ liệu) cho
+    draw_wall_section_ax — chấm THÍCH ỨNG, không cố định pt.
+
+    Công thức: D = min(0.14 × t_nhánh, 0.40 × d_min),
+    rồi max với 2.5 × dia_max. Trong đó:
+    - t_nhánh = meta["bar_branch_t"] (rect: tw; Barbell: tw;
+      T/L/C/U: sec_t); thiếu meta thì suy từ hình: rect -> cy,
+      đa giác -> cạnh outline ngắn nhất ≤ 0.5 × max(cx, cy)
+      (300 mm ở T/L/C/U, 350 mm ở Barbell — chỉ là fallback,
+      đường app luôn có meta từ build_wall_section).
+    - d_min = khoảng cách nhỏ nhất theo dữ liệu giữa 2 thanh
+      kề nhau (tính từ sec.rebars, O(n²) với n ≤ ~150, rẻ).
+    - Thứ tự ưu tiên khi xung đột: sàn nhìn rõ (2.5 × dia)
+      thắng trần khoảng cách, vì chấm dưới ~2.5 lần thanh thật
+      sẽ chìm; ở s200 mặc định sàn này không kích hoạt
+      (D = 42 mm ở đa giác, 49 mm ở phẳng, đều > 30 mm).
+    Kết quả ở mặc định d12 s200: rect 49 mm, Barbell/T/L/C/U
+    42 mm; tỉ lệ chấm/bề dày = 14%, chấm/khoảng cách nhỏ
+    nhất ≤ 40% (đa giác 42/107 = 39%, phẳng 49/132 = 37%).
+    Vì đĩa vẽ bằng Circle trong không gian dữ liệu và axes có
+    aspect equal, đường kính theo px tự bằng D × (px/mm) ở
+    mọi figure/dpi/resize — không cần draw_event, không phụ
+    thuộc figsize khởi tạo.
+    """
+    import math
+    _meta = meta or {}
+    _t = _meta.get("bar_branch_t")
+    if _t is None:
+        if getattr(sec, "kind", "rect") != "poly":
+            _t = float(sec.cy)
+        else:
+            _verts = list(getattr(sec, "poly_verts", [[]])[0] or [])
+            _edges = []
+            for _i in range(len(_verts)):
+                _a, _b = _verts[_i], _verts[(_i + 1) % len(_verts)]
+                _edges.append(math.hypot(_b[0] - _a[0],
+                                          _b[1] - _a[1]))
+            _small = [e for e in _edges
+                      if e <= 0.5 * max(float(sec.cx), float(sec.cy))]
+            _t = min(_small) if _small else min(float(sec.cx),
+                                                float(sec.cy))
+    _d = WALL_BAR_DOT_FRAC_T * float(_t)
+    _pts = [(float(r.x), float(r.y)) for r in getattr(sec, "rebars", [])]
+    if len(_pts) >= 2:
+        _dmin = float("inf")
+        for _i in range(len(_pts)):
+            for _j in range(_i + 1, len(_pts)):
+                _dd = math.hypot(_pts[_i][0] - _pts[_j][0],
+                                 _pts[_i][1] - _pts[_j][1])
+                if _dd > 0:
+                    _dmin = min(_dmin, _dd)
+        if _dmin != float("inf"):
+            _d = min(_d, WALL_BAR_DOT_FRAC_SPACING * _dmin)
+    _dias = [float(r.dia) for r in getattr(sec, "rebars", [])]
+    if _dias:
+        _d = max(_d, WALL_BAR_DOT_MIN_DIA_FACTOR * max(_dias))
+    return float(_d)
 
 
 def _wall_section_axes_pos(fig, ax, pad_px=_WALL_SEC_PAD_PX):
@@ -450,18 +539,24 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
                 closed=True, fill=True,
                 facecolor="#E0E7FF", edgecolor="none", zorder=2.5,
                 alpha=0.55))
-    # Thép theo (layer, dia) — Lát hiển thị 2026-10-27: marker
-    # scatter CỠ ĐIỂM CỐ ĐỊNH (WALL_BAR_DIAM_PT), không còn Circle
-    # tỉ lệ thật. Scatter có kích thước theo điểm (pt), không theo
-    # dữ liệu, nên chấm thép luôn ~5.6px ở preview dpi 100
-    # (WALL_BAR_DIAM_PT = 4.0, tinh chỉnh sau 55b781a) dù mặt
-    # cắt 3000 mm hay 1500 mm, và không cần handler draw_event
-    # (điểm yếu khiến ảnh user 9b6481f gần như không thấy thép).
+    # Thép theo (layer, dia) — Lát hiển thị 2026-10-27 (chấm
+    # thích ứng, sau phản hồi user 8dd839c): ĐĨA THEO ĐƠN VỊ
+    # DỮ LIỆU (Circle bán kính D/2, D từ _wall_bar_dot_diam),
+    # KHÔNG còn scatter cỡ điểm cố định 4.0pt và KHÔNG quay lại
+    # Circle tỉ lệ thật (đường kính = dia thanh). Vì axes có
+    # aspect equal, đĩa trong không gian dữ liệu tự cho đường
+    # kính theo px = D × (px/mm) ở mọi figure/dpi/resize/PDF,
+    # không cần handler draw_event (điểm yếu khiến ảnh user
+    # 9b6481f gần như không thấy thép). D = 42 mm ở đa giác
+    # (gấp 3.5 lần d12 thật) nên ở tỉ lệ C/U vẫn ~3.7px, không
+    # phải ~1px như thời Circle tỉ lệ thật; ở phẳng D = 49 mm.
     # Màu giữ đúng legend cũ: lớp 1 theo DIA_COLORS, lớp 2 cam
     # L2_COLOR (thép đa giác toàn lớp 2 nên legend D14 cam như
     # trước, không đổi màu). Thanh trong ô nút giao cùng nhóm
     # lớp 2 nên cùng cỡ/màu, nhìn rõ như thanh chu vi. zorder=7
     # trên cả mũi tên trục (6) để chấm không bị trục che.
+    _dot_diam = _wall_bar_dot_diam(sec, meta)
+    _dot_rad = _dot_diam / 2.0
     groups = {}
     for r in sec.rebars:
         groups.setdefault((r.layer, r.dia), []).append(r)
@@ -474,12 +569,11 @@ def draw_wall_section_ax(ax, sec, meta=None, na_info=None,
     for (layer, dia) in sorted(groups, key=lambda k: (k[0], -k[1])):
         pts = groups[(layer, dia)]
         color = dia_color.get(dia, "#DC2626") if layer == 1 else L2_COLOR
-        _xs = [R(p.x, p.y)[0] for p in pts]
-        _ys = [R(p.x, p.y)[1] for p in pts]
-        if _xs:
-            ax.scatter(_xs, _ys, s=WALL_BAR_DIAM_PT ** 2,
-                       marker="o", c=color, edgecolors="white",
-                       linewidths=0.5, zorder=7)
+        for p in pts:
+            _qx, _qy = R(p.x, p.y)
+            ax.add_patch(mpatches.Circle(
+                (_qx, _qy), _dot_rad, facecolor=color,
+                edgecolor="white", linewidth=0.5, zorder=7))
         legend_handles.append(Line2D(
             [0], [0], marker="o", color="none", markerfacecolor=color,
             markeredgecolor="white",

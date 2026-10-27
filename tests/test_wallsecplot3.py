@@ -91,11 +91,18 @@ def _render(st, kw, rot=0, s=200):
 
 
 def _scatter_points(ax):
+    # Lát chấm thích ứng 2026-10-27: thép là Circle theo đơn vị
+    # dữ liệu — hàm giữ tên cũ, trả tâm đĩa + đường kính (mm).
+    import matplotlib.patches as mpatches
     pts, sizes = [], set()
     for c in ax.collections:
         if isinstance(c, PathCollection):
             pts.extend([tuple(o) for o in c.get_offsets()])
             sizes.update([round(float(s), 1) for s in c.get_sizes()])
+    for p in ax.patches:
+        if isinstance(p, mpatches.Circle):
+            pts.append(tuple(p.center))
+            sizes.add(round(float(p.radius) * 2.0, 1))
     return pts, sizes
 
 
@@ -112,32 +119,39 @@ def _min_dist_px(ax, sec):
 
 @pytest.mark.parametrize("st,kw,exp", _CASES)
 def test_marker_smaller_than_before(st, kw, exp):
-    """Cham co dinh 4.0pt = 5.6px o dpi 100 (trong khoang 5-6.5px),
-    so marker = so thanh, khong Circle thep."""
+    """Chấm thích ứng theo đơn vị dữ liệu (lát 2026-10-27):
+    số đĩa = số thanh, đường kính = _wall_bar_dot_diam
+    (42 mm đa giác, 49 mm phẳng); legend vẫn 4.0pt."""
+    from gui.wall_mixin import _wall_bar_dot_diam
     fig, ax, sec, meta = _render(st, kw)
     try:
-        assert WALL_BAR_DIAM_PT == 4.0
-        assert 5.0 <= WALL_BAR_DIAM_PT * 100.0 / 72.0 <= 6.5
+        assert WALL_BAR_DIAM_PT == 4.0  # cỡ legend, không đổi
         pts, sizes = _scatter_points(ax)
         assert len(pts) == exp, (st, len(pts), exp)
-        assert sizes == {WALL_BAR_DIAM_PT ** 2}, (st, sizes)
+        assert sizes == {round(_wall_bar_dot_diam(sec, meta), 1)}, \
+            (st, sizes)
         import matplotlib.patches as mpatches
-        assert [p for p in ax.patches
-                if isinstance(p, mpatches.Circle)] == []
+        assert len([p for p in ax.patches
+                    if isinstance(p, mpatches.Circle)]) == exp
     finally:
         plt.close(fig)
 
 
 @pytest.mark.parametrize("st,kw,exp", _CASES)
 def test_marker_does_not_touch_neighbours_at_default_s(st, kw, exp):
-    """Ti le cham/khoang cach nho nhat o s200 < 0.65 cho moi loai
-    (truoc: C/U = 1.00, cham nhau; sau: C/U 0.58, ell 0.48, cac
-    loai khac <= 0.36)."""
+    """Tỉ lệ chấm/khoảng cách nhỏ nhất ở s200 ≤ 0.40 cho mọi loại
+    (trước: C/U = 0.58 với chấm cố định 4pt; nay đĩa dữ liệu
+    cho ≤ 0.39) và chấm/bề dày = 14% (≤ 15%)."""
+    from gui.wall_mixin import _wall_bar_dot_diam
     fig, ax, sec, meta = _render(st, kw)
     try:
-        diam = WALL_BAR_DIAM_PT * 100.0 / 72.0
-        ratio = diam / _min_dist_px(ax, sec)
-        assert ratio < 0.65, (st, ratio)
+        p0 = ax.transData.transform((0, 0))
+        p1 = ax.transData.transform((100, 0))
+        scale = abs(p1[0] - p0[0]) / 100.0
+        diam_px = _wall_bar_dot_diam(sec, meta) * scale
+        ratio = diam_px / _min_dist_px(ax, sec)
+        assert ratio <= 0.40, (st, ratio)
+        assert diam_px >= 3.5, (st, diam_px)
     finally:
         plt.close(fig)
 
