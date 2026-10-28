@@ -47,8 +47,8 @@ import math
 from .materials import STEEL_GRADES, SteelMaterial
 from .sections import bar_area
 from .stirrup import check_shear
-from .wall_section import (_POLY_BUILDERS, dxf_axis_in, dxf_t_branch,
-                           wall_dims)
+from .wall_section import (_POLY_BUILDERS, dxf_axis_in, dxf_rectangle_dims,
+                           dxf_t_branch, wall_dims)
 
 # Trục trong mặt phẳng (vật lý, rot = 0) của từng loại đa giác —
 # CÙNG định nghĩa với _POLY_AXIS_IN của wall_engine.py (lát N–M):
@@ -153,6 +153,12 @@ def _wall_shear_geometry_dxf(winp):
       — tức lõi hở dạng C/U; các trường hợp còn lại tính ngoài MP
       bình thường (kể cả lõi hở xoay 90°: pending theo hướng vật
       lý, engine hoán đổi nhãn khi xoay như 5 loại).
+    - TRƯỜNG HỢP RIÊNG chữ nhật (lát DXF-chữ-nhật): polygon đúng
+      hình chữ nhật đặc (xem dxf_rectangle_dims) thì rẽ sớm sang
+      ánh xạ phẳng (b/h0 như wall_shear_geometry[_out_of_plane],
+      dia_long thay dia_v), không qua nhánh đa giác trên và không
+      bao giờ pending; geom_note ghi rõ "DXF chữ nhật — cắt theo
+      ánh xạ vách phẳng".
     """
     poly_raw = getattr(winp, "dxf_poly", None) or []
     if len(poly_raw) < 3:
@@ -187,6 +193,82 @@ def _wall_shear_geometry_dxf(winp):
     except Exception:
         layers_h = 0
     ah = bar_area(dia_h) if dia_h > 0 else 0.0
+    # --- Trường hợp riêng DXF HÌNH CHỮ NHẬT (quyết user 2026-10-28):
+    # polygon đúng hình chữ nhật đặc (dxf_rectangle_dims: 4 đỉnh,
+    # cạnh đối bằng/song song, 4 góc vuông, không lỗ) thì về hình
+    # học chính là vách phẳng nên cắt theo ĐÚNG ánh xạ phẳng có
+    # sẵn (wall_shear_geometry / wall_shear_geometry_out_of_plane),
+    # KHÔNG theo ánh xạ đa giác: trong MP b = tw, h0 = Lw − cover
+    # − dia_h − dia_long/2 (dia_long = max dia thép DXF, đóng vai
+    # dia_v của phẳng); ngoài MP b = Lw, h0 = tw − cover − dia_long
+    # − dia_h/2; thép ngang giữ nguyên của ca đó (trong MP
+    # layers_h nhánh, ngoài MP 2 nhánh). Lw/tw lấy theo CẠNH hình
+    # chữ nhật (trùng cạnh bbox dài nhất khi song song trục hoặc
+    # xoay 90°; góc khác thì bbox không phải cạnh nên phải lấy
+    # cạnh). Chỉ đổi ánh xạ (b, h0); công thức §8.1.3 qua
+    # check_shear, N–M, sàn ea, α không đổi. Polygon không phải
+    # chữ nhật đặc rơi xuống nhánh đa giác cũ bên dưới, số cũ
+    # giữ nguyên.
+    _rect = dxf_rectangle_dims(
+        verts, holes=getattr(winp, "dxf_holes", None))
+    if _rect is not None:
+        _Lw_r, _tw_r = _rect
+        _h0_in_r = _Lw_r - cover - dia_h - dia_long / 2.0
+        _h0_out_r = _tw_r - cover - dia_long - dia_h / 2.0
+        base_r = {"section_type": "dxf", "axis_canonical": axis,
+                  "bbox_x": bx, "bbox_y": by, "E_stem": _Lw_r,
+                  "E_trans": _tw_r, "t_branch": _tw_r,
+                  "cover": cover, "dia_h": dia_h,
+                  "per_dia": dia_long, "dia_long": dia_long,
+                  "s_h": s_h, "layers_h": layers_h,
+                  "dxf_rectangle": True, "rect_Lw": _Lw_r,
+                  "rect_tw": _tw_r}
+        geom_in_r = dict(base_r)
+        geom_in_r.update({
+            "direction": "in", "physical": "stem",
+            "b": _tw_r, "h0": max(_h0_in_r, 1.0),
+            "h0_raw": _h0_in_r,
+            "E_depth": _Lw_r, "E_other": _tw_r,
+            "branches": layers_h,
+            "Asw": layers_h * ah if layers_h > 0 else 0.0,
+            "h0_expansion":
+                f"{_Lw_r:.0f} − {cover:.0f} − {dia_h:.0f} − "
+                f"{dia_long / 2.0:.1f} = "
+                f"{max(_h0_in_r, 1.0):.0f} mm",
+            "geom_note":
+                f"DXF chữ nhật — cắt theo ánh xạ vách phẳng "
+                f"(Lw = {_Lw_r:.0f} mm, tw = {_tw_r:.0f} mm, đúng "
+                f"hình chữ nhật đặc nên đồng nhất với vách phẳng "
+                f"tương đương): trong MP b = tw = {_tw_r:.0f} mm, "
+                f"h0 = Lw − cover {cover:.0f} − dia_h "
+                f"{dia_h:.0f} − dia_long/2 {dia_long / 2.0:.1f} = "
+                f"{max(_h0_in_r, 1.0):.0f} mm; thép ngang "
+                f"{layers_h}φ{dia_h:.0f} a{s_h:.0f}.",
+        })
+        geom_out_r = dict(base_r)
+        geom_out_r.update({
+            "direction": "out", "physical": "transverse",
+            "b": _Lw_r, "h0": max(_h0_out_r, 1.0),
+            "h0_raw": _h0_out_r,
+            "E_depth": _tw_r, "E_other": _Lw_r,
+            "branches": 2,
+            "Asw": 2 * ah if dia_h > 0 else 0.0,
+            "h0_expansion":
+                f"{_tw_r:.0f} − {cover:.0f} − {dia_long:.0f} − "
+                f"{dia_h / 2.0:.1f} = "
+                f"{max(_h0_out_r, 1.0):.0f} mm",
+            "geom_note":
+                f"DXF chữ nhật — cắt theo ánh xạ vách phẳng "
+                f"(Lw = {_Lw_r:.0f} mm, tw = {_tw_r:.0f} mm): ngoài "
+                f"MP b = Lw = {_Lw_r:.0f} mm, h0 = tw − cover "
+                f"{cover:.0f} − dia_long {dia_long:.0f} − dia_h/2 "
+                f"{dia_h / 2.0:.1f} = {max(_h0_out_r, 1.0):.0f} mm; "
+                f"thép ngang ngoài MP mặc định 2φ{dia_h:.0f} "
+                f"a{s_h:.0f} (quyết 2026-10-25, cùng cấp thép "
+                f"với trong MP).",
+        })
+        return {"geom_in": geom_in_r, "geom_out": geom_out_r,
+                "pending_out": None, "base": base_r}
     h0_in = e_stem - cover - dia_h - dia_long / 2.0
     h0_out = e_trans - cover - dia_long - dia_h / 2.0
     base = {"section_type": "dxf", "axis_canonical": axis,
@@ -435,11 +517,14 @@ def check_wall_shear_poly(winp, conc, steel, V: float, N: float,
         "h0_expansion": geom["h0_expansion"],
         "physical": geom["physical"],
         "t_branch": float(geom["t_branch"]),
+        "dxf_rectangle": bool(geom.get("dxf_rectangle", False)),
     }
+    _mapping_txt = ("ánh xạ vách phẳng: " if geom.get("dxf_rectangle")
+                    else "ánh xạ đa giác: ")
     note = (
         "TCVN 5574:2018 §8.1.3 (công thức cắt cấu kiện, qua "
         "rc_column/stirrup.check_shear — cùng bộ công thức của cột; "
-        "ánh xạ đa giác: " + geom["geom_note"] + " φn "
+        + _mapping_txt + geom["geom_note"] + " φn "
         "(§8.1.3.3.2) chỉ nhân số hạng bê tông (ĐK1, Qb). V_d là "
         "lực cắt thiết kế truyền vào (engine vách áp 1,5× theo "
         "TCVN 9386-1:2025 §5.4.2.4(7) trước khi gọi khi combo động "

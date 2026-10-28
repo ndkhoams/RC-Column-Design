@@ -675,10 +675,12 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                             f"— toàn bộ kiểm tra §8.1.3 dưới đây xét "
                             f"ở V_Ed này; cắt ngoài mặt phẳng không "
                             f"phóng đại.")
+                    _map_in = ("ánh xạ vách phẳng (DXF chữ nhật)"
+                               if _p.get("dxf_rectangle") else
+                               "ánh xạ đa giác — GIẢ ĐỊNH TƯƠNG ĐƯƠNG")
                     shear_lines.append(
                         f"Cắt trong mặt phẳng (TCVN 5574:2018 "
-                        f"§8.1.3, ánh xạ đa giác — GIẢ ĐỊNH TƯƠNG "
-                        f"ĐƯƠNG): V2 = {V_in:.1f} kN; "
+                        f"§8.1.3, {_map_in}): V2 = {V_in:.1f} kN; "
                         f"b = {_p['b']:.0f} mm, h0 = {_p['h0']:.0f} "
                         f"mm, thép ngang {_p['sw_txt']} "
                         f"(Rsw = {_p['Rsw']:.0f} MPa, Asw = "
@@ -852,9 +854,12 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                 _dc_o_txt = (f"{shear_out['dc']:.3f}"
                              if shear_out["dc"] is not None
                              and math.isfinite(shear_out["dc"]) else "∞")
+                _map_out = ("ánh xạ vách phẳng (DXF chữ nhật)"
+                            if _q.get("dxf_rectangle") else
+                            "ánh xạ đa giác — GIẢ ĐỊNH TƯƠNG ĐƯƠNG")
                 shear_out_lines.append(
                     f"Cắt ngoài mặt phẳng (TCVN 5574:2018 §8.1.3, "
-                    f"ánh xạ đa giác — GIẢ ĐỊNH TƯƠNG ĐƯƠNG): "
+                    f"{_map_out}): "
                     f"V3 = {V_out:.1f} kN; b = {_q['b']:.0f} mm, "
                     f"h0 = {_q['h0']:.0f} mm, thép ngang "
                     f"{_q['sw_txt']} (Rsw = {_q['Rsw']:.0f} MPa, "

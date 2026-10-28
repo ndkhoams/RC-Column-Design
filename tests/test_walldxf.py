@@ -18,14 +18,13 @@ thép ngang CB400-V, Lx=Ly=5.75, ψ=0.8, ngàm nửa cứng, DCM tắt):
     = 40, dy = 8,75 mm) trong khi DXF theo bước 25 mm (ny = 14,
     dy = 25 mm) như nhánh đa giác; chứng minh bằng lưới DXF mịn
     ny=40 thì D/C khớp rect trong 1e-3 (xem test_dxf_vs_flat).
-    Cắt NGOÀI MP của DXF phẳng KHÔNG khớp phẳng có sẵn — cũng là
-    khác biệt ÁNH XẠ theo thiết kế, không phải lỗi: DXF là đa giác
-    nên theo ánh xạ đa giác (b = thân mỏng nhất t_branch = 350 mm,
-    h0 = 319 mm) trong khi phẳng có sẵn dùng b = Lw = 2500 mm,
-    h0 = 331 mm (xem test_dxf_vs_flat, Vcap 98,9 vs 584,7 kN).
-    Muốn DXF hình chữ nhật khớp cả ngoài MP thì cần thêm trường
-    hợp riêng "hình chữ nhật" cho cắt DXF — đó là đổi thiết kế
-    (item 4), KHÔNG tự làm ở lát này.
+    Cắt NGOÀI MP của DXF phẳng KHỚP phẳng có sẵn từ lát
+    DXF-chữ-nhật (quyết user 2026-10-28): polygon đúng hình chữ
+    nhật đặc thì cắt theo ánh xạ phẳng (b = Lw = 2500 mm,
+    h0 = 319 mm -> Vcap 584,7 kN, như phẳng có sẵn); trước lát đó
+    DXF theo ánh xạ đa giác (b = t_branch = 350 mm -> Vcap 98,9 kN)
+    — xem test_dxf_vs_flat và test_dxf_rect_shear_flat. Polygon
+    không phải chữ nhật đặc vẫn theo ánh xạ đa giác cũ.
 (b) chữ L: polygon + thép đúng _build_wall_section_poly của L
     (chu vi + ô nút giao, dịch về tọa độ gốc): D/C N–M và cắt
     trong/ngoài MP khớp 1e-3 (lưới fiber và hình học cắt trùng
@@ -284,15 +283,26 @@ def test_dxf_vs_flat():
                            f_flat["My_d"])["dc"]
     assert _rel(dc_fine, f_flat["dc"]) <= 1e-3, \
         (dc_fine, f_flat["dc"])
-    # Cắt NGOÀI MP: DXF theo ánh xạ đa giác (b=350, h0=319) nên
-    # Vcap ~98,9 kN, khác phẳng có sẵn (b=2500, h0=331 -> 584,7 kN)
-    # — lệch do thiết kế item 4, không phải lỗi số; khóa cả 2 đầu
-    # để ai đổi ánh xạ cũng thấy ngay.
+    # Cắt NGOÀI MP (lát DXF-chữ-nhật, quyết user 2026-10-28): DXF
+    # hình chữ nhật đặc cắt theo ánh xạ phẳng (b = Lw = 2500,
+    # h0 = 319) nên Vcap = phẳng có sẵn 584,7 kN từng chữ số (trước
+    # lát này DXF theo ánh xạ đa giác b = 350 -> Vcap ~98,9 kN).
     p_out = f_dxf["shear_out"]["parts"]
-    assert p_out["b"] == 350.0 and p_out["h0"] == 319.0
-    assert 90.0 < f_dxf["shear_out"]["V_cap"] < 110.0
+    assert p_out["b"] == 2500.0 and p_out["h0"] == 319.0
+    assert p_out["dxf_rectangle"] is True
+    assert "DXF chữ nhật — cắt theo ánh xạ vách phẳng" in \
+        p_out["geom_note"]
+    assert abs(f_dxf["shear_out"]["V_cap"] - 584.71) < 1.0
+    assert _rel(f_dxf["shear_out"]["V_cap"],
+                f_flat["shear_out"]["V_cap"]) <= 1e-9
+    assert abs(f_dxf["shear_out"]["dc"] - 0.513077) < 1e-4
     assert abs(f_flat["shear_out"]["V_cap"] - 584.71) < 1.0
     assert f_flat["shear_out"]["parts"]["b"] == 2500.0
+    # Trong MP không đổi (b = tw = 350, h0 = 2469, Vcap 1895,3).
+    p_in = f_dxf["shear_in"]["parts"]
+    assert p_in["b"] == 350.0 and p_in["h0"] == 2469.0
+    assert p_in["dxf_rectangle"] is True
+    assert abs(f_dxf["shear_in"]["V_cap"] - 1895.29) < 1.0
 
 
 # ---------------- (b) DXF chữ L vs L có sẵn ----------------
@@ -468,6 +478,177 @@ def test_dxf_empty_build_error():
     assert w_old.dxf_poly == [] and w_old.dxf_file == ""
 
 
+# ---------------- DXF chữ nhật: định nghĩa + ánh xạ phẳng ----------------
+
+def test_dxf_rectangle_dims():
+    """Định nghĩa chữ nhật chặt (dxf_rectangle_dims, dung sai
+    1e-6 tương đối): đúng 4 đỉnh, cạnh đối bằng/song song, 4 góc
+    vuông, không lỗ; xoay bất kỳ góc nào cũng nhận đúng."""
+    from rc_column.wall_section import dxf_rectangle_dims
+    rect = [[0, 0], [2500, 0], [2500, 350], [0, 350]]
+    assert dxf_rectangle_dims(rect) == (2500.0, 350.0)
+    # Bắt đầu ở góc khác + ngược chiều vẫn nhận.
+    assert dxf_rectangle_dims([rect[2], rect[1], rect[0], rect[3]]) \
+        == (2500.0, 350.0)
+    # Điểm cuối trùng điểm đầu (polyline kín) vẫn tính là 4 đỉnh.
+    assert dxf_rectangle_dims(rect + [rect[0]]) == (2500.0, 350.0)
+    # Vuông (Lw == tw).
+    assert dxf_rectangle_dims([[0, 0], [500, 0], [500, 500],
+                               [0, 500]]) == (500.0, 500.0)
+    # Xoay 90° trong bản vẽ: hoán đổi Lw/tw theo trục, vẫn (2500, 350).
+    assert dxf_rectangle_dims([[0, 0], [350, 0], [350, 2500],
+                               [0, 2500]]) == (2500.0, 350.0)
+    # Xoay 30° bất kỳ: cạnh dài/ngắn vẫn đúng trong 1e-6 tương đối.
+    a = math.radians(30)
+    cs, sn = math.cos(a), math.sin(a)
+    rot = [(x * cs - y * sn, x * sn + y * cs)
+           for x, y in [(1250, 175), (1250, -175), (-1250, -175),
+                        (-1250, 175)]]
+    got = dxf_rectangle_dims(rot)
+    assert got is not None
+    assert _rel(got[0], 2500.0) <= 1e-6 and _rel(got[1], 350.0) <= 1e-6
+    # Loại: hình thang, hình bình hành không vuông, 5 đỉnh (kể cả
+    # chẻ 1 cạnh thành 2 đoạn thẳng hàng), chữ nhật có lỗ.
+    assert dxf_rectangle_dims([[0, 0], [2500, 0], [2200, 350],
+                               [300, 350]]) is None
+    assert dxf_rectangle_dims([[0, 0], [2500, 0], [2800, 350],
+                               [300, 350]]) is None
+    assert dxf_rectangle_dims([[0, 0], [1250, 0], [2500, 0],
+                               [2500, 350], [0, 350]]) is None
+    assert dxf_rectangle_dims(
+        rect, holes=[[[500, 100], [1000, 100], [1000, 250],
+                      [500, 250]]]) is None
+    assert dxf_rectangle_dims([[0, 0], [2500, 0], [2500, 350]]) is None
+
+
+def test_dxf_rect_shear_flat():
+    """(a) DXF phẳng 2500x350, cùng ca test_dxf_vs_flat: cắt ngoài
+    MP từ 98,9 -> 584,7 kN (b = Lw), D/C từ 3,033 -> 0,513; trong MP
+    không đổi 1895,3 kN; D/C N–M không đổi (lệch lưới 0,40% cũ)."""
+    poly, dxf_bars = _flat_dxf_data()
+    loads = _loads(2000.0, 800.0, 200.0, 800.0, 300.0)
+    w_dxf = _base(section_type="dxf", cover=13, dia_v=12, s_v=200,
+                  per_dia=12, per_s=200, steel_mode="perimeter",
+                  dxf_poly=poly, dxf_bars=dxf_bars,
+                  dxf_file="flat.dxf")
+    f = wall_tcvn_full(w_dxf, _CONC, _STEEL, loads=loads,
+                       steel_sw=_SW, seismic_shear=False)
+    assert abs(f["shear_in"]["V_cap"] - 1895.29) < 1.0
+    assert abs(f["shear_in"]["dc"] - 0.422098) < 1e-4
+    assert abs(f["shear_out"]["V_cap"] - 584.71) < 1.0
+    assert abs(f["shear_out"]["dc"] - 0.513077) < 1e-4
+    assert f["shear_out"]["parts"]["b"] == 2500.0
+    assert f["shear_out"]["parts"]["h0"] == 319.0
+    # D/C N–M giữ đúng số DXF cũ (lệch lưới so phẳng, không đổi
+    # do lát cắt): khóa trong 1e-9 so số đã chạy trước lát này.
+    assert abs(f["dc"] - 0.3935375158163324) < 1e-9
+    # Ghi chú cắt phân biệt được với DXF đa giác.
+    assert any("DXF chữ nhật — cắt theo ánh xạ vách phẳng" in d
+               for d in f["details"])
+    assert "DXF chữ nhật — cắt theo ánh xạ vách phẳng" in \
+        f["shear_out"]["note"]
+
+
+def test_dxf_rect_rotated_and_geometry():
+    """(b) Chữ nhật xoay 90° vẫn ra số phẳng tương ứng, cả 2 cách
+    xoay: polygon xoay trong bản vẽ, và rot_deg=90 của app (hoán
+    đổi hình học theo rot như 5 loại). Chữ nhật xoay 30°: hình học
+    cắt vẫn đúng Lw/tw theo cạnh (không theo bbox)."""
+    poly, dxf_bars = _flat_dxf_data()
+    # (b1) Polygon xoay 90° trong bản vẽ (trục y, bbox 350x2500):
+    # thép chu vi xoay theo: (x, y) tâm -> (-y, x) rồi dịch về
+    # tọa độ dương (+175, +1250).
+    bars_c = [(x - 1250.0, y - 175.0, d)
+              for x, y, d in dxf_bars]
+    poly90 = [[0, 0], [350, 0], [350, 2500], [0, 2500]]
+    bars90 = [[-y + 175.0, x + 1250.0, d] for x, y, d in bars_c]
+    w90 = _base(section_type="dxf", cover=13, dxf_poly=poly90,
+                dxf_bars=bars90, dxf_file="flat90.dxf")
+    g90 = wall_shear_geometry_poly(w90)
+    assert g90["base"]["dxf_rectangle"] is True
+    assert g90["geom_in"]["b"] == 350.0
+    assert g90["geom_in"]["h0"] == 2469.0
+    assert g90["geom_out"]["b"] == 2500.0
+    assert g90["geom_out"]["h0"] == 319.0
+    assert g90["pending_out"] is None
+    r90 = wall_tcvn_full(w90, _CONC, _STEEL,
+                         loads=_loads(2000.0, 800.0, 200.0, 800.0,
+                                      300.0),
+                         steel_sw=_SW, seismic_shear=False)
+    # Trục trong MP của DXF xoay 90° là y nên V_in/V_out trong
+    # khung mới vẫn lấy đúng hình học thân/ngang vật lý.
+    assert abs(r90["shear_in"]["V_cap"] - 1895.29) < 1.0
+    assert abs(r90["shear_out"]["V_cap"] - 584.71) < 1.0
+    # (b2) rot_deg=90 + hoán đổi tải như test_dxf_arbitrary: cắt
+    # trong/ngoài MP hoán đổi cho nhau so ca gốc.
+    w_rot = _base(section_type="dxf", cover=13, dxf_poly=poly,
+                  dxf_bars=dxf_bars, dxf_file="flat.dxf",
+                  rot_deg=90)
+    f_rot = wall_tcvn_full(w_rot, _CONC, _STEEL,
+                           loads=_loads(2000.0, -800.0, 200.0, 300.0,
+                                        800.0),
+                           steel_sw=_SW, seismic_shear=False)
+    assert abs(f_rot["shear_in"]["V_cap"] - 584.71) < 1.0
+    assert abs(f_rot["shear_out"]["V_cap"] - 1895.29) < 1.0
+    # (b3) Xoay 30°: chỉ khóa hình học cắt (N–M theo trục bbox là
+    # quy ước riêng, không đổi ở lát này).
+    a = math.radians(30)
+    cs, sn = math.cos(a), math.sin(a)
+    rot = [(x * cs - y * sn, x * sn + y * cs)
+           for x, y in [(1250, 175), (1250, -175), (-1250, -175),
+                        (-1250, 175)]]
+    dx, dy = -min(p[0] for p in rot), -min(p[1] for p in rot)
+    poly30 = [[x + dx, y + dy] for x, y in rot]
+    w30 = _base(section_type="dxf", cover=13, dxf_poly=poly30,
+                dxf_bars=[[200, 200, 12]], dxf_file="flat30.dxf")
+    g30 = wall_shear_geometry_poly(w30)
+    assert g30["geom_in"]["b"] == 350.0
+    assert g30["geom_in"]["h0"] == 2469.0
+    assert g30["geom_out"]["b"] == 2500.0
+    assert g30["geom_out"]["h0"] == 319.0
+
+
+def test_dxf_nonrect_controls_unchanged():
+    """(c) Đối chứng không đổi so lát trước: chữ nhật có lỗ,
+    hình thang, hình bình hành -> vẫn ánh xạ đa giác (b = t_branch
+    cả 2 phương), pending ngoài MP của C/U giữ nguyên."""
+    # Chữ nhật có lỗ: outline là chữ nhật nhưng có lỗ -> đa giác.
+    poly, dxf_bars = _flat_dxf_data()
+    hole = [[500, 100], [1000, 100], [1000, 250], [500, 250]]
+    w_hole = _base(section_type="dxf", cover=13, dxf_poly=poly,
+                   dxf_holes=[hole], dxf_bars=dxf_bars,
+                   dxf_file="hole.dxf")
+    g_hole = wall_shear_geometry_poly(w_hole)
+    assert g_hole["geom_in"]["b"] == 350.0
+    assert g_hole["geom_out"]["b"] == 350.0
+    assert g_hole["geom_out"]["h0"] == 319.0
+    assert g_hole["pending_out"] is None
+    f_hole = wall_tcvn_full(w_hole, _CONC, _STEEL,
+                            loads=_loads(2000.0, 800.0, 200.0, 800.0,
+                                         300.0),
+                            steel_sw=_SW, seismic_shear=False)
+    assert abs(f_hole["shear_out"]["V_cap"] - 98.92) < 1.0
+    assert abs(f_hole["shear_out"]["dc"] - 3.032667) < 1e-4
+    # Hình thang / bình hành: t_branch = 300 (hiệu tọa độ kề nhỏ
+    # nhất), không bị nhận thành chữ nhật, b ngoài MP vẫn 300.
+    for trap in ([[0, 0], [2500, 0], [2200, 350], [300, 350]],
+                 [[0, 0], [2500, 0], [2800, 350], [300, 350]]):
+        w_t = _base(section_type="dxf", cover=13, dxf_poly=trap,
+                    dxf_bars=[[200, 175, 12]], dxf_file="trap.dxf")
+        g_t = wall_shear_geometry_poly(w_t)
+        assert g_t["geom_out"]["b"] == 300.0
+        assert "dxf_rectangle" not in g_t["base"]
+    # L và Γ bất kỳ vẫn đa giác: khóa lại số L từ test_dxf_vs_ell
+    # (hình học) và Γ từ test_dxf_arbitrary (chỉ kiểm có số ở đây;
+    # 2 test gốc vẫn chạy trong suite).
+    w_ell = _base(section_type="dxf", dxf_poly=[
+        [0, 0], [2000, 0], [2000, 1800], [300, 1800], [300, 300],
+        [0, 300]], dxf_bars=[[200, 200, 12]], dxf_file="ell.dxf")
+    g_ell = wall_shear_geometry_poly(w_ell)
+    assert g_ell["geom_in"]["b"] == 300.0
+    assert g_ell["pending_out"] is None
+
+
 # ---------------- GUI Xvfb: import -> preview -> CHECK ----------------
 
 def test_dxf_gui_xvfb(tmp_path):
@@ -560,6 +741,20 @@ def test_dxf_gui_xvfb(tmp_path):
         assert _rel(full["dc"], f_eng["dc"]) <= 1e-9, \
             (full["dc"], f_eng["dc"])
         assert full["shear_in"]["V_cap"] is not None
+        # Lát DXF-chữ-nhật qua GUI: cắt ngoài MP dùng ánh xạ phẳng
+        # (b = Lw = 2500, ghi chú phân biệt) và khớp số engine của
+        # đúng winp GUI thu thập (cover GUI có thể khác 13 nên so
+        # với engine cùng winp, không so cứng 584,7 ở đây).
+        assert full["shear_out"]["parts"]["b"] == 2500.0
+        assert "DXF chữ nhật — cắt theo ánh xạ vách phẳng" in \
+            full["shear_out"]["parts"]["geom_note"]
+        w_gui = wall_from_dict(app._collect_wall())
+        f_gui = wall_tcvn_full(w_gui, _CONC, _STEEL,
+                               loads=_loads(2000.0, 800.0, 200.0,
+                                            800.0, 300.0),
+                               steel_sw=_SW, seismic_shear=False)
+        assert _rel(full["shear_out"]["V_cap"],
+                    f_gui["shear_out"]["V_cap"]) <= 1e-9
     finally:
         try:
             app.destroy()

@@ -238,6 +238,75 @@ def dxf_t_branch(verts) -> float:
                max(ys_all) - min(ys_all))
 
 
+def dxf_rectangle_dims(verts, holes=None):
+    """Kích thước (Lw, tw) nếu polygon DXF ĐÚNG là hình chữ nhật đặc.
+
+    Dùng riêng cho cắt DXF (lát DXF-chữ-nhật, 2026-10-28; quyết
+    user: polygon đúng hình chữ nhật thì cắt theo ánh xạ vách
+    phẳng, vì về hình học nó chính là vách phẳng; mọi polygon khác
+    vẫn theo ánh xạ đa giác). Trả về None khi KHÔNG phải chữ nhật
+    đặc — caller giữ nguyên ánh xạ đa giác cũ, không ép số.
+
+    Tiêu chí (đủ chặt để hình gần-chữ-nhật không lọt):
+    - đúng 4 đỉnh (điểm cuối trùng điểm đầu — cách ghi polyline
+      kín thường gặp — được bỏ qua trước khi đếm, vẫn tính là 4);
+    - KHÔNG có lỗ: bất kỳ lỗ nào (dxf_holes có phần tử >= 3 điểm)
+      cũng loại, dù outline là chữ nhật — lỗ làm đổi cắt;
+    - các cạnh đối song song và bằng nhau: e2 ≈ -e0, e3 ≈ -e1
+      (e_i là vectơ cạnh theo thứ tự đỉnh, kể cả thứ tự ngược
+      chiều kim đồng hồ hay bắt đầu ở góc bất kỳ);
+    - 4 góc vuông: tích vô hướng của mỗi cặp cạnh kề ≈ 0.
+    Dung sai: 1e-6 tương đối theo cạnh dài nhất (vectơ đối lệch
+    <= 1e-6 × cạnh dài nhất; |dot| <= 1e-6 × |e_i| × |e_j|),
+    tức ~0,0025 mm trên cạnh 2500 mm — đủ chặt với tọa độ DXF
+    float64 (kể cả chữ nhật xoay bất kỳ góc nào: sai số cos/sin
+    chỉ ~1e-12 tương đối), nhưng hình thang, hình bình hành
+    không vuông, hay hình 5 đỉnh trở lên (kể cả 5 đỉnh do chẻ
+    1 cạnh thành 2 đoạn thẳng hàng) đều bị loại.
+    Lw = cạnh dài, tw = cạnh ngắn — lấy theo CẠNH của hình chữ
+    nhật, không theo bbox: với chữ nhật song song trục hoặc xoay
+    90° thì trùng đúng cạnh bbox dài nhất (quy tắc trục trong MP
+    đã chốt cho DXF); với góc xoay khác, bbox không còn là cạnh
+    hình chữ nhật nên chỉ cạnh mới cho đúng Lw/tw của vách phẳng
+    tương đương.
+    """
+    try:
+        pts = [(float(p[0]), float(p[1])) for p in (verts or [])]
+    except Exception:
+        return None
+    if len(pts) >= 2:
+        _sx = max(abs(p[0]) for p in pts) or 1.0
+        _sy = max(abs(p[1]) for p in pts) or 1.0
+        if (abs(pts[-1][0] - pts[0][0]) <= 1e-9 * _sx
+                and abs(pts[-1][1] - pts[0][1]) <= 1e-9 * _sy):
+            pts = pts[:-1]
+    if len(pts) != 4:
+        return None
+    for h in (holes or []):
+        try:
+            if len(h) >= 3:
+                return None
+        except Exception:
+            return None
+    edges = [(pts[(i + 1) % 4][0] - pts[i][0],
+              pts[(i + 1) % 4][1] - pts[i][1]) for i in range(4)]
+    lens = [math.hypot(e[0], e[1]) for e in edges]
+    if min(lens) <= 0.0:
+        return None
+    scale = max(lens)
+    tol = 1e-6 * scale
+    for a, b in ((0, 2), (1, 3)):
+        if math.hypot(edges[a][0] + edges[b][0],
+                      edges[a][1] + edges[b][1]) > tol:
+            return None
+    for i in range(4):
+        j = (i + 1) % 4
+        dot = edges[i][0] * edges[j][0] + edges[i][1] * edges[j][1]
+        if abs(dot) > 1e-6 * lens[i] * lens[j]:
+            return None
+    return (max(lens[0], lens[1]), min(lens[0], lens[1]))
+
+
 def single_dxf_outline(outlines):
     """Outline DUY NHẤT từ kết quả read_dxf_section.
 
