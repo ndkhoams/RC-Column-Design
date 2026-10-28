@@ -63,8 +63,10 @@ _ACI_CLASS = [("special", "Đặc biệt (Ch.18)"), ("ordinary", "Thường (Ch.
 # chọn được ở mức mặt cắt + thép + preview; CHECK N–M/cắt vẫn chỉ
 # mở cho vách phẳng (xem _on_check_wall).
 _SECTYPES = ["Vách phẳng chữ nhật", "Vách mở rộng hai đầu (Barbell)",
-             "Vách chữ T", "Vách chữ L", "Lõi chữ C", "Lõi chữ U"]
-_SEC_CODES = ["rect", "barbell", "tee", "ell", "c-core", "u-core"]
+             "Vách chữ T", "Vách chữ L", "Lõi chữ C", "Lõi chữ U",
+             "Tiết diện bất kỳ (DXF)"]
+_SEC_CODES = ["rect", "barbell", "tee", "ell", "c-core", "u-core",
+              "dxf"]
 # Mặc định web khi LẦN ĐẦU chuyển sang loại đó (mm; chỉ điền 1 lần
 # khi loại chưa từng thấy trong phiên — chuyển qua lại giữ nguyên
 # giá trị user đã nhập). Vách phẳng giữ nguyên mặc định app.
@@ -970,6 +972,27 @@ class WallMixin:
         self.w_cb_sectype = _combo(f2, _SECTYPES, _SECTYPES[0], width=24)
         _single(f2, r, "Loại tiết diện vách / lõi", self.w_cb_sectype)
         r += 1
+        # Hàng import DXF (lát DXF, 2026-10-28): ngay sau hàng loại
+        # tiết diện; nút gọi read_dxf_section (chung với cột) +
+        # dialog preview kiểu _preview_dxf_section của cột, rồi lưu
+        # self._wall_dxf_data, đặt combobox thành DXF, refresh
+        # preview. Nhãn thông tin ẩn khi chưa import (grid_remove),
+        # hiện khi đã import (tên file, Ag, số thanh, As).
+        self._wall_dxf_data = None
+        self.w_var_wall_dxf_info = tk.StringVar(value="")
+        self.w_btn_wall_dxf = ttk.Button(
+            f2, text="Import tiết diện (.dxf)",
+            command=self._on_import_wall_dxf)
+        self.w_btn_wall_dxf.grid(row=r, column=0, sticky=tk.W,
+                                 padx=4, pady=5)
+        self.w_lbl_wall_dxf_info = ttk.Label(
+            f2, textvariable=self.w_var_wall_dxf_info,
+            style="Muted.TLabel", wraplength=320, justify=tk.LEFT)
+        self.w_lbl_wall_dxf_info.grid(row=r, column=1, columnspan=3,
+                                      sticky=tk.W, padx=4, pady=5)
+        self.w_lbl_wall_dxf_info.grid_remove()
+        self._wall_dxf_row = r
+        r += 1
         rot_fr = ttk.Frame(f2)
         self.w_rot_var = tk.StringVar(value="0°")
         ttk.Label(rot_fr, textvariable=self.w_rot_var, width=5).pack(
@@ -1418,6 +1441,32 @@ class WallMixin:
             for _w in ws:
                 _w.grid_remove()
 
+        if st == "dxf":
+            # Lát DXF: thép là thép thật từ file (không sinh theo
+            # chu vi/vùng biên) nên ẩn HẾT hàng kích thước (main/
+            # sub/sym/bf_tf/bf2_tf2/lr/t) và ẩn cả khung per lẫn be
+            # ở mục 3 (chỉ ẩn hiển thị — giá trị widget giữ nguyên
+            # để chuyển qua lại không mất số). Hàng xoay vẫn hiện
+            # qua _update_wall_rotation_visibility (rot áp được cho
+            # DXF như đa giác).
+            _hide(self.w_en_Lw, self.w_en_tw, self.w_en_sec_L1,
+                  self.w_en_sec_L2, self.w_en_sec_t,
+                  self._lbl_wall_main_l, self._lbl_wall_main_r,
+                  self.w_lbl_sec_sub, self.w_chk_sec_sym,
+                  self.w_en_sec_bf, self.w_en_sec_tf,
+                  self.w_en_sec_bf2, self.w_en_sec_tf2,
+                  self.w_en_sec_lr, self.w_en_sec_lr2,
+                  self._lbl_sec_bf, self._lbl_sec_tf,
+                  self._lbl_sec_bf2, self._lbl_sec_tf2,
+                  self._lbl_sec_lr, self._lbl_sec_lr2,
+                  self._lbl_sec_t)
+            if self._lbl_wall_steel_mode is not None:
+                self._lbl_wall_steel_mode.grid_remove()
+                self.w_cb_steel_mode.grid_remove()
+            self.w_frm_per.grid_remove()
+            self.w_frm_be.grid_remove()
+            return
+
         # --- Hàng chính: nhãn + ô trái/phải theo loại ---
         _hide(self.w_en_Lw, self.w_en_tw, self.w_en_sec_L1,
               self.w_en_sec_L2, self.w_en_sec_t)
@@ -1549,6 +1598,90 @@ class WallMixin:
         else:
             self.w_frm_per.grid_remove()
             self.w_frm_be.grid()
+        self._refresh_wall_preview()
+
+    def _update_wall_dxf_info(self):
+        """Cập nhật nhãn thông tin DXF ở mục 2 từ _wall_dxf_data.
+
+        Hiện: tên file, Ag (outline trừ lỗ), số thanh, As. Ẩn khi
+        chưa import (không có poly). Ag/As tính lại từ dữ liệu đã
+        lưu (không đọc lại file) nên mở file JSON cũ vẫn hiện đúng.
+        """
+        if not hasattr(self, "w_lbl_wall_dxf_info"):
+            return
+        data = getattr(self, "_wall_dxf_data", None)
+        if not data or not data.get("poly"):
+            self.w_var_wall_dxf_info.set("")
+            self.w_lbl_wall_dxf_info.grid_remove()
+            return
+        try:
+            from rc_column.dxf_import import polygon_area
+            from rc_column.sections import bar_area
+            Ag = abs(polygon_area([(float(p[0]), float(p[1]))
+                                   for p in data["poly"]]))
+            for _h in data.get("holes", []) or []:
+                Ag -= abs(polygon_area([(float(p[0]), float(p[1]))
+                                        for p in _h]))
+            As = sum(bar_area(float(b[2]))
+                     for b in data.get("bars", []) or [])
+            txt = (f"{data.get('file', '')} — Ag={Ag:.0f} mm², "
+                   f"{len(data.get('bars', []) or [])} thép, "
+                   f"As={As:.0f} mm²")
+        except Exception:
+            txt = (f"{data.get('file', '')} — "
+                   f"{len(data.get('bars', []) or [])} thép")
+        self.w_var_wall_dxf_info.set(txt)
+        self.w_lbl_wall_dxf_info.grid()
+
+    def _on_import_wall_dxf(self):
+        """Import tiết diện vách bất kỳ từ file .dxf (lát DXF).
+
+        Quy ước CHUNG với cột (rc_column/dxf_import.
+        read_dxf_section — không sửa file đó): biên bê tông =
+        LWPOLYLINE kín layer BT, lỗ = layer BT_HOLE, thép = CIRCLE
+        layer THEP; đơn vị theo $INSUNITS (mặc định mm khi 0 kèm
+        cảnh báo). Riêng vách: chỉ nhận đúng 1 biên BT (nhiều biên
+        -> lỗi, không tự gộp — single_dxf_outline). Dialog preview
+        dùng chung kiểu _preview_dxf_section của cột (vẽ outline +
+        thép, nút Dùng/Hủy, hiện warnings). Sau khi đồng ý: lưu
+        self._wall_dxf_data (tọa độ GỐC bản vẽ), đặt combobox loại
+        thành "Tiết diện bất kỳ (DXF)", refresh preview.
+        """
+        from tkinter import filedialog, messagebox
+        path = filedialog.askopenfilename(
+            title="Chọn file DXF tiết diện vách",
+            filetypes=[("DXF", "*.dxf"), ("All", "*.*")])
+        if not path:
+            return
+        try:
+            from rc_column.dxf_import import (
+                build_polygon_section, read_dxf_section)
+            from rc_column.wall_section import single_dxf_outline
+            dxf = read_dxf_section(path)
+            poly = single_dxf_outline(dxf.outlines)
+            conc, steel, _mdl = self._wall_tcvn_materials()
+            sec = build_polygon_section(dxf, conc, steel,
+                                        fiber_step=10.0)
+        except Exception as ex:
+            messagebox.showerror("Lỗi đọc DXF", str(ex))
+            return
+        if not self._preview_dxf_section(sec, dxf, path):
+            return
+        import os as _os
+        self._wall_dxf_data = {
+            "poly": [list(p) for p in poly],
+            "holes": [[list(p) for p in h] for h in dxf.holes],
+            "bars": [[float(x), float(y), float(dd)]
+                     for x, y, dd in dxf.rebars],
+            "file": _os.path.basename(path),
+        }
+        self.w_cb_sectype.set(_SECTYPES[_SEC_CODES.index("dxf")])
+        self._update_wall_sectype_fields()
+        self._update_wall_rotation_visibility()
+        self._update_wall_dxf_info()
+        if dxf.warnings:
+            messagebox.showwarning(
+                "Cảnh báo import DXF", "\n".join(dxf.warnings))
         self._refresh_wall_preview()
 
     def _auto_psi_wall(self):
@@ -1729,7 +1862,9 @@ class WallMixin:
         D = WALL_DEFAULTS
         # Lát 1: loại mới (T/L/C/U) không có dropdown chế độ thép —
         # ép perimeter (thép tự động theo chu vi); phẳng + Barbell
-        # giữ dropdown như cũ.
+        # giữ dropdown như cũ. Lát DXF: dxf cũng rơi vào nhánh này
+        # — mode "perimeter" ở đây CHỈ để gương dia_v/s_v, không
+        # dùng cho dựng tiết diện DXF (thép DXF là thép thật).
         _st = self._wall_sec_code()
         if _st not in ("rect", "barbell"):
             mode = "perimeter"
@@ -1854,6 +1989,21 @@ class WallMixin:
             # Dấu ngữ nghĩa cover (xem cover_migration): dict do app
             # mới lưu đã theo quy ước c_đai — mở lại không dịch nữa.
             "cover_semantics": COVER_SEMANTICS_NEW,
+            # Tiết diện DXF (lát DXF): tọa độ gốc bản vẽ từ
+            # self._wall_dxf_data; chưa import -> list rỗng, build
+            # sẽ lỗi rõ ràng ở CHECK (preview bắt exception và
+            # return như hiện tại, không crash app).
+            "dxf_poly": [list(p) for p in
+                         (getattr(self, "_wall_dxf_data", None) or {})
+                         .get("poly", [])],
+            "dxf_holes": [[list(p) for p in h] for h in
+                          (getattr(self, "_wall_dxf_data", None) or {})
+                          .get("holes", [])],
+            "dxf_bars": [list(b) for b in
+                         (getattr(self, "_wall_dxf_data", None) or {})
+                         .get("bars", [])],
+            "dxf_file": ((getattr(self, "_wall_dxf_data", None) or {})
+                         .get("file", "") or ""),
         }
 
     def _apply_wall(self, w: dict):
@@ -1989,6 +2139,21 @@ class WallMixin:
         # phục lại kho cũ.
         self._wall_sec_current = _st_loaded
         self._update_wall_sectype_fields()
+        # Khôi phục dữ liệu DXF (lát DXF): dict có dxf_poly -> đặt
+        # _wall_dxf_data + nhãn thông tin; không có -> xóa dữ liệu
+        # cũ và ẩn nhãn (tránh sót file DXF của lần mở trước).
+        _dxf_poly = d.get("dxf_poly") or []
+        if _dxf_poly:
+            self._wall_dxf_data = {
+                "poly": [list(p) for p in _dxf_poly],
+                "holes": [[list(p) for p in h]
+                          for h in (d.get("dxf_holes") or [])],
+                "bars": [list(b) for b in (d.get("dxf_bars") or [])],
+                "file": str(d.get("dxf_file") or ""),
+            }
+        else:
+            self._wall_dxf_data = None
+        self._update_wall_dxf_info()
         # Cảnh báo migration cover (nếu c_mới bị kẹp về 0).
         for _w in _wall_cover_warns:
             messagebox.showwarning("Lớp bảo vệ vách (migration file cũ)",

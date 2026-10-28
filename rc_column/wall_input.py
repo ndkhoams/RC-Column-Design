@@ -30,7 +30,7 @@ không dùng ô "Cấp độ bền thép đai" của cột. Thép dọc vách v�
 """
 
 import math
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import Optional
 
 
@@ -89,9 +89,26 @@ class WallInput:
 
     # --- Mục 2 theo format web (2026-10-23) ---
     section_type: str = "rect"  # "rect" | "barbell" | "tee" | "ell"
-                                # | "c-core" | "u-core" (lát 1, 2026-10-27:
-                                # 5 loại sau chỉ mặt cắt + thép + preview)
+                                # | "c-core" | "u-core" | "dxf" (lát
+                                # DXF, 2026-10-28: tiết diện bất kỳ
+                                # import từ file .dxf, xem 4 khóa dưới)
     rot_deg: int = 0            # xoay tiết diện: 0 | 90 | 180 | 270
+
+    # --- Tiết diện bất kỳ import từ DXF (lát DXF, 2026-10-28) ---
+    # Tọa độ GỐC BẢN VẼ (chưa trừ trọng tâm): build_wall_section
+    # trừ trọng tâm outline mỗi lần dựng (như đường import DXF của
+    # cột) nên JSON round-trip giữ nguyên tọa độ gốc — không ghi
+    # ngược tọa độ đã trừ trọng tâm vào đây hay vào ô nhập.
+    # dxf_poly: outline bê tông, list [x, y]; dxf_holes: list các
+    # polygon lỗ, mỗi lỗ là list [x, y]; dxf_bars: list [x, y, dia];
+    # dxf_file: chỉ basename file DXF (không lưu full path).
+    # File cũ thiếu 4 khóa này vẫn mở bình thường (mặc định rỗng);
+    # wall_to_dict giữ nguyên list lồng nhau (không làm tròn,
+    # không _clean list) nhờ _clean chỉ đổi float nguyên thành int.
+    dxf_poly: list = field(default_factory=list)
+    dxf_holes: list = field(default_factory=list)
+    dxf_bars: list = field(default_factory=list)
+    dxf_file: str = ""
 
     # --- Kích thước riêng cho 5 loại mới (lát 1, mặc định web) ---
     # Barbell: Lw = tổng dài, tw = dày thân, Bf/Tf = rộng/dài đầu mở

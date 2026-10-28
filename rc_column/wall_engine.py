@@ -24,7 +24,7 @@ from .stability import (EccentricityResult, LongTermLoads,
                         buckling_factors, design_moment, eccentricities,
                         phi_L, slenderness)
 from .wall_m2m3 import build_wall_m2m3
-from .wall_section import build_wall_section, wall_dims
+from .wall_section import build_wall_section, dxf_axis_in, wall_dims
 from .wall_shear import (check_wall_shear_in_plane,
                            check_wall_shear_out_of_plane,
                            check_wall_shear_poly,
@@ -86,9 +86,27 @@ _POLY_AXIS_IN = {"barbell": "x", "tee": "x", "ell": "x",
                  "c-core": "y", "u-core": "y"}
 
 
-def _poly_axis_in_rot(section_type, rot_deg):
-    """Trục trong MP sau khi áp góc xoay (90/270° hoán đổi)."""
-    ax = _POLY_AXIS_IN.get(str(section_type), "x")
+def _poly_axis_in_rot(section_type, rot_deg, sec=None, bbox=None):
+    """Trục trong MP sau khi áp góc xoay (90/270° hoán đổi).
+
+    Lát DXF: section_type == "dxf" thì trục lấy theo cạnh bbox dài
+    nhất (dxf_axis_in của wall_section: "x" nếu bbox_x >= bbox_y,
+    ngược lại "y") — bbox lấy từ sec (sec.cx/sec.cy của tiết diện
+    đã dựng) hoặc tham số bbox = (bbox_x, bbox_y); không có cả hai
+    thì fallback "x". Quy tắc này tái hiện đúng cả 5 loại có sẵn
+    (phẳng/Barbell/T/L -> x, C/U -> y) nên trục DXF và trục 5 loại
+    cùng một luật, chỉ khác nguồn bbox.
+    """
+    st = str(section_type)
+    if st == "dxf":
+        if bbox is not None:
+            ax = dxf_axis_in(bbox[0], bbox[1])
+        elif sec is not None:
+            ax = dxf_axis_in(float(sec.cx), float(sec.cy))
+        else:
+            ax = "x"
+    else:
+        ax = _POLY_AXIS_IN.get(st, "x")
     if int(rot_deg or 0) % 360 in (90, 270):
         return "y" if ax == "x" else "x"
     return ax
@@ -283,7 +301,7 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         #   đầu Barbell — giới hạn đã ghi ở meta.layout_text,
         #   không bịa thép vùng biên Barbell).
         _rot = int(getattr(winp, "rot_deg", 0) or 0) % 360
-        _axis_in = _poly_axis_in_rot(_stype, _rot)
+        _axis_in = _poly_axis_in_rot(_stype, _rot, sec=sec)
         _Ix_c, _Iy_c, _ix_c, _iy_c, _Isx_c, _Isy_c = \
             section_inertia(sec)
         if _rot in (90, 270):
@@ -418,6 +436,17 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             "Trong MP: M_in* = N·max(e1, ea)·η_in. "
             "Cắt: lát cắt đa giác (xem mục cắt dưới — mỗi phương "
             "kết luận riêng); PDF cho loại này: lát sau.")
+        if _stype == "dxf":
+            # Ghi rõ tiết diện DXF + trục trong MP đã chọn (lát
+            # DXF): trục theo cạnh bbox dài nhất, không phải theo
+            # bảng 5 loại có sẵn.
+            _slend_note = (
+                f"Tiết diện DXF (file "
+                f"{str(getattr(winp, 'dxf_file', '') or '—')}; "
+                f"bbox {float(sec.cx):.0f}x{float(sec.cy):.0f} mm; "
+                f"trục trong MP đã chọn: {_axis_in} — theo cạnh "
+                f"bbox dài nhất (x nếu bbox_x >= bbox_y, ngược "
+                f"lại y). " + _slend_note)
         _axis_in_rot = _axis_in
     # --- Sức bền tiết diện: solver fiber exact (tia song trục) ---
     cap = BiaxialCapacity(sec, model=model, n_angles=n_angles)
@@ -484,6 +513,15 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
                 f"N <= 0 nên không áp phóng đại/sàn lệch tâm "
                 f"-> M_in* = {M_in_d:.1f} kN·m")
         details = [
+            (f"Tiết diện vách DXF (file "
+             f"{str(getattr(winp, 'dxf_file', '') or '—')}; bbox "
+             f"{float(sec.cx):.0f}x{float(sec.cy):.0f} mm, khung "
+             f"trọng tâm; trục trong MP đã chọn: {_axis_in_rot} — "
+             f"theo cạnh bbox dài nhất (x nếu bbox_x >= bbox_y, "
+             f"ngược lại y); Ag = {Ag:.0f} mm², "
+             f"As = {sec.steel_area:.0f} mm² "
+             f"(µ = {sec.reinforcement_ratio*100:.2f}%)")
+            if _stype == "dxf" else
             f"Tiết diện vách đa giác {_stype} (bbox {float(sec.cx):.0f}x{float(sec.cy):.0f} mm, "
             f"khung trọng tâm; trục trong MP: {_axis_in_rot} — "
             f"Ag = {Ag:.0f} mm², "

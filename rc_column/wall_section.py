@@ -39,6 +39,9 @@ dựng hình và tính toán — xem wall_dims.
 import math
 from typing import List, Tuple
 
+from .dxf_import import (point_in_polygon as _dxf_point_in_polygon,
+                         polygon_area as _dxf_polygon_area,
+                         polygon_centroid as _dxf_polygon_centroid)
 from .materials import ConcreteMaterial, SteelMaterial
 from .sections import Rebar, Section, bar_area, make_rect_section
 
@@ -195,6 +198,61 @@ _POLY_BUILDERS = {
     "c-core": _poly_c_core,
     "u-core": _poly_u_core,
 }
+
+
+# ---------------------------------------------------------------------
+# Tiết diện bất kỳ import từ DXF (lát DXF, 2026-10-28)
+# ---------------------------------------------------------------------
+def dxf_axis_in(bbox_x: float, bbox_y: float) -> str:
+    """Trục trong mặt phẳng của tiết diện DXF: cạnh bbox dài nhất.
+
+    Quy tắc này tái hiện đúng cả 5 loại có sẵn (phẳng/Barbell/
+    T/L -> x vì bbox_x >= bbox_y; C/U -> y vì thân Lw dọc nên
+    bbox_y > bbox_x) — dùng chung cho engine N–M (wall_engine)
+    và cắt (wall_shear) để 2 nơi không lệch trục. Đây là QUY ƯỚC
+    ÁNH XẠ của app, không phải điều khoản TCVN (TCVN không định
+    nghĩa trong/ngoài MP cho tiết diện bất kỳ).
+    """
+    return "x" if float(bbox_x) >= float(bbox_y) else "y"
+
+
+def dxf_t_branch(verts) -> float:
+    """Bề dày nhánh mỏng nhất của polygon trực giao (mm).
+
+    = hiệu tọa độ kề nhau dương nhỏ nhất của tập x và tập y của
+    verts (vd phẳng 2500x350 -> 350, L -> 300, Barbell -> 300).
+    GIẢ ĐỊNH TƯƠNG ĐƯƠNG cho cắt §8.1.3 (chuẩn chỉ viết cho chữ
+    nhật): b lấy theo nhánh mỏng nhất là phía bảo thủ, không
+    trình bày như điều khoản chuẩn. Dùng chung cho meta
+    bar_branch_t (hiển thị) và b của cắt đa giác.
+    """
+    xs = sorted({float(p[0]) for p in verts})
+    ys = sorted({float(p[1]) for p in verts})
+    diffs = [b - a for a, b in zip(xs, xs[1:]) if b - a > 1e-9]
+    diffs += [b - a for a, b in zip(ys, ys[1:]) if b - a > 1e-9]
+    if diffs:
+        return min(diffs)
+    xs_all = [float(p[0]) for p in verts]
+    ys_all = [float(p[1]) for p in verts]
+    return min(max(xs_all) - min(xs_all),
+               max(ys_all) - min(ys_all))
+
+
+def single_dxf_outline(outlines):
+    """Outline DUY NHẤT từ kết quả read_dxf_section.
+
+    Vách DXF chỉ nhận đúng 1 biên bê tông: nhiều outline -> ValueError
+    rõ ràng, KHÔNG tự gộp (gộp 2 biên rời thành 1 tiết diện là mô
+    hình mới, không ép số). GUI import và test dùng helper này để
+    cùng một điểm kiểm tra.
+    """
+    outlines = list(outlines or [])
+    if len(outlines) != 1:
+        raise ValueError(
+            f"Tiết diện DXF cho vách phải có đúng 1 biên bê tông "
+            f"(layer BT), file này có {len(outlines)} biên — "
+            f"không tự gộp các biên rời nhau.")
+    return [list(p) for p in outlines[0]]
 
 
 def _polygon_centroid(verts):
@@ -648,6 +706,132 @@ def _gen_boundary(Lw, tw, cover, Lb, db, n_Lb, n_tw, L_out, L_in,
     return be_left, be_right, web, runs, extra
 
 
+def _build_wall_section_dxf(winp, conc, steel, mesh_step=None):
+    """Dựng Section kind="poly" cho tiết diện DXF (lát DXF).
+
+    winp.dxf_poly/dxf_holes/dxf_bars ở TỌA ĐỘ GỐC BẢN VẼ (xem
+    wall_input.py): trừ trọng tâm outline (dxf_import.
+    polygon_centroid) cho outline/holes/bars rồi mới dựng — cùng
+    quy ước "gốc tại trọng tâm" của Section và của đường import
+    DXF cột (build_polygon_section). Fiber lưới bước
+    WALL_MESH_STEP trên bbox, tâm ô trong polygon và không trong
+    lỗ, diện tích fiber chuẩn hoá về đúng Ac (outline trừ lỗ).
+    Thép = Rebar(x, y, bar_area(d), d, layer 2) cho thanh trong
+    biên; thanh ngoài biên bỏ qua + ghi meta["warnings"] (như cột).
+    Preview GUI hiện có (draw_wall_section_ax, kind poly) dùng
+    được ngay, không sửa hàm vẽ.
+    """
+    from .sections import Fiber, Section
+    poly_raw = getattr(winp, "dxf_poly", None) or []
+    if len(poly_raw) < 3:
+        raise ValueError(
+            "Tiết diện DXF: chưa có biên bê tông (dxf_poly rỗng) — "
+            "import file DXF ở mục 2 (LWPOLYLINE kín, layer BT) "
+            "trước khi CHECK.")
+    poly = [(float(p[0]), float(p[1])) for p in poly_raw]
+    holes_raw = getattr(winp, "dxf_holes", None) or []
+    holes = [[(float(p[0]), float(p[1])) for p in h]
+             for h in holes_raw if len(h) >= 3]
+    bars_raw = getattr(winp, "dxf_bars", None) or []
+    cx_c, cy_c = _dxf_polygon_centroid(poly)
+    verts = [(x - cx_c, y - cy_c) for x, y in poly]
+    holes_c = [[(x - cx_c, y - cy_c) for x, y in h] for h in holes]
+    xs = [p[0] for p in verts]
+    ys = [p[1] for p in verts]
+    bx, by = max(xs) - min(xs), max(ys) - min(ys)
+    Ac = abs(_dxf_polygon_area(verts)) - sum(
+        abs(_dxf_polygon_area(h)) for h in holes_c)
+    if Ac <= 0:
+        raise ValueError(
+            "Tiết diện DXF: diện tích bê tông không dương "
+            "(biên/lỗ không hợp lệ).")
+    step = WALL_MESH_STEP if mesh_step is None else float(mesh_step)
+    nx_c = int(math.ceil(bx / step))
+    ny_c = int(math.ceil(by / step))
+    dx, dy = bx / nx_c, by / ny_c
+    fibers = []
+    for i in range(nx_c):
+        for j in range(ny_c):
+            x = min(xs) + (i + 0.5) * dx
+            y = min(ys) + (j + 0.5) * dy
+            if _dxf_point_in_polygon(x, y, verts) and not any(
+                    _dxf_point_in_polygon(x, y, h) for h in holes_c):
+                fibers.append(Fiber(x, y, dx * dy))
+    fsum = sum(f.area for f in fibers)
+    if fsum <= 0:
+        raise ValueError(
+            "Tiết diện DXF: không sinh được fiber nào trong biên "
+            "(biên quá nhỏ so với bước lưới 25 mm).")
+    for f in fibers:
+        f.area *= Ac / fsum
+    warnings = []
+    rebars = []
+    bars_c = []
+    for b in bars_raw:
+        try:
+            bx0, by0, d = float(b[0]), float(b[1]), float(b[2])
+        except Exception:
+            warnings.append(f"Thép DXF không đọc được tọa độ/đường "
+                            f"kính: {b!r} — bỏ qua.")
+            continue
+        if d <= 0:
+            warnings.append(f"Thép DXF tại ({bx0:.0f}, {by0:.0f}) có "
+                            f"đường kính không dương — bỏ qua.")
+            continue
+        xr, yr = bx0 - cx_c, by0 - cy_c
+        if not _dxf_point_in_polygon(xr, yr, verts):
+            warnings.append(
+                f"Thép DXF tại ({bx0:.0f}, {by0:.0f}) nằm ngoài biên "
+                f"— bỏ qua.")
+            continue
+        rebars.append(Rebar(xr, yr, bar_area(d), d, 2))
+        bars_c.append((xr, yr, d))
+    sec = Section(kind="poly", cx=bx, cy=by, concrete=conc, steel=steel,
+                  fibers=fibers, rebars=rebars,
+                  poly_verts=[verts], poly_holes=holes_c)
+    t_branch = dxf_t_branch(poly)
+    _Ac2, Ix, Iy = _polygon_area_moments(verts)
+    by_dia = {}
+    for r in rebars:
+        by_dia[r.dia] = by_dia.get(r.dia, 0) + 1
+    zones = [(f"DXF d{d:.0f}", n, d) for d, n in
+             sorted(by_dia.items(), key=lambda kv: -kv[0])]
+    rot = int(getattr(winp, "rot_deg", 0) or 0) % 360
+    dxf_file = str(getattr(winp, "dxf_file", "") or "")
+    layout = (f"Tiết diện DXF: {len(rebars)} thanh "
+              f"(file {dxf_file or '—'}; thép thật từ CIRCLE layer "
+              f"THEP, không sinh theo chu vi/vùng biên)")
+    meta = {
+        "nx": nx_c, "ny": ny_c, "mesh_step_x": dx, "mesh_step_y": dy,
+        "steel_mode": "perimeter",
+        "steel_mode_input": str(getattr(winp, "steel_mode",
+                                        "perimeter") or "perimeter"),
+        "section_type": "dxf",
+        "Lw_eff": bx, "tw_eff": by, "rot_deg": rot,
+        "bar_branch_t": t_branch,
+        "n_bars": len(rebars), "n_web": len(rebars),
+        "n_be_left": 0, "n_be_right": 0,
+        "s_v_actual": None,
+        "As_web": sec.steel_area,
+        "As_be": 0.0, "As_total": sec.steel_area,
+        "mu": sec.reinforcement_ratio,
+        "web_a": min(xs), "web_b": max(xs),
+        "bars_web": bars_c, "bars_be_left": [], "bars_be_right": [],
+        "warnings": warnings,
+        "zones": zones,
+        "smax": None, "s_step_min": None, "sclear_min": None,
+        "dim_segments": [], "dim_segments_y": [],
+        "dim_total_x_label": f"Lw = {bx:.0f} mm",
+        "dim_total_y_label": f"tw = {by:.0f} mm",
+        "poly_ac": Ac, "poly_Ix": Ix, "poly_Iy": Iy,
+        "centroid_offset": (cx_c, cy_c),
+        "layout_text": layout,
+        "node_boxes": [],
+        "dxf_file": dxf_file,
+    }
+    return sec, meta
+
+
 def _build_wall_section_poly(winp, conc, steel, mesh_step=None,
                              nx=None, ny=None):
     """Dựng Section kind="poly" cho 5 loại mới (lát 1, thép lát 3).
@@ -794,6 +978,8 @@ def build_wall_section(winp, conc: ConcreteMaterial, steel: SteelMaterial,
     # cắt vẫn pending ở engine, PDF vẫn chặn ở GUI. Lưới fiber lấy
     # mẫu trong đa giác (diện tích fiber chuẩn hoá về đúng Ac).
     _stype = str(getattr(winp, "section_type", "rect") or "rect")
+    if _stype == "dxf":
+        return _build_wall_section_dxf(winp, conc, steel, mesh_step)
     if _stype in _POLY_BUILDERS:
         return _build_wall_section_poly(winp, conc, steel, mesh_step,
                                         nx, ny)
@@ -1004,9 +1190,29 @@ def wall_readouts(winp, sec, meta) -> dict:
     theo Lw): Ix = tw*Lw^3/12 (quán tính trong mặt phẳng), Iy =
     Lw*tw^3/12. Đơn vị: Ac (m²), Ix/Iy (m⁴), As (mm²), khoảng cách mm.
     """
-    if str(getattr(winp, "section_type", "rect")) in _POLY_BUILDERS:
-        verts = _POLY_BUILDERS[str(winp.section_type)](winp)
-        Ac, Ix, Iy = _polygon_area_moments(verts)
+    if str(getattr(winp, "section_type", "rect")) in _POLY_BUILDERS \
+            or str(getattr(winp, "section_type", "rect")) == "dxf":
+        if str(getattr(winp, "section_type", "rect")) == "dxf":
+            # DXF: verts ở tọa độ gốc bản vẽ; mô men quanh trọng
+            # tâm vẫn trừ A·d² như nhánh đa giác (không dùng
+            # Lw×tw của winp — 2 ô đó không có ý nghĩa với DXF).
+            verts = [(float(p[0]), float(p[1]))
+                     for p in (getattr(winp, "dxf_poly", None) or [])]
+            if len(verts) < 3:
+                verts = [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0)]
+            _holes_dxf = [[(float(p[0]), float(p[1])) for p in h]
+                          for h in
+                          (getattr(winp, "dxf_holes", None) or [])
+                          if len(h) >= 3]
+            Ac, Ix, Iy = _polygon_area_moments(verts)
+            for _h in _holes_dxf:
+                _ah, _ixh, _iyh = _polygon_area_moments(_h)
+                Ac -= _ah
+                Ix -= _ixh
+                Iy -= _iyh
+        else:
+            verts = _POLY_BUILDERS[str(winp.section_type)](winp)
+            Ac, Ix, Iy = _polygon_area_moments(verts)
         # Ix/Iy QUANH TRỌNG TÂM (lát N–M): trừ số hạng trục song
         # song A·d² khỏi mô men quanh gốc bbox; trước lát này
         # wall_readouts in Ix/Iy quanh gốc bbox (sai với tiết diện

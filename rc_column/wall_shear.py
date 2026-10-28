@@ -47,7 +47,8 @@ import math
 from .materials import STEEL_GRADES, SteelMaterial
 from .sections import bar_area
 from .stirrup import check_shear
-from .wall_section import _POLY_BUILDERS, wall_dims
+from .wall_section import (_POLY_BUILDERS, dxf_axis_in, dxf_t_branch,
+                           wall_dims)
 
 # Trục trong mặt phẳng (vật lý, rot = 0) của từng loại đa giác —
 # CÙNG định nghĩa với _POLY_AXIS_IN của wall_engine.py (lát N–M):
@@ -96,6 +97,162 @@ def wall_shear_geometry(winp, Lw: float = None, tw: float = None):
             "dia_v": dia_v}
 
 
+def count_reflex_vertices(verts) -> int:
+    """Số đỉnh LÕM (reflex) của polygon.
+
+    Đỉnh lõm = góc trong > 180°: dấu cross của 2 cạnh kề tại đỉnh
+    ngược dấu với chiều polygon (diện tích shoelace). Đỉnh thẳng
+    hàng (cross ≈ 0) không tính là lõm. Dùng riêng cho quy tắc
+    pending ngoài MP của tiết diện DXF (lát DXF): lõi hở dạng C/U
+    có >= 2 đỉnh lõm.
+    """
+    verts = [(float(p[0]), float(p[1])) for p in verts]
+    n = len(verts)
+    if n < 4:
+        return 0
+    area2 = 0.0
+    for i in range(n):
+        x0, y0 = verts[i]
+        x1, y1 = verts[(i + 1) % n]
+        area2 += x0 * y1 - x1 * y0
+    if abs(area2) < 1e-12:
+        return 0
+    sgn = 1.0 if area2 > 0 else -1.0
+    count = 0
+    for i in range(n):
+        px, py = verts[i - 1]
+        cx, cy = verts[i]
+        nx, ny = verts[(i + 1) % n]
+        cross = (cx - px) * (ny - cy) - (cy - py) * (nx - cx)
+        if cross * sgn < -1e-9:
+            count += 1
+    return count
+
+
+def _wall_shear_geometry_dxf(winp):
+    """Hình học cắt VẬT LÝ cho tiết diện DXF (lát DXF) — cùng khung
+    dict với nhánh 5 loại (geom_in/geom_out/pending_out/base) để
+    engine hoán đổi theo rot như nhau.
+
+    - verts = winp.dxf_poly (tọa độ gốc bản vẽ; bbox không đổi khi
+      trừ trọng tâm nên dùng tọa độ gốc được).
+    - Trục trong MP theo cạnh bbox dài nhất (dxf_axis_in, cùng luật
+      engine N–M): E_stem/E_trans theo trục đó.
+    - t_branch = min các hiệu tọa độ kề nhau dương của tập x và tập
+      y của verts (vd phẳng 2500x350 -> 350, L -> 300, Barbell ->
+      300) — bề dày nhánh mỏng nhất của polygon trực giao, GIẢ
+      ĐỊNH TƯƠNG ĐƯƠNG (TCVN §8.1.3 chỉ viết cho chữ nhật), ghi rõ
+      trong geom_note, không trình bày như điều khoản chuẩn.
+    - b = t_branch cả 2 phương (như poly hiện có); dia_long = max
+      dia trong dxf_bars (không có thanh -> fallback per_dia);
+      h0_in = E_stem − cover − dia_h − dia_long/2; h0_out =
+      E_trans − cover − dia_long − dia_h/2; thép ngang trong MP
+      layers_h nhánh, ngoài MP 2 nhánh (như poly hiện có).
+    - Pending ngoài MP: CHỈ khi trục trong MP = "y" VÀ polygon có
+      >= 2 đỉnh lõm (reflex, cross đổi dấu so với chiều polygon)
+      — tức lõi hở dạng C/U; các trường hợp còn lại tính ngoài MP
+      bình thường (kể cả lõi hở xoay 90°: pending theo hướng vật
+      lý, engine hoán đổi nhãn khi xoay như 5 loại).
+    """
+    poly_raw = getattr(winp, "dxf_poly", None) or []
+    if len(poly_raw) < 3:
+        raise ValueError(
+            "Cắt DXF: chưa có biên bê tông (dxf_poly rỗng) — "
+            "import file DXF ở mục 2 trước khi CHECK.")
+    verts = [(float(p[0]), float(p[1])) for p in poly_raw]
+    xs = [p[0] for p in verts]
+    ys = [p[1] for p in verts]
+    bx, by = max(xs) - min(xs), max(ys) - min(ys)
+    axis = dxf_axis_in(bx, by)
+    e_stem = bx if axis == "x" else by
+    e_trans = by if axis == "x" else bx
+    t_branch = dxf_t_branch(verts)
+    cover = float(getattr(winp, "cover", 0.0) or 0.0)
+    dia_h = float(getattr(winp, "dia_h", 0.0) or 0.0)
+    bars = getattr(winp, "dxf_bars", None) or []
+    dias = []
+    for b in bars:
+        try:
+            if float(b[2]) > 0:
+                dias.append(float(b[2]))
+        except Exception:
+            pass
+    if dias:
+        dia_long = max(dias)
+    else:
+        dia_long = float(getattr(winp, "per_dia", 0.0) or 0.0)
+    s_h = float(getattr(winp, "s_h", 0.0) or 0.0)
+    try:
+        layers_h = int(getattr(winp, "layers_h", 0) or 0)
+    except Exception:
+        layers_h = 0
+    ah = bar_area(dia_h) if dia_h > 0 else 0.0
+    h0_in = e_stem - cover - dia_h - dia_long / 2.0
+    h0_out = e_trans - cover - dia_long - dia_h / 2.0
+    base = {"section_type": "dxf", "axis_canonical": axis,
+            "bbox_x": bx, "bbox_y": by, "E_stem": e_stem,
+            "E_trans": e_trans, "t_branch": t_branch,
+            "cover": cover, "dia_h": dia_h, "per_dia": dia_long,
+            "dia_long": dia_long,
+            "s_h": s_h, "layers_h": layers_h}
+    geom_in = dict(base)
+    geom_in.update({
+        "direction": "in", "physical": "stem",
+        "b": t_branch, "h0": max(h0_in, 1.0), "h0_raw": h0_in,
+        "E_depth": e_stem, "E_other": e_trans,
+        "branches": layers_h,
+        "Asw": layers_h * ah if layers_h > 0 else 0.0,
+        "h0_expansion":
+            f"{e_stem:.0f} − {cover:.0f} − {dia_h:.0f} − "
+            f"{dia_long / 2.0:.1f} = {max(h0_in, 1.0):.0f} mm",
+        "geom_note":
+            f"tiết diện DXF (GIẢ ĐỊNH TƯƠNG ĐƯƠNG, §8.1.3 chỉ "
+            f"viết cho chữ nhật): b = thân mỏng nhất {t_branch:.0f} "
+            f"mm (hiệu tọa độ kề nhau nhỏ nhất của polygon trực "
+            f"giao), h0 = {e_stem:.0f} − cover {cover:.0f} − dia_h "
+            f"{dia_h:.0f} − dia_long/2 {dia_long / 2.0:.1f} = "
+            f"{max(h0_in, 1.0):.0f} mm; trục trong MP: {axis} "
+            f"(cạnh bbox dài nhất); thép ngang "
+            f"{layers_h}φ{dia_h:.0f} a{s_h:.0f}.",
+    })
+    n_reflex = count_reflex_vertices(verts)
+    if axis == "y" and n_reflex >= 2:
+        geom_out = None
+        pending_out = (
+            "CHƯA KIỂM — cắt ngoài mặt phẳng của tiết diện DXF lõi "
+            f"hở: trục trong MP = y và polygon có {n_reflex} đỉnh "
+            "lõm (>= 2) nên mặt cắt ngoài MP cắt qua các nhánh rời "
+            "— không định nghĩa được 1 hình chữ nhật (b, h0) duy "
+            "nhất theo §8.1.3 một cách bảo thủ cho cả [Q]1 và [Q]2 "
+            "(lấy b = t thì bỏ nhánh thứ 2, lấy b = 2t thì thành mô "
+            "hình cộng 2 tiết diện — cần duyệt riêng, như lõi C/U).")
+    else:
+        geom_out = dict(base)
+        geom_out.update({
+            "direction": "out", "physical": "transverse",
+            "b": t_branch, "h0": max(h0_out, 1.0),
+            "h0_raw": h0_out,
+            "E_depth": e_trans, "E_other": e_stem,
+            "branches": 2,
+            "Asw": 2 * ah if dia_h > 0 else 0.0,
+            "h0_expansion":
+                f"{e_trans:.0f} − {cover:.0f} − {dia_long:.0f} − "
+                f"{dia_h / 2.0:.1f} = {max(h0_out, 1.0):.0f} mm",
+            "geom_note":
+                f"tiết diện DXF (GIẢ ĐỊNH TƯƠNG ĐƯƠNG, §8.1.3 "
+                f"chỉ viết cho chữ nhật): b = thân mỏng nhất "
+                f"{t_branch:.0f} mm, h0 = {e_trans:.0f} − cover "
+                f"{cover:.0f} − dia_long {dia_long:.0f} − dia_h/2 "
+                f"{dia_h / 2.0:.1f} = {max(h0_out, 1.0):.0f} mm; "
+                f"thép ngang ngoài MP mặc định 2φ{dia_h:.0f} "
+                f"a{s_h:.0f} (quyết 2026-10-25, cùng cấp thép "
+                f"với trong MP).",
+        })
+        pending_out = None
+    return {"geom_in": geom_in, "geom_out": geom_out,
+            "pending_out": pending_out, "base": base}
+
+
 def wall_shear_geometry_poly(winp):
     """Hình học cắt VẬT LÝ (chưa xoay) cho 5 loại đa giác.
 
@@ -121,6 +278,8 @@ def wall_shear_geometry_poly(winp):
     V2/V3 cố định như wall_dims của phẳng).
     """
     stype = str(getattr(winp, "section_type", "rect") or "rect")
+    if stype == "dxf":
+        return _wall_shear_geometry_dxf(winp)
     if stype not in _POLY_BUILDERS:
         raise ValueError(f"Không phải tiết diện đa giác: {stype}")
     verts = _POLY_BUILDERS[stype](winp)
