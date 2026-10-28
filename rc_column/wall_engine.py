@@ -22,7 +22,7 @@ from .interaction import BiaxialCapacity, neutral_axis_at_N
 from .materials import STEEL_GRADES, SteelMaterial
 from .stability import (EccentricityResult, LongTermLoads,
                         buckling_factors, design_moment, eccentricities,
-                        phi_L, slenderness)
+                        phi_L, phi_l_dir, slenderness)
 from .wall_m2m3 import build_wall_m2m3
 from .wall_section import build_wall_section, dxf_axis_in, wall_dims
 from .wall_shear import (check_wall_shear_in_plane,
@@ -50,6 +50,46 @@ PENDING_DETAIL = "Chưa kiểm ở lát 1 (cấu tạo/ρmin: lát 3)"
 # mặt phẳng (chảy dẻo uốn trong MP tại chân vách là cơ chế mà (6)P
 # nhắm tới); cắt ngoài mặt phẳng KHÔNG phóng đại (không tự mở rộng).
 SEISMIC_SHEAR_FACTOR_DCM = 1.5
+
+
+def _wall_phi_l_dir(winp, N, M_in, M_out, h_in, h_out):
+    """φl vách theo từng phương, từ tải dài hạn nhập tay (mục 4).
+
+    Trả (phi_in, phi_out, has_data). Công thức theo Hướng dẫn
+    BXD §5.1.2 (5-31) qua stability.phi_l_dir: φl = 1 + M1l/M1
+    (kẹp [1, 2]) với M1/M1l tính từ (h − 2a)/2 như ví dụ §7.
+    a = khoảng cách từ mép tới lớp thép dọc ngoài cùng
+    (= cover_đai + dia_h + dia_dọc/2; DXF: dia_dọc = đường kính
+    lớn nhất trong dxf_bars; loại có sẵn: vùng biên → dia_be,
+    chu vi → per_dia) — GIẢ ĐỊNH của app, ghi rõ ở thuyết minh
+    (ví dụ §7 dùng trọng tâm cả nhóm thép vùng biên, a = 79 mm).
+    Không nhập tải dài hạn (cả 3 số đều 0 / file cũ thiếu khóa)
+    → (2,0, 2,0, False), đúng hành vi cũ.
+    """
+    try:
+        N_lt = float(getattr(winp, "N_lt", 0.0) or 0.0)
+        M_in_lt = float(getattr(winp, "M_in_lt", 0.0) or 0.0)
+        M_out_lt = float(getattr(winp, "M_out_lt", 0.0) or 0.0)
+    except Exception:
+        return 2.0, 2.0, False
+    if not (N_lt or M_in_lt or M_out_lt):
+        return 2.0, 2.0, False
+    try:
+        cover = float(getattr(winp, "cover", 0.0) or 0.0)
+        dia_h = float(getattr(winp, "dia_h", 0.0) or 0.0)
+        if str(getattr(winp, "section_type", "") or "") == "dxf" \
+                and getattr(winp, "dxf_bars", None):
+            dia_long = max(float(b[2]) for b in winp.dxf_bars)
+        elif str(getattr(winp, "steel_mode", "") or "") == "boundary":
+            dia_long = float(getattr(winp, "dia_be", 0.0) or 0.0)
+        else:
+            dia_long = float(getattr(winp, "per_dia", 0.0) or 0.0)
+    except Exception:
+        return 2.0, 2.0, False
+    a = cover + dia_h + dia_long / 2.0
+    phi_in = phi_l_dir(N, M_in, N_lt, M_in_lt, h_in, a, True)
+    phi_out = phi_l_dir(N, M_out, N_lt, M_out_lt, h_out, a, True)
+    return phi_in, phi_out, True
 
 
 def _rot_vec(x, y, deg):
@@ -172,10 +212,14 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         l0_out_m = psi_y * Ly_m
         lam_out = slenderness(l0_out_m, tw)
         lam_in = slenderness(l0_in_m, Lw)
-        # Chưa có dữ liệu dài hạn riêng cho vách ở GĐ1 -> phi_L = 2.0
-        # (giới hạn trên, thiên an toàn — như cột khi không khai dài hạn).
-        lt = LongTermLoads()
-        phi = phi_L(N, M_out, M_in, lt)
+        # φl theo từng phương từ tải dài hạn nhập tay (mục 4,
+        # 2026-10-28, Hướng dẫn BXD §5.1.2 (5-31)); không nhập →
+        # (2,0, 2,0) như cũ (giới hạn trên, thiên an toàn).
+        # Khe buckling: "x" = ngoài MP, "y" = trong MP (xem chú
+        # thích ánh xạ ở trên) nên phiLx = phi_out, phiLy = phi_in.
+        phi_in, phi_out, _lt_has = _wall_phi_l_dir(
+            winp, N, M_in, M_out, Lw, tw)
+        phi = phi_in
         ecc = eccentricities(N, M_out, M_in, Lx_m, Ly_m, Lw, tw)
         # Ánh xạ λ vào khe buckling_factors: khe "x" = ngoài MP (lam_out),
         # khe "y" = trong MP (lam_in) — cổng η §8.1.2.1.2 (λ > 14 mới
@@ -185,18 +229,23 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         buck = buckling_factors(ecc.e0x, ecc.e0y, Lw, tw, phi, conc.Eb,
                                 Ix, Iy, Isx, Isy, l0_out_m, l0_in_m,
                                 N, M_out, M_in,
-                                lambda_x=lam_out, lambda_y=lam_in)
+                                lambda_x=lam_out, lambda_y=lam_in,
+                                phiLx=phi_out, phiLy=phi_in)
         eta_out = buck.etax
         Ncr_out = buck.Ncrx
         M_out_d = buck.Mx_star
         eta_in = buck.etay
         Ncr_in = buck.Ncry
+        eta_clamped_out = bool(buck.eta_clamped_x)
+        eta_clamped_in = bool(buck.eta_clamped_y)
         if pd_method == "none":
             # "Không xét bổ sung uốn dọc": η = 1 cả 2 phương. Sàn độ lệch
             # tâm e0 = max(e1, ea) ở dưới VẪN áp cả 2 phương — đó là độ
             # lệch tâm thiết kế tối thiểu, tách khỏi η.
             eta_out = 1.0
             eta_in = 1.0
+            eta_clamped_out = False
+            eta_clamped_in = False
             M_out_d = M_out
         # --- Mô men thiết kế 2 phương (sàn ea, user duyệt 2026-10-27) ---
         # M* = sign·N·e0·η mỗi phương độc lập; ecc.e0x = e0 trong MP
@@ -351,21 +400,35 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
             else float("inf")
         lam_in = _lam_My if _axis_in == "x" else _lam_Mx
         lam_out = _lam_Mx if _axis_in == "x" else _lam_My
-        lt = LongTermLoads()
-        phi = phi_L(N, _Mx_r, _My_r, lt)
+        # φl theo từng phương từ tải dài hạn nhập tay (mục 4,
+        # 2026-10-28, như nhánh rect): h_in/h_out là bề rộng theo
+        # trục trong/ngoài MP trong khung đã xoay.
+        _h_in = cx_r if _axis_in == "x" else cy_r
+        _h_out = cy_r if _axis_in == "x" else cx_r
+        phi_in, phi_out, _lt_has = _wall_phi_l_dir(
+            winp, N, M_in, M_out, _h_in, _h_out)
+        phi = phi_in
         _buck_r = buckling_factors(
             _ecc_r.e0x, _ecc_r.e0y, cx_r, cy_r, phi, conc.Eb,
             Ix, Iy, Isx, Isy, _l0_Mx, _l0_My, N, _Mx_r, _My_r,
-            lambda_x=_lam_Mx, lambda_y=_lam_My)
+            lambda_x=_lam_Mx, lambda_y=_lam_My,
+            phiLx=(phi_out if _axis_in == "x" else phi_in),
+            phiLy=(phi_in if _axis_in == "x" else phi_out))
         if _axis_in == "x":
             eta_in, eta_out = _buck_r.etay, _buck_r.etax
             Ncr_in, Ncr_out = _buck_r.Ncry, _buck_r.Ncrx
+            eta_clamped_in = bool(_buck_r.eta_clamped_y)
+            eta_clamped_out = bool(_buck_r.eta_clamped_x)
         else:
             eta_in, eta_out = _buck_r.etax, _buck_r.etay
             Ncr_in, Ncr_out = _buck_r.Ncrx, _buck_r.Ncry
+            eta_clamped_in = bool(_buck_r.eta_clamped_x)
+            eta_clamped_out = bool(_buck_r.eta_clamped_y)
         if pd_method == "none":
             eta_out = 1.0
             eta_in = 1.0
+            eta_clamped_out = False
+            eta_clamped_in = False
             M_out_d = M_out
         else:
             # M_out nằm ở khe Mx khi trục trong MP là 'x', ở khe
@@ -993,7 +1056,11 @@ def wall_tcvn_full(winp, conc, steel, model: str = "3line",
         "gamma_deg": r.get("gamma_deg"), "na_info": na_info,
         "c_neutral": c_neutral, "sigma_edge": sigma_edge,
         "Ix": Ix, "Iy": Iy, "Isx": Isx, "Isy": Isy,
-        "phi_L": phi, "e0_out": ecc.e0y, "ea_out": ecc.eay,
+        "phi_L": phi, "phi_L_in": phi_in, "phi_L_out": phi_out,
+        "lt_has_data": bool(_lt_has),
+        "eta_clamped_in": bool(eta_clamped_in),
+        "eta_clamped_out": bool(eta_clamped_out),
+        "e0_out": ecc.e0y, "ea_out": ecc.eay,
         "e0_in": ecc.e0x, "ea_in": ecc.eax,
         "slend": {
             "l0_out": l0_out_m * 1000.0, "lambda_out": lam_out,

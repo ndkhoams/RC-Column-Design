@@ -125,6 +125,12 @@ class CheckResult:
     # hướng gradient gamma* (độ) + chiều sâu trục trung hòa na* (mm)
     gamma_deg: float = 0.0
     na_depth: float = 0.0
+    # η bị kẹp ở 10,0 vì Ncr ≤ |N| và λ > 14 (2026-10-28, như vách):
+    # giá trị kẹp không phải giá trị vật lý — thuyết minh phải
+    # cảnh báo kèm Ncr/N. Đặt cuối để không phá thứ tự trường
+    # bắt buộc của dataclass.
+    eta_clamped_x: bool = False
+    eta_clamped_y: bool = False
 
 
 def build_section(inp: ColumnInput) -> Section:
@@ -253,6 +259,8 @@ def check_column(inp: ColumnInput, n_angles: int = 24) -> CheckResult:
         delta_ex=buck.delta_ex, delta_ey=buck.delta_ey,
         kbx=buck.kbx, kby=buck.kby, Dx=buck.Dx, Dy=buck.Dy,
         Ncrx=buck.Ncrx, Ncry=buck.Ncry, etax=buck.etax, etay=buck.etay,
+        eta_clamped_x=bool(buck.eta_clamped_x),
+        eta_clamped_y=bool(buck.eta_clamped_y),
         steel_area=sec.steel_area, reinforcement_ratio=mu,
         clear_cx=ccx, clear_cy=ccy, alpha_e=alpha_e, details=details,
         gamma_deg=r.get("gamma_deg") or 0.0,

@@ -138,7 +138,7 @@ def _m2m3_reinterpret_card(full):
 
 def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
               M_star, M_orig, pd_method, phi_L,
-              m_sym=None, m_star_sym=None):
+              m_sym=None, m_star_sym=None, eta_clamped=False):
     """Thẻ hệ số uốn dọc 1 phương. direction: 'X' (trong MP) hoặc
     'Y' (ngoài MP). M_star/M_orig: mô men đã/ chưa phóng đại của
     phương đó (M_in_d/M_in cho X, M_out_d/M_out cho Y).
@@ -235,6 +235,17 @@ def _eta_card(direction, lam, L0_m, h_mm, N, e0, ea, eta, Ncr,
         lines.append(
             f"λ = {_f(lam, 2)} > 14 → xét uốn dọc theo 8.1.2.1.2; "
             f"η theo CT (44)–(48).")
+    if eta_clamped:
+        # 2026-10-28 (quyết sau đối chiếu BXD QĐ 862): η = 10,0 là
+        # giá trị kẹp tùy tiện của app khi Ncr ≤ |N|, không có
+        # trong chuẩn — phải cảnh báo kèm Ncr/N, không để số
+        # M* do kẹp trông như số vật lý.
+        lines.append(
+            f"CẢNH BÁO: η đã bị kẹp ở 10,0 vì Ncr = {_f(Ncr, 0)} kN "
+            f"≤ |N| = {_f(abs(N), 1)} kN — giá trị này không phải "
+            f"giá trị vật lý, cần kiểm tra lại độ mảnh/tiết diện "
+            f"(giảm L0, tăng tiết diện hoặc tăng thép) trước khi "
+            f"dùng mô men phóng đại này.")
     return _card(title, ref, lines, result)
 
 
@@ -544,6 +555,8 @@ def build_wall_detail_sections(full):
         sections[-1]["cards"].append(_note4)
 
     # ================= MỤC 5: η & M* =================
+    _phi_in = float(full.get("phi_L_in", full["phi_L"]))
+    _phi_out = float(full.get("phi_L_out", full["phi_L"]))
     sections.append({
         "num": 5, "title": "HỆ SỐ UỐN DỌC & MÔ MEN PHÓNG ĐẠI",
         "ref": "TCVN 5574:2018 Mục 8.1.2.1.2 & 8.1.2.4.2",
@@ -552,14 +565,18 @@ def build_wall_detail_sections(full):
                       float(sl.get("factor_in", 1.0) or 1.0),
                       float(sl.get("Ncr_in", 0.0) or 0.0),
                       float(full["M_in_d"]), M_in, pd_method,
-                      float(full["phi_L"]),
-                      m_sym=_sym_in, m_star_sym=f"{_sym_in}*"),
+                      _phi_in,
+                      m_sym=_sym_in, m_star_sym=f"{_sym_in}*",
+                      eta_clamped=bool(full.get("eta_clamped_in"))
+                      and pd_method != "none"),
             _eta_card("Y", lam_out, l0_out_m, tw_eff, N, e0_out, ea_out,
                       float(sl.get("factor_out", 1.0) or 1.0),
                       float(sl.get("Ncr_out", 0.0) or 0.0),
                       float(full["M_out_d"]), M_out, pd_method,
-                      float(full["phi_L"]),
-                      m_sym=_sym_out, m_star_sym=f"{_sym_out}*"),
+                      _phi_out,
+                      m_sym=_sym_out, m_star_sym=f"{_sym_out}*",
+                      eta_clamped=bool(full.get("eta_clamped_out"))
+                      and pd_method != "none"),
         ]})
     # Kết quả mục 5 ở CUỐI mục: mô men thiết kế dùng cho mục 6
     # (không phải ĐẠT/KHÔNG ĐẠT — η/M* là đầu vào, không phải
@@ -581,6 +598,44 @@ def build_wall_detail_sections(full):
         f"Mα = {_f(float(full['Malpha']), 2)} kN·m")
     _sec5_res["full"] = True
     sections[-1]["cards"].append(_sec5_res)
+    # Ghi chú phạm vi & phương pháp (2026-10-28, 5 quyết sau đối
+    # chiếu Hướng dẫn BXD QĐ 862) — chỉ ghi chú, không đổi số:
+    # (1) e0 = max(e1, ea) là quy tắc SIÊU TĨNH; (2) ngoài MP chỉ
+    # kiểm tia song trục duy nhất, không kiểm φ tách rời kiểu
+    # ví dụ §7; (5) không áp η theo thành phần tải kiểu §7.
+    _lt_has = bool(full.get("lt_has_data"))
+    if _lt_has:
+        _phi_txt = (
+            f"φl tính từ tải dài hạn nhập tay ở mục 4 theo "
+            f"Hướng dẫn BXD §5.1.2 (5-31): φl = 1 + M1l/M1 (kẹp "
+            f"≤ 2), từng phương độc lập; trong MP φl = "
+            f"{_f(_phi_in, 3)}, ngoài MP φl = {_f(_phi_out, 3)}. "
+            f"a trong (h0 − a')/2 lấy tới lớp thép dọc ngoài cùng "
+            f"(cover_đai + dia_h + dia_dọc/2) — giả định của app "
+            f"(ví dụ §7 dùng trọng tâm cả nhóm thép vùng biên).")
+    else:
+        _phi_txt = (
+            "φl = 2,0 (mặc định khi không nhập tải dài hạn ở mục 4 "
+            "— giới hạn trên, thiên an toàn, đúng hành vi cũ).")
+    _sec5_scope = _card(
+        "Phạm vi & phương pháp — đọc trước khi đối chiếu",
+        "Hướng dẫn BXD QĐ 862 §5.1.2, §7 (đối chiếu 2026-10-28)",
+        ["e0 = max(e1, ea) là quy tắc cho kết cấu SIÊU TĨNH theo "
+         "Hướng dẫn BXD §5.1.2. Cấu kiện TĨNH ĐỊNH theo tài liệu "
+         "phải dùng e0 = e1 + ea nên NẰM NGOÀI phạm vi hiện tại "
+         "của app (app chưa có lựa chọn tĩnh định).",
+         "Kiểm tra ngoài mặt phẳng: app dùng MỘT kiểm tra song "
+         "trục duy nhất trên tia (N, M_in*, M_out*) — không làm "
+         "kiểm tra φ tách rời như ví dụ §7 của Hướng dẫn BXD. "
+         "Kiểm tra song trục chặt hơn kiểm tra tách rời nên kết "
+         "luận có thể khác ví dụ §7 ở cùng tiết diện.",
+         "η: app dùng MỘT η mỗi phương theo chữ §5.1.2 (nhân e0 "
+         "tổng của phương đó); không áp η theo thành phần tải "
+         "như ví dụ §7 (ηv cho tải đứng, ηh cho tải gió).",
+         _phi_txt],
+        "")
+    _sec5_scope["full"] = True
+    sections[-1]["cards"].append(_sec5_scope)
 
     # ================= MỤC 6: N–Mα & D/C =================
     lam_ray = float(full["lambda_ray"])

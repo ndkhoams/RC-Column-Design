@@ -1207,6 +1207,28 @@ class WallMixin:
                                         padx=4, pady=2)
             wx.grid(row=i, column=1, padx=4, pady=2, sticky=tk.EW)
             wy.grid(row=i, column=2, padx=4, pady=2, sticky=tk.EW)
+        # Tải dài hạn cho φl (2026-10-28, Hướng dẫn BXD §5.1.2
+        # (5-31)): hàng N chung + hàng M theo 2 phương X/Y của
+        # mục 4 (X = trong MP, Y = ngoài MP). Để trống/0 → φl =
+        # 2,0 như cũ; nhập đủ → φl tính từng phương độc lập.
+        self.w_en_lt_N = _entry(f4, D["N_lt"])
+        self.w_en_lt_Min = _entry(f4, D["M_in_lt"])
+        self.w_en_lt_Mout = _entry(f4, D["M_out_lt"])
+        ttk.Label(f4, text="Tải dài hạn N (kN) — φl",
+                  width=self._LBL_WIDTH, anchor=tk.W).grid(
+                      row=6, column=0, sticky=tk.W, padx=4, pady=2)
+        self.w_en_lt_N.grid(row=6, column=1, padx=4, pady=2,
+                            sticky=tk.EW)
+        ttk.Label(f4, text="(0 → φl = 2,0)",
+                  anchor=tk.W).grid(row=6, column=2, sticky=tk.W,
+                                    padx=4, pady=2)
+        ttk.Label(f4, text="Tải dài hạn M (kN·m) — φl",
+                  width=self._LBL_WIDTH, anchor=tk.W).grid(
+                      row=7, column=0, sticky=tk.W, padx=4, pady=2)
+        self.w_en_lt_Min.grid(row=7, column=1, padx=4, pady=2,
+                              sticky=tk.EW)
+        self.w_en_lt_Mout.grid(row=7, column=2, padx=4, pady=2,
+                               sticky=tk.EW)
         # (Ghi chú xám dưới mục 4 đã bỏ theo ghi chú đỏ của user
         # 2026-10-25 — chỉ xóa hiển thị, không đổi cách suy L₀.)
 
@@ -1981,6 +2003,10 @@ class WallMixin:
                                    "ngam_nua_cung"),
             "lk_bot_y": rev_bn.get(self.w_cb_lk_by.get(),
                                    "ngam_nua_cung"),
+            # Tải dài hạn cho φl (mục 4, 2026-10-28).
+            "N_lt": num(self.w_en_lt_N, D["N_lt"]),
+            "M_in_lt": num(self.w_en_lt_Min, D["M_in_lt"]),
+            "M_out_lt": num(self.w_en_lt_Mout, D["M_out_lt"]),
             # Nội lực vách lấy từ mục 5 dùng chung khi CHECK
             # (_collect_wall_loads); trong JSON giữ 0 như WallInput
             # mặc định (nội lực thật nằm ở các khóa mục 5 của file).
@@ -2105,6 +2131,11 @@ class WallMixin:
                                                "Ngàm nửa cứng"))
         se(self.w_en_psi_x, sv(d["psi_x"]))
         se(self.w_en_psi_y, sv(d["psi_y"]))
+        # Tải dài hạn cho φl (mục 4, 2026-10-28); file cũ thiếu
+        # khóa -> mặc định 0 (φl = 2,0 như cũ).
+        se(self.w_en_lt_N, sv(d["N_lt"]))
+        se(self.w_en_lt_Min, sv(d["M_in_lt"]))
+        se(self.w_en_lt_Mout, sv(d["M_out_lt"]))
         # Bổ sung
         self.w_cb_dia_h.set(sv(d["dia_h"]))
         se(self.w_en_s_h, sv(d["s_h"]))
@@ -3063,7 +3094,12 @@ class WallMixin:
              f"{full['e0_out']:.1f} mm"),
             ("e0x", "Độ lệch tâm ban đầu trong mặt phẳng",
              f"{full.get('e0_in', 0.0):.1f} mm"),
-            ("φL", "Hệ số φL", f"{full['phi_L']:.2f}"),
+            ("φL", "Hệ số φL",
+             (f"{full.get('phi_L_in', full['phi_L']):.2f} (trong MP) / "
+              f"{full.get('phi_L_out', full['phi_L']):.2f} (ngoài MP)")
+             if abs(float(full.get('phi_L_in', full['phi_L']))
+                    - float(full.get('phi_L_out', full['phi_L']))) > 1e-9
+             else f"{full['phi_L']:.2f}"),
             ("Ncr", "Lực tới hạn Euler ngoài mặt phẳng",
              f"{sl['Ncr_out']:,.0f} kN"),
             ("η", "Hệ số uốn dọc ngoài mặt phẳng",
@@ -3095,6 +3131,24 @@ class WallMixin:
                             "Lực cắt trong MP đã phóng đại kháng chấn "
                             "(TCVN 9386-1:2025 §5.4.2.4(7) DCM)",
                             f"{_sh['V_d']:.1f} kN"))
+        # Cảnh báo η kẹp (2026-10-28): η = 10,0 do Ncr ≤ |N| là
+        # giá trị kẹp tùy tiện, không phải giá trị vật lý — hiện
+        # ngay sau hàng ηx trong bảng thông số (chi tiết đầy đủ
+        # ở tab Chi tiết, mục 5).
+        if full.get("eta_clamped_in") or full.get("eta_clamped_out"):
+            _cdirs = []
+            if full.get("eta_clamped_in"):
+                _cdirs.append("trong MP")
+            if full.get("eta_clamped_out"):
+                _cdirs.append("ngoài MP")
+            _eta_idx = next((i for i, r in enumerate(rows)
+                             if r[0] == "ηx"), None)
+            if _eta_idx is not None:
+                rows.insert(_eta_idx + 1,
+                            ("⚠ η kẹp",
+                             "Cảnh báo: η bị kẹp ở 10,0 (" + " + ".join(_cdirs)
+                             + ") vì Ncr ≤ |N| — kiểm tra lại độ mảnh/tiết diện",
+                             "η = 10,000 (kẹp)"))
         # Hàng D/C N–M đặt ngay sau hàng α (ghi chú đỏ user
         # 2026-10-25: trước đây nằm cuối bảng, dưới nếp gấp khi
         # Treeview chỉ cao 20 hàng nên không nhìn thấy được) — lấy

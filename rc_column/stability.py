@@ -137,6 +137,44 @@ class BucklingResult:
     Ncrx: float; Ncry: float          # lực tới hạn Euler (kN)
     etax: float; etay: float          # hệ số uốn dọc η
     Mx_star: float; My_star: float    # mô men đã phóng đại (kN·m)
+    # η bị kẹp ở 10,0 vì Ncr ≤ |N| VÀ cổng λ > 14 đã cho η đó đi
+    # vào tính (2026-10-28, quyết sau đối chiếu BXD QĐ 862):
+    # giá trị kẹp không phải giá trị vật lý — đầu gọi phải hiển
+    # thị cảnh báo kèm Ncr/N. Khi λ ≤ 14 (η = 1,0) cờ này False
+    # vì η kẹp không được dùng.
+    eta_clamped_x: bool = False
+    eta_clamped_y: bool = False
+
+
+def phi_l_dir(N: float, M: float, N_lt: float, M_lt: float,
+              h_mm: float, a_mm: float, has_data: bool = True) -> float:
+    """Hệ số φl theo từng phương, theo Hướng dẫn BXD §5.1.2
+    công thức (5-31) và cách tính của ví dụ §7:
+    φl = 1 + M1l/M1, kẹp [1, 2], trong đó M1/M1l là mô men đối
+    với trọng tâm thanh thép chịu kéo nhiều nhất (hoặc chịu nén
+    ít nhất khi toàn tiết diện chịu nén) do toàn bộ tải trọng /
+    do tải dài hạn. Với tiết diện đối xứng, khoảng cách từ trọng
+    tâm tiết diện tới trọng tâm thép đó là (h0 − a')/2 = (h − 2a)/2
+    (h0 = h − a, a' = a), nên M1 = |M| + |N|·(h − 2a)/2000 (kN·m,
+    N kN, h/a mm) và M1l tương tự với tải dài hạn.
+    GIẢ ĐỊNH của app cho vách: a = khoảng cách từ mép tới lớp
+    thép dọc ngoài cùng = cover_đai + dia_h + dia_dọc/2 (xem
+    wall_engine._wall_phi_l_dir); với thép vùng biên tập trung
+    nhiều lớp thì đây là xấp xỉ lớp ngoài cùng, không phải trọng
+    tâm của cả nhóm thép vùng biên như ví dụ §7 (a = 79 mm).
+    Không có dữ liệu dài hạn (has_data False) → 2,0 (giới hạn
+    trên, thiên an toàn), đúng hành vi cũ của app.
+    """
+    if not has_data:
+        return 2.0
+    lever = float(h_mm) - 2.0 * float(a_mm)
+    if lever <= 0.0:
+        return 2.0
+    M1 = abs(M) + abs(N) * lever / 2000.0
+    M1l = abs(M_lt) + abs(N_lt) * lever / 2000.0
+    if M1 <= 1e-12:
+        return 2.0
+    return min(2.0, max(1.0, 1.0 + M1l / M1))
 
 
 # Ngưỡng cổng η — TCVN 5574:2018 §8.1.2.1.2: chỉ kể đến ảnh hưởng
@@ -150,7 +188,8 @@ def buckling_factors(e0x: float, e0y: float, cx: float, cy: float,
                      Isx: float, Isy: float, L0x: float, L0y: float,
                      N: float, Mx: float, My: float,
                      lambda_x: float = None,
-                     lambda_y: float = None) -> BucklingResult:
+                     lambda_y: float = None,
+                     phiLx: float = None, phiLy: float = None) -> BucklingResult:
     """Tính hệ số uốn dọc theo CT (44)-(48) + cổng λ §8.1.2.1.2.
 
     Eb (MPa), I (mm⁴), L0 (m), N (kN), M (kN·m).
@@ -166,12 +205,20 @@ def buckling_factors(e0x: float, e0y: float, cx: float, cy: float,
     thuyết minh in; vách: lam_out/lam_in). Không truyền thì fallback
     slenderness(L0x, cy) / slenderness(L0y, cx) — đúng tuyệt đối
     với tiết diện chữ nhật/tròn (i = h/√12).
+    phiLx/phiLy (2026-10-28, cho vách nhập tải dài hạn theo từng
+    phương): khi cho, khe x dùng phiLx, khe y dùng phiLy; không
+    cho thì cả 2 khe dùng phiL như cũ (cột giữ nguyên hành vi).
+    Khi Ncr ≤ |N| thì η thô bị kẹp ở 10,0 (giá trị tùy tiện, không
+    có trong chuẩn — xem eta_clamped_*): cờ kẹp chỉ bật khi η kẹp
+    đó thật sự được áp (λ > 14), để thuyết minh cảnh báo đúng.
     """
     # δe: e0y cho phương X (uốn trong mặt phẳng y), e0x cho phương Y
     d_ex = min(max(e0y / max(cy, 1e-9), 0.15), 1.5)
     d_ey = min(max(e0x / max(cx, 1e-9), 0.15), 1.5)
-    kbx = 0.15 / (phiL * (0.3 + d_ex))
-    kby = 0.15 / (phiL * (0.3 + d_ey))
+    _plx = phiL if phiLx is None else phiLx
+    _ply = phiL if phiLy is None else phiLy
+    kbx = 0.15 / (_plx * (0.3 + d_ex))
+    kby = 0.15 / (_ply * (0.3 + d_ey))
     Es = 2.0e5  # MPa
     ks = 0.7
     # Đổi đơn vị: Eb(MPa=N/mm²)·I(mm⁴) = N·mm² → kN·m²: /1e9
@@ -189,7 +236,13 @@ def buckling_factors(e0x: float, e0y: float, cx: float, cy: float,
     etax = raw_etax if lambda_x > ETA_SLENDERNESS_LIMIT else 1.0
     etay = raw_etay if lambda_y > ETA_SLENDERNESS_LIMIT else 1.0
     return BucklingResult(d_ex, d_ey, kbx, kby, Dx, Dy, Ncrx, Ncry,
-                          etax, etay, etax * Mx, etay * My)
+                          etax, etay, etax * Mx, etay * My,
+                          eta_clamped_x=(raw_etax == 10.0
+                                         and lambda_x
+                                         > ETA_SLENDERNESS_LIMIT),
+                          eta_clamped_y=(raw_etay == 10.0
+                                         and lambda_y
+                                         > ETA_SLENDERNESS_LIMIT))
 
 
 def design_moment(N: float, M: float, e0_mm: float, eta: float,

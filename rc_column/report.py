@@ -194,6 +194,19 @@ def _build_report(inp: ColumnInput, res: CheckResult,
     b.line("D_{2} / D_{3}", "", f"{_f(res.Dx, 1)} / {_f(res.Dy, 1)} kN·m²")
     b.line("N_{cr,2} / N_{cr,3}", "", f"{_f(res.Ncrx, 1)} / {_f(res.Ncry, 1)} kN")
     b.line("η_{2} / η_{3}", "", f"{_f(res.etax, 3)} / {_f(res.etay, 3)}")
+    if getattr(res, "eta_clamped_x", False) \
+            or getattr(res, "eta_clamped_y", False):
+        # 2026-10-28 (quyết sau đối chiếu BXD QĐ 862): η = 10,0 là
+        # giá trị kẹp tùy tiện khi Ncr ≤ |N|, không có trong chuẩn.
+        A("  ▪ CẢNH BÁO: η đã bị kẹp ở 10,0 ở phương "
+          f"{'2' if getattr(res, 'eta_clamped_x', False) else ''}"
+          f"{' và ' if getattr(res, 'eta_clamped_x', False) and getattr(res, 'eta_clamped_y', False) else ''}"
+          f"{'3' if getattr(res, 'eta_clamped_y', False) else ''} "
+          f"vì Ncr ≤ |N| (Ncr,2 = {_f(res.Ncrx, 1)} kN, "
+          f"Ncr,3 = {_f(res.Ncry, 1)} kN, |N| = {_f(abs(res.N), 1)} kN) "
+          f"— giá trị này không phải giá trị vật lý, cần kiểm tra "
+          f"lại độ mảnh/tiết diện trước khi dùng mô men phóng đại này.\n",
+          "card")
     b.line("M_{2}* = N·e_{02}·η_{2}/1000", "", f"{_f(res.Mx_star, 1)} kN·m")
     b.line("M_{3}* = N·e_{03}·η_{3}/1000", "", f"{_f(res.My_star, 1)} kN·m")
 

@@ -87,6 +87,16 @@ class WallInput:
     V_out: float = 0.0          # kN, ngoài mặt phẳng (V3 của pier)
     T: float = 0.0              # kN·m — GĐ1 chỉ lưu/cảnh báo, không kiểm xoắn
 
+    # --- Tải dài hạn cho φl vách (2026-10-28, quyết sau đối chiếu
+    # Hướng dẫn BXD QĐ 862 §5.1.2 (5-31)): nhập tay ở mục 4, dùng
+    # cho đường nhập tay TCVN; batch ETABS vách (chưa có trong
+    # cây này) giữ φl mặc định 2,0 cho tới khi có dữ liệu dài hạn
+    # riêng. Cả 3 số đều 0 (mặc định / file cũ thiếu khóa) → coi
+    # như không nhập → φl = 2,0, số cũ không đổi.
+    N_lt: float = 0.0           # kN, lực dọc dài hạn, nén dương
+    M_in_lt: float = 0.0        # kN·m, mô men dài hạn trong MP
+    M_out_lt: float = 0.0       # kN·m, mô men dài hạn ngoài MP
+
     # --- Mục 2 theo format web (2026-10-23) ---
     section_type: str = "rect"  # "rect" | "barbell" | "tee" | "ell"
                                 # | "c-core" | "u-core" | "dxf" (lát
