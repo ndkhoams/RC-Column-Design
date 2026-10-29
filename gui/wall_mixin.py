@@ -7,8 +7,12 @@ JSON (_collect_wall/_apply_wall), và điều phối CHECK ở chế độ Vách
 Lát 1: CHECK tay theo TCVN chạy engine vách (rc_column/wall_engine)
 qua hàm duy nhất _tcvn_wall_calculate_full, kết quả lưu ở
 self._tcvn_wall_full và hiển thị ở tab Kết quả/Chi tiết từ đúng dict
-đó. ACI/EC2 vách (lát 2) và batch Pier Forces (lát 5) vẫn báo rõ
-chưa hỗ trợ — tuyệt đối không chạy engine cột cho dữ liệu vách.
+đó. Lát 5: batch Pier Forces (ETABS) theo TCVN cũng chạy đúng hàm
+này cho từng dòng (rc_column/wall_batch.run_wall_batch) — kết quả
+mỗi dòng lưu ở self._wall_batch_rows, chọn 1 dòng nạp vào
+self._tcvn_wall_full để tab Kết quả/Chi tiết đọc như đường tay.
+ACI/EC2 vách (lát 2) vẫn báo rõ chưa hỗ trợ — tuyệt đối không chạy
+engine cột cho dữ liệu vách.
 PDF vách TCVN (tóm tắt 1 trang + chi tiết cards) đã hỗ trợ từ
 rc_column/wall_pdf_summary.py / wall_pdf_report.py qua
 gui/pdf_mixin.py. Thiết kế: THIET_KE_TICH_HOP_VACH_GD1.md §2, §6, §8.
@@ -2206,18 +2210,16 @@ class WallMixin:
     def _on_check_wall(self):
         """CHECK ở chế độ Vách: rẽ theo nguồn nội lực + tiêu chuẩn.
 
-        Chỉ nhập tay + TCVN (như vách phẳng). ETABS (batch pier)
-        -> lát 5; ACI/EC2 vách -> lát 2 — 2 đường này vẫn chặn
-        cho cả 5 loại mới. Lát N–M (2026-10-27): 5 loại mới đã
-        tính được N–M (khung trọng tâm, wall_engine) nên CHECK
-        nhập tay + TCVN được MỞ; cắt/PDF cho loại mới vẫn chặn
-        (cắt pending trong engine, PDF chặn ở _export_pdf).
+        TCVN + nhập tay -> _check_wall_tcvn; TCVN + ETABS (batch
+        pier) -> _check_wall_etabs_batch (lát 5, mở 2026-10-27);
+        ACI/EC2 vách -> lát 2, vẫn chặn cho cả 6 loại. PDF cho loại
+        mới vẫn chặn ở _export_pdf (không thuộc lát này).
         """
-        if self.var_load_mode.get() == "etabs":
-            self._wall_notice("Kiểm tra theo Pier Forces (ETABS)", "lát 5")
-            return
         if self.is_ec2() or self.is_aci():
             self._wall_notice("Kiểm tra vách theo tiêu chuẩn này", "lát 2")
+            return
+        if self.var_load_mode.get() == "etabs":
+            self._check_wall_etabs_batch()
             return
         self._check_wall_tcvn()
 
@@ -2278,9 +2280,9 @@ class WallMixin:
             # Đường nhập tay không có tên combo: phóng đại DCM theo
             # cờ kháng chấn DCM của panel vách (w_var_seismic, mặc
             # định BẬT — Q2: cho tắt). Combo động đất ở popup mục 5
-            # là lớp riêng cho đường batch ETABS (lát 5 sẽ tiêu thụ
-            # cờ theo từng combo); ở đây không có combo nên không
-            # xét seismic_combo_selected.
+            # chỉ đường batch ETABS tiêu thụ (theo từng combo, xem
+            # _check_wall_etabs_batch); ở đây không có combo nên
+            # không xét seismic_combo_selected.
             _seis = bool(getattr(self, "w_var_seismic", None) is not None
                          and self.w_var_seismic.get())
             full = self._tcvn_wall_calculate_full(
@@ -2293,6 +2295,237 @@ class WallMixin:
         self._tcvn_wall_full = full
         self._show_wall_result(full)
         self._defer_detail(lambda _f=full: self._render_wall_detail(_f))
+
+    # ---------------- Batch vách TCVN từ bảng Pier (lát 5) ----------------
+    def _load_wall_batch_row(self, row):
+        """Nạp 1 hàng batch vào tab Kết quả/Chi tiết.
+
+        Chỉ đọc dict kết quả đã lưu ở hàng đó (không tính lại) —
+        đúng đường hiển thị của _check_wall_tcvn. Hàng lỗi (full
+        None) thì báo và giữ nguyên tab hiện tại.
+        """
+        full = (row or {}).get("full")
+        if full is None:
+            messagebox.showinfo(
+                "Kết quả batch vách",
+                "Dòng này lỗi khi tính: "
+                f"{(row or {}).get('error') or 'không rõ'} — "
+                "không có kết quả để xem.")
+            return
+        self._tcvn_wall_full = full
+        self._show_wall_result(full)
+        self._defer_detail(lambda _f=full: self._render_wall_detail(_f))
+
+    def _check_wall_etabs_batch(self):
+        """CHECK vách TCVN cho mọi dòng Pier đã paste (lát 5).
+
+        Parity với batch cột (on_check_etabs): chạy trên bảng đang
+        hiển thị self.etabs_forces (đã gộp cặp max/min của các combo
+        động đất theo seismic_selected — xem _refresh_merge_display),
+        TX_* bỏ khỏi kiểm tra như batch cột. Mỗi dòng chạy đúng hàm
+        tính duy nhất _tcvn_wall_calculate_full qua
+        rc_column.wall_batch.run_wall_batch (ánh xạ Pier -> loads +
+        DCM theo từng combo ở đó); L vách lấy từ mục 4 panel như
+        đường nhập tay — Station (mã Top/Bottom) KHÔNG dùng làm L.
+        Kết quả: cột D/C chung của bảng mục 5 được điền (max 3 phần),
+        cửa sổ bảng batch riêng liệt kê D/C từng phần + khống chế,
+        và dòng khống chế chung được nạp vào tab Kết quả/Chi tiết.
+        Phương pending (C/U ngoài MP) hiện CHƯA KIỂM ở đúng ô đó,
+        không chặn batch. PDF cho loại mới vẫn chặn ở _export_pdf.
+        """
+        from rc_column.wall_batch import (
+            run_wall_batch, wall_batch_controlling)
+        forces = list(getattr(self, "etabs_forces", None) or [])
+        if not forces:
+            messagebox.showinfo("ETABS",
+                                "Hãy import nội lực Pier trước.")
+            return
+        check = [f for f in forces
+                 if not (getattr(f, "case", "") or "").strip()
+                 .startswith("TX_")]
+        if not check:
+            messagebox.showinfo(
+                "ETABS",
+                "Chỉ có tổ hợp TX_*, không có tổ hợp nào để kiểm tra.")
+            return
+        try:
+            winp = wall_from_dict(self._collect_wall())
+            conc, steel, model = self._wall_tcvn_materials()
+            steel_sw = self._wall_sw_material()
+            seismic = set(getattr(self, "seismic_combo_selected",
+                                  set()) or set())
+
+            def _calc(loads, case_info, seismic_shear):
+                return self._tcvn_wall_calculate_full(
+                    winp, conc, steel, model, loads=loads,
+                    case_info=case_info, steel_sw=steel_sw,
+                    seismic_shear=seismic_shear)
+
+            rows = run_wall_batch(winp, conc, steel, model, check,
+                                  seismic_selected=seismic,
+                                  steel_sw=steel_sw, calc=_calc)
+        except Exception as ex:
+            messagebox.showerror("Lỗi", str(ex))
+            return
+        self._wall_batch_rows = rows
+        # Điền cột D/C chung vào bảng mục 5 (parity batch cột):
+        # TX_* giữ trống như _fill_etabs_table vẫn làm.
+        _by_id = {id(r["force"]): r for r in rows}
+        try:
+            self._fill_etabs_table(
+                [(f, ({"dc": _by_id[id(f)]["dc_overall"]}
+                      if id(f) in _by_id else None))
+                 for f in forces])
+        except Exception:
+            pass
+        try:
+            _ctrl = wall_batch_controlling(rows)
+            _ov = _ctrl.get("overall")
+            _ov_txt = (f"{_ov['force'].case} "
+                       f"(D/C {_ov['dc_overall']:.3f})"
+                       if _ov is not None else "—")
+            self.etabs_info.set(
+                f"Batch vách: {len(rows)} dòng, khống chế chung: "
+                f"{_ov_txt}.")
+        except Exception:
+            pass
+        self._show_wall_batch_window(rows)
+        # Nạp dòng khống chế chung vào tab Kết quả/Chi tiết (nếu có)
+        # để user thấy ngay chi tiết mà không cần mở bảng batch.
+        try:
+            _ov = wall_batch_controlling(rows).get("overall")
+        except Exception:
+            _ov = None
+        if _ov is not None:
+            self._load_wall_batch_row(_ov)
+
+    def _show_wall_batch_window(self, rows):
+        """Cửa sổ bảng kết quả batch vách (không modal để user vẫn
+        xem được tab Kết quả/Chi tiết sau khi chọn dòng).
+
+        Cột: Story | Pier | Combo | Vị trí | D/C N–M | D/C cắt
+        trong MP | D/C cắt ngoài MP | V_Ed trong MP | DCM 1,5× |
+        Kết luận từng phần. Dòng khống chế từng phần + chung ghi ở
+        khung tóm tắt phía trên. Đúp-click 1 dòng (hoặc nút "Xem chi
+        tiết") nạp đúng combo đó vào tab Kết quả/Chi tiết.
+        """
+        from rc_column.wall_batch import (
+            dc_txt, ok_txt, wall_batch_controlling)
+        _old = getattr(self, "_wall_batch_top", None)
+        if _old is not None:
+            try:
+                if _old.winfo_exists():
+                    _old.destroy()
+            except Exception:
+                pass
+        top = tk.Toplevel(self)
+        top.title("Kết quả batch vách — Pier Forces (ETABS)")
+        top.transient(self)
+        top.minsize(980, 420)
+        self._wall_batch_top = top
+        _bg = top.cget("bg")
+        _ctrl = wall_batch_controlling(rows)
+
+        def _ctrl_txt(key, dc_key):
+            r = _ctrl.get(key)
+            if r is None:
+                return "CHƯA KIỂM"
+            return (f"{r['force'].case} "
+                    f"({getattr(r['force'], 'location', '') or ''}) "
+                    f"D/C {dc_txt(r[dc_key])}")
+
+        _sum = tk.Frame(top, bg=_bg)
+        _sum.pack(fill=tk.X, padx=10, pady=(10, 4))
+        tk.Label(
+            _sum,
+            text=(f"Batch vách TCVN 5574:2018 — {len(rows)} dòng "
+                  f"(TX_* bỏ khỏi kiểm tra; phương CHƯA KIỂM không "
+                  f"chặn batch). D/C chung của 1 dòng = max 3 phần "
+                  f"đã kiểm."),
+            font=("", 9, "italic"), bg=_bg, wraplength=960,
+            justify=tk.LEFT).pack(anchor=tk.W)
+        for _lab, _key, _dk in (
+                ("Khống chế N–M:", "nm", "dc_nm"),
+                ("Khống chế cắt trong MP:", "in", "dc_in"),
+                ("Khống chế cắt ngoài MP:", "out", "dc_out"),
+                ("Khống chế chung:", "overall", "dc_overall")):
+            tk.Label(
+                _sum, text=f"{_lab} {_ctrl_txt(_key, _dk)}",
+                font=("", 9, "bold"), bg=_bg, anchor=tk.W,
+                justify=tk.LEFT).pack(anchor=tk.W)
+        cols = ("story", "pier", "combo", "pos", "dc_nm", "dc_in",
+                "dc_out", "ved_in", "dcm", "concl")
+        tree = ttk.Treeview(top, columns=cols, show="headings",
+                            height=22)
+        _heads = {
+            "story": "Story", "pier": "Pier", "combo": "Combo",
+            "pos": "Vị trí", "dc_nm": "D/C N–M",
+            "dc_in": "D/C cắt trong MP",
+            "dc_out": "D/C cắt ngoài MP",
+            "ved_in": "V_Ed trong MP (kN)", "dcm": "DCM 1,5×",
+            "concl": "Kết luận (N–M / Trong / Ngoài)",
+        }
+        _widths = {"story": 70, "pier": 60, "combo": 100, "pos": 80,
+                   "dc_nm": 90, "dc_in": 120, "dc_out": 120,
+                   "ved_in": 130, "dcm": 70, "concl": 260}
+        for c in cols:
+            tree.heading(c, text=_heads[c])
+            tree.column(c, width=_widths[c], anchor="center")
+        tree.column("concl", anchor="w")
+        tree.tag_configure("over", foreground="#991B1B")
+        tree.tag_configure("even", background="#F9FAFB")
+        # iid Treeview đếm lại từ đầu mỗi cửa sổ nên map phải reset
+        # (không giữ iid cũ của cửa sổ batch trước).
+        self._wall_batch_tree_ids = {}
+        for i, r in enumerate(rows):
+            f = r["force"]
+            _pos = (getattr(f, "location", "")
+                    or f"{float(getattr(f, 'station', 0.0)):.2f}")
+            _ved = (f"{float(r['V_ed_in']):.1f}"
+                    if r["V_ed_in"] is not None else "—")
+            _concl = (f"N–M: {ok_txt(r['ok_nm'])} / "
+                      f"Trong: {ok_txt(r['ok_in'])} / "
+                      f"Ngoài: {ok_txt(r['ok_out'])}")
+            if r.get("error"):
+                _concl = f"Lỗi khi tính: {r['error']}"
+            _tags = []
+            if i % 2 == 0:
+                _tags.append("even")
+            if any((r[k] or 0) > 1 for k in ("dc_nm", "dc_in",
+                                             "dc_out")
+                   if r[k] is not None):
+                _tags.append("over")
+            _iid = tree.insert(
+                "", tk.END,
+                values=(f.story, f.column, f.case, _pos,
+                        dc_txt(r["dc_nm"]), dc_txt(r["dc_in"]),
+                        dc_txt(r["dc_out"]), _ved,
+                        "Có" if r["seismic"] else "Không", _concl),
+                tags=tuple(_tags))
+            # iid -> hàng batch (không dựa vào thứ tự hiển thị).
+            self._wall_batch_tree_ids[_iid] = r
+        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
+
+        def _view_selected(_ev=None):
+            _sel = tree.selection()
+            if not _sel:
+                return
+            _row = self._wall_batch_tree_ids.get(_sel[0])
+            if _row is not None:
+                self._load_wall_batch_row(_row)
+
+        tree.bind("<Double-1>", _view_selected)
+        btn_row = ttk.Frame(top)
+        btn_row.pack(fill=tk.X, padx=10, pady=(2, 10))
+        ttk.Button(btn_row, text="Xem chi tiết",
+                   command=_view_selected).pack(side=tk.LEFT)
+        ttk.Button(btn_row, text="Đóng",
+                   command=top.destroy).pack(side=tk.RIGHT)
+        try:
+            from gui.dialog_center import center_dialog
+            center_dialog(top)
+        except Exception:
+            pass
 
     # ---------------- Hiển thị: lưới tab Kết quả (như bên cột) --------
     def _new_wall_fig(self, parent, figsize):
