@@ -837,49 +837,70 @@ class BuildMixin:
                       padx=(10, 4), pady=(0, 2))
 
         # ---- Chế độ nhập tay ----
+        # Lát 2 cột 2026-10-29 (chỉ đổi layout, không đổi widget/giá
+        # trị/logic/khóa): khung nhập tay dùng chung cho Cột và Vách
+        # nên lát này gọn cả 2 chế độ. Ghép cặp theo quan hệ: M2+M3
+        # (cặp mô men), V2+V3 (cặp lực cắt); N đơn (vô hướng) và
+        # N dài hạn đơn giữ hàng full-width (nhãn + ô span 3).
+        # Khung tải dài hạn ghép M2+M3 dài hạn tương tự.
+        def _man_grid(parent):
+            for _c in range(4):
+                parent.columnconfigure(_c, weight=1)
+
+        def _man_pair(parent, r, llab, lwid, rlab, rwid):
+            ttk.Label(parent, text=llab, style="Muted.TLabel").grid(
+                row=r, column=0, sticky=tk.W, padx=(4, 8), pady=5)
+            lwid.grid(row=r, column=1, sticky=tk.EW, padx=4, pady=5)
+            ttk.Label(parent, text=rlab, style="Muted.TLabel").grid(
+                row=r, column=2, sticky=tk.W, padx=(4, 8), pady=5)
+            rwid.grid(row=r, column=3, sticky=tk.EW, padx=4, pady=5)
+
+        def _man_single(parent, r, lab, wid):
+            ttk.Label(parent, text=lab, style="Muted.TLabel").grid(
+                row=r, column=0, sticky=tk.W, padx=(4, 8), pady=5)
+            wid.grid(row=r, column=1, columnspan=3, sticky=tk.EW,
+                     padx=4, pady=5)
+
         self.manual_frame = ttk.Frame(f)
         self.manual_frame.grid(row=2, column=0, columnspan=2, sticky=tk.EW)
+        _man_grid(self.manual_frame)
         self.en_N = ttk.Entry(self.manual_frame, width=18)
         self.en_N.insert(0, "1500")
-        self._row(self.manual_frame, "Lực dọc N (kN)",
-                  self.en_N, 0)
+        _man_single(self.manual_frame, 0, "Lực dọc N (kN)", self.en_N)
         self.en_Mx = ttk.Entry(self.manual_frame, width=18)
         self.en_Mx.insert(0, "80")
-        self._row(self.manual_frame, "Mô men M2 (kN·m)",
-                  self.en_Mx, 1)
         self.en_My = ttk.Entry(self.manual_frame, width=18)
         self.en_My.insert(0, "60")
-        self._row(self.manual_frame, "Mô men M3 (kN·m)",
-                  self.en_My, 2)
+        _man_pair(self.manual_frame, 1, "Mô men M2 (kN·m)", self.en_Mx,
+                  "Mô men M3 (kN·m)", self.en_My)
         self.en_Q2 = ttk.Entry(self.manual_frame, width=18)
         self.en_Q2.insert(0, "0")
-        self._row(self.manual_frame, "Lực cắt V2 (kN)",
-                  self.en_Q2, 3)
         self.en_Q3 = ttk.Entry(self.manual_frame, width=18)
         self.en_Q3.insert(0, "0")
-        self._row(self.manual_frame, "Lực cắt V3 (kN)",
-                  self.en_Q3, 4)
+        _man_pair(self.manual_frame, 2, "Lực cắt V2 (kN)", self.en_Q2,
+                  "Lực cắt V3 (kN)", self.en_Q3)
         self.var_lt = tk.BooleanVar(value=False)
         tk.Checkbutton(self.manual_frame, text="Khai báo thành phần tải dài hạn",
                        variable=self.var_lt,
                        command=self._toggle_lt,
                        bg="white", activebackground="white",
-                       highlightthickness=0).grid(row=5, column=0,
-                                                  columnspan=2, sticky=tk.W,
+                       highlightthickness=0).grid(row=3, column=0,
+                                                  columnspan=4, sticky=tk.W,
                                                   padx=4, pady=4)
         self.lt_frame = ttk.Frame(self.manual_frame)
-        self.lt_frame.grid(row=6, column=0, columnspan=2, sticky=tk.EW, padx=4)
+        self.lt_frame.grid(row=4, column=0, columnspan=4, sticky=tk.EW, padx=4)
         self.lt_frame.grid_remove()
+        _man_grid(self.lt_frame)
         self.en_Nlt = ttk.Entry(self.lt_frame, width=18); self.en_Nlt.insert(0, "0")
-        self._row(self.lt_frame, "N dài hạn (kN)", self.en_Nlt, 0)
+        _man_single(self.lt_frame, 0, "N dài hạn (kN)", self.en_Nlt)
         self.en_Mxlt = ttk.Entry(self.lt_frame, width=18); self.en_Mxlt.insert(0, "0")
-        self._row(self.lt_frame, "M2 dài hạn (kN·m)", self.en_Mxlt, 1)
         self.en_Mylt = ttk.Entry(self.lt_frame, width=18); self.en_Mylt.insert(0, "0")
-        self._row(self.lt_frame, "M3 dài hạn (kN·m)", self.en_Mylt, 2)
+        _man_pair(self.lt_frame, 1, "M2 dài hạn (kN·m)", self.en_Mxlt,
+                  "M3 dài hạn (kN·m)", self.en_Mylt)
         ttk.Label(self.lt_frame, foreground="gray", wraplength=380,
                   text="Nếu bỏ chọn: φL = 2.00 (thiên về an toàn). Nếu chọn: "
                        "xác định φLx, φLy theo Công thức (48), 1.00 ≤ φL ≤ 2.00."
-                  ).grid(row=3, column=0, columnspan=2, padx=4, pady=2,
+                  ).grid(row=2, column=0, columnspan=4, padx=4, pady=2,
                          sticky=tk.W)
 
         # ---- Chế độ import Excel ----

@@ -997,6 +997,12 @@ class WallMixin:
         self.w_lbl_wall_dxf_info.grid_remove()
         self._wall_dxf_row = r
         r += 1
+        # Khung xoay: chỉ tạo widget ở đây, chưa grid — hàng xoay
+        # được gộp chung với checkbox Đối xứng ở hàng _r_sym dưới
+        # (lát 2 cột 2026-10-29): 2 tùy chọn tiết diện chung 1 hàng,
+        # tiết kiệm 1 hàng cho Barbell/C/U (cả 2 cùng hiện); loại
+        # chỉ có xoay (T/L/DXF) thì nửa phải trống như hàng Bf đơn
+        # của T/C/U đối xứng, loại phẳng thì cả hàng trống (cao 0).
         rot_fr = ttk.Frame(f2)
         self.w_rot_var = tk.StringVar(value="0°")
         ttk.Label(rot_fr, textvariable=self.w_rot_var, width=5).pack(
@@ -1005,8 +1011,6 @@ class WallMixin:
                    command=self._rotate_wall).pack(side=tk.LEFT, padx=4)
         self._wall_rot_deg = 0
         self.w_rot_fr = rot_fr
-        self._lbl_wall_rot = _single(f2, r, "Xoay tiết diện", rot_fr)
-        r += 1
         self.w_en_Lw = _entry(f2, D["Lw"])
         self.w_en_tw = _entry(f2, D["tw"])
         _ll_main, _rl_main = _pair(f2, r, "Lw (mm)", self.w_en_Lw,
@@ -1030,14 +1034,24 @@ class WallMixin:
                                 sticky=tk.W, padx=4, pady=5)
         _r_sub = r
         r += 1
-        # Checkbox Đối xứng (Barbell/C/U; bật: 1 cặp, tắt: 2 cặp 1/2).
+        # Hàng gộp Xoay + Đối xứng (lát 2 cột 2026-10-29; xem ghi
+        # chú ở khung xoay trên): nhãn xoay col 0, khung xoay col 1,
+        # checkbox Đối xứng (Barbell/C/U; bật: 1 cặp, tắt: 2 cặp 1/2)
+        # col 2 span 2. Ẩn/hiện 2 phía độc lập qua
+        # _update_wall_rotation_visibility (xoay) và
+        # _update_wall_sectype_fields (đối xứng, col 2 span 2).
+        self._lbl_wall_rot = ttk.Label(f2, text="Xoay tiết diện",
+                                       style="Muted.TLabel")
+        self._lbl_wall_rot.grid(row=r, column=0, sticky=tk.W,
+                                padx=(4, 8), pady=5)
+        self.w_rot_fr.grid(row=r, column=1, sticky=tk.W, padx=4, pady=5)
         self.w_var_sec_sym = tk.BooleanVar(
             value=bool(D.get("sec_sym", True)))
         self.w_chk_sec_sym = tk.Checkbutton(
             f2, text="Đối xứng hai đầu", variable=self.w_var_sec_sym,
             bg="white", activebackground="white", highlightthickness=0,
             command=self._on_wall_sec_sym)
-        self.w_chk_sec_sym.grid(row=r, column=0, columnspan=4,
+        self.w_chk_sec_sym.grid(row=r, column=2, columnspan=2,
                                 sticky=tk.W, padx=4, pady=5)
         _r_sym = r
         r += 1
@@ -1538,8 +1552,10 @@ class WallMixin:
             self.w_chk_sec_sym.config(
                 text="Đối xứng hai cánh" if st == "u-core"
                 else "Đối xứng hai đầu")
-            self.w_chk_sec_sym.grid(row=R["sym"], column=0,
-                                    columnspan=4, sticky=tk.W,
+            # Hàng gộp với xoay (lát 2 cột): checkbox ở col 2 span 2,
+            # không span 4 như trước (xoay giữ col 0-1 cùng hàng).
+            self.w_chk_sec_sym.grid(row=R["sym"], column=2,
+                                    columnspan=2, sticky=tk.W,
                                     padx=4, pady=5)
         else:
             self.w_chk_sec_sym.grid_remove()
