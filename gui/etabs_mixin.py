@@ -618,25 +618,20 @@ class EtabsMixin:
                 if _g in kept and _base(_f.case) in kept[_g]:
                     kept_orig.append(_f)
 
-        # Liệt kê tổ hợp bị xóa (theo base) để popup minh bạch
+        # Đếm tổ hợp bị xóa (theo base, từng nhóm) — popup chỉ hiện
+        # 1 dòng tóm tắt, không liệt kê tên (quyết user 2026-10-29).
         _drop = {}
         for _f in forces:
             if _is_tx(_f.case) or id(_f) in keep_disp_ids:
                 continue
             _drop.setdefault(_grp(_f), set()).add(_base(_f.case))
-        _drop_txt = "; ".join(
-            f"{_g[0]}/{_g[1]}: {', '.join(sorted(_b))}"
-            for _g, _b in sorted(_drop.items())) or "—"
         _n_drop = len(forces) - len(kept_display)
-        _n_drop_tx = sum(1 for _f in forces
-                         if _is_tx(_f.case) and id(_f) not in tx_keep_ids)
+        _n_combo_drop = sum(len(_b) for _b in _drop.values())
         _msg = ("Sẽ GIỮ LẠI các tổ hợp nguy hiểm nhất:\n\n"
                 + "\n".join(info_lines)
                 + f"\n+ {_n_tx} dòng TX_* tương ứng."
-                  f"\n\nSẽ XÓA {_n_drop} dòng "
-                  f"({_n_drop_tx} dòng TX_* không tương ứng + "
-                  f"{_n_drop - _n_drop_tx} dòng thường) của các tổ hợp: "
-                  f"{_drop_txt}.\n\nTiếp tục?")
+                  f"\n\nSẽ xóa {_n_drop} dòng của {_n_combo_drop} "
+                  f"tổ hợp còn lại.\n\nTiếp tục?")
         if not messagebox.askyesno("Giữ lại tổ hợp nguy hiểm nhất",
                                    _msg):
             return

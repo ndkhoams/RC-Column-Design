@@ -126,7 +126,9 @@ def test_column_keep_critical_two_groups():
         assert "COMBO_A" in body and "0.823" in body          # N-M max
         assert "COMBO_B" in body and "|Q2|=500" in body       # cắt V2
         assert "COMBO_C" in body and "|Q3|=400" in body       # cắt V3
-        assert "COMBO_D" in body                              # combo bị xóa
+        # Phần xóa chỉ 1 dòng tóm tắt, không liệt kê tên tổ hợp
+        assert "COMBO_D" not in body
+        assert "Sẽ xóa 5 dòng của 1 tổ hợp còn lại." in body
         assert "TX_*" in body
 
         after = _tree_dc(app)
@@ -294,7 +296,9 @@ def test_wall_keep_critical():
         assert "ULS1" in body and "0.900" in body       # N-M max P1
         assert "ULS2" in body and "0.700" in body       # cắt trong MP
         assert "CHƯA KIỂM" in body                     # P2 ngoài MP
-        assert "ULS3" in body                          # combo bị xóa
+        # Phần xóa chỉ 1 dòng tóm tắt, không liệt kê tên tổ hợp
+        assert "ULS3" not in body
+        assert "Sẽ xóa 3 dòng của 1 tổ hợp còn lại." in body
 
         after = _tree_dc(app)
         cases = sorted({c for _, c, _ in after})
