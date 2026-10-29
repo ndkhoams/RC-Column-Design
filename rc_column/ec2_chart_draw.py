@@ -122,8 +122,15 @@ def draw_ec2_nm_alpha_ax(ax, sec, conc, steel, ec2_res,
     ax.set_xlabel(f"Mα (kN·m){'' if view_angle_deg is None else f' @ {view_angle_deg:.0f}°'}",
                 fontweight="bold", fontsize=10)
     ax.set_ylabel("N (kN)", fontweight="bold", fontsize=10)
-    # Chỉ hiện N >= 0 (ẩn vùng chịu kéo) — theo yêu cầu user 2026-10-16
-    ax.set_ylim(bottom=0)
+    # Hiển thị nốt phần N < 0 (kéo) tới kéo thuần — theo yêu cầu user
+    # 2026-10-29 (trước đây set_ylim(bottom=0) ẩn vùng kéo dù đường
+    # cong đã sinh tới N_min). Chỉ đổi hiển thị, không đổi số.
+    _n_lo = min(min(n_pos), float(N_kN), 0.0)
+    if _n_lo < 0:
+        _span = max(n_pos) - _n_lo
+        ax.set_ylim(bottom=_n_lo - 0.03 * _span)
+    else:
+        ax.set_ylim(bottom=0)
 
     # Legend 4 mục Y HỆT chart_draw, đặt dưới biểu đồ
     from matplotlib.lines import Line2D

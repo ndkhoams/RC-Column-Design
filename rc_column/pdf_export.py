@@ -323,9 +323,15 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     ax.set_xlabel("Mα (kN×m)", fontsize=10, fontweight="bold")
     ax.set_ylabel("N (kN)", fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
-    # Bỏ textbox α trong hình (đã có trên tiêu đề) — theo yêu cầu user 2026-10-16
-    # Chỉ hiện N >= 0 (ẩn vùng chịu kéo)
-    ax.set_ylim(bottom=0)
+    # Hiển thị nốt phần N < 0 (kéo) tới kéo thuần — theo yêu cầu user
+    # 2026-10-29 (trước đây set_ylim(bottom=0) ẩn vùng kéo dù đường
+    # cong đã sinh tới N_min). Chỉ đổi hiển thị, không đổi số.
+    _n_lo = min(min(n_pos), float(res.N), 0.0)
+    if _n_lo < 0:
+        _span = max(n_pos) - _n_lo
+        ax.set_ylim(bottom=_n_lo - 0.03 * _span)
+    else:
+        ax.set_ylim(bottom=0)
     if right_half:
         # Chỉ hiện nửa phải (M >= 0)
         ax.set_xlim(left=0)

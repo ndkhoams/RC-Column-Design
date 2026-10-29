@@ -824,9 +824,17 @@ class TcvnMixin:
             ax.grid(True, color="#E5E7EB", linestyle="--",
                     linewidth=0.7, alpha=0.9)
             ax.set_axisbelow(True)
-            # Chỉ hiện nửa có tải (Mα >= 0, N >= 0) — giữ khi đổi góc xem
+            # Hiển thị nốt phần N < 0 (kéo) tới kéo thuần — theo yêu cầu
+            # user 2026-10-29 (trước đây set_ylim(bottom=0) ẩn vùng kéo
+            # dù đường cong đã sinh tới N_min). Chỉ đổi hiển thị, giữ
+            # nửa có tải (Mα >= 0), không đổi số.
             ax.set_xlim(left=0)
-            ax.set_ylim(bottom=0)
+            _n_lo = min(min(n_pos), float(res.N), 0.0)
+            if _n_lo < 0:
+                _span = max(n_pos) - _n_lo
+                ax.set_ylim(bottom=_n_lo - 0.03 * _span)
+            else:
+                ax.set_ylim(bottom=0)
 
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)

@@ -67,9 +67,17 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
-    # Chỉ hiện nửa phải (Mα >= 0) có tải, ẩn vùng N<0 — theo yêu cầu user 2026-10-16
+    # Hiển thị nốt phần N < 0 (kéo) tới kéo thuần — theo yêu cầu user
+    # 2026-10-29 (trước đây set_ylim(bottom=0) ẩn vùng kéo dù đường
+    # cong đã sinh tới N_min). Chỉ đổi hiển thị: giữ nửa có tải
+    # (Mα >= 0), không đổi solver, D/C, điểm A/B.
     ax.set_xlim(left=0)
-    ax.set_ylim(bottom=0)
+    _n_lo = min(min(n_pos), float(res.N), 0.0)
+    if _n_lo < 0:
+        _span = max(n_pos) - _n_lo
+        ax.set_ylim(bottom=_n_lo - 0.03 * _span)
+    else:
+        ax.set_ylim(bottom=0)
     ax.grid(True, color="#E5E7EB", linestyle="--",
             linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
