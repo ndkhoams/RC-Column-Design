@@ -8,11 +8,12 @@ sau khi lát b65658fe mở vùng kéo, mức N = 0 nằm giữa biểu đồ mà
 vẫn khó thấy. Lát này chỉ thêm nét vẽ, không đổi solver/D/C/ylim.
 
 Test khóa (cột 3 chuẩn + vách qua hàm chung + PDF TCVN):
-- đúng 1 đường y = 0 mới: màu #374151, nét liền, lw 1.4, zorder 2.5,
-  xdata [0, 1] (axhline = hết bề rộng vùng vẽ);
-- zorder 2.5 nằm trên fill (1) nhưng dưới đường bao (3), tia (4),
+- đúng 1 đường y = 0 mới: màu #6B7280, nét liền, lw 1.0, zorder 2,
+  xdata [0, 1] (axhline = hết bề rộng vùng vẽ) — bằng đúng nét trục
+  biểu đồ M2–M3, quyết user 2026-10-29 (lát trước dùng #374151 lw 1.4);
+- zorder 2 nằm trên fill và lưới, dưới đường bao (3), tia (4),
   điểm A/B (5/6) nên không che chúng;
-- pixel tại hàng y = 0 trên canvas thật có màu xám đậm (không chỉ
+- pixel tại hàng y = 0 trên canvas thật có màu xám #6B7280 (không chỉ
   assert code gọi axhline, và không bị fill che);
 - D/C và giới hạn trục TCVN không đổi so với trước lát.
 Biểu đồ M2–M3 KHÔNG thuộc yêu cầu này, không đụng.
@@ -46,7 +47,7 @@ def _axis_lines(ax):
     return [ln for ln in ax.lines
             if len(ln.get_ydata()) == 2
             and ln.get_ydata()[0] == 0 and ln.get_ydata()[1] == 0
-            and ln.get_color() == "#374151"]
+            and ln.get_color() == "#6B7280"]
 
 
 def _check_axis(ax):
@@ -56,12 +57,13 @@ def _check_axis(ax):
                              if len(ln.get_ydata()) == 2
                              and ln.get_ydata()[0] == 0]
     ln = found[0]
-    assert ln.get_linewidth() == 1.4, ln.get_linewidth()
-    assert ln.get_zorder() == 2.5, ln.get_zorder()
+    assert ln.get_linewidth() == 1.0, ln.get_linewidth()
+    assert ln.get_zorder() == 2, ln.get_zorder()
     assert ln.get_linestyle() == "-", ln.get_linestyle()
     assert list(ln.get_xdata()) == [0, 1], ln.get_xdata()
     # Dưới đường bao (zorder 3): đường bao vẽ sau vẫn thấy rõ
-    # tại giao điểm với trục.
+    # tại giao điểm với trục. Nét trục #6B7280/lw 1.0/zorder 2 đúng
+    # bằng thông số trục M2–M3 (xem draw_m2m3_ax).
     assert ax.lines[0].get_zorder() == 3
     assert ln.get_zorder() < ax.lines[0].get_zorder()
 
@@ -76,18 +78,18 @@ def _dark_fraction_at_zero(fig, ax):
     x0p, _ = ax.transData.transform((ax.get_xlim()[0], 0))
     x1p, _ = ax.transData.transform((ax.get_xlim()[1], 0))
     band = rgba[max(0, ypix - 1):ypix + 2, int(x0p):int(x1p)]
-    target = np.array([55, 65, 81])  # #374151
+    target = np.array([107, 114, 128])  # #6B7280
     dist = np.sqrt(((band - target) ** 2).sum(axis=2))
     return float((dist < 60).mean())
 
 
 def _max_dark_row_frac(png_bytes):
-    """Hàng có tỉ lệ pixel xám đậm #374151 cao nhất trong PNG."""
+    """Hàng có tỉ lệ pixel xám #6B7280 cao nhất trong PNG."""
     from PIL import Image
     import io
     img = np.array(Image.open(io.BytesIO(png_bytes)).convert("RGB"))
     img = img.astype(int)
-    target = np.array([55, 65, 81])  # #374151
+    target = np.array([107, 114, 128])  # #6B7280
     dist = np.sqrt(((img - target) ** 2).sum(axis=2))
     return float((dist < 60).mean(axis=1).max())
 
@@ -133,7 +135,7 @@ def test_nm_axis_all_standards():
 def test_nm_axis_tcvn_pdf_and_wall():
     # PDF TCVN đi đường riêng (interaction_image), không qua
     # draw_nm_alpha_ax nên khóa bằng pixel trên PNG thật: chỉ nét
-    # trục mới là vệt xám đậm #374151 chạy ngang gần hết bề rộng
+    # trục mới là vệt xám #6B7280 chạy ngang gần hết bề rộng
     # (lưới nhạt, bao xanh lá, tia đỏ đều không đạt ngưỡng này).
     import pytest
     Image = pytest.importorskip("PIL.Image")

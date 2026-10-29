@@ -82,12 +82,11 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
             linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     # 2026-10-29: nét trục ngang N = 0 — sau lát mở vùng kéo, N = 0
-    # nằm giữa biểu đồ nên cần phân tách rõ nén (N > 0) / kéo
-    # (N < 0). Chỉ thêm nét vẽ: xám đậm, liền, dày gấp đôi lưới
-    # nhưng mỏng hơn đường bao (2.2); axhline chạy hết bề rộng
-    # vùng vẽ; zorder 2.5: trên fill (1) và lưới, dưới đường bao
-    # (3), tia (4) và điểm A/B (5/6) nên không che chúng.
-    ax.axhline(0, color="#374151", linewidth=1.4, zorder=2.5)
+    # nằm giữa biểu đồ nên cần phân tách nén (N > 0) / kéo (N < 0).
+    # Quyết user: độ đậm bằng đúng nét trục biểu đồ M2–M3
+    # (#6B7280, lw 1.0, zorder 2); axhline chạy hết bề rộng vùng vẽ;
+    # trên fill và lưới, dưới đường bao/tia/A/B nên không che chúng.
+    ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     for sp in ("left", "bottom"):

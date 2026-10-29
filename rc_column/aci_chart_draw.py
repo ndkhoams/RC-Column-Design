@@ -205,9 +205,10 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
     ax.grid(True, color="#E5E7EB", linestyle="--",
             linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
-    # 2026-10-29: nét trục ngang N = 0 (như chart_draw): xám đậm,
-    # liền, lw 1.4, zorder 2.5 — trên fill/lưới, dưới bao/tia/A/B.
-    ax.axhline(0, color="#374151", linewidth=1.4, zorder=2.5)
+    # 2026-10-29: nét trục ngang N = 0 — độ đậm bằng đúng nét trục
+    # biểu đồ M2–M3 (#6B7280, lw 1.0, zorder 2); trên fill/lưới,
+    # dưới bao/tia/A/B nên không che chúng.
+    ax.axhline(0, color="#6B7280", linewidth=1.0, zorder=2)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     for sp in ("left", "bottom"):
