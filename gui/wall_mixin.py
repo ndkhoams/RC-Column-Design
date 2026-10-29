@@ -2364,6 +2364,9 @@ class WallMixin:
                 "ETABS",
                 "Chỉ có tổ hợp TX_*, không có tổ hợp nào để kiểm tra.")
             return
+        # Nút "Giữ lại tổ hợp nguy hiểm nhất" đọc đúng batch vừa CHECK:
+        # batch vách mới làm batch cột cũ hết hiệu lực (và ngược lại).
+        self._batch_rows = None
         try:
             winp = wall_from_dict(self._collect_wall())
             conc, steel, model = self._wall_tcvn_materials()

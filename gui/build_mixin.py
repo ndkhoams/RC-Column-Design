@@ -30,6 +30,18 @@ _SEISMIC_TIP = (
     "Hiện tại chỉ combo động đất mới gộp max/min."
 )
 
+_KEEP_CRITICAL_TIP = (
+    "Giữ lại tổ hợp nguy hiểm nhất để file .json lưu nhẹ.\n"
+    "Mỗi nhóm (Story, Label) chỉ giữ:\n"
+    "• tổ hợp có D/C N–M lớn nhất (toàn bộ các station),\n"
+    "• tổ hợp đang dùng để tính cắt — CỘT: combo có |V2|/|V3|\n"
+    "lớn nhất toàn bảng (đúng 2 combo code dùng ở etabs_mixin);\n"
+    "VÁCH: combo có D/C cắt trong/ngoài MP lớn nhất từng nhóm,\n"
+    "• các dòng TX_* tương ứng (tính phi_ef / beta_dns).\n"
+    "Các tổ hợp khác bị xóa sau khi user xác nhận.\n"
+    "Cần CHECK trước để bảng có D/C."
+)
+
 
 class _ToolTip:
     """Tooltip hiện khi di chuột lên widget (ghi chú định nghĩa cover)."""
@@ -823,6 +835,15 @@ class BuildMixin:
         # vách. 2 nút gộp riêng ("Chọn combo gộp…" + checkbutton "Gộp
         # Combo max/min") đã bỏ vì thừa. _toggle_load_mode sẽ disable
         # nút này khi ở chế độ nhập tay.
+        # Nút "Giữ lại tổ hợp nguy hiểm nhất" (lát 2026-10-29): pack
+        # TRƯỚC nút động đất với side=RIGHT để nằm BÊN PHẢI nó (đúng
+        # vùng user khoanh đỏ trong ảnh) — pack side=RIGHT thì widget
+        # pack trước chiếm mép phải nhất.
+        self.btn_keep_critical = ttk.Button(
+            mode_bar, text="Giữ lại tổ hợp nguy hiểm nhất",
+            command=self.on_keep_critical_combos)
+        self.btn_keep_critical.pack(side=tk.RIGHT, padx=(2, 6))
+        _ToolTip(self.btn_keep_critical, _KEEP_CRITICAL_TIP)
         self.btn_pick_seismic_combo = ttk.Button(
             mode_bar, text="Chọn combo động đất…",
             command=self.on_pick_seismic_combo)
@@ -981,8 +1002,10 @@ class BuildMixin:
         else:
             self.etabs_frame.grid_remove()
             self.manual_frame.grid()
-        # Nút chọn combo động đất chỉ có nghĩa khi có bảng nội lực ETABS
-        for _w in (getattr(self, "btn_pick_seismic_combo", None),):
+        # Nút chọn combo động đất + nút giữ tổ hợp nguy hiểm nhất chỉ có
+        # nghĩa khi có bảng nội lực ETABS
+        for _w in (getattr(self, "btn_pick_seismic_combo", None),
+                   getattr(self, "btn_keep_critical", None)):
             if _w is not None:
                 _w.config(state=tk.NORMAL
                           if self.var_load_mode.get() == "etabs"

@@ -352,6 +352,341 @@ class EtabsMixin:
             self.etabs_file = ""
             self.etabs_info.set("Đã xóa toàn bộ nội lực.")
 
+    def on_keep_critical_combos(self):
+        """Nút "Giữ lại tổ hợp nguy hiểm nhất" (mục 5, dùng chung Cột/Vách).
+
+        Lọc bảng nội lực ETABS chỉ còn, theo từng nhóm (Story, Label):
+        (1) tổ hợp có D/C N-M lớn nhất (giữ toàn bộ các station — một
+            tổ hợp gồm nhiều station, xóa lẻ station làm mất tính toàn
+            vẹn tổ hợp; D/C cột đọc từ _batch_rows, vách đọc dc_overall
+            từ _wall_batch_rows),
+        (2) các tổ hợp đang dùng để tính cắt:
+            - CỘT: batch cột KHÔNG có D/C cắt theo dòng — code lấy lực
+              cắt từ combo có |Q| lớn nhất toàn bảng, độc lập với combo
+              N-M (etabs_mixin.py: on_check_etabs/_check_aci_etabs/
+              _check_ec2_etabs đều `f_q2 = max(self.etabs_forces,
+              key=lambda f: abs(f.Q2))` và tương tự Q3). Nên (2) của cột
+              = đúng 2 combo đó (tên ghi ở shear_info q2/q3), giữ toàn
+              bộ các station của chúng — tái CHECK cho cùng Q cắt.
+            - VÁCH: mỗi dòng batch có dc_in/dc_out thật
+              (rc_column/wall_batch.py: wall_batch_row trích từ
+              full["shear_in"/"shear_out"]["dc"]) nên (2) = combo có
+              D/C cắt trong MP / ngoài MP lớn nhất từng nhóm; phương
+              CHƯA KIỂM (vd C/U ngoài MP, dc=None) thì nhóm đó không
+              có tổ hợp cắt và popup ghi rõ,
+        (3) các dòng TX_* tương ứng: TX_* = case bắt đầu bằng "TX_"
+            (code chỉ nhận diện đúng tiền tố này — "TDTX_" không khớp
+            startswith("TX_") nên code coi là combo thường). Ghép theo
+            đúng khóa tra cứu của code: TX_* dùng được cho dòng kiểm
+            tra g khi (story, column, round(station,3),
+            case[3:]) của nó == (story, column, round(station,3),
+            base(case)) của g, với base = tên đã bỏ hậu tố max/min
+            (xem on_check_etabs/_check_aci_etabs/_check_ec2_etabs).
+            Chỉ giữ các dòng TX_* mà CHECK thật sự tra tới.
+
+        D/C đọc từ BẢNG HIỂN THỊ (cột D/C của Treeview) — nếu bảng chưa
+        có D/C ở dòng thường nào thì báo CHECK trước; nếu một số dòng
+        thiếu D/C (dữ liệu đổi sau CHECK / sửa ô / dòng lỗi) thì báo
+        CHECK lại, không lọc mù. Không đổi cách tính D/C, không đổi
+        schema JSON (chỉ ít dòng hơn khi lưu).
+        """
+        from tkinter import messagebox
+        from rc_column.etabs_import import _max_min_suffix
+
+        def _is_tx(case):
+            return (case or "").strip().startswith("TX_")
+
+        def _base(case):
+            name = (case or "").strip()
+            split = _max_min_suffix(name)
+            return split[0] if split else name
+
+        def _grp(f):
+            return (str(f.story).strip(), str(f.column).strip())
+
+        children = self.etabs_tree.get_children()
+        batch_col = getattr(self, "_batch_rows", None)
+        batch_wall = getattr(self, "_wall_batch_rows", None)
+        forces = list(getattr(self, "etabs_forces", None) or [])
+
+        kind = None          # "column" | "wall"
+        ordered = None       # force objects theo đúng thứ tự bảng
+        dc_of = {}           # id(force) -> D/C (chỉ dòng thường có D/C)
+        # CỘT: thứ tự bảng == thứ tự _batch_rows (đã sort D/C giảm dần,
+        # TX_* chen cuối). Đối chiếu từng dòng bảng với _batch_rows để
+        # phát hiện dữ liệu treo (paste/sửa sau CHECK).
+        if batch_col and len(children) == len(batch_col):
+            _ok, _tmp = True, {}
+            for _i, _ch in enumerate(children):
+                _f, _r = batch_col[_i]
+                _vals = self.etabs_tree.item(_ch, "values")
+                if (str(_vals[0]).strip() != str(_f.story).strip()
+                        or str(_vals[1]).strip() != str(_f.column).strip()
+                        or str(_vals[2]).strip() != str(_f.case).strip()):
+                    _ok = False
+                    break
+                _dc = _r.get("dc") if _r else None
+                if _dc is None or _dc != _dc:  # None hoặc NaN
+                    if not _is_tx(_f.case):
+                        _ok = False
+                        break
+                else:
+                    _tmp[id(_f)] = _dc
+            if _ok:
+                kind, ordered, dc_of = "column", \
+                    [_f for (_f, _r) in batch_col], _tmp
+        # VÁCH: thứ tự bảng == thứ tự self.etabs_forces; D/C từng phần
+        # nằm ở _wall_batch_rows (dict theo id force).
+        if kind is None and batch_wall and len(children) == len(forces):
+            _by_id = {id(_r["force"]): _r for _r in batch_wall}
+            _ok, _tmp = True, {}
+            for _i, _ch in enumerate(children):
+                _f = forces[_i]
+                _vals = self.etabs_tree.item(_ch, "values")
+                if (str(_vals[0]).strip() != str(_f.story).strip()
+                        or str(_vals[1]).strip() != str(_f.column).strip()
+                        or str(_vals[2]).strip() != str(_f.case).strip()):
+                    _ok = False
+                    break
+                _r = _by_id.get(id(_f))
+                _dc = _r.get("dc_overall") if _r else None
+                if _dc is None or _dc != _dc:
+                    if not _is_tx(_f.case):
+                        _ok = False
+                        break
+                else:
+                    _tmp[id(_f)] = _dc
+            if _ok:
+                kind, ordered, dc_of = "wall", forces, _tmp
+
+        if kind is None:
+            if not children or not any(
+                    not _is_tx(_f.case)
+                    for _f in (ordered or forces)):
+                messagebox.showwarning(
+                    "Giữ lại tổ hợp nguy hiểm nhất",
+                    "Bảng chưa có D/C ở dòng nào — hãy bấm CHECK "
+                    "(KIỂM TRA KHẢ NĂNG CHỊU LỰC) trước.")
+            else:
+                messagebox.showwarning(
+                    "Giữ lại tổ hợp nguy hiểm nhất",
+                    "Một số dòng chưa có D/C (dữ liệu đã thay đổi sau "
+                    "khi CHECK, hoặc có dòng lỗi) — hãy bấm CHECK lại "
+                    "trước khi lọc.")
+            return
+
+        non_tx = [f for f in ordered if not _is_tx(f.case)]
+        if not non_tx:
+            messagebox.showinfo(
+                "Giữ lại tổ hợp nguy hiểm nhất",
+                "Chỉ có tổ hợp TX_*, không có tổ hợp nào để lọc.")
+            return
+
+        kept = {}            # (story, column) -> set(base combo được giữ)
+        info_lines = []      # dòng liệt kê cho popup xác nhận
+        tx_shear_ids = set()  # id dòng TX_* đang cho |Q| max (cột)
+        if kind == "column":
+            # (1) N-M max từng nhóm
+            _win = {}
+            for _f in non_tx:
+                _g, _dc = _grp(_f), dc_of[id(_f)]
+                if _g not in _win or _dc > _win[_g][1]:
+                    _win[_g] = (_f, _dc)
+            for _g, (_f, _dc) in sorted(_win.items()):
+                kept[_g] = {_base(_f.case)}
+                info_lines.append(
+                    f"[{_g[0]} / {_g[1]}] N–M: giữ {_f.case} "
+                    f"(D/C max {_dc:.3f})")
+            # (2) cắt: đúng 2 combo code đang dùng (max |Q2|/|Q3| toàn
+            # bảng — xem docstring; không có D/C cắt theo dòng ở batch
+            # cột nên KHÔNG bịa D/C cắt, popup ghi |Q|).
+            _fq2 = max(forces, key=lambda f: abs(f.Q2))
+            _fq3 = max(forces, key=lambda f: abs(f.Q3))
+            for _lab, _fq, _qn in (("phương 2 (V2)", _fq2, "Q2"),
+                                   ("phương 3 (V3)", _fq3, "Q3")):
+                _qv = getattr(_fq, _qn)
+                if _is_tx(_fq.case):
+                    tx_shear_ids.add(id(_fq))
+                    info_lines.append(
+                        f"[{_fq.story} / {_fq.column}] Cắt {_lab}: Q lấy "
+                        f"từ dòng TX_* {_fq.case} (|{_qn}|={abs(_qv):.0f} "
+                        f"kN, lớn nhất) — giữ dòng này")
+                else:
+                    _g = _grp(_fq)
+                    kept.setdefault(_g, set()).add(_base(_fq.case))
+                    info_lines.append(
+                        f"[{_g[0]} / {_g[1]}] Cắt {_lab}: Q lấy từ "
+                        f"{_fq.case} (|{_qn}|={abs(_qv):.0f} kN, lớn "
+                        f"nhất toàn bảng)")
+        else:
+            from rc_column.wall_batch import pier_base_case
+            _by_id = {id(_r["force"]): _r for _r in batch_wall}
+            _nm, _in, _out = {}, {}, {}
+            for _f in non_tx:
+                _g, _r = _grp(_f), _by_id[id(_f)]
+                _nmv, _inv, _outv = (_r.get("dc_nm"), _r.get("dc_in"),
+                                    _r.get("dc_out"))
+                if _nmv is not None and (_g not in _nm
+                                         or _nmv > _nm[_g][1]):
+                    _nm[_g] = (_f, _nmv)
+                if _inv is not None and (_g not in _in
+                                         or _inv > _in[_g][1]):
+                    _in[_g] = (_f, _inv)
+                if _outv is not None and (_g not in _out
+                                          or _outv > _out[_g][1]):
+                    _out[_g] = (_f, _outv)
+            for _g in sorted(set(_nm) | set(_in) | set(_out)):
+                kept[_g] = set()
+                _parts = []
+                if _g in _nm:
+                    _f, _dc = _nm[_g]
+                    kept[_g].add(pier_base_case(_f.case))
+                    _parts.append(f"N–M: {_f.case} ({_dc:.3f})")
+                if _g in _in:
+                    _f, _dc = _in[_g]
+                    kept[_g].add(pier_base_case(_f.case))
+                    _parts.append(f"cắt trong MP: {_f.case} ({_dc:.3f})")
+                else:
+                    _parts.append("cắt trong MP: CHƯA KIỂM")
+                if _g in _out:
+                    _f, _dc = _out[_g]
+                    kept[_g].add(pier_base_case(_f.case))
+                    _parts.append(f"cắt ngoài MP: {_f.case} ({_dc:.3f})")
+                else:
+                    _parts.append("cắt ngoài MP: CHƯA KIỂM")
+                info_lines.append(f"[{_g[0]} / {_g[1]}] "
+                                  + "; ".join(_parts))
+
+        # (3) TX_*: chỉ giữ dòng mà CHECK thật sự tra tới. Cột: khóa tra
+        # cứu đúng như code ((story, column, round(station,3),
+        # base(case))). Vách: batch vách không dùng TX_* nên giữ theo
+        # (story, pier, base) để chuyển sang chế độ cột vẫn còn dùng.
+        keep_keys = set()
+        for _f in ordered:
+            if _is_tx(_f.case):
+                continue
+            _g = _grp(_f)
+            if _g in kept and _base(_f.case) in kept[_g]:
+                keep_keys.add((_g[0], _g[1], round(_f.station, 3),
+                               _base(_f.case)))
+        tx_keep_ids = set(tx_shear_ids)
+        _n_tx = len(tx_shear_ids)
+        for _f in ordered:
+            if not _is_tx(_f.case):
+                continue
+            if kind == "column":
+                _key = (str(_f.story).strip(), str(_f.column).strip(),
+                        round(_f.station, 3), _f.case.strip()[3:])
+                _hit = _key in keep_keys
+            else:
+                _g = _grp(_f)
+                _hit = _g in kept and _f.case.strip()[3:] in kept[_g]
+            if _hit and id(_f) not in tx_keep_ids:
+                tx_keep_ids.add(id(_f))
+                _n_tx += 1
+
+        # Tập dòng hiển thị + dòng gốc được giữ
+        keep_disp_ids = set()
+        for _f in forces:
+            if id(_f) in tx_keep_ids:
+                keep_disp_ids.add(id(_f))
+            elif not _is_tx(_f.case):
+                _g = _grp(_f)
+                if _g in kept and _base(_f.case) in kept[_g]:
+                    keep_disp_ids.add(id(_f))
+        kept_display = [f for f in forces if id(f) in keep_disp_ids]
+        orig = list(getattr(self, "etabs_forces_orig", None) or [])
+        keep_keys_orig = set()
+        for _f in orig:
+            if _is_tx(_f.case):
+                continue
+            _g = _grp(_f)
+            if _g in kept and _base(_f.case) in kept[_g]:
+                keep_keys_orig.add((_g[0], _g[1], round(_f.station, 3),
+                                    _base(_f.case)))
+        kept_orig = []
+        for _f in orig:
+            if id(_f) in tx_shear_ids:
+                kept_orig.append(_f)
+            elif _is_tx(_f.case):
+                _key = (str(_f.story).strip(), str(_f.column).strip(),
+                        round(_f.station, 3), _f.case.strip()[3:])
+                if _key in keep_keys_orig:
+                    kept_orig.append(_f)
+            else:
+                _g = _grp(_f)
+                if _g in kept and _base(_f.case) in kept[_g]:
+                    kept_orig.append(_f)
+
+        # Liệt kê tổ hợp bị xóa (theo base) để popup minh bạch
+        _drop = {}
+        for _f in forces:
+            if _is_tx(_f.case) or id(_f) in keep_disp_ids:
+                continue
+            _drop.setdefault(_grp(_f), set()).add(_base(_f.case))
+        _drop_txt = "; ".join(
+            f"{_g[0]}/{_g[1]}: {', '.join(sorted(_b))}"
+            for _g, _b in sorted(_drop.items())) or "—"
+        _n_drop = len(forces) - len(kept_display)
+        _n_drop_tx = sum(1 for _f in forces
+                         if _is_tx(_f.case) and id(_f) not in tx_keep_ids)
+        _msg = ("Sẽ GIỮ LẠI các tổ hợp nguy hiểm nhất:\n\n"
+                + "\n".join(info_lines)
+                + f"\n+ {_n_tx} dòng TX_* tương ứng."
+                  f"\n\nSẽ XÓA {_n_drop} dòng "
+                  f"({_n_drop_tx} dòng TX_* không tương ứng + "
+                  f"{_n_drop - _n_drop_tx} dòng thường) của các tổ hợp: "
+                  f"{_drop_txt}.\n\nTiếp tục?")
+        if not messagebox.askyesno("Giữ lại tổ hợp nguy hiểm nhất",
+                                   _msg):
+            return
+
+        # Áp dụng: lọc cả dữ liệu gốc (để lưu JSON nhẹ) lẫn bảng hiển
+        # thị; D/C các dòng còn lại giữ nguyên từng chữ số (không tính
+        # lại). Đồng bộ cache batch: chỉ giữ kết quả các dòng còn lại.
+        self.etabs_forces_orig = kept_orig
+        self.etabs_forces = kept_display
+        self._merge_merged_ids = {i for i in
+                                  getattr(self, "_merge_merged_ids", set())
+                                  if i in keep_disp_ids}
+        _present = set()
+        for _f in kept_orig:
+            if not _is_tx(_f.case):
+                _present.add(_base(_f.case))
+        self.seismic_combo_selected = set(
+            getattr(self, "seismic_combo_selected", set())) & _present
+        for _attr in ("_dns_map", "_tx_moment_map"):
+            _m = getattr(self, _attr, None)
+            if isinstance(_m, dict):
+                for _k in [k for k in _m
+                           if (k[0], k[1]) not in kept
+                           or k[3] not in kept[(k[0], k[1])]]:
+                    del _m[_k]
+        if kind == "column":
+            _new = [(f, r) for (f, r) in batch_col
+                    if id(f) in keep_disp_ids]
+            if getattr(self, "_pdf_batch", None) is batch_col:
+                self._pdf_batch = _new
+            self._batch_rows = _new
+            self._fill_etabs_table(_new)
+            _children = self.etabs_tree.get_children()
+            if _children:
+                self.etabs_tree.item(_children[0], tags=("worst",))
+                self.etabs_tree.see(_children[0])
+        else:
+            _new_w = [r for r in batch_wall
+                      if id(r["force"]) in keep_disp_ids]
+            self._wall_batch_rows = _new_w
+            _by_id = {id(r["force"]): r for r in _new_w}
+            self._fill_etabs_table(
+                [(f, ({"dc": _by_id[id(f)]["dc_overall"]}
+                      if id(f) in _by_id else None))
+                 for f in kept_display])
+        self.etabs_info.set(
+            f"Đã giữ {len(kept_display)} dòng "
+            f"({len(kept)} nhóm, {_n_tx} dòng TX_*) — "
+            f"đã xóa {_n_drop} dòng. Lưu file để .json nhẹ hơn.")
+
     def _load_etabs_file(self, path: str) -> bool:
         """Nạp file Excel ETABS (dùng chung cho import tay và mở dữ liệu)."""
         try:
@@ -550,6 +885,8 @@ class EtabsMixin:
 
     def _check_aci_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo ACI 318-19."""
+        # Xem on_check_etabs: batch cột mới làm batch vách cũ hết hiệu lực.
+        self._wall_batch_rows = None
         from rc_column.aci_materials import ACIConcrete, ACISteel
         from rc_column.aci_checker import check_column_aci
         try:
@@ -828,6 +1165,8 @@ class EtabsMixin:
 
     def _check_ec2_etabs(self):
         """Kiểm tra tất cả tổ hợp ETABS theo EC2 (EN 1992-1-1)."""
+        # Xem on_check_etabs: batch cột mới làm batch vách cũ hết hiệu lực.
+        self._wall_batch_rows = None
         from rc_column.ec2_materials import (EC2Concrete, EC2Steel,
                                              EC2_CONCRETE_GRADES,
                                              EC2_STEEL_GRADES)
@@ -1117,6 +1456,9 @@ class EtabsMixin:
         if not self.etabs_forces:
             messagebox.showinfo("ETABS", "Hãy import file Excel trước.")
             return
+        # Nút "Giữ lại tổ hợp nguy hiểm nhất" đọc đúng batch vừa CHECK:
+        # batch cột mới làm batch vách cũ hết hiệu lực (và ngược lại).
+        self._wall_batch_rows = None
         if self.is_ec2():
             self._check_ec2_etabs()
             return
