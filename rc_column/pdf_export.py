@@ -353,6 +353,9 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
+    # 2026-10-29: nét trục ngang N = 0 (như chart_draw): xám đậm,
+    # liền, lw 1.4, zorder 2.5 — trên fill/lưới, dưới bao/tia/A/B.
+    ax.axhline(0, color="#374151", linewidth=1.4, zorder=2.5)
     for _sp in ("top", "right"):
         ax.spines[_sp].set_visible(False)
     for _sp in ("left", "bottom"):

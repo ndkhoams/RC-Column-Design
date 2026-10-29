@@ -205,6 +205,9 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
     ax.grid(True, color="#E5E7EB", linestyle="--",
             linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
+    # 2026-10-29: nét trục ngang N = 0 (như chart_draw): xám đậm,
+    # liền, lw 1.4, zorder 2.5 — trên fill/lưới, dưới bao/tia/A/B.
+    ax.axhline(0, color="#374151", linewidth=1.4, zorder=2.5)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     for sp in ("left", "bottom"):
