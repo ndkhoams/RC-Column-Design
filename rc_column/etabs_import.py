@@ -478,12 +478,35 @@ def _strip_edge_empty_fields(line: str) -> str:
 # của cột tiếp theo, vd "kN\tV2", "kN-m\tM2", hoặc đứng riêng 1 dòng
 # "kN-m" ở cuối đoạn header). Chỉ các token này mới bị bỏ khi gom
 # header; "t" (xoắn) hay "p" (lực dọc) KHÔNG nằm trong tập này.
+# "text" và "m" là marker kiểu/đơn vị của bảng SAP2000 (cột chữ ->
+# "Text", cột Station/ElemStation -> "m"): khi copy trực tiếp từ bảng
+# SAP, chúng xuất hiện ở đầu dòng tên cột tiếp theo ("Text\t
+# ElemStation", dòng "m" cuối header) nên cũng phải bỏ như đơn vị,
+# nếu không chúng sẽ chui vào header tổng hợp và làm lệch mọi chỉ số
+# cột (lệch cột SAP — xem _coalesce_multiline_header).
 _MULTILINE_UNIT_TOKENS = {
     "kn", "kn-m", "knm", "n", "n-m", "nm", "n-mm", "kn-mm",
     "kgf", "kgf-m", "kgf-cm", "kg-m", "kg-cm",
     "tonf", "tonf-m", "ton-m", "tf-m",
     "kip", "kip-ft", "kip-in", "k-ft", "k-in",
     "lbf", "lbf-ft", "lbf-in", "lb-ft", "lb-in",
+    "text", "m",
+}
+
+
+# Tên cột đã biết của bảng ETABS/SAP2000. Dùng trong
+# _coalesce_multiline_header để nhận biết dòng còn thuộc header
+# (vd dòng "KN-m\tFrameElem" của bảng SAP sau khi đã đủ cột P/M2/M3):
+# dòng dữ liệu thật không bao giờ có trường trùng đúng tên cột
+# (nhãn Frame là số/codename, tên tổ hợp là LRFD_2/ULS1...,
+# CaseType là "Combination"...), nên dòng mà mọi token còn lại
+# đều thuộc tập này thì chắc chắn vẫn là header, không phải dữ liệu.
+_MULTILINE_HEADER_NAMES = {
+    "story", "pier", "column", "frame", "station",
+    "output case", "outputcase", "case type", "casetype",
+    "step type", "steptype", "location",
+    "p", "v2", "v3", "t", "m2", "m3",
+    "frameelem", "elemstation", "unique name", "element",
 }
 
 
@@ -502,21 +525,40 @@ def _coalesce_multiline_header(lines):
     Thuật toán (không hardcode số dòng, không hardcode file nào):
     - Quét tối đa 30 dòng đầu, tách mỗi dòng theo tab, bỏ ô rỗng và
       token đơn vị, gom token theo đúng thứ tự xuất hiện, giữ lần
-      xuất hiện đầu tiên của mỗi token.
+      xuất hiện đầu tiên của mỗi token. Dòng tiêu đề bảng SAP2000
+      ("TABLE:  Element Forces - Frames") bị BỎ QUA hoàn toàn: nó
+      không phải tên cột, nếu gom vào sẽ làm lệch +1 mọi chỉ số cột
+      của nhánh SAP (nhận diện vẫn đúng nhưng đọc nhầm cột P/V2...).
     - Dừng khi tập token gom được chứa đủ: "output case" (hoặc
       "outputcase") + 1 định danh (story/pier/column/frame) + "p" +
       "m2" + "m3" + 1 vị trí (location/station).
-    - Sau điểm dừng, bỏ qua các dòng chỉ còn token đơn vị (vd dòng
-      "kN-m" cuối đoạn header), dòng đầu tiên còn lại phải là dòng
-      dữ liệu thật: ô tại vị trí cột "p" trong thứ tự token gom được
-      phải là số (kiểm chứng chặt, tránh gom nhầm dữ liệu thành header).
+    - Sau điểm dừng, gom NỐT các dòng header còn lại: bảng SAP2000
+      có thêm cột sau M3 (FrameElem, ElemStation) nên đoạn header
+      tách dòng KHÔNG kết thúc ở M3 — các dòng "KN-m\tFrameElem",
+      "Text\tElemStation", "m" vẫn là header. Trước sửa, hàm dừng
+      ngay ở M3 rồi coi dòng "KN-m\tFrameElem" là dòng dữ liệu,
+      kiểm chứng ô P thất bại (chỉ có 2 trường) nên trả None và
+      toàn bộ clipboard SAP copy trực tiếp bị loại ("Không đọc được
+      dòng nội lực nào từ clipboard") thay vì vào nhánh SAP với
+      N = -P. Nay: dòng nào mà mọi token còn lại (sau khi bỏ ô rỗng
+      và token đơn vị) đều là tên cột đã biết thì vẫn tính là header
+      và được gom nốt; dòng đầu tiên còn lại mới là dữ liệu thật.
+    - Dòng dữ liệu thật: ô tại vị trí cột "p" trong thứ tự token gom
+      được phải là số (kiểm chứng chặt, tránh gom nhầm dữ liệu thành
+      header). Chỉ số "p" tính LẠI sau khi gom nốt header (FrameElem/
+      ElemStation nằm sau M3 nên không đổi vị trí "p" của SAP, nhưng
+      tính lại cho chắc).
     - Trả về (dòng header tổng hợp nối bằng tab, chỉ số dòng dữ liệu
       đầu tiên) hoặc None nếu không thỏa — khi đó đường cũ chạy
       nguyên, không thay đổi hành vi với header 1 dòng / SAP.
     """
     tokens = []
     seen = set()
+    j = None
     for j, ln in enumerate(lines[:30]):
+        # Dòng tiêu đề bảng ("TABLE: ...") không phải tên cột: bỏ qua.
+        if ln.strip().lower().startswith("table:"):
+            continue
         for raw in ln.split("\t"):
             tok = raw.strip().lower()
             if not tok or tok in _MULTILINE_UNIT_TOKENS:
@@ -529,21 +571,38 @@ def _coalesce_multiline_header(lines):
         has_pos = bool(seen & {"location", "station"})
         if has_case and has_id and "p" in seen and "m2" in seen \
                 and "m3" in seen and has_pos:
-            # Tìm dòng dữ liệu đầu tiên sau j, bỏ dòng chỉ còn đơn vị.
-            p_idx = tokens.index("p")
-            for k in range(j + 1, len(lines)):
-                parts = [p.strip() for p in lines[k].split("\t")]
-                if all((not p) or p.lower() in _MULTILINE_UNIT_TOKENS
-                       for p in parts):
-                    continue
-                if p_idx < len(parts):
-                    try:
-                        float(parts[p_idx])
-                    except ValueError:
-                        return None
-                    return "\t".join(tokens), k
-                return None
+            break
+    else:
+        return None
+    # Gom nốt các dòng header còn lại sau điểm dừng (vd FrameElem/
+    # ElemStation của SAP), rồi mới tìm dòng dữ liệu đầu tiên.
+    k = j + 1
+    while k < len(lines):
+        parts = [p.strip() for p in lines[k].split("\t")]
+        rest = [p.lower() for p in parts
+                if p and p.lower() not in _MULTILINE_UNIT_TOKENS]
+        if rest and all(tok in _MULTILINE_HEADER_NAMES for tok in rest):
+            for tok in rest:
+                if tok not in seen:
+                    seen.add(tok)
+                    tokens.append(tok)
+            k += 1
+            continue
+        if not rest:
+            # Dòng chỉ còn token đơn vị (vd "kN-m" cuối header): bỏ qua.
+            k += 1
+            continue
+        break
+    if k >= len(lines):
+        return None
+    p_idx = tokens.index("p")
+    parts = [p.strip() for p in lines[k].split("\t")]
+    if p_idx < len(parts):
+        try:
+            float(parts[p_idx])
+        except ValueError:
             return None
+        return "\t".join(tokens), k
     return None
 
 
