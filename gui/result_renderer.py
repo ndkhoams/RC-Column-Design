@@ -190,9 +190,13 @@ def render_result_tab(app, config):
     app._sec_cv = cv_sec
     app._sec_canvas = cv_sec  # tương thích tên TCVN
 
-    # Thẻ thống kê (4 cards)
+    # Thẻ thống kê (4 cards) — dùng StringVar như TCVN
+    # (_build_section_cards) để preview_mixin._live_update_section cập
+    # nhật live khi đổi nhập liệu (quyết user 2026-10-29); trước đây là
+    # label tĩnh nên mặt cắt vẽ lại mà thông số không đổi theo.
     cards = config.get("section_cards")
     if cards:
+        _sec_varmap = {}
         prow = tk.Frame(f_tl, bg="#F9FAFB")
         prow.pack(fill=tk.X, padx=2, pady=(2, 4))
         for title, vkey in [("Số thanh", "n"), ("Tổng As", "as"),
@@ -203,8 +207,13 @@ def render_result_tab(app, config):
             cell.pack_propagate(False)
             tk.Label(cell, text=title, font=("", 8), fg="#6B7280",
                      bg="white").pack(pady=(6, 0))
-            tk.Label(cell, text=cards[vkey], font=("", 11, "bold"),
+            _var = tk.StringVar(value=cards[vkey])
+            tk.Label(cell, textvariable=_var, font=("", 11, "bold"),
                      bg="white").pack(pady=2)
+            _sec_varmap[vkey] = _var
+        app._sec_card_vars = _sec_varmap
+    else:
+        app._sec_card_vars = {}
 
     # ===== Ô trên-trái: bảng thông số =====
     f_tr = tk.Frame(app._sum_inner, bg="white", highlightbackground="#D1D5DB", highlightcolor="#D1D5DB",

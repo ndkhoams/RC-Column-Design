@@ -81,6 +81,94 @@ class PreviewMixin:
         except Exception:
             pass
 
+    def _show_column_preview(self):
+        """View xem trước mặt cắt cột (chưa CHECK) ở tab Kết quả.
+
+        Gọi khi mở file (không tự tính — quyết user 2026-10-29) để thay
+        thế kết quả cũ. Chỉ vẽ mặt cắt từ input hiện tại (không qua
+        solver) + 4 thẻ thống kê live (StringVar, cùng hàm
+        _section_card_values mà _redraw_old dùng sau CHECK) để
+        _live_update_section cập nhật khi đổi nhập liệu — cùng nhịp
+        với vẽ lại mặt cắt.
+        """
+        if self.is_wall():
+            return
+        import tkinter as tk
+        try:
+            inp = self._draft_input()
+            sec = build_section(inp)
+        except Exception:
+            return
+        for w in self._sum_inner.winfo_children():
+            w.destroy()
+        self._wall_view_active = False
+        self._tcvn_sec_data = None
+        # Lưới 2 cột như _show_wall_preview của vách
+        self._sum_inner.columnconfigure(0, weight=1)
+        self._sum_inner.columnconfigure(1, weight=1)
+        self._sum_inner.rowconfigure(0, weight=0)
+        self._sum_inner.rowconfigure(1, weight=0)
+        title = tk.Label(
+            self._sum_inner,
+            text="MẶT CẮT CỘT — XEM TRƯỚC (chưa kiểm tra)",
+            font=("", 11, "bold"), bg="#FFFBEB", fg="#92400E")
+        title.grid(row=0, column=0, columnspan=2, sticky="ew",
+                   padx=2, pady=(4, 2))
+        f_info = tk.Frame(self._sum_inner, bg="white",
+                          highlightbackground="#D1D5DB",
+                          highlightcolor="#D1D5DB",
+                          highlightthickness=1, takefocus=0)
+        f_info.grid(row=1, column=0, sticky="nsew", padx=4, pady=4)
+        _lm = ""
+        try:
+            _lm = self.var_load_mode.get()
+        except Exception:
+            pass
+        if _lm == "etabs":
+            _guide = ("Paste/import nội lực ETABS ở mục 5 rồi bấm "
+                      "KIỂM TRA KHẢ NĂNG CHỊU LỰC để tính toán.")
+        else:
+            _guide = ("Nhập nội lực ở mục 5 (N, M2, M3, Q2, Q3) rồi bấm "
+                      "KIỂM TRA KHẢ NĂNG CHỊU LỰC để tính toán.")
+        tk.Label(f_info, bg="white", fg="#374151", justify=tk.LEFT,
+                 wraplength=360, text=_guide).pack(
+                     anchor="nw", padx=10, pady=10)
+        # Ô mặt cắt + thẻ thống kê
+        f_tl = tk.Frame(self._sum_inner, bg="white",
+                        highlightbackground="#D1D5DB",
+                        highlightcolor="#D1D5DB",
+                        highlightthickness=1, takefocus=0)
+        f_tl.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        tk.Label(f_tl, text="MẶT CẮT TIẾT DIỆN",
+                 font=("", 11, "bold"), bg="white").pack(pady=(2, 2))
+        try:
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import (
+                FigureCanvasTkAgg)
+            from rc_column.pdf_export import draw_compression_zone_ax
+            fig = Figure(figsize=(3.9, 3.1), dpi=100)
+            cv = FigureCanvasTkAgg(fig, master=f_tl)
+            cv.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            a1 = fig.add_subplot(111)
+            draw_compression_zone_ax(a1, sec, N_kN=0, M2_kNm=0,
+                                     M3_kNm=0, show_compression=False)
+            fig.tight_layout()
+            cv.draw()
+            self._sec_fig, self._sec_canvas, self._sec_ax = fig, cv, a1
+            self._sec_cv = cv  # cùng tên như result_renderer (ACI/EC2)
+        except Exception:
+            return
+        # 4 thẻ thống kê live (StringVar) — _live_update_section cập
+        # nhật khi đổi nhập liệu, cùng hàm tính với sau CHECK.
+        try:
+            self._sec_card_vars = self._build_section_cards(f_tl, sec, inp)
+        except Exception:
+            self._sec_card_vars = {}
+        try:
+            self._bind_wheel(self._sum_inner, self._sum_canvas)
+        except Exception:
+            pass
+
     def _live_update_section(self, sec, inp):
         """Vẽ lại sơ đồ mặt cắt + thẻ thống kê khi đổi nhập liệu."""
         ax1 = getattr(self, "_sec_ax", None)

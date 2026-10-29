@@ -502,10 +502,55 @@ class DataMixin:
                 _mn = _os.path.splitext(_os.path.basename(path))[0].upper()
                 self.member_var.set(_mn)
             self._update_ck()
-            # Tự động tính toán sau khi mở file
-            try:
-                self.on_check()
-            except Exception:
-                pass
+            # Mở file: KHÔNG tự tính (quyết user 2026-10-29) — chỉ hiển
+            # thị mặt cắt + thông số live; xóa kết quả cũ (nếu có) để
+            # không hiển thị số liệu treo. Các nút CHECK/Xuất PDF vẫn
+            # chạy bình thường khi user bấm.
+            self._clear_results_for_preview()
         except Exception as ex:
             messagebox.showerror("Lỗi", str(ex))
+
+    def _clear_results_for_preview(self):
+        """Xóa toàn bộ kết quả tính cũ để mở file ở trạng thái 'chưa
+        tính', rồi vẽ preview mặt cắt + thông số live từ input.
+
+        Không đổi solver/D/C/JSON schema — chỉ đổi thời điểm tính:
+        solver chỉ chạy khi user bấm KIỂM TRA KHẢ NĂNG CHỊU LỰC.
+        """
+        # Kết quả cột 3 chuẩn
+        self._last_sec = None
+        self._last_inp = None
+        self._last_res = None
+        self._tcvn_full = None
+        self._aci_full = None
+        self._aci_res = None
+        self._ec2_full = None
+        self._ec2_res = None
+        # Kết quả vách
+        self._tcvn_wall_full = None
+        # Tham chiếu cho PDF (hết -> _export_pdf báo "Chưa có kết quả")
+        self._pdf_inp = None
+        self._pdf_res = None
+        self._pdf_shear = None
+        self._pdf_batch = None
+        # Cache batch ETABS (tránh đúp-click ra kết quả treo của file cũ)
+        self._batch_rows = None
+        self._wall_batch_rows = None
+        self._dns_map = {}
+        self._tx_moment_map = {}
+        # Dữ liệu vẽ lại vùng nén + tab Chi tiết đang chờ (lazy)
+        self._tcvn_sec_data = None
+        self._pending_detail = None
+        try:
+            for w in self._calc_inner.winfo_children():
+                w.destroy()
+        except Exception:
+            pass
+        # Vẽ preview từ input hiện tại (không qua solver)
+        try:
+            if self.is_wall():
+                self._refresh_wall_preview()
+            else:
+                self._show_column_preview()
+        except Exception:
+            pass
