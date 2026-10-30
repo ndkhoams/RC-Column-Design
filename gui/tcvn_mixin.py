@@ -587,9 +587,18 @@ class TcvnMixin:
             pass
 
     def _draw_3d_interaction(self):
-        """Vẽ biểu đồ tương tác 3D (N-M2-M3) cho TCVN."""
+        """Vẽ biểu đồ tương tác 3D (N-M2-M3) cho TCVN — theo đúng style
+        ảnh mẫu "Biểu đồ 3D N–Mx–My" của vách (quyết user 2026-10-30,
+        style chuẩn gui/col3d_view.py từ b7b9c31).
+
+        KHÔNG tính lại solver: mặt lấy từ BiaxialCapacity đã dựng ở
+        lần tính cuối (cùng lưới surface_grid như 2D), điểm A/B từ
+        `_last_res` (đúng số 2D từng chữ số). Khung cột: x = M2,
+        y = M3, z = N; góc tải α = atan2(M2*, M3*) (quy ước ETABS).
+        """
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
+            import math
             import numpy as np
             fig = self._nm_fig
             fig.clear()
@@ -607,29 +616,54 @@ class TcvnMixin:
                           transform=ax.transAxes, ha='center')
             else:
                 from rc_column.interaction import BiaxialCapacity
-                cap = BiaxialCapacity(sec, model=inp.concrete_model,
-                                      n_angles=24)
-                n_vals, th_vals, mx_grid, my_grid = cap.surface_grid(
-                    n_n=25, n_angles=36)
-                # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để fill kín
-                mx_grid = np.hstack([mx_grid, mx_grid[:, :1]])
-                my_grid = np.hstack([my_grid, my_grid[:, :1]])
-                n_angles_closed = len(th_vals) + 1
-                # Vẽ mặt 3D
-                ax.plot_surface(mx_grid, my_grid,
-                                np.tile(n_vals[:, None], (1, n_angles_closed)),
-                                cmap='Greens', alpha=0.7, edgecolor='none')
-                # Vẽ điểm tải trọng A
+                from gui.col3d_view import draw_col3d_interaction
+                from gui.surf3d_cache import (
+                    SURF3D_N_N, SURF3D_N_ANGLES, alpha_curve_3d,
+                    curve_fp, get_curve, get_surface, surface_fp)
+                # Mặt 3D qua cache (fingerprint theo tiết diện +
+                # thép + vật liệu + model): lần mở 3D thứ 2+ cùng
+                # tiết diện không tính lại lưới. KHÔNG đụng solver.
+                _fp = surface_fp("tcvn", sec,
+                                 model=inp.concrete_model)
+
+                def _build_cap():
+                    return BiaxialCapacity(
+                        sec, model=inp.concrete_model, n_angles=24)
+
+                n_vals, th_vals, m2_grid, m3_grid = get_surface(
+                    _fp, lambda: _build_cap().surface_grid(
+                        n_n=SURF3D_N_N, n_angles=SURF3D_N_ANGLES))
+                # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để mặt kín
+                m2_grid = np.hstack([m2_grid, m2_grid[:, :1]])
+                m3_grid = np.hstack([m3_grid, m3_grid[:, :1]])
+                # Điểm A/B đúng số từ dict kết quả đã lưu (Mx_star =
+                # M2*, My_star = M3*; Bx/By/BN = điểm giới hạn) —
+                # không tính lại.
                 res = getattr(self, '_last_res', None)
                 if res is not None:
-                    ax.scatter([res.Mx_star], [res.My_star], [res.N],
-                               color='red', s=50, label='Điểm tải A')
-                    ax.legend()
-            ax.set_xlabel('M2 (kN·m)')
-            ax.set_ylabel('M3 (kN·m)')
-            ax.set_zlabel('N (kN)')
-            # (bỏ title theo yêu cầu)
-            fig.tight_layout()
+                    _theta = math.degrees(
+                        math.atan2(res.Mx_star, res.My_star))
+                    _A = (float(res.Mx_star), float(res.My_star),
+                          float(res.N))
+                    _B = (float(res.Bx), float(res.By), float(res.BN))
+                else:
+                    _theta = 0.0
+                    _A = _B = None
+                # Đường cong N–Mα cũng cache theo (mặt, góc tải):
+                # cache hit thì không dựng cap, không gọi
+                # moment_capacity lại.
+                _curve = get_curve(
+                    curve_fp(_fp, _theta),
+                    lambda: alpha_curve_3d(_build_cap, n_vals,
+                                           _theta))
+                draw_col3d_interaction(fig, ax, None, n_vals,
+                                       m2_grid, m3_grid, _A, _B, _theta,
+                                       caption="Biểu đồ 3D N–M2–M3",
+                                       curve=_curve)
+            # (bỏ title theo yêu cầu; helper đã set nhãn + caption)
+            # Không gọi tight_layout ở 3D: helper đã subplots_adjust
+            # chừa chỗ legend/caption; khi quay lại 2D handler đổi
+            # góc gọi tight_layout trả layout 2D như cũ.
             self._nm_cv_ref.draw()
             self._nm_ax_ref = None
         except Exception as ex:

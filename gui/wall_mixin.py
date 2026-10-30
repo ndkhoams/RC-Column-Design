@@ -3347,11 +3347,23 @@ class WallMixin:
                 pass
             from rc_column.interaction import BiaxialCapacity
             from rc_column.wall_chart_adapter import wall_chart_inputs
+            from gui.surf3d_cache import (
+                SURF3D_N_N, SURF3D_N_ANGLES, alpha_curve_3d,
+                curve_fp, get_curve, get_surface, surface_fp)
             sec, inp_ns, res_ns = wall_chart_inputs(full)
-            cap = BiaxialCapacity(sec, model=inp_ns.concrete_model,
-                                  n_angles=24)
-            n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
-                n_n=25, n_angles=36)
+            # Mặt 3D qua cache (fingerprint theo tiết diện + thép +
+            # vật liệu + model): lần mở 3D thứ 2+ cùng tiết diện
+            # không tính lại lưới. KHÔNG đụng solver.
+            _fp = surface_fp("wall", sec,
+                             model=inp_ns.concrete_model)
+
+            def _build_cap():
+                return BiaxialCapacity(
+                    sec, model=inp_ns.concrete_model, n_angles=24)
+
+            n_vals, th_vals, m2_grid, m3_grid = get_surface(
+                _fp, lambda: _build_cap().surface_grid(
+                    n_n=SURF3D_N_N, n_angles=SURF3D_N_ANGLES))
             # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để
             # wireframe kín, không hở đường nối.
             m2_grid = np.hstack([m2_grid, m2_grid[:, :1]])
@@ -3419,16 +3431,11 @@ class WallMixin:
             #   alpha_deg = degrees(atan2(Mx_star, My_star)).
             _theta = math.degrees(
                 math.atan2(res_ns.Mx_star, res_ns.My_star))
-            _rad = math.radians(_theta)
-            _ux, _uy = math.sin(_rad), math.cos(_rad)
-            _n_lo, _n_hi = float(n_vals[0]), float(n_vals[-1])
-            _cx, _cy, _cz = [], [], []
-            for _i in range(64):
-                _Nv = _n_hi + (_n_lo - _n_hi) * _i / 63
-                _M = cap.moment_capacity(float(_Nv), _theta)
-                _cx.append(_M * _ux)
-                _cy.append(_M * _uy)
-                _cz.append(float(_Nv))
+            # Đường cong N–Mα cache theo (mặt, góc tải): cache hit
+            # thì không dựng cap, không gọi moment_capacity lại.
+            _cx, _cy, _cz = get_curve(
+                curve_fp(_fp, _theta),
+                lambda: alpha_curve_3d(_build_cap, n_vals, _theta))
             GREEN, ORANGE, RED = "#059669", "#F97316", "#DC2626"
             ax.plot(_cx, _cy, _cz, color=GREEN, lw=2.2,
                     label="Đường cong N–Mα")

@@ -931,9 +931,19 @@ class Ec2Mixin:
             pass
 
     def _draw_3d_ec2(self):
-        """Vẽ biểu đồ tương tác 3D cho EC2."""
+        """Vẽ biểu đồ tương tác 3D cho EC2 — theo đúng style ảnh mẫu
+        "Biểu đồ 3D N–Mx–My" của vách (quyết user 2026-10-30, style
+        chuẩn gui/col3d_view.py từ b7b9c31).
+
+        KHÔNG tính lại solver: mặt lấy từ EC2Capacity (cùng lưới
+        surface_grid như 2D); điểm A = mô men thiết kế CÓ DẤU gồm
+        bậc 2 qua ec2_signed_design_moments (nguồn duy nhất mọi
+        đường hiển thị); điểm B từ dict `_ec2_res` đã lưu
+        (Bx/By/BN) — đúng số 2D từng chữ số.
+        """
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
+            import math
             import numpy as np
             from matplotlib.figure import Figure
             from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -973,27 +983,59 @@ class Ec2Mixin:
                           transform=ax.transAxes, ha='center')
             else:
                 from rc_column.ec2_checker import EC2Capacity
-                cap = EC2Capacity(sec, conc, steel, n_angles=24)
-                n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
-                    n_n=25, n_angles=36)
-                # Đóng vòng mặt 3D để fill kín 100%
+                from rc_column.ec2_chart_draw import (
+                    ec2_signed_design_moments)
+                from gui.col3d_view import draw_col3d_interaction
+                from gui.surf3d_cache import (
+                    SURF3D_N_N, SURF3D_N_ANGLES, alpha_curve_3d,
+                    curve_fp, get_curve, get_surface, surface_fp)
+                # Mặt 3D qua cache (fingerprint theo tiết diện +
+                # thép + vật liệu): lần mở 3D thứ 2+ cùng tiết diện
+                # không tính lại lưới. KHÔNG đụng solver.
+                _fp = surface_fp("ec2", sec)
+
+                def _build_cap():
+                    return EC2Capacity(sec, conc, steel, n_angles=24)
+
+                n_vals, th_vals, m2_grid, m3_grid = get_surface(
+                    _fp, lambda: _build_cap().surface_grid(
+                        n_n=SURF3D_N_N, n_angles=SURF3D_N_ANGLES))
+                # Đóng vòng mặt 3D để mặt kín 100%
                 m2_grid = np.hstack([m2_grid, m2_grid[:, :1]])
                 m3_grid = np.hstack([m3_grid, m3_grid[:, :1]])
-                n_closed = len(th_vals) + 1
-                ax.plot_surface(m2_grid, m3_grid,
-                                np.tile(n_vals[:, None], (1, n_closed)),
-                                cmap='Oranges', alpha=0.7, edgecolor='none')
-                # Điểm tải trọng A
+                # Điểm A: mô men thiết kế có dấu gồm bậc 2 (đúng quy
+                # ước điểm A/α của EC2); B từ dict _ec2_res đã lưu.
                 ec2_inp = getattr(self, '_ec2_inp', None)
+                ec2_res = getattr(self, '_ec2_res', None)
                 if ec2_inp is not None:
-                    ax.scatter([ec2_inp.Mx], [ec2_inp.My], [ec2_inp.N],
-                               color='red', s=50, label='Điểm tải A')
-                    ax.legend()
-                # (bỏ title theo yêu cầu)
-            ax.set_xlabel('M2 (kN×m)')
-            ax.set_ylabel('M3 (kN×m)')
-            ax.set_zlabel('N (kN)')
-            fig.tight_layout()
+                    _M2m, _M3m = ec2_signed_design_moments(
+                        ec2_res, ec2_inp)
+                    _theta = math.degrees(
+                        math.atan2(_M2m, _M3m))
+                    _A = (float(_M2m), float(_M3m),
+                          float(ec2_inp.N))
+                else:
+                    _theta = 0.0
+                    _A = None
+                if isinstance(ec2_res, dict):
+                    _B = (float(ec2_res.get("Bx", 0) or 0),
+                          float(ec2_res.get("By", 0) or 0),
+                          float(ec2_res.get("BN", 0) or 0))
+                else:
+                    _B = None
+                # Đường cong N–Mα cache theo (mặt, góc tải).
+                _curve = get_curve(
+                    curve_fp(_fp, _theta),
+                    lambda: alpha_curve_3d(_build_cap, n_vals,
+                                           _theta))
+                draw_col3d_interaction(fig, ax, None, n_vals,
+                                       m2_grid, m3_grid, _A, _B, _theta,
+                                       caption="Biểu đồ 3D N–M2–M3",
+                                       curve=_curve)
+                # (bỏ title theo yêu cầu; helper đã set nhãn + caption)
+            # Không gọi tight_layout ở 3D: helper đã subplots_adjust
+            # chừa chỗ legend/caption; khi quay lại 2D handler tạo
+            # lại figure/canvas 2D như cũ.
             self._ec2_nm_cv_ref.draw()
             self._ec2_nm_ax_ref = None
         except Exception as ex:
