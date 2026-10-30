@@ -3286,6 +3286,12 @@ class WallMixin:
                 _fig.clear()
                 ax = _fig.add_subplot(111)
                 self._wall_nm_ax = ax
+                # Trả layout 2D như lúc build ban đầu (view 3D đã
+                # đổi subplots_adjust để chừa chỗ legend/caption).
+                try:
+                    _fig.tight_layout()
+                except Exception:
+                    pass
             else:
                 ax.clear()
             draw_nm_alpha_ax(ax, sec, inp_ns, res_ns, None)
@@ -3294,19 +3300,38 @@ class WallMixin:
             pass
 
     def _draw_wall_3d_interaction(self):
-        """Vẽ mặt tương tác 3D (N–M2–M3) cho vách — như view 3D
-        bên cột (dropdown "Góc xem", quyết user 2026-10-30).
+        """Vẽ mặt tương tác 3D (N–Mx–My) cho vách — theo đúng ảnh mẫu
+        user (quyết 2026-10-30).
 
         Dữ liệu từ dict kết quả vách đã lưu (`_wall_nm_full`) qua
         adapter `wall_chart_inputs`: `sec` tương thích
         `BiaxialCapacity` (đúng class mà `draw_nm_alpha_ax` dùng
         vẽ bao 2D nên cùng họ mặt cho mọi loại tiết diện:
         phẳng, Barbell/T/L/C/U, DXF) — KHÔNG tính lại solver.
-        Trục theo đúng khung solver của vách như biểu đồ 2D
-        (M2 = M_out, M3 = M_in); điểm A đỏ là điểm tải thiết kế.
+        Khung tọa độ là khung canonical Mx–My của tiết diện
+        (mặt từ `surface_grid` vốn là Mx = M·sinθ, My = M·cosθ);
+        vách phẳng: Mx = M_out, My = M_in; vách C/U: Mx = M_in,
+        My = M_out (trục trong MP là y) — điểm A/B và đường cong
+        α đều lấy đúng khung này qua adapter nên khớp mặt.
+
+        Hiển thị theo ảnh mẫu:
+        - 3 trục tọa độ qua gốc O, nhãn 2 đầu mỗi trục:
+          "+Mx"/"−Mx", "+My"/"−My", "+N Nén"/"−N Kéo", chữ "O"
+          tại gốc (pane/tick mặc định của mplot3d được ẩn).
+        - Mặt tương tác: wireframe xám nhạt mờ (không còn mặt đặc
+          xanh) — cùng lưới `surface_grid`, chỉ đổi cách vẽ.
+        - Đường cong N–Mα tại góc tải: đường bao 2D
+          (`moment_capacity(N, θ_can)`, θ_can = atan2(Mx*, My*)
+          như `draw_nm_alpha_ax`) dựng thành đường 3D
+          (Mx, My) = Mα·(sinθ_can, cosθ_can), màu xanh lá.
+        - Điểm A: chấm xanh lá; điểm B: thoi cam; tia đứt đỏ
+          O–A–B kéo dài qua B ×1.18 (như 2D).
+        - Legend 5 mục + caption "Biểu đồ 3D N–Mx–My" dưới figure.
         """
         try:
             from mpl_toolkits.mplot3d import Axes3D  # noqa
+            from matplotlib.lines import Line2D
+            import math
             import numpy as np
             cv = getattr(self, "_wall_nm_cv", None)
             full = getattr(self, "_wall_nm_full", None)
@@ -3327,21 +3352,133 @@ class WallMixin:
                                   n_angles=24)
             n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
                 n_n=25, n_angles=36)
-            # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để fill kín
+            # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để
+            # wireframe kín, không hở đường nối.
             m2_grid = np.hstack([m2_grid, m2_grid[:, :1]])
             m3_grid = np.hstack([m3_grid, m3_grid[:, :1]])
             n_closed = len(th_vals) + 1
-            ax.plot_surface(m2_grid, m3_grid,
-                            np.tile(n_vals[:, None], (1, n_closed)),
-                            cmap='Greens', alpha=0.7, edgecolor='none')
-            ax.scatter([res_ns.Mx_star], [res_ns.My_star], [res_ns.N],
-                       color='red', s=50, label='Điểm tải A')
-            ax.legend()
-            ax.set_xlabel('M2 (kN·m)')
-            ax.set_ylabel('M3 (kN·m)')
-            ax.set_zlabel('N (kN)')
-            # (bỏ title theo yêu cầu — như bên cột)
-            fig.tight_layout()
+            n_grid = np.tile(n_vals[:, None], (1, n_closed))
+            # ---- 1. Ẩn trục/pane mặc định, vẽ 3 trục qua gốc O ----
+            ax.grid(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_zticks([])
+            try:
+                for _pane in (ax.xaxis.pane, ax.yaxis.pane,
+                              ax.zaxis.pane):
+                    _pane.set_visible(False)
+            except Exception:
+                pass
+
+            def _extend(lo, hi, frac=0.10):
+                _s = hi - lo
+                _m = frac * _s if _s > 0 else 1.0
+                return lo - _m, hi + _m
+
+            _xe = _extend(float(m2_grid.min()), float(m2_grid.max()))
+            _ye = _extend(float(m3_grid.min()), float(m3_grid.max()))
+            _ze = _extend(float(n_vals.min()), float(n_vals.max()))
+            _AXC = "#4B5563"  # xám đậm: trục + nhãn, dễ đọc
+            ax.plot([_xe[0], _xe[1]], [0, 0], [0, 0],
+                    color=_AXC, lw=1.4)
+            ax.plot([0, 0], [_ye[0], _ye[1]], [0, 0],
+                    color=_AXC, lw=1.4)
+            ax.plot([0, 0], [0, 0], [_ze[0], _ze[1]],
+                    color=_AXC, lw=1.4)
+            ax.set_xlim(_xe)
+            ax.set_ylim(_ye)
+            ax.set_zlim(_ze)
+            # Nhãn 2 đầu mỗi trục (đặt ngoài biên mặt 10% nên
+            # không đè lên wireframe) + "O" tại gốc.
+            _fs = 10
+            ax.text(_xe[1], 0, 0, "+Mx", color=_AXC,
+                    fontsize=_fs, ha="left", va="center")
+            ax.text(_xe[0], 0, 0, "−Mx", color=_AXC,
+                    fontsize=_fs, ha="right", va="center")
+            ax.text(0, _ye[1], 0, "+My", color=_AXC,
+                    fontsize=_fs, ha="center", va="center")
+            ax.text(0, _ye[0], 0, "−My", color=_AXC,
+                    fontsize=_fs, ha="center", va="center")
+            ax.text(0, 0, _ze[1], "+N Nén", color=_AXC,
+                    fontsize=_fs, ha="center", va="bottom")
+            ax.text(0, 0, _ze[0], "−N Kéo", color=_AXC,
+                    fontsize=_fs, ha="center", va="top")
+            # "O" lệch nhẹ về phía −Mx để không bị lưới wireframe
+            # che khuất tại đúng điểm giao 3 trục.
+            ax.text(_xe[0] * 0.035, 0, 0, "O", color=_AXC,
+                    fontsize=9, ha="center", va="center")
+            # ---- 2. Mặt tương tác: wireframe xám nhạt mờ ----
+            # (ảnh mẫu là dạng lưới; cùng lưới surface_grid,
+            # chỉ đổi cách vẽ — không còn mặt đặc xanh).
+            ax.plot_wireframe(m2_grid, m3_grid, n_grid,
+                              color="#9CA3AF", alpha=0.5,
+                              rstride=2, cstride=3, linewidth=0.7)
+            # ---- 3. Đường cong N–Mα tại góc tải (dựng từ bao 2D)
+            # θ_can = góc tải trong khung canonical, đúng công
+            # thức draw_nm_alpha_ax dùng (chart_draw.py):
+            #   alpha_deg = degrees(atan2(Mx_star, My_star)).
+            _theta = math.degrees(
+                math.atan2(res_ns.Mx_star, res_ns.My_star))
+            _rad = math.radians(_theta)
+            _ux, _uy = math.sin(_rad), math.cos(_rad)
+            _n_lo, _n_hi = float(n_vals[0]), float(n_vals[-1])
+            _cx, _cy, _cz = [], [], []
+            for _i in range(64):
+                _Nv = _n_hi + (_n_lo - _n_hi) * _i / 63
+                _M = cap.moment_capacity(float(_Nv), _theta)
+                _cx.append(_M * _ux)
+                _cy.append(_M * _uy)
+                _cz.append(float(_Nv))
+            GREEN, ORANGE, RED = "#059669", "#F97316", "#DC2626"
+            ax.plot(_cx, _cy, _cz, color=GREEN, lw=2.2,
+                    label="Đường cong N–Mα")
+            # ---- 4. Điểm A (xanh lá), B (thoi cam),
+            # tia đứt đỏ O–A–B kéo dài qua B ×1.18 (như 2D) ----
+            _Ax = (float(res_ns.Mx_star), float(res_ns.My_star),
+                   float(res_ns.N))
+            _Bx = (float(res_ns.Bx), float(res_ns.By),
+                   float(res_ns.BN))
+            ax.plot([0.0, _Bx[0] * 1.18],
+                    [0.0, _Bx[1] * 1.18],
+                    [0.0, _Bx[2] * 1.18],
+                    color=RED, ls="--", lw=1.5, dashes=(4, 3),
+                    label="Tia tải O–A–B")
+            ax.scatter([_Bx[0]], [_Bx[1]], [_Bx[2]], c=ORANGE,
+                       marker="D", s=70, edgecolors="white",
+                       linewidths=1.2, label="Điểm giới hạn B")
+            ax.scatter([_Ax[0]], [_Ax[1]], [_Ax[2]], c=GREEN,
+                       s=70, edgecolors="white", linewidths=1.2,
+                       label="Điểm tải A")
+            ax.text(_Ax[0], _Ax[1], _Ax[2], "  A", fontsize=9,
+                    color=GREEN, weight="bold")
+            ax.text(_Bx[0], _Bx[1], _Bx[2], "  B", fontsize=9,
+                    color=ORANGE, weight="bold")
+            # ---- 5. Legend + caption ----
+            _leg = [
+                Line2D([0], [0], color="#9CA3AF", lw=1.4,
+                       label="Mặt tương tác 3D"),
+                Line2D([0], [0], color=GREEN, lw=2.2,
+                       label="Đường cong N–Mα"),
+                Line2D([0], [0], color=RED, lw=1.5, ls="--",
+                       dashes=(4, 3), label="Tia tải O–A–B"),
+                Line2D([0], [0], marker="o", color="w",
+                       markerfacecolor=GREEN, markersize=8,
+                       markeredgecolor="white", label="Điểm tải A"),
+                Line2D([0], [0], marker="D", color="w",
+                       markerfacecolor=ORANGE, markersize=7,
+                       markeredgecolor="white",
+                       label="Điểm giới hạn B"),
+            ]
+            ax.legend(handles=_leg, fontsize=8, loc="upper center",
+                      bbox_to_anchor=(0.5, -0.10), ncol=3,
+                      frameon=False)
+            # Chừa chỗ dưới cho legend (2 hàng khi ncol=3) +
+            # caption (khi quay lại 2D, handler đổi góc gọi lại
+            # tight_layout để trả layout 2D như cũ).
+            fig.subplots_adjust(left=0.02, right=0.98,
+                                bottom=0.30, top=0.94)
+            fig.text(0.5, 0.02, "Biểu đồ 3D N–Mx–My", ha="center",
+                     va="bottom", fontsize=11, fontweight="bold")
             cv.draw()
             self._wall_nm_ax = ax
         except Exception:
