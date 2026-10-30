@@ -3143,10 +3143,9 @@ class WallMixin:
             except Exception:
                 pass
             cv2.draw()
-            # Combobox "Góc xem:" như bên cột nhưng KHÔNG có "3D"
-            # (vách không có mặt 3D): đổi góc chỉ vẽ lại biểu đồ
-            # N–Mα này, điểm A/B, D/C và khối ghi chú giữ nguyên
-            # số góc tải.
+            # Combobox "Góc xem:" như bên cột, gồm "3D" (quyết user
+            # 2026-10-30): đổi góc chỉ vẽ lại biểu đồ N–Mα này,
+            # điểm A/B, D/C và khối ghi chú giữ nguyên số góc tải.
             self._wall_nm_ax = ax2
             self._wall_nm_cv = cv2
             self._wall_nm_full = full
@@ -3154,7 +3153,7 @@ class WallMixin:
             _right.pack(side=tk.RIGHT)
             tk.Label(_right, text="Góc xem:", font=("", 8),
                      bg="white").pack(side=tk.LEFT)
-            _vals = ["α (góc tải)"] + \
+            _vals = ["α (góc tải)", "3D"] + \
                 [f"{d}°" for d in range(0, 361, 15)]
             self._wall_nm_cb = ttk.Combobox(
                 _right, values=_vals, width=11, state="readonly",
@@ -3240,16 +3239,22 @@ class WallMixin:
     def _on_wall_nm_angle_changed(self, event=None):
         """Vẽ lại CHỈ biểu đồ N–Mα vách tại góc xem đã chọn.
 
-        Như bên cột nhưng không có "3D": "α (góc tải)" -> góc tải
-        của dict; "0°".."360°" -> xoay mô men thiết kế qua
-        adapter. Điểm A/B, D/C và khối ghi chú giữ nguyên."""
+        Như bên cột (có "3D" từ 2026-10-30): "α (góc tải)" -> góc
+        tải của dict; "3D" -> mặt tương tác 3D; "0°".."360°" ->
+        xoay mô men thiết kế qua adapter. Điểm A/B, D/C và khối
+        ghi chú giữ nguyên."""
         try:
             ax = getattr(self, "_wall_nm_ax", None)
             cv = getattr(self, "_wall_nm_cv", None)
             full = getattr(self, "_wall_nm_full", None)
-            if ax is None or cv is None or full is None:
+            if cv is None or full is None:
                 return
             sel = self._wall_nm_cb.get()
+            if sel == "3D":
+                self._draw_wall_3d_interaction()
+                return
+            if ax is None:
+                return
             if sel.startswith("α"):
                 angle = None
             else:
@@ -3274,11 +3279,74 @@ class WallMixin:
             from rc_column.wall_chart_adapter import wall_chart_inputs
             sec, inp_ns, res_ns = wall_chart_inputs(
                 full, view_angle_deg=angle)
-            ax.clear()
+            # Nếu đang ở 3D, tạo lại axes 2D (như bên cột)
+            _fig = cv.figure
+            _cur = _fig.axes[0] if _fig.axes else None
+            if _cur is not None and getattr(_cur, 'name', '') == '3d':
+                _fig.clear()
+                ax = _fig.add_subplot(111)
+                self._wall_nm_ax = ax
+            else:
+                ax.clear()
             draw_nm_alpha_ax(ax, sec, inp_ns, res_ns, None)
             cv.draw()
         except Exception:
             pass
+
+    def _draw_wall_3d_interaction(self):
+        """Vẽ mặt tương tác 3D (N–M2–M3) cho vách — như view 3D
+        bên cột (dropdown "Góc xem", quyết user 2026-10-30).
+
+        Dữ liệu từ dict kết quả vách đã lưu (`_wall_nm_full`) qua
+        adapter `wall_chart_inputs`: `sec` tương thích
+        `BiaxialCapacity` (đúng class mà `draw_nm_alpha_ax` dùng
+        vẽ bao 2D nên cùng họ mặt cho mọi loại tiết diện:
+        phẳng, Barbell/T/L/C/U, DXF) — KHÔNG tính lại solver.
+        Trục theo đúng khung solver của vách như biểu đồ 2D
+        (M2 = M_out, M3 = M_in); điểm A đỏ là điểm tải thiết kế.
+        """
+        try:
+            from mpl_toolkits.mplot3d import Axes3D  # noqa
+            import numpy as np
+            cv = getattr(self, "_wall_nm_cv", None)
+            full = getattr(self, "_wall_nm_full", None)
+            if cv is None or full is None:
+                return
+            fig = cv.figure
+            fig.clear()
+            ax = fig.add_subplot(111, projection='3d')
+            # Xoay bằng kéo chuột (như bên cột)
+            try:
+                ax.mouse_init()
+            except Exception:
+                pass
+            from rc_column.interaction import BiaxialCapacity
+            from rc_column.wall_chart_adapter import wall_chart_inputs
+            sec, inp_ns, res_ns = wall_chart_inputs(full)
+            cap = BiaxialCapacity(sec, model=inp_ns.concrete_model,
+                                  n_angles=24)
+            n_vals, th_vals, m2_grid, m3_grid = cap.surface_grid(
+                n_n=25, n_angles=36)
+            # Đóng vòng mặt 3D (thêm cột 360° = cột 0°) để fill kín
+            m2_grid = np.hstack([m2_grid, m2_grid[:, :1]])
+            m3_grid = np.hstack([m3_grid, m3_grid[:, :1]])
+            n_closed = len(th_vals) + 1
+            ax.plot_surface(m2_grid, m3_grid,
+                            np.tile(n_vals[:, None], (1, n_closed)),
+                            cmap='Greens', alpha=0.7, edgecolor='none')
+            ax.scatter([res_ns.Mx_star], [res_ns.My_star], [res_ns.N],
+                       color='red', s=50, label='Điểm tải A')
+            ax.legend()
+            ax.set_xlabel('M2 (kN·m)')
+            ax.set_ylabel('M3 (kN·m)')
+            ax.set_zlabel('N (kN)')
+            # (bỏ title theo yêu cầu — như bên cột)
+            fig.tight_layout()
+            cv.draw()
+            self._wall_nm_ax = ax
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def _build_wall_param_table(self, parent, full):
         """Bảng thông số vách (đọc từ dict kết quả, không tính lại)."""
