@@ -9,6 +9,7 @@ import math
 
 from .aci_checker import aci_interaction_curve
 from .aci_materials import PHI_SPIRAL, PHI_TIED, max_axial_phi
+from .lang import T
 
 
 def _design_curve(sec, conc, steel, theta_deg, tied=True, n_points=48):
@@ -131,7 +132,7 @@ def _interp_M_at_N(n_list, m_list, N):
 
 def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
                          N_kN, M2_kNm, M3_kNm, tied=True,
-                         view_angle_deg=None):
+                         view_angle_deg=None, lang: str = "VN"):
     # Biểu đồ N-Mα theo ACI 318-19 tại góc uốn xiên α
     # view_angle_deg: góc xem đường cong (None = góc tải trọng)
     # Style Y HỆT chart_draw.draw_nm_alpha_ax
@@ -166,10 +167,10 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     # Điểm B (giới hạn) vẽ trước, điểm A (tải trọng) vẽ sau
     ax.scatter([lim[1]], [lim[0]], c=ORANGE, marker="D", s=70, zorder=5,
-               edgecolors="white", linewidths=1.2, label="Giới hạn")
+               edgecolors="white", linewidths=1.2, label=T("Giới hạn", lang))
     ax.scatter([Ma], [N_kN], c=GREEN, s=70, zorder=6,
                edgecolors="white", linewidths=1.2,
-               label="Điểm tải A")
+               label=T("Điểm tải A", lang))
     ax.text(Ma, N_kN, "  A", fontsize=9, color=GREEN,
             weight="bold", va="center", zorder=7)
     ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
@@ -190,13 +191,15 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
     # Legend 4 mục Y HỆT chart_draw, đặt dưới biểu đồ
     from matplotlib.lines import Line2D
     leg_elems = [
-        Line2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+        Line2D([0], [0], color=GREEN, lw=2.2, label=T("Đường bao N-Mα", lang)),
         Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-               label="Tia tải O-A-B"),
+               label=T("Tia tải O-A-B", lang)),
         Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
-               markersize=8, markeredgecolor="white", label="Điểm tải A"),
+               markersize=8, markeredgecolor="white",
+               label=T("Điểm tải A", lang)),
         Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
-               markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+               markersize=7, markeredgecolor="white",
+               label=T("Điểm giới hạn B", lang)),
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
@@ -216,7 +219,7 @@ def draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
 
 
 def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
-                     N_kN, M2_kNm, M3_kNm, tied=True):
+                     N_kN, M2_kNm, M3_kNm, tied=True, lang: str = "VN"):
     # Biểu đồ M2-M3 theo ACI 318-19 tại N = BN (lực dọc của điểm
     # giới hạn B trên tia D/C) — KHÔNG còn tại N tải như trước.
     # Chỉ lát cắt tại BN mới đi đúng qua B, vì theo định nghĩa tia
@@ -269,10 +272,10 @@ def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
             color=RED, ls="--", lw=1.5, dashes=(4, 3), zorder=4)
     ax.scatter([aci_res["By"]], [aci_res["Bx"]], c=ORANGE, marker="D", s=70,
                zorder=5, edgecolors="white", linewidths=1.2,
-               label="Giới hạn")
+               label=T("Giới hạn", lang))
     ax.scatter([M3_kNm], [M2_kNm], c=GREEN, s=70,
                zorder=6, edgecolors="white", linewidths=1.2,
-               label="Điểm tải A")
+               label=T("Điểm tải A", lang))
     ax.text(M3_kNm, M2_kNm, "  A", fontsize=9,
             color=GREEN, weight="bold", va="center", zorder=7)
     # Trục qua tâm
@@ -287,13 +290,15 @@ def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
 
     from matplotlib.lines import Line2D
     leg_elems = [
-        Line2D([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+        Line2D([0], [0], color=BLUE, lw=2.2, label=T("Đường bao M2-M3", lang)),
         Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-               label="Tia tải O-A-B"),
+               label=T("Tia tải O-A-B", lang)),
         Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
-               markersize=8, markeredgecolor="white", label="Điểm tải A"),
+               markersize=8, markeredgecolor="white",
+               label=T("Điểm tải A", lang)),
         Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
-               markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+               markersize=7, markeredgecolor="white",
+               label=T("Điểm giới hạn B", lang)),
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
@@ -307,7 +312,8 @@ def draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
 
 
 def aci_interaction_image(sec, conc, steel, aci_res, N_kN, M2_kNm, M3_kNm,
-                          tied=True, width_in=5.0, dpi=200) -> bytes:
+                          tied=True, width_in=5.0, dpi=200,
+                          lang: str = "VN") -> bytes:
     """Tạo PNG biểu đồ N-Mα vuông cho PDF ACI."""
     import matplotlib
     matplotlib.use("Agg")
@@ -315,7 +321,7 @@ def aci_interaction_image(sec, conc, steel, aci_res, N_kN, M2_kNm, M3_kNm,
     import io
     fig, ax = plt.subplots(figsize=(width_in, width_in))
     draw_aci_nm_alpha_ax(ax, sec, conc, steel, aci_res,
-                         N_kN, M2_kNm, M3_kNm, tied=tied)
+                         N_kN, M2_kNm, M3_kNm, tied=tied, lang=lang)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -323,7 +329,8 @@ def aci_interaction_image(sec, conc, steel, aci_res, N_kN, M2_kNm, M3_kNm,
 
 
 def aci_m2m3_image(sec, conc, steel, aci_res, N_kN, M2_kNm, M3_kNm,
-                   tied=True, width_in=5.0, dpi=200) -> bytes:
+                   tied=True, width_in=5.0, dpi=200,
+                   lang: str = "VN") -> bytes:
     """Tạo PNG biểu đồ M2-M3 vuông cho PDF ACI."""
     import matplotlib
     matplotlib.use("Agg")
@@ -331,7 +338,7 @@ def aci_m2m3_image(sec, conc, steel, aci_res, N_kN, M2_kNm, M3_kNm,
     import io
     fig, ax = plt.subplots(figsize=(width_in, width_in))
     draw_aci_m2m3_ax(ax, sec, conc, steel, aci_res,
-                     N_kN, M2_kNm, M3_kNm, tied=tied)
+                     N_kN, M2_kNm, M3_kNm, tied=tied, lang=lang)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)

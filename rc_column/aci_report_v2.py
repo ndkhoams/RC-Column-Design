@@ -8,6 +8,8 @@ Trả về list các section dict để GUI render (cùng cấu trúc với TCVN
 import math
 from typing import Any, Dict, List
 
+from .lang import T
+
 
 def _f(x: float, nd: int = 2) -> str:
     if x is None or not math.isfinite(x):
@@ -38,14 +40,15 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                                     shear_res: Dict[str, Any],
                                     conc, steel, sec,
                                     tied: bool = True,
-                                    fyt_MPa: float = None) -> List[Dict[str, Any]]:
+                                    fyt_MPa: float = None,
+                                    lang: str = "VN") -> List[Dict[str, Any]]:
     """Tạo 7 mục thuyết minh theo mẫu TCVN cho ACI 318-19."""
     fc = conc.fc
     fy = steel.fy
     eps_y = steel.eps_y
     if fyt_MPa is None:
         fyt_MPa = fy
-    tie_txt = "đai rời (tied)" if tied else "đai xoắn (spiral)"
+    tie_txt = T("đai rời (tied)", lang) if tied else T("đai xoắn (spiral)", lang)
     phi_c = 0.65 if tied else 0.75
 
     N = getattr(inp, "N", 0.0) or 0.0
@@ -59,10 +62,10 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     # ---- 1. Vật liệu ----
     sections.append({
         "num": 1,
-        "title": "ĐẶC TRƯNG VẬT LIỆU",
-        "ref": "ACI 318-19 Chương 19 & 20",
+        "title": T("ĐẶC TRƯNG VẬT LIỆU", lang),
+        "ref": T("ACI 318-19 Chương 19 & 20", lang),
         "cards": [
-            _mk("Bê tông",
+            _mk(T("Bê tông", lang),
                 "ACI 19.2.2.1, 22.2.2.1",
                 [f"f'c = {_fm(fc)} MPa",
                  f"Ec = 4700√f'c = {_f(conc.Ec, 0)} MPa",
@@ -70,22 +73,22 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                  f"β1 = {_f(conc.beta1, 4)}",
                  f"0.85f'c = {_f(conc.f_block, 2)} MPa"],
                 ""),
-            _mk("Cốt thép dọc",
+            _mk(T("Cốt thép dọc", lang),
                 "ACI 20.2.2",
                 [f"fy = {_fm(fy)} MPa",
                  "Es = 200000 MPa",
                  f"εy = {_f(eps_y, 5)}"],
                 ""),
-            _mk("Cốt thép đai",
+            _mk(T("Cốt thép đai", lang),
                 "ACI 20.2.2",
                 [f"fyt = {_fm(fyt_MPa)} MPa",
                  "Es = 200000 MPa",
-                 f"Loại: {tie_txt}"],
+                 T("Loại: {t}", lang).format(t=tie_txt)],
                 ""),
-            _mk("Hệ số sức kháng φ",
+            _mk(T("Hệ số sức kháng φ", lang),
                 "ACI 21.2.2",
                 [f"φc = {_f(phi_c, 2)} ({tie_txt})",
-                 f"φ tại B = {_f(aci_res.get('phi', phi_c), 2)}"],
+                 T("φ tại B = {v}", lang).format(v=_f(aci_res.get('phi', phi_c), 2))],
                 ""),
         ],
     })
@@ -109,39 +112,39 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _rho = 100 * Ast / Ag if Ag > 0 else 0
     sections.append({
         "num": 2,
-        "title": "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
+        "title": T("ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN", lang),
         "ref": "",
         "cards": [
-            _mk("Diện tích tiết diện bê tông nguyên Ag",
+            _mk(T("Diện tích tiết diện bê tông nguyên Ag", lang),
                 "",
                 [f"Ag = b × h",
                  f"= {_f(cx, 0)} × {_f(cy, 0)}",
                  f"= {_f(Ag, 0)} mm² (= {_f(Ag/1e6, 4)} m²)"],
                 ""),
-            _mk("Diện tích cốt thép dọc Ast",
+            _mk(T("Diện tích cốt thép dọc Ast", lang),
                 "",
-                [f"Số thanh: {_bar_str}",
-                 f"Tổng Ast = {_f(Ast, 0)} mm²",
-                 f"Hàm lượng ρg = {_f(_rho, 2)}%"],
+                [T("Số thanh: {b}", lang).format(b=_bar_str),
+                 T("Tổng Ast = {v} mm²", lang).format(v=_f(Ast, 0)),
+                 T("Hàm lượng ρg = {v}%", lang).format(v=_f(_rho, 2))],
                 ""),
-            _mk("Mô men quán tính trục 2 (I2)",
+            _mk(T("Mô men quán tính trục 2 (I2)", lang),
                 "",
                 [f"I₂ = (b × h³) / 12",
                  f"= ({_f(cx, 0)} × {_f(cy, 0)}³) / 12",
                  f"= {_f(_Ix/1e9, 3)} × 10⁹ mm⁴"],
                 ""),
-            _mk("Mô men quán tính trục 3 (I3)",
+            _mk(T("Mô men quán tính trục 3 (I3)", lang),
                 "",
                 [f"I₃ = (h × b³) / 12",
                  f"= ({_f(cy, 0)} × {_f(cx, 0)}³) / 12",
                  f"= {_f(_Iy/1e9, 3)} × 10⁹ mm⁴"],
                 ""),
-            _mk("Bán kính quán tính phương 2 (i2)",
+            _mk(T("Bán kính quán tính phương 2 (i2)", lang),
                 "",
                 [f"i₂ = √(I₂ / Ag)",
                  f"= {_f(_ix, 2)} mm (= {_f(_ix/1000, 4)} m)"],
                 ""),
-            _mk("Bán kính quán tính phương 3 (i3)",
+            _mk(T("Bán kính quán tính phương 3 (i3)", lang),
                 "",
                 [f"i₃ = √(I₃ / Ag)",
                  f"= {_f(_iy, 2)} mm (= {_f(_iy/1000, 4)} m)"],
@@ -159,32 +162,32 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _klr3 = _k3 * _L03 * 1000 / _iy if _iy > 0 else 0
     sections.append({
         "num": 3,
-        "title": "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
+        "title": T("CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH", lang),
         "ref": "ACI 6.6.4",
         "cards": [
-            _mk("Chiều dài tính toán",
+            _mk(T("Chiều dài tính toán", lang),
                 "ACI 6.6.4.4",
                 [f"L0,2 = k×lu = {_f(_k2, 2)} × {_f(_L02/_k2 if _k2 else 0, 2)}",
                  f"= {_f(_L02, 2)} m",
                  f"L0,3 = {_f(_L03, 2)} m"],
                 ""),
-            _mk("Bán kính quán tính r",
+            _mk(T("Bán kính quán tính r", lang),
                 "ACI 6.6.4.3.1",
-                [f"r ≈ 0.3h (tiết diện chữ nhật)",
+                [T("r ≈ 0.3h (tiết diện chữ nhật)", lang),
                  f"r2 = {_f(_ix, 1)} mm",
                  f"r3 = {_f(_iy, 1)} mm"],
                 ""),
-            _mk("Tỉ số độ mảnh klu/r",
+            _mk(T("Tỉ số độ mảnh klu/r", lang),
                 "ACI 6.6.4.1",
                 [f"(klu/r)₂ = {_f(_k2, 2)}×{_f(_L02*1000, 0)}/{_f(_ix, 1)}",
                  f"= {_f(_klr2, 1)}",
                  f"(klu/r)₃ = {_f(_klr3, 1)}"],
                 ""),
-            _mk("Giới hạn độ mảnh",
+            _mk(T("Giới hạn độ mảnh", lang),
                 "ACI 6.6.4.1",
-                ["Khung không chuyển vị: klu/r ≤ 34 - 12(M1/M2) ≤ 40",
-                 "Khung chuyển vị: klu/r ≤ 22",
-                 f"{'→ Xét uốn dọc' if max(_klr2, _klr3) > 22 else '→ Bỏ qua uốn dọc'}"],
+                [T("Khung không chuyển vị: klu/r ≤ 34 - 12(M1/M2) ≤ 40", lang),
+                 T("Khung chuyển vị: klu/r ≤ 22", lang),
+                 (T("→ Xét uốn dọc", lang) if max(_klr2, _klr3) > 22 else T("→ Bỏ qua uốn dọc", lang))],
                 ""),
         ],
     })
@@ -200,28 +203,28 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _Mmin3 = _Nabs * (15 + 0.03 * _h3) / 1000
     sections.append({
         "num": 4,
-        "title": "ĐỘ LỆCH TÂM",
+        "title": T("ĐỘ LỆCH TÂM", lang),
         "ref": "ACI 6.6.4.5.4",
         "cards": [
-            _mk("Mô men tối thiểu phương 2 (Mmin,2)",
+            _mk(T("Mô men tối thiểu phương 2 (Mmin,2)", lang),
                 "ACI 6.6.4.5.4",
                 [f"Mmin = Pu×(15 + 0.03h)",
                  f"Mmin,2 = {_f(_Nabs, 1)} × (15 + 0.03×{_f(_h2, 0)})/1000",
                  f"= {_f(_Mmin2, 1)} kN×m"],
                 ""),
-            _mk("Mô men tối thiểu phương 3 (Mmin,3)",
+            _mk(T("Mô men tối thiểu phương 3 (Mmin,3)", lang),
                 "ACI 6.6.4.5.4",
                 [f"Mmin = Pu×(15 + 0.03h)",
                  f"Mmin,3 = {_f(_Nabs, 1)} × (15 + 0.03×{_f(_h3, 0)})/1000",
                  f"= {_f(_Mmin3, 1)} kN×m"],
                 ""),
-            _mk("Độ lệch tâm phương 2 (e2)",
+            _mk(T("Độ lệch tâm phương 2 (e2)", lang),
                 "ACI 6.6.4.5.4",
                 [f"e₂ = |M₂| / N",
                  f"= ({_f(abs(M2), 2)} × 10³) / {_f(_Nabs, 1)}",
                  f"= {_f(e2, 1)} mm"],
                 ""),
-            _mk("Độ lệch tâm phương 3 (e3)",
+            _mk(T("Độ lệch tâm phương 3 (e3)", lang),
                 "ACI 6.6.4.5.4",
                 [f"e₃ = |M₃| / N",
                  f"= ({_f(abs(M3), 2)} × 10³) / {_f(_Nabs, 1)}",
@@ -251,31 +254,31 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
             if _m:
                 _n_sus, _n_tot = _m.group(1), _m.group(2)
                 _beta_lines = [
-                    "βdns = N_thường_xuyên / N_tính_toán",
+                    T("βdns = N_thường_xuyên / N_tính_toán", lang),
                     f"= {_n_sus} / {_n_tot}",
                     f"= {_f(_beta, 3)}",
                 ]
             else:
-                _beta_lines = [f"βdns = {_f(_beta, 3)} (từ {_bs})"]
+                _beta_lines = [f"βdns = {_f(_beta, 3)} " + T("(từ {s})", lang).format(s=_bs)]
         else:
-            _beta_lines = [f"βdns = {_f(_beta, 3)} (mặc định)"]
+            _beta_lines = [T("βdns = {v} (mặc định)", lang).format(v=_f(_beta, 3))]
         _cards5 = [
-            _mk("Tải trọng tới hạn Euler Pc",
+            _mk(T("Tải trọng tới hạn Euler Pc", lang),
                 "ACI 6.6.4.4.2",
                 [f"EI = 0.4×Ec×Ig / (1 + βdns)"] + _beta_lines + [
                  f"Pc = π²×EI / (k×lu)²",
                  f"Pc2 = {_f(_pc2, 0)} kN",
                  f"Pc3 = {_f(_pc3, 0)} kN"],
                 ""),
-            _mk("Hệ số mô men tương đương Cm",
+            _mk(T("Hệ số mô men tương đương Cm", lang),
                 "ACI 6.6.4.5.3",
-                [f"(a) Không tải ngang: Cm = 0.6 − 0.4×(M1/M2) ≥ 0.4",
-                 f"(b) Có tải ngang giữa nhịp: Cm = 1.0",
-                 f"→ Chọn Cm = 1.0 theo (b)",
+                [T("(a) Không tải ngang: Cm = 0.6 − 0.4×(M1/M2) ≥ 0.4", lang),
+                 T("(b) Có tải ngang giữa nhịp: Cm = 1.0", lang),
+                 T("→ Chọn Cm = 1.0 theo (b)", lang),
                  f"Cm2 = {_f(_cm2, 3)}",
                  f"Cm3 = {_f(_cm3, 3)}"],
                 ""),
-            _mk("Hệ số phóng đại δns",
+            _mk(T("Hệ số phóng đại δns", lang),
                 "ACI 6.6.4.5.2",
                 [f"δns = Cm / [1 - Pu/(0.75×Pc)] ≥ 1.0",
                  f"δns2 = {_f(_cm2, 3)} / [1 - {_f(abs(N), 1)}/(0.75×{_f(_pc2, 0)})]",
@@ -283,7 +286,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
                  f"δns3 = {_f(_cm3, 3)} / [1 - {_f(abs(N), 1)}/(0.75×{_f(_pc3, 0)})]",
                  f"= {_f(_dl3, 3)}"],
                 ""),
-            _mk("Mô men sau phóng đại",
+            _mk(T("Mô men sau phóng đại", lang),
                 "ACI 6.6.4.5.1",
                 [f"M2* = δns2 × M2",
                  f"= {_f(_dl2, 3)} × {_f(M2, 1)}",
@@ -296,7 +299,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     else:
         delta_ns = _mm.get("delta_ns", 1.0)
         _cards5 = [
-            _mk("Hệ số phóng đại δns",
+            _mk(T("Hệ số phóng đại δns", lang),
                 "ACI 6.6.4.5.2",
                 [f"δns = {_f(delta_ns, 3)}"],
                 f"δns = {_f(delta_ns, 3)}"),
@@ -310,7 +313,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
         M3_star = M3 * delta_ns
     sections.append({
         "num": 5,
-        "title": "PHÓNG ĐẠI MÔ MEN UỐN DỌC",
+        "title": T("PHÓNG ĐẠI MÔ MEN UỐN DỌC", lang),
         "ref": "ACI 6.6.4.5",
         "cards": _cards5,
     })
@@ -331,27 +334,27 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     alpha = aci_res.get("alpha_deg", math.degrees(math.atan2(M2_star, M3_star)) % 360.0 if Ma > 1e-9 else 0.0)
     sections.append({
         "num": 6,
-        "title": "ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC NÉN UỐN XIÊN (P-M-M)",
+        "title": T("ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC NÉN UỐN XIÊN (P-M-M)", lang),
         "ref": "ACI 22.4",
         "cards": [
-            _mk("Điểm nội lực tính toán A (Nội lực tác dụng)",
+            _mk(T("Điểm nội lực tính toán A (Nội lực tác dụng)", lang),
                 "",
                 [f"A = (M2*, M3*, N)",
                  f"= ({_f(M2_star, 1)}, {_f(M3_star, 1)}, {_f(N, 1)})",
                  f"= |OA| = {_f(math.sqrt(M2_star**2 + M3_star**2 + N**2), 1)} kN/kNm"],
                 ""),
-            _mk("Điểm giới hạn B (trên mặt tương tác)",
+            _mk(T("Điểm giới hạn B (trên mặt tương tác)", lang),
                 "",
-                [f"B = (M2gh, M3gh, Ngh)",
+                [T("B = (M2gh, M3gh, Ngh)", lang),
                  f"= ({_f(Bx, 1)}, {_f(By, 1)}, {_f(BN, 1)})",
                  f"= |OB| = {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)} kN/kNm"],
                 ""),
-            _mk("Góc uốn xiên α",
+            _mk(T("Góc uốn xiên α", lang),
                 "",
                 [f"α = {_f(alpha, 1)}°",
                  f"Mα = {_f(Ma, 1)} kN×m"],
                 ""),
-            _mk("Tỷ số D/C",
+            _mk(T("Tỷ số D/C", lang),
                 "",
                 [f"D/C = |OA| / |OB| = {_f(math.sqrt(M2_star**2 + M3_star**2 + N**2), 1)} / {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)}",
                  f"= {_f(dc, 3)} (FS = {_f(fs, 2)})"],
@@ -371,11 +374,11 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
     _s_lim = min(16 * _dia_max, 48 * _sw_dia, min(cx, cy))
     _mk_d = "✓" if _sw_dia >= _dia_req - 1e-9 else "✗"
     _mk_s = "✓" if _sw_s <= _s_lim + 1e-9 else "✗"
-    _cfg_card = _mk("Cấu tạo cốt đai (25.7.2)",
+    _cfg_card = _mk(T("Cấu tạo cốt đai (25.7.2)", lang),
                 "ACI 25.7.2",
-                [f"{_mk_d} Đường kính đai (25.7.2.2): yêu cầu ≥ max(0.25×{_dia_max:.0f}, 10) = {_dia_req:.1f} mm, chọn φ{_sw_dia:.0f}",
-                 f"{_mk_s} Bước đai (25.7.2.1): yêu cầu ≤ min(16×{_dia_max:.0f}, 48×{_sw_dia:.0f}, min(b,h)) = {_s_lim:.0f} mm, chọn {_sw_s:.0f} mm",
-                 f"Số nhánh đai: {_sw_legs} nhánh"],
+                [T("{m} Đường kính đai (25.7.2.2): yêu cầu ≥ max(0.25×{dmax:.0f}, 10) = {dreq:.1f} mm, chọn φ{sdia:.0f}", lang).format(m=_mk_d, dmax=_dia_max, dreq=_dia_req, sdia=_sw_dia),
+                 T("{m} Bước đai (25.7.2.1): yêu cầu ≤ min(16×{dmax:.0f}, 48×{sdia:.0f}, min(b,h)) = {slim:.0f} mm, chọn {s:.0f} mm", lang).format(m=_mk_s, dmax=_dia_max, sdia=_sw_dia, slim=_s_lim, s=_sw_s),
+                 T("Số nhánh đai: {n} nhánh", lang).format(n=_sw_legs)],
                 "")
     _sh = shear_res or {}
     _d2 = _sh.get("dir2", {}) if isinstance(_sh.get("dir2"), dict) else {}
@@ -434,12 +437,14 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
             f"Vc = max[0.17λ√f'c, 0.66λsλ(ρw)⅓√f'c]×bw×d = {_f(Vc, 1)} kN",
             f"Vs = Av×fyt×d/s = {_f(Vs, 1)} kN",
             f"φVn = 0.75×(Vc+Vs) = {_f(phi_Vn, 1)} kN",
-            f"{_mark} So sánh: Vu = {_f(abs(Q), 1)} kN {'≤' if abs(Q) <= phi_Vn else '>'} φVn = {_f(phi_Vn, 1)} kN",
+            T("{m} So sánh: Vu = {q} kN {op} φVn = {v} kN", lang).format(
+                m=_mark, q=_f(abs(Q), 1), op=("≤" if abs(Q) <= phi_Vn else ">"),
+                v=_f(phi_Vn, 1)),
         ]
-        return _mk(f"Kiểm tra chịu cắt phương {_dnum}",
+        return _mk(T("Kiểm tra chịu cắt phương {n}", lang).format(n=_dnum),
                     "ACI 22.5.5.1",
                     _lines,
-                    "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
+                    T("Kết luận: ĐẠT", lang) if ok else T("Kết luận: KHÔNG ĐẠT", lang))
     _ok2 = bool(_d2.get("ok", False)) if _d2 else True
     _ok3 = bool(_d3.get("ok", False)) if _d3 else True
     _cfg_card["full"] = True
@@ -449,7 +454,7 @@ def generate_aci_report_sections_v2(inp, aci_res: Dict[str, Any],
 
     sections.append({
         "num": 7,
-        "title": "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
+        "title": T("KIỂM TRA KHẢ NĂNG CHỊU CẮT", lang),
         "ref": "ACI 22.5",
         "cards": _cards7,
     })

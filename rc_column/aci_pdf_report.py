@@ -9,6 +9,7 @@ Không phụ thuộc GUI/matplotlib trực tiếp.
 import io
 
 from .aci_report_v2 import generate_aci_report_sections_v2
+from .lang import T
 # Dùng chung hàm render của TCVN để đảm bảo layout giống hệt
 from .pdf_report_cards import (_get_styles, _two, _sec_head, _full_case, _mk)
 
@@ -88,7 +89,8 @@ def _img_keep_aspect(png_bytes, w_mm=80):
 
 def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                          tied, filepath, chart_pngs=None, case_info=None,
-                         sec=None, show_compression: bool = True):
+                         sec=None, show_compression: bool = True,
+                         lang: str = "VN"):
     """Xuất PDF thuyết minh ACI 318-19 kiểu card giống hệt app.
 
     inp: ColumnInput. aci_res/mm_res/shear_res: dict kết quả ACI.
@@ -107,23 +109,25 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
 
     sections = generate_aci_report_sections_v2(inp, aci_res, mm_res, shear_res,
                                                conc, steel, sec, tied,
-                                               fyt_MPa=aci_res.get("fyt"))
+                                               fyt_MPa=aci_res.get("fyt"),
+                                               lang=lang)
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
                             topMargin=15 * mm, bottomMargin=10 * mm)
     S = []
-    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
-    S.append(P("(Tiêu chuẩn ACI 318-19)", st["sub"]))
+    S.append(P(T("THUYẾT MINH TÍNH TOÁN CỘT BTCT", lang), st["title"]))
+    S.append(P(T("(Tiêu chuẩn ACI 318-19)", lang), st["sub"]))
     _mn = _member_name(inp)
     if _mn:
-        S.append(P(f"Cấu kiện: {_mn}", st["sec_title"]))
+        S.append(P(T("Cấu kiện: {m}", lang).format(m=_mn), st["sec_title"]))
 
     if case_info:
-        S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
-                   f"N = {_f(case_info.get('N', 0), 1)} kN, "
-                   f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
-                   f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
+        S.append(P(T("Tổ hợp tính toán: {c} — N = {n} kN, M2 = {m2} kN·m, M3 = {m3} kN·m", lang).format(
+                       c=_full_case(case_info),
+                       n=_f(case_info.get('N', 0), 1),
+                       m2=_f(case_info.get('M2', 0), 1),
+                       m3=_f(case_info.get('M3', 0), 1)),
                    st["note"]))
 
     for _s in sections:
@@ -149,7 +153,7 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 except Exception:
                     _a_na = None
                 _sec_png = _czi(sec, _aBN, _aBx, _aBy, na_info=_a_na, width_in=3.5,
-                                  show_compression=show_compression)
+                                  show_compression=show_compression, lang=lang)
                 if _sec_png:
                     import io as _io
                     from reportlab.platypus import Image as _Img
@@ -171,7 +175,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 try:
                     from .pdf_export import section_image as _si
                     import io as _io2
-                    _sec_png = _si(sec, width_in=2.8, show_stats=False)
+                    _sec_png = _si(sec, width_in=2.8, show_stats=False,
+                                    lang=lang)
                     if _sec_png:
                         from reportlab.platypus import Image as _Img2
                         _buf = io.BytesIO(_sec_png)
@@ -198,7 +203,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 _cd = dict(_cd)
                 # Style kết luận: nền xanh/đỏ
                 _is_concl = _cd.get("conclusion", False)
-                _concl_bg = "#D1FAE5" if "KHÔNG ĐẠT" not in _cd.get("result", "") else "#FEE2E2"
+                _failw = T("KHÔNG ĐẠT", lang)
+                _concl_bg = "#D1FAE5" if _failw not in _cd.get("result", "") else "#FEE2E2"
                 from reportlab.platypus import Table as _Tf, TableStyle as _TSf
                 from reportlab.lib.colors import HexColor as _HCf
                 _rows = []
@@ -226,7 +232,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 _filtered.append(_cd)
         cards = _filtered
         # Mục 7: card cấu tạo full-width (span 2 cột), V2/V3 ngang hàng
-        if _s["num"] == 7 and len(cards) >= 3 and "Cấu tạo" in cards[0].get("title", ""):
+        _t = cards[0].get("title", "")
+        if _s["num"] == 7 and len(cards) >= 3 and ("Cấu tạo" in _t or "Stirrup" in _t):
             _cfg = cards[0]
             # Render full-width bằng table 1 cột
             from reportlab.platypus import Table as _T, TableStyle as _TS
@@ -282,17 +289,19 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                                   else (getattr(inp, "My", 0)
                                         or getattr(inp, "M3", 0) or 0)))
                 _pngs = (aci_interaction_image(sec, conc, steel, aci_res,
-                                               _N, _M2, _M3, tied=tied),
+                                               _N, _M2, _M3, tied=tied,
+                                               lang=lang),
                          aci_m2m3_image(sec, conc, steel, aci_res,
-                                        _N, _M2, _M3, tied=tied))
+                                        _N, _M2, _M3, tied=tied,
+                                        lang=lang))
             except Exception:
                 _pngs = chart_pngs
             try:
                 img1 = _img_keep_aspect(_pngs[0])
                 img2 = _img_keep_aspect(_pngs[1])
                 ct = Table([
-                    [[P("Biểu đồ tương tác N-Mα", st["cap"]), img1],
-                     [P("Biểu đồ tương tác M2-M3", st["cap"]), img2]]
+                    [[P(T("Biểu đồ tương tác N-Mα", lang), st["cap"]), img1],
+                     [P(T("Biểu đồ tương tác M2-M3", lang), st["cap"]), img2]]
                 ])
                 ct.setStyle(TableStyle([
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -316,9 +325,10 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
                 _bg = "#D1FAE5" if _ok else "#FEE2E2"
                 _fg = "#065F46" if _ok else "#991B1B"
                 _t = Table([
-                    [P(f"TỶ SỐ SỬ DỤNG (D/C) = {_dc.get('dc', 0):.3f}  (FS = {_dc.get('fs', 0):.2f})", st["result"]),
+                    [P(T("TỶ SỐ SỬ DỤNG (D/C) = {dc:.3f}  (FS = {fs:.2f})", lang).format(
+                           dc=_dc.get('dc', 0), fs=_dc.get('fs', 0)), st["result"]),
                      ],
-                    [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["result"])],
+                    [P(T("✓ ĐẠT — D/C ≤ 1.000", lang) if _ok else T("✗ KHÔNG ĐẠT — D/C > 1.000", lang), st["result"])],
                 ])
                 _t.setStyle(TableStyle([
                     ("BACKGROUND", (0, 0), (-1, -1), _HCf(_bg)),

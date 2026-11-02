@@ -6,6 +6,7 @@ import os
 from typing import List, Tuple
 
 from .cover_migration import cover_long
+from .lang import T
 
 # --- Font hỗ trợ tiếng Việt ---
 def _mpl_font(name: str):
@@ -59,7 +60,7 @@ def _fm_m(v_m):
 def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
                    legend_y: float = 1.02,
                    dot_scale: float = 1.0,
-                    small_dots: bool = False):
+                    small_dots: bool = False, lang: str = "VN"):
     """Vẽ mặt cắt kiểu VietconSoft: nền lưới, khung đen, thép lớp 1 đỏ /
     lớp 2 xanh lá (cỡ chấm theo đường kính), trục t2/t3 tại tâm, dim t3/t2,
     thẻ thống kê bên dưới."""
@@ -176,16 +177,16 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
             f"{cnt[k]}d{k[1]:.0f}" for k in sorted(cnt, key=lambda k: (k[0], -k[1])))
         n = len(sec.rebars)
         mu = sec.reinforcement_ratio * 100.0
-        stat1 = (f"{n} thanh ({compo})    As = {sec.steel_area:.0f} mm²"
-                 f"    μ = {mu:.2f}%")
+        stat1 = (T("{n} thanh ({c})    As = {a:.0f} mm²    μ = {mu:.2f}%", lang)
+                 .format(n=n, c=compo, a=sec.steel_area, mu=mu))
         try:
             from .sections import clear_spacing as _cs
             ccx, ccy = _cs(sec)
             dias = sorted(set(r.dia for r in sec.rebars))
             d_avg = sum(dias) / len(dias)
             if math.isfinite(ccx):
-                stat2 = (f"Khoảng hở: t3 = {ccx:.1f}, t2 = {ccy:.1f} mm"
-                         f"    Tim: t3 = {ccx + d_avg:.1f}, t2 = {ccy + d_avg:.1f} mm")
+                stat2 = (T("Khoảng hở: t3 = {x:.1f}, t2 = {y:.1f} mm    Tim: t3 = {x2:.1f}, t2 = {y2:.1f} mm", lang)
+                         .format(x=ccx, y=ccy, x2=ccx + d_avg, y2=ccy + d_avg))
             else:
                 stat2 = ""
         except Exception:
@@ -209,7 +210,7 @@ def draw_section_ax(ax, sec, show_dims: bool = True, show_stats: bool = True,
 
 def section_image(sec, width_in=3.2, dpi=300, small=False,
                   show_stats=True, legend_y: float = 1.08,
-                  dot_scale: float = 0.8) -> bytes:
+                  dot_scale: float = 0.8, lang: str = "VN") -> bytes:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -219,7 +220,7 @@ def section_image(sec, width_in=3.2, dpi=300, small=False,
     ratio = sec.cy / sec.cx if sec.cx > 0 else 1.0
     fig, ax = plt.subplots(figsize=(width_in, width_in * ratio))
     draw_section_ax(ax, sec, show_stats=show_stats, legend_y=legend_y,
-                    dot_scale=dot_scale)
+                    dot_scale=dot_scale, lang=lang)
     ax.grid(True, color="#E5E7EB", linestyle="--", linewidth=0.7, alpha=0.9)
     ax.set_axisbelow(True)
     for sp in ax.spines.values():
@@ -233,7 +234,8 @@ def section_image(sec, width_in=3.2, dpi=300, small=False,
 
 def compression_zone_image(sec, N_kN: float, M2_kNm: float, M3_kNm: float,
                            na_info=None, width_in=3.5, dpi=300,
-                           show_compression: bool = True) -> bytes:
+                           show_compression: bool = True,
+                           lang: str = "VN") -> bytes:
     """Vẽ hình vùng nén (giống app) trả về PNG bytes."""
     import matplotlib
     matplotlib.use("Agg")
@@ -248,7 +250,8 @@ def compression_zone_image(sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     draw_compression_zone_ax(ax, sec, N_kN, M2_kNm, M3_kNm,
                              Nmax_kN=abs(N_kN)*2 if N_kN else None,
                              na_info=na_info,
-                             show_compression=show_compression)
+                             show_compression=show_compression,
+                             lang=lang)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight",
                 facecolor="white", pad_inches=0.15)
@@ -455,7 +458,8 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
 import re as _re
 def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
                              Nmax_kN: float = None, title: str = None,
-                             na_info: dict = None, show_compression: bool = True):
+                             na_info: dict = None, show_compression: bool = True,
+                             lang: str = "VN"):
     """Vẽ mặt cắt kiểu VietconSoft (giống tab Kết quả) + tô vùng nén.
 
     na_info: dict từ neutral_axis_at_N (đường trung hòa chính xác từ fiber model).
@@ -648,8 +652,8 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
         ax.set_xlabel(f"D = {cx:.0f} mm", fontsize=8, weight="bold")
         ax.set_ylabel(f"D = {cx:.0f} mm", fontsize=8, weight="bold")
     else:
-        ax.set_xlabel("Trục 2 (mm)", fontsize=8)
-        ax.set_ylabel("Trục 3 (mm)", fontsize=8)
+        ax.set_xlabel(T("Trục 2 (mm)", lang), fontsize=8)
+        ax.set_ylabel(T("Trục 3 (mm)", lang), fontsize=8)
     ax.tick_params(labelsize=7)
 
     # Đơn giản hóa cho PDF: bỏ box, số quanh box; chỉ giữ mặt cắt, mũi tên, tên trục, kích thước, ghi chú thép

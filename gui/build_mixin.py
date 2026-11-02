@@ -226,6 +226,19 @@ class BuildMixin:
                                        style="Top.TButton",
                                        command=self._export_pdf)
         self._btn_pdf_tab.pack(side=tk.LEFT, padx=(4, 0))
+        # Dropdown ngôn ngữ PDF (chỉ ACI dùng; TCVN/EC2/Vách luôn VN)
+        ttk.Label(_tab_bar, text="Ngôn ngữ PDF:",
+                  style="Muted.TLabel").pack(side=tk.LEFT, padx=(8, 2))
+        self._pdf_lang_cb = ttk.Combobox(_tab_bar,
+                                         values=["Tiếng Việt", "English"],
+                                         state="readonly", width=10)
+        self._pdf_lang_cb.set("Tiếng Việt")
+        self._pdf_lang_cb.pack(side=tk.LEFT)
+        _ToolTip(self._pdf_lang_cb,
+                 "Chọn ngôn ngữ xuất PDF.\n"
+                 "Chỉ áp dụng cho ACI (cột);\n"
+                 "TCVN/EC2/Vách luôn tiếng Việt.")
+        self._refresh_pdf_lang_state()
         # Container chứa 2 tab (thay Notebook)
         _tab_container = ttk.Frame(right)
         _tab_container.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -395,6 +408,15 @@ class BuildMixin:
         _hook = getattr(self, "_toggle_wall_seismic", None)
         if _hook is not None:
             _hook()
+        # Dropdown ngôn ngữ PDF: chỉ bật khi đang ở chế độ ACI
+        self._refresh_pdf_lang_state()
+
+    def _refresh_pdf_lang_state(self):
+        """Bật/tắt dropdown 'Ngôn ngữ PDF' theo tiêu chuẩn đang chọn
+        (được gọi ở cuối _toggle_code và 1 lần khi tạo dropdown)."""
+        _cb = getattr(self, "_pdf_lang_cb", None)
+        if _cb is not None:
+            _cb.config(state="readonly" if self.is_aci() else "disabled")
 
     # ---- 2. Tiết diện ----
     def _sec_section(self):

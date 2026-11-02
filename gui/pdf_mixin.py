@@ -100,6 +100,14 @@ class PdfMixin:
             from rc_column.pdf_naming import default_pdf_filename
             _def = default_pdf_filename(
                 "vach" if _is_wall else "cot", _std, _ck, is_summary)
+            # Ngôn ngữ PDF: chỉ ACI (cột) đọc dropdown; TCVN/EC2/Vách luôn VN.
+            # _def luôn kết thúc ".pdf" (theo quy ước pdf_naming).
+            _pdf_lang = "EN" if (
+                self.is_aci()
+                and getattr(self, "_pdf_lang_cb", None) is not None
+                and self._pdf_lang_cb.get() == "English") else "VN"
+            if _pdf_lang == "EN":
+                _def = _def[:-4] + "-EN.pdf"
             path = filedialog.asksaveasfilename(
                 title="Xuất PDF",
                 defaultextension=".pdf",
@@ -147,7 +155,8 @@ class PdfMixin:
                 return
             # --- ACI mode: dùng PDF ACI (đặt sau khi path & _show_success đã có) ---
             if self.is_aci() and getattr(self, "_aci_res", None) is not None:
-                self._export_pdf_aci(is_summary, path, _show_success)
+                self._export_pdf_aci(is_summary, path, _show_success,
+                                     lang=_pdf_lang)
                 return
             # --- EC2 mode: dùng PDF EC2 ---
             if self.is_ec2() and getattr(self, "_ec2_res", None) is not None:
@@ -200,8 +209,8 @@ class PdfMixin:
             from tkinter import messagebox
             messagebox.showerror("Lỗi", f"Không xuất được: {e}")
 
-    def _export_pdf_aci(self, is_summary, path, _show_success):
-        """Xuất PDF cho chế độ ACI 318-19."""
+    def _export_pdf_aci(self, is_summary, path, _show_success, lang="VN"):
+        """Xuất PDF cho chế độ ACI 318-19 (lang: 'VN' hoặc 'EN')."""
         try:
             import io
             def _get_pngs():
@@ -229,6 +238,20 @@ class PdfMixin:
                         self._ec2_res, self._ec2_inp)
                 except Exception as _ex:
                     pass
+            # PDF chi tiết TIẾNG ANH: không dùng PNG từ figure của app
+            # (đang tiếng Việt) — render mới ảnh tiếng Anh từ dữ liệu ACI.
+            # Thất bại thì giữ pngs cũ (fallback ảnh Việt, vẫn xuất PDF).
+            if not is_summary and lang == "EN":
+                try:
+                    from rc_column.aci_pdf_summary import _aci_charts_png
+                    _mm = getattr(self, "_aci_mm", None) or {}
+                    pngs = _aci_charts_png(
+                        self._aci_sec, self._aci_conc, self._aci_steel,
+                        self._aci_res, self._aci_inp, self._aci_tied,
+                        mc2=_mm.get("Mc2"), mc3=_mm.get("Mc3"),
+                        lang="EN")
+                except Exception:
+                    pass
             if is_summary:
                 from rc_column.aci_pdf_summary import export_aci_summary_pdf
                 export_aci_summary_pdf(
@@ -238,7 +261,8 @@ class PdfMixin:
                     chart_pngs=pngs,
                     shear_info=getattr(self, "_aci_shear", None),
                     mm_res=getattr(self, "_aci_mm", None),
-                    show_compression=self._pdf_show_compression())
+                    show_compression=self._pdf_show_compression(),
+                    lang=lang)
             else:
                 from rc_column.aci_pdf_report import export_aci_pdf_cards
                 export_aci_pdf_cards(
@@ -248,7 +272,8 @@ class PdfMixin:
                     self._aci_tied, path, chart_pngs=pngs,
                     case_info=getattr(self, "_pdf_case", None),
                     sec=self._aci_sec,
-                    show_compression=self._pdf_show_compression())
+                    show_compression=self._pdf_show_compression(),
+                    lang=lang)
             _show_success(path)
         except Exception as ex:
             from tkinter import messagebox

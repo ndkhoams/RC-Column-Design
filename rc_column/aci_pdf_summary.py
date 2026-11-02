@@ -18,6 +18,96 @@ from .pdf_export import (_mpl_font, _find_font, _find_font_bold, section_image,
 from .cover_migration import cover_long
 from .aci_chart_draw import draw_aci_nm_alpha_ax, draw_aci_m2m3_ax
 
+# --- i18n cho PDF tóm tắt ACI (strings.md, mục SUMMARY) ---
+# lang.py trung tâm hiện chỉ có T(vi) 1 tham số và thiếu các key SUMMARY,
+# nên file này tra bảng cục bộ. Wrapper ưu tiên T(vi, lang) trung tâm trước
+# (khi lang.py được nâng cấp), rồi mới tới bảng cục bộ.
+from .lang import T as _T_lang  # noqa: F401
+
+_SUMMARY_EN = {
+    "KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP":
+        "RC COLUMN LOAD-CARRYING CAPACITY CHECK",
+    "THÔNG TIN CHUNG": "GENERAL INFORMATION",
+    "Tiêu chuẩn": "Code",
+    "Cấu kiện": "Member",
+    "VẬT LIỆU": "MATERIALS",
+    "Cường độ bê tông, f'c": "Concrete strength, f'c",
+    "Mô đun đàn hồi bê tông, Ec": "Concrete elastic modulus, Ec",
+    "Cường độ thép dọc, fy": "Longitudinal steel strength, fy",
+    "Cường độ thép đai, fyt": "Stirrup steel strength, fyt",
+    "Mô đun đàn hồi thép, Es": "Steel elastic modulus, Es",
+    "TIẾT DIỆN": "SECTION",
+    "Hình chữ nhật, t2 × t3": "Rectangle, t2 × t3",
+    "Hình tròn, đường kính d": "Circle, diameter d",
+    "Diện tích bê tông, A<sub>c</sub>": "Concrete area, A<sub>c</sub>",
+    "Lớp bảo vệ cốt đai, c": "Stirrup cover, c",
+    "(c_dọc = {cl:.0f} mm)": "(c_long = {cl:.0f} mm)",
+    "BỐ TRÍ CỐT THÉP DỌC": "LONGITUDINAL REINFORCEMENT",
+    "Số lượng thép": "Steel bars",
+    "Hàm lượng thép dọc, μ": "Longitudinal steel ratio, μ",
+    "NỘI LỰC KIỂM TRA": "DESIGN FORCES",
+    "Vị trí cột": "Column location",
+    "Tổ hợp tính toán": "Design combination",
+    "Lực dọc tính toán, Pu": "Factored axial load, Pu",
+    "Mômen ban đầu, M2, M3": "Initial moments, M2, M3",
+    "CHIỀU DÀI TÍNH TOÁN & PHÓNG ĐẠI MÔMEN":
+        "EFFECTIVE LENGTH & MOMENT MAGNIFICATION",
+    "Chiều dài cột, L2, L3": "Column length, L2, L3",
+    "Hệ số chiều dài tính toán, k2, k3": "Effective length factor, k2, k3",
+    "Chiều dài không giằng, Lu2, Lu3": "Unbraced length, Lu2, Lu3",
+    "Độ mảnh, kLu/r2, kLu/r3": "Slenderness ratio, kLu/r2, kLu/r3",
+    "Lực tới hạn Euler, Pc2, Pc3": "Euler critical load, Pc2, Pc3",
+    "Hệ số phóng đại mômen, δns2, δns3":
+        "Moment magnification factor, δns2, δns3",
+    "Hệ số mômen tương đương, Cm2, Cm3": "Equivalent moment factor, Cm2, Cm3",
+    "KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC": "AXIAL-FLEXURE CHECK RESULTS",
+    "Mômen sau phóng đại, M2*, M3*": "Magnified moments, M2*, M3*",
+    "Mômen tổng kiểm tra, Mα (α = {a:.1f}°)":
+        "Total check moment, Mα (α = {a:.1f}°)",
+    "Lực dọc giới hạn, φPn": "Design axial strength, φPn",
+    "Mômen giới hạn, Mα,u": "Design moment strength, Mα,n",
+    "Tỉ số sử dụng khả năng chịu lực, D/C (FS)":
+        "Demand/capacity ratio, D/C (FS)",
+    "Kết luận": "Conclusion",
+    "ĐẠT": "PASS",
+    "KHÔNG ĐẠT": "FAIL",
+    "Đai rời (tied)": "Tied",
+    "Đai xoắn (spiral)": "Spiral",
+    "<b>Biểu đồ tương tác N-Mα</b> (α = {a:.1f}°)":
+        "<b>N-Mα interaction diagram</b> (α = {a:.1f}°)",
+    "<b>Mặt cắt M2-M3</b>": "<b>M2-M3 section</b>",
+    "KIỂM TRA KHẢ NĂNG CHỊU CẮT": "SHEAR CAPACITY CHECK",
+    "Phương V2": "Direction V2",
+    "Phương V3": "Direction V3",
+    "Loại cốt đai": "Stirrup type",
+    "Thép đai bố trí": "Provided stirrups",
+    "Lực cắt tính toán, Vu": "Factored shear, Vu",
+    "Kích thước tiết diện, b × d": "Section dimensions, b × d",
+    "(Không vẽ được hình: {e})": "(Could not render figure: {e})",
+    "Không tính được cắt: {e}": "Shear check error: {e}",
+    "Kết quả kiểm tra cột BTCT (ACI 318-19)":
+        "RC column check results (ACI 318-19)",
+}
+
+
+def T(vi: str, lang: str = "VN") -> str:
+    """Dịch chuỗi hiển thị PDF tóm tắt ACI.
+
+    lang="VN" (mặc định): trả nguyên chuỗi — PDF tiếng Việt không đổi
+    một ký tự. lang="EN": tra bảng SUMMARY (strings.md) TRƯỚC — bảng này
+    là single source of truth cho file này (vd "Phương V2" → "Direction V2",
+    khác với key GUI cũ "Dir. V2" trong lang.py trung tâm); thiếu key mới
+    nhờ tới T(vi, lang) trung tâm.
+    """
+    if lang != "EN":
+        return vi
+    if vi in _SUMMARY_EN:
+        return _SUMMARY_EN[vi]
+    try:  # T(vi, lang) của lang.py trung tâm
+        return _T_lang(vi, lang)
+    except TypeError:
+        return vi
+
 
 def _sys_font(bold=False):
     """Fallback: font DejaVu Sans của hệ thống (khi matplotlib thiếu font)."""
@@ -82,7 +172,7 @@ def _f_dc(dc):
 
 
 def _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
-                    mc2=None, mc3=None):
+                    mc2=None, mc3=None, lang: str = "VN"):
     """Tự vẽ 2 biểu đồ ACI -> (png_nm_alpha, png_m2m3) bytes.
 
     Dùng figure cao (5.0 x 5.2) để trục tung (trục y) giãn ra tự nhiên,
@@ -103,8 +193,12 @@ def _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
     for draw_fn in (draw_aci_nm_alpha_ax, draw_aci_m2m3_ax):
         fig = plt.figure(figsize=(3.2, 3.2))
         ax = fig.add_subplot(111)
-        draw_fn(ax, sec, conc, steel, aci_res, inp.N, _m2, _m3,
-                tied=tied)
+        try:
+            draw_fn(ax, sec, conc, steel, aci_res, inp.N, _m2, _m3,
+                    tied=tied, lang=lang)
+        except TypeError:
+            draw_fn(ax, sec, conc, steel, aci_res, inp.N, _m2, _m3,
+                    tied=tied)
         fig.tight_layout()
         fig.subplots_adjust(bottom=0.22, top=0.93, left=0.12, right=0.95)
         buf = _io.BytesIO()
@@ -172,7 +266,8 @@ def _extract_shear_q(shear_info):
 
 def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                            case_info=None, mm_res=None, sec_img_path=None, chart_pngs=None,
-                           shear_info=None, show_compression: bool = True, _level: int = 0):
+                           shear_info=None, show_compression: bool = True, _level: int = 0,
+                           lang: str = "VN"):
     """Xuất PDF Kết quả tính toán theo mẫu Excel (ACI 318-19, 1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình mặt cắt + 2 biểu đồ.
@@ -328,50 +423,53 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         _dc = aci_res.get("dc", 0) or 0
         if not _fs and _dc and _dc > 1e-9:
             _fs = 1.0 / _dc
-        _ok_txt = "<b>ĐẠT</b>" if aci_res.get("ok") else "<b>KHÔNG ĐẠT</b>"
-        tie_txt = "Đai rời (tied)" if tied else "Đai xoắn (spiral)"
+        _ok_txt = f"<b>{T('ĐẠT' if aci_res.get('ok') else 'KHÔNG ĐẠT', lang)}</b>"
+        tie_txt = T("Đai rời (tied)" if tied else "Đai xoắn (spiral)", lang)
         _fyt = aci_res.get("fyt")
         if _fyt is None:
             _fyt = getattr(inp, "fyt", None) or steel.fy
 
         # ===== Cột trái (dan y user chot 2026-10-21, khung nhu TCVN) =====
         left_flow = []
-        left_flow.append(_sec_table("THÔNG TIN CHUNG", [
-            ("Tiêu chuẩn", "ACI 318-19"),
-            ("Cấu kiện", _ck_name or "—"),
+        left_flow.append(_sec_table(T("THÔNG TIN CHUNG", lang), [
+            (T("Tiêu chuẩn", lang), "ACI 318-19"),
+            (T("Cấu kiện", lang), _ck_name or "—"),
         ]))
         # VAT LIEU: [f'c, Ec, fy, fyt, Es] — "Loai cot dai" chuyen xuong
         # dau bang kiem tra cat (xem phan cat ben duoi).
-        left_flow.append(_sec_table("VẬT LIỆU", [
-            ("Cường độ bê tông, f'c", f"{_fm(conc.fc)} MPa"),
-            ("Mô đun đàn hồi bê tông, Ec", f"{conc.Ec:.0f} MPa"),
-            ("Cường độ thép dọc, fy", f"{_fm(steel.fy)} MPa"),
-            ("Cường độ thép đai, fyt", f"{_fm(_fyt)} MPa"),
-            ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
+        left_flow.append(_sec_table(T("VẬT LIỆU", lang), [
+            (T("Cường độ bê tông, f'c", lang), f"{_fm(conc.fc)} MPa"),
+            (T("Mô đun đàn hồi bê tông, Ec", lang), f"{conc.Ec:.0f} MPa"),
+            (T("Cường độ thép dọc, fy", lang), f"{_fm(steel.fy)} MPa"),
+            (T("Cường độ thép đai, fyt", lang), f"{_fm(_fyt)} MPa"),
+            (T("Mô đun đàn hồi thép, Es", lang), f"{steel.Es:.0f} MPa"),
         ]))
         # TIẾT DIỆN (theo loai tiet dien)
         _kind = getattr(sec, "kind", None) or getattr(inp, "section_type", "rect")
         if _kind == "circle":
-            _sec_rows = [("Hình tròn, đường kính d", f"{_t3:.0f} mm")]
+            _sec_rows = [(T("Hình tròn, đường kính d", lang), f"{_t3:.0f} mm")]
         elif _kind == "poly":
-            _sec_rows = [("Diện tích bê tông, A<sub>c</sub>",
+            _sec_rows = [(T("Diện tích bê tông, A<sub>c</sub>", lang),
                           f"{sec.gross_area:.0f} mm²")]
         else:
-            _sec_rows = [("Hình chữ nhật, t2 × t3",
+            _sec_rows = [(T("Hình chữ nhật, t2 × t3", lang),
                           f"{_t2:.0f} × {_t3:.0f} mm")]
-        _sec_rows.append(("Lớp bảo vệ cốt đai, c",
+        _sec_rows.append((T("Lớp bảo vệ cốt đai, c", lang),
                           f"{inp.cover:.0f} mm "
-                          f"(c_dọc = {cover_long(inp.cover, getattr(inp, 'sw_dia', 0.0) or 0.0):.0f} mm)"))
-        left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
-        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
-            ("Số lượng thép", " + ".join(_parts)),
-            ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
+                          + T("(c_dọc = {cl:.0f} mm)", lang).format(
+                              cl=cover_long(inp.cover,
+                                            getattr(inp, 'sw_dia', 0.0) or 0.0))))
+        left_flow.append(_sec_table(T("TIẾT DIỆN", lang), _sec_rows))
+        left_flow.append(_sec_table(T("BỐ TRÍ CỐT THÉP DỌC", lang), [
+            (T("Số lượng thép", lang), " + ".join(_parts)),
+            (T("Hàm lượng thép dọc, μ", lang), f"{_mu*100:.2f}%"),
         ]))
-        left_flow.append(_sec_table("NỘI LỰC KIỂM TRA", [
-            ("Vị trí cột", _vpos),
-            ("Tổ hợp tính toán", _combo_txt),
-            ("Lực dọc tính toán, Pu", f"{inp.N:.1f} kN"),
-            ("Mômen ban đầu, M2, M3", f"{inp.Mx:.1f} / {inp.My:.1f} kNm"),
+        left_flow.append(_sec_table(T("NỘI LỰC KIỂM TRA", lang), [
+            (T("Vị trí cột", lang), _vpos),
+            (T("Tổ hợp tính toán", lang), _combo_txt),
+            (T("Lực dọc tính toán, Pu", lang), f"{inp.N:.1f} kN"),
+            (T("Mômen ban đầu, M2, M3", lang),
+             f"{inp.Mx:.1f} / {inp.My:.1f} kNm"),
         ]))
         # CHIỀU DÀI TÍNH TOÁN & PHÓNG ĐẠI MÔMEN — chi doc tu dict ket
         # qua cua _aci_calculate_full (mm2/mm3, L0, delta, klu_r) va
@@ -384,41 +482,42 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         _k2v = _mmr.get("k2", 1.0)
         _k3v = _mmr.get("k3", 1.0)
         _len_rows = [
-            ("Chiều dài cột, L2, L3",
+            (T("Chiều dài cột, L2, L3", lang),
              f"{_fm_m(inp.Lx)} / {_fm_m(inp.Ly)} m"),
-            ("Hệ số chiều dài tính toán, k2, k3",
+            (T("Hệ số chiều dài tính toán, k2, k3", lang),
              f"{_f(_k2v, 2)} / {_f(_k3v, 2)}"),
         ]
         if _L0_2 and _L0_3:
             _len_rows.append(
-                ("Chiều dài không giằng, Lu2, Lu3",
+                (T("Chiều dài không giằng, Lu2, Lu3", lang),
                  f"{_fm_m(float(_L0_2))} / {_fm_m(float(_L0_3))} m"))
         _klr2 = aci_res.get("klu_r2")
         _klr3 = aci_res.get("klu_r3")
         if _klr2 and _klr3:
             _len_rows.append(
-                ("Độ mảnh, kLu/r2, kLu/r3",
+                (T("Độ mảnh, kLu/r2, kLu/r3", lang),
                  f"{_f(_klr2, 1)} / {_f(_klr3, 1)}"))
         _pc2 = _mm2d.get("Pc_kN")
         _pc3 = _mm3d.get("Pc_kN")
         if _pc2 is not None and _pc3 is not None:
             _len_rows.append(
-                ("Lực tới hạn Euler, Pc2, Pc3",
+                (T("Lực tới hạn Euler, Pc2, Pc3", lang),
                  f"{_f(_pc2, 0)} / {_f(_pc3, 0)} kN"))
         _dl2 = aci_res.get("delta2", _mm2d.get("delta_ns"))
         _dl3 = aci_res.get("delta3", _mm3d.get("delta_ns"))
         if _dl2 is not None and _dl3 is not None:
             _len_rows.append(
-                ("Hệ số phóng đại mômen, δns2, δns3",
+                (T("Hệ số phóng đại mômen, δns2, δns3", lang),
                  f"{_f(_dl2, 3)} / {_f(_dl3, 3)}"))
         _cm2 = _mm2d.get("Cm")
         _cm3 = _mm3d.get("Cm")
         if _cm2 is not None and _cm3 is not None:
             _len_rows.append(
-                ("Hệ số mômen tương đương, Cm2, Cm3",
+                (T("Hệ số mômen tương đương, Cm2, Cm3", lang),
                  f"{_f(_cm2, 2)} / {_f(_cm3, 2)}"))
         left_flow.append(_sec_table(
-            "CHIỀU DÀI TÍNH TOÁN &amp; PHÓNG ĐẠI MÔMEN", _len_rows))
+            T("CHIỀU DÀI TÍNH TOÁN & PHÓNG ĐẠI MÔMEN", lang).replace("&", "&amp;"),
+            _len_rows))
         # KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC
         _BN = aci_res.get("BN", 0)
         _Bx = aci_res.get("Bx", 0)
@@ -437,17 +536,17 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
         _Ma_aci = aci_res.get("Malpha")
         if _Ma_aci is None:
             _Ma_aci = _m.hypot(_M2s, _M3s)
-        left_flow.append(_sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", [
-            ("Lực dọc tính toán, Pu", f"{inp.N:.1f} kN"),
-            ("Mômen sau phóng đại, M2*, M3*",
+        left_flow.append(_sec_table(T("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", lang), [
+            (T("Lực dọc tính toán, Pu", lang), f"{inp.N:.1f} kN"),
+            (T("Mômen sau phóng đại, M2*, M3*", lang),
              f"{_M2s:.1f} / {_M3s:.1f} kNm"),
-            (f"Mômen tổng kiểm tra, Mα (α = {_alpha_r:.1f}°)",
+            (T("Mômen tổng kiểm tra, Mα (α = {a:.1f}°)", lang).format(a=_alpha_r),
              f"{_Ma_aci:.1f} kNm"),
-            ("Lực dọc giới hạn, φPn", f"{_BN:.1f} kN"),
-            ("Mômen giới hạn, Mα,u", f"{_Mb_aci:.1f} kNm"),
-            ("Tỉ số sử dụng khả năng chịu lực, D/C (FS)",
+            (T("Lực dọc giới hạn, φPn", lang), f"{_BN:.1f} kN"),
+            (T("Mômen giới hạn, Mα,u", lang), f"{_Mb_aci:.1f} kNm"),
+            (T("Tỉ số sử dụng khả năng chịu lực, D/C (FS)", lang),
              f"{_dc:.3f} ({_fs:.2f})"),
-            ("Kết luận", _ok_txt),
+            (T("Kết luận", lang), _ok_txt),
         ]))
 
         # ===== Cột phải: hình + biểu đồ =====
@@ -482,9 +581,15 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                 _na = _nafn(sec, conc, steel, _BN, _alpha)
             except Exception:
                 pass
-            _sec_png = _pdf_exp.compression_zone_image(sec, _BN, _Bx, _By,
-                                                       na_info=_na,
-                                                       show_compression=show_compression)
+            try:
+                _sec_png = _pdf_exp.compression_zone_image(
+                    sec, _BN, _Bx, _By, na_info=_na,
+                    show_compression=show_compression, lang=lang)
+            except TypeError:
+                # pdf_export hiện chưa hỗ trợ lang — giữ hành vi cũ
+                _sec_png = _pdf_exp.compression_zone_image(
+                    sec, _BN, _Bx, _By, na_info=_na,
+                    show_compression=show_compression)
             _blkA.append(_centered_img(_sec_png, _IW))
             # 2 biểu đồ ACI (có tiêu đề)
             # Tiêu đề dùng góc của tia kiểm tra (mô men đã phóng đại,
@@ -492,27 +597,31 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _alpha_aci = _alpha_r
             _mm = mm_res or {}
             _pngs = _aci_charts_png(sec, conc, steel, aci_res, inp, tied,
-                                    mc2=_mm.get("Mc2"), mc3=_mm.get("Mc3"))
+                                    mc2=_mm.get("Mc2"), mc3=_mm.get("Mc3"),
+                                    lang=lang)
             if _pngs and len(_pngs) >= 2:
                 _blkB.append(Paragraph(
-                    f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
+                    T("<b>Biểu đồ tương tác N-Mα</b> (α = {a:.1f}°)", lang).format(
+                        a=_alpha_aci),
                     st_chart_title))
                 _blkB.append(_centered_img(_pngs[0], _IW))
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b>",
+                    T("<b>Mặt cắt M2-M3</b>", lang),
                     st_chart_title))
                 _blkC.append(_centered_img(_pngs[1], _IW))
             elif chart_pngs and len(chart_pngs) >= 2:
                 _blkB.append(Paragraph(
-                    f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha_aci:.1f}°)",
+                    T("<b>Biểu đồ tương tác N-Mα</b> (α = {a:.1f}°)", lang).format(
+                        a=_alpha_aci),
                     st_chart_title))
                 _blkB.append(_centered_img(chart_pngs[0], _IW))
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b>",
+                    T("<b>Mặt cắt M2-M3</b>", lang),
                     st_chart_title))
                 _blkC.append(_centered_img(chart_pngs[1], _IW))
         except Exception as e:
-            _blkA = [Paragraph(f"(Không vẽ được hình: {e})", st_cell)]
+            _blkA = [Paragraph(T("(Không vẽ được hình: {e})", lang).format(e=e),
+                               st_cell)]
             _blkB, _blkC = [], []
         # --- Neo 3 khoi hinh cot phai: mat cat CAN TREN, M2-M3 CAN
         # DUOI, N-M CAN GIUA: phan chieu cao cot phai con thieu so
@@ -555,7 +664,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
 
         story = []
         story.append(Paragraph(
-            "KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", st_title))
+            T("KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", lang), st_title))
         story.append(t_main)
         story.append(Spacer(1, _MSP))
 
@@ -594,13 +703,14 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             else:
                 _sw_txt3 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
             _data = [
-                [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
-                 Paragraph("<b>Phương V2</b>", st_hdr),
-                 Paragraph("<b>Phương V3</b>", st_hdr)],
+                [Paragraph("<b>" + T("KIỂM TRA KHẢ NĂNG CHỊU CẮT", lang) + "</b>",
+                           st_hdr_left),
+                 Paragraph("<b>" + T("Phương V2", lang) + "</b>", st_hdr),
+                 Paragraph("<b>" + T("Phương V3", lang) + "</b>", st_hdr)],
             ]
             # "Loai cot dai" (truoc o khoi VAT LIEU) dat o dau bang cat,
             # gia tri span ca 2 cot phuong.
-            _data.append([Paragraph("Loại cốt đai", st_lbl),
+            _data.append([Paragraph(T("Loại cốt đai", lang), st_lbl),
                           Paragraph(tie_txt, st_cell),
                           Paragraph("", st_cell)])
             _rows = []
@@ -633,10 +743,10 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                 _Av3 = _disp["3"].get("Av", _Av3)
                 _sw_txt3 = _disp["3"].get("sw_txt", _sw_txt3)
             _sw_lines = [
-                ("Thép đai bố trí", _sw_txt2, _sw_txt3),
-                ("Lực cắt tính toán, Vu",
+                (T("Thép đai bố trí", lang), _sw_txt2, _sw_txt3),
+                (T("Lực cắt tính toán, Vu", lang),
                  f"{abs(_q2):.1f} kN", f"{abs(_q3):.1f} kN"),
-                ("Kích thước tiết diện, b × d",
+                (T("Kích thước tiết diện, b × d", lang),
                  f"{_b2:.0f} × {_d2:.0f} mm", f"{_b3:.0f} × {_d3:.0f} mm"),
                 ("Av = n × φ",
                  f"{_Av2:.0f} mm²", f"{_Av3:.0f} mm²"),
@@ -648,12 +758,12 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
                  f"{_r3['Vs_kN']:.1f} kN"),
                 ("φVn = φ×(Vc+Vs)", f"{_r2['phi_Vn_kN']:.1f} kN",
                  f"{_r3['phi_Vn_kN']:.1f} kN"),
-                ("Kết luận",
-                 "<b>ĐẠT</b>" if _r2['ok'] else "<b>KHÔNG ĐẠT</b>",
-                 "<b>ĐẠT</b>" if _r3['ok'] else "<b>KHÔNG ĐẠT</b>"),
+                (T("Kết luận", lang),
+                 f"<b>{T('ĐẠT' if _r2['ok'] else 'KHÔNG ĐẠT', lang)}</b>",
+                 f"<b>{T('ĐẠT' if _r3['ok'] else 'KHÔNG ĐẠT', lang)}</b>"),
             ]
-            for a, b, c in _sw_lines:
-                _is_kl = "Kết luận" in a
+            for _ri, (a, b, c) in enumerate(_sw_lines):
+                _is_kl = (_ri == len(_sw_lines) - 1)  # hàng "Kết luận" cuối
                 _data.append([
                     Paragraph(a, st_lbl),
                     Paragraph(b, st_cell_b if _is_kl else st_cell),
@@ -685,7 +795,8 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             t_sw.setStyle(TableStyle(_st))
             _sw_story.append(t_sw)
         except Exception as e:
-            _sw_story.append(Paragraph(f"Không tính được cắt: {e}", st_cell))
+            _sw_story.append(Paragraph(T("Không tính được cắt: {e}", lang).format(e=e),
+                                       st_cell))
         story.append(KeepTogether(_sw_story))
 
         # Do nhanh cac thanh phan (phuc vu phan bo gian trang)
@@ -734,7 +845,8 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _doc = SimpleDocTemplate(
                 _buf, pagesize=A4, leftMargin=15 * mm,
                 rightMargin=15 * mm, topMargin=_MRG * mm,
-                bottomMargin=_MRG * mm, title="Kết quả kiểm tra cột BTCT (ACI 318-19)")
+                bottomMargin=_MRG * mm, title=T("Kết quả kiểm tra cột BTCT (ACI 318-19)",
+                                              lang))
             _doc.build(_story)
         except Exception:
             if _safe:
@@ -873,7 +985,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
 def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
                            case_info=None, mm_res=None, sec_img_path=None,
                            chart_pngs=None, shear_info=None,
-                           show_compression: bool = True):
+                           show_compression: bool = True, lang: str = "VN"):
     """Xuat PDF tom tat ACI 318-19 — LUON dung 1 trang A4.
 
     Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
@@ -889,7 +1001,7 @@ def export_aci_summary_pdf(sec, inp, aci_res, conc, steel, tied, filepath,
             sec, inp, aci_res, conc, steel, tied, _buf,
             case_info=case_info, mm_res=mm_res, sec_img_path=sec_img_path,
             chart_pngs=chart_pngs, shear_info=shear_info,
-            show_compression=show_compression, _level=_lvl)
+            show_compression=show_compression, _level=_lvl, lang=lang)
         if _pages <= 1:
             break
     with open(filepath, "wb") as _f:
