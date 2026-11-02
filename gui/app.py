@@ -197,8 +197,19 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin,
                     except Exception:
                         pass
             # Giả lập resize: nudge kích thước 1px rồi trả lại
-            # (kích hoạt lại geometry manager như khi user resize thủ công)
+            # (kích hoạt lại geometry manager như khi user resize thủ công).
+            # LƯU Ý Windows (lỗi user báo ở bản 65d8b06 "bấm CHECK cửa sổ
+            # tự co lại"): gọi geometry() khi cửa sổ đang zoomed sẽ HỦY
+            # trạng thái maximized -> cửa sổ co lại và không tự phóng to
+            # lại được. Các after() này lại có thể bị dồn tới sau một lần
+            # CHECK block UI thread (khi user bấm CHECK ngay sau khi mở
+            # app) nên cú co sẽ rơi đúng vào lúc CHECK. Vì vậy phải đọc
+            # và TRẢ LẠI đúng state zoomed sau khi nudge xong.
             _g = self.geometry()
+            try:
+                _zoomed = (self.state() == "zoomed")
+            except Exception:
+                _zoomed = False
             try:
                 _w, _h = self.winfo_width(), self.winfo_height()
                 if _w > 100 and _h > 100:
@@ -210,6 +221,12 @@ class App(tk.Tk, TcvnMixin, AciMixin, Ec2Mixin, EtabsMixin, PdfMixin,
                     self.geometry(_g)
                 except Exception:
                     pass
+            finally:
+                if _zoomed:
+                    try:
+                        self.state("zoomed")
+                    except Exception:
+                        pass
             self.update()
             if _retry < 2:
                 self.after(500, lambda: self._refresh_layout(_retry + 1))
