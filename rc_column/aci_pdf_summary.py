@@ -845,8 +845,7 @@ def _export_aci_summary_pdf_impl(sec, inp, aci_res, conc, steel, tied, filepath,
             _doc = SimpleDocTemplate(
                 _buf, pagesize=A4, leftMargin=15 * mm,
                 rightMargin=15 * mm, topMargin=_MRG * mm,
-                bottomMargin=_MRG * mm, title=T("Kết quả kiểm tra cột BTCT (ACI 318-19)",
-                                              lang))
+                bottomMargin=_MRG * mm, title=T("KIỂM TRA KNCL CỘT BTCT", lang))
             _doc.build(_story)
         except Exception:
             if _safe:

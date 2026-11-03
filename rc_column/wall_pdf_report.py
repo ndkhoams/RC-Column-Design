@@ -88,7 +88,8 @@ def export_wall_pdf_cards(full, filepath: str, member_name: str = None,
     secs = build_wall_detail_sections(full)
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=10 * mm, rightMargin=10 * mm,
-                            topMargin=10 * mm, bottomMargin=10 * mm)
+                            topMargin=10 * mm, bottomMargin=10 * mm,
+                            title="KIỂM TRA KNCL CỘT BTCT")
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN VÁCH BTCT", st["title"]))
     S.append(P("(Tiêu chuẩn TCVN 5574:2018 — vách chữ nhật đặc, GĐ1)",

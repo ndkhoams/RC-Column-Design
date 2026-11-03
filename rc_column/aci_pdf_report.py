@@ -114,7 +114,8 @@ def export_aci_pdf_cards(inp, aci_res, mm_res, shear_res, conc, steel,
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
-                            topMargin=15 * mm, bottomMargin=10 * mm)
+                            topMargin=15 * mm, bottomMargin=10 * mm,
+                            title=T("KIỂM TRA KNCL CỘT BTCT", lang))
     S = []
     S.append(P(T("THUYẾT MINH TÍNH TOÁN CỘT BTCT", lang), st["title"]))
     S.append(P(T("(Tiêu chuẩn ACI 318-19)", lang), st["sub"]))

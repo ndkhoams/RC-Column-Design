@@ -204,7 +204,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=10*mm, rightMargin=10*mm,
-                            topMargin=10*mm, bottomMargin=10*mm)
+                            topMargin=10*mm, bottomMargin=10*mm,
+                            title="KIỂM TRA KNCL CỘT BTCT")
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
     S.append(P("(Tiêu chuẩn TCVN 5574:2018)", st["sub"]))

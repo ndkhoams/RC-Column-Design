@@ -810,7 +810,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             _doc = SimpleDocTemplate(
                 _buf, pagesize=A4, leftMargin=15 * mm,
                 rightMargin=15 * mm, topMargin=_MRG * mm,
-                bottomMargin=_MRG * mm, title="Kết quả kiểm tra cột BTCT (EC2)")
+                bottomMargin=_MRG * mm, title="KIỂM TRA KNCL CỘT BTCT")
             _doc.build(_story)
         except Exception:
             if _safe:

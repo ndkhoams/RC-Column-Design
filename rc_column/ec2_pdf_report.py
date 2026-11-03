@@ -76,7 +76,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
-                            topMargin=15 * mm, bottomMargin=10 * mm)
+                            topMargin=15 * mm, bottomMargin=10 * mm,
+                            title="KIỂM TRA KNCL CỘT BTCT")
     S = []
     S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
     S.append(P("(Tiêu chuẩn EC2 EN 1992-1-1:2004)", st["sub"]))

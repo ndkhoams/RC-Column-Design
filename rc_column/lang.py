@@ -142,6 +142,7 @@ STRINGS = {
     "(Không vẽ được hình: {e})": {"EN": "(Could not render figure: {e})"},
     "Không tính được cắt: {e}": {"EN": "Shear check error: {e}"},
     "Kết quả kiểm tra cột BTCT (ACI 318-19)": {"EN": "RC column check results (ACI 318-19)"},
+    "KIỂM TRA KNCL CỘT BTCT": {"EN": "RC COLUMN DESIGN REPORT"},
 
     # --- REPORT (PDF EN) ---
     "THUYẾT MINH TÍNH TOÁN CỘT BTCT": {"EN": "RC COLUMN DESIGN CALCULATIONS"},

@@ -586,7 +586,7 @@ def _impl(full, buf, member_name, show_compression, pad, img_w, spacer,
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm,
                             rightMargin=15 * mm, topMargin=10 * mm,
                             bottomMargin=10 * mm,
-                            title="Kết quả kiểm tra vách BTCT")
+                            title="KIỂM TRA KNCL CỘT BTCT")
     doc.build(story)
     pages = getattr(doc, "page", 1)
     gap = None
