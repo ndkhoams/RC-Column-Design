@@ -1874,6 +1874,11 @@ class WallMixin:
                     self._show_summary(_tf["sec"], _tf["inp"], _tf["res"])
             except Exception:
                 pass
+        # Dropdown "Ngôn ngữ PDF": chỉ bật ở chế độ cột (vách luôn VN)
+        try:
+            self._refresh_pdf_lang_state()
+        except Exception:
+            pass
 
     # ---------------- Thu / áp dữ liệu vách (JSON) ----------------
     def _collect_wall(self) -> dict:

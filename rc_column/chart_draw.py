@@ -4,7 +4,10 @@
 """
 import math
 from .interaction import BiaxialCapacity, FiberSection, uniaxial_curve_fs
-def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
+from .lang import T
+
+
+def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12, lang: str = "VN"):
     # Biểu đồ N-M tại góc uốn xiên α (dùng điểm B song trục)
     # Style theo mẫu: đường xanh lá, fill nhạt, lưới đứt mảnh
     GREEN, GREEN_LT = "#059669", "#D1FAE5"
@@ -43,10 +46,10 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     # Điểm B (giới hạn) vẽ trước, điểm A (tải trọng) vẽ sau
     ax.scatter([lim[1]], [lim[0]], c=ORANGE, marker="D", s=70, zorder=5,
-               edgecolors="white", linewidths=1.2, label="Giới hạn")
+               edgecolors="white", linewidths=1.2, label=T("Giới hạn", lang))
     ax.scatter([Ma], [res.N], c=GREEN, s=70, zorder=6,
                edgecolors="white", linewidths=1.2,
-               label="Điểm tải A")
+               label=T("Điểm tải A", lang))
     ax.text(Ma, res.N, "  A", fontsize=9, color=GREEN,
             weight="bold", va="center", zorder=7)
     ax.text(lim[1], lim[0], "  B", fontsize=9, color=ORANGE,
@@ -57,13 +60,13 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
     # Legend 4 mục như web, đặt dưới biểu đồ
     from matplotlib.lines import Line2D
     leg_elems = [
-        Line2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+        Line2D([0], [0], color=GREEN, lw=2.2, label=T("Đường bao N-Mα", lang)),
         Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-               label="Tia tải O-A-B"),
+               label=T("Tia tải O-A-B", lang)),
         Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
-               markersize=8, markeredgecolor="white", label="Điểm tải A"),
+               markersize=8, markeredgecolor="white", label=T("Điểm tải A", lang)),
         Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
-               markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+               markersize=7, markeredgecolor="white", label=T("Điểm giới hạn B", lang)),
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
@@ -94,7 +97,7 @@ def draw_nm_alpha_ax(ax, sec, inp, res, fs, title_sz=12):
 
 
 
-def draw_m2m3_ax(ax, sec, inp, res):
+def draw_m2m3_ax(ax, sec, inp, res, lang: str = "VN"):
     # Biểu đồ M2-M3 tại N = BN (dùng điểm B song trục)
     # — KHÔNG còn tại N tải như trước. Chỉ lát cắt tại BN mới đi
     # đúng qua B, vì theo định nghĩa tia D/C:
@@ -143,10 +146,10 @@ def draw_m2m3_ax(ax, sec, inp, res):
     ax.plot([0, res.By * 1.18], [0, res.Bx * 1.18], color=RED,
             ls="--", lw=1.5, dashes=(4, 3), zorder=4)
     ax.scatter([res.By], [res.Bx], c=ORANGE, marker="D", s=70, zorder=5,
-               edgecolors="white", linewidths=1.2, label="Giới hạn")
+               edgecolors="white", linewidths=1.2, label=T("Giới hạn", lang))
     ax.scatter([res.My_star], [res.Mx_star], c=GREEN, s=70,
                zorder=6, edgecolors="white", linewidths=1.2,
-               label="Điểm tải A")
+               label=T("Điểm tải A", lang))
     ax.text(res.My_star, res.Mx_star, "  A", fontsize=9,
             color=GREEN, weight="bold", va="center", zorder=7)
     # Trục qua tâm
@@ -161,13 +164,13 @@ def draw_m2m3_ax(ax, sec, inp, res):
 
     from matplotlib.lines import Line2D
     leg_elems = [
-        Line2D([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+        Line2D([0], [0], color=BLUE, lw=2.2, label=T("Đường bao M2-M3", lang)),
         Line2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-               label="Tia tải O-A-B"),
+               label=T("Tia tải O-A-B", lang)),
         Line2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
-               markersize=8, markeredgecolor="white", label="Điểm tải A"),
+               markersize=8, markeredgecolor="white", label=T("Điểm tải A", lang)),
         Line2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
-               markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+               markersize=7, markeredgecolor="white", label=T("Điểm giới hạn B", lang)),
     ]
     ax.legend(handles=leg_elems, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)

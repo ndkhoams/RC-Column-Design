@@ -9,6 +9,7 @@ import math
 
 from .checker import ColumnInput, CheckResult, build_section
 from .materials import STEEL_GRADES, EPS_B1, EPS_B2, EPS_S2
+from .lang import T
 
 
 
@@ -35,7 +36,7 @@ FORMULA_BG = "#F9FAFB"
 _DOT_COLORS = ["#2563EB", "#059669", "#D97706", "#7C3AED", "#DB2777", "#0891B2"]
 
 
-def _get_styles():
+def _get_styles(lang: str = "VN"):
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER
     from reportlab.lib.colors import HexColor
@@ -46,7 +47,7 @@ def _get_styles():
     font_path = _find_font()
     bold_path = _find_font_bold()
     if not font_path:
-        raise RuntimeError("Không tìm thấy font hỗ trợ tiếng Việt.")
+        raise RuntimeError(T("Không tìm thấy font hỗ trợ tiếng Việt.", lang))
     try:
         pdfmetrics.registerFont(TTFont("VN", font_path))
     except Exception:
@@ -184,7 +185,8 @@ def _sec_head(P, st, num, title, ref=""):
 
 def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                      batch_rows=None, case_info=None, shear_info=None,
-                     chart_pngs=None, show_compression: bool = True):
+                     chart_pngs=None, show_compression: bool = True,
+                     lang: str = "VN"):
     """Xuất PDF thuyết minh với layout card giống hệt app."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -193,7 +195,7 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
                                     PageBreak)
     from reportlab.lib.colors import HexColor
 
-    st = _get_styles()
+    st = _get_styles(lang)
     P = Paragraph
     sec = build_section(inp)
     conc = sec.concrete
@@ -205,37 +207,41 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=10*mm, rightMargin=10*mm,
                             topMargin=10*mm, bottomMargin=10*mm,
-                            title="KIỂM TRA KNCL CỘT BTCT")
+                            title=T("KIỂM TRA KNCL CỘT BTCT", lang))
     S = []
-    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
-    S.append(P("(Tiêu chuẩn TCVN 5574:2018)", st["sub"]))
+    S.append(P(T("THUYẾT MINH TÍNH TOÁN CỘT BTCT", lang), st["title"]))
+    S.append(P(T("(Tiêu chuẩn TCVN 5574:2018)", lang), st["sub"]))
     _mn = _member_name(inp)
     if _mn:
-        S.append(P(f"Cấu kiện: {_mn}", st["sec_title"]))
+        S.append(P(T("Cấu kiện: {m}", lang).format(m=_mn), st["sec_title"]))
     if case_info:
-        S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
-                   f"N = {_f(case_info.get('N', 0), 1)} kN, "
-                   f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
-                   f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
+        S.append(P(T("Tổ hợp tính toán: {c} — N = {n} kN, M2 = {m2} kN·m, M3 = {m3} kN·m", lang).format(
+                       c=_full_case(case_info),
+                       n=_f(case_info.get('N', 0), 1),
+                       m2=_f(case_info.get('M2', 0), 1),
+                       m3=_f(case_info.get('M3', 0), 1)),
                    st["note"]))
 
     # ================= MỤC 1 =================
-    S.append(_sec_head(P, st, 1, "ĐẶC TRƯNG VẬT LIỆU",
-                       "TCVN 5574:2018 Mục 6.1 & 6.2"))
+    S.append(_sec_head(P, st, 1, T("ĐẶC TRƯNG VẬT LIỆU", lang),
+                       T("TCVN 5574:2018 Mục 6.1 & 6.2", lang)))
     S.extend(_two(P, st,
-        _mk( f"Bê tông ({inp.concrete_grade})", "Bảng 6, Bảng 10 & Mục 6.1.2.3",
+        _mk( f"{T('Bê tông', lang)} ({inp.concrete_grade})",
+              T("Bảng 6, Bảng 10 & Mục 6.1.2.3", lang),
               [f"Rb* = γb·Rb = {_f(inp.gamma_b)} × {_f(conc.grade.Rb)}",
                f"= {_f(conc.Rb)} MPa",
                f"Eb ({inp.concrete_grade}) = {conc.Eb:,.0f} MPa"]),
-        _mk( f"Cốt thép dọc ({inp.steel_grade})", "Bảng 13 & Mục 6.2.2",
+        _mk( f"{T('Cốt thép dọc', lang)} ({inp.steel_grade})",
+              T("Bảng 13 & Mục 6.2.2", lang),
               [f"Rs = {_f(steel.Rs, 1)} MPa",
                f"Rsc = {_f(steel.Rsc, 1)} MPa",
                f"Es = {steel.Es:,.0f} MPa"])))
     S.extend(_two(P, st,
-        _mk( f"Cốt thép đai ({getattr(inp, 'sw_steel_grade', 'CB400-V')})", "Bảng 13",
+        _mk( f"{T('Cốt thép đai', lang)} ({getattr(inp, 'sw_steel_grade', 'CB400-V')})",
+              T("Bảng 13", lang),
               [f"Rsw = {_f(_sw_grade.Rsw * inp.gamma_s, 1)} MPa",
                f"Es = {_sw_grade.Es:,.0f} MPa"]),
-        _mk( "Tỷ số mô đun đàn hồi αe", "Mô hình quy đổi",
+        _mk( T("Tỷ số mô đun đàn hồi αe", lang), T("Mô hình quy đổi", lang),
               [f"αe = Es / Eb = {steel.Es:,.0f} / {conc.Eb:,.0f}",
                f"= {_f(res.alpha_e)} -"])))
     # Bảng biến dạng giới hạn
@@ -246,10 +252,10 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     _D2 = getattr(inp, "cx", 0) or 0
     if _is_circle2:
         S.append(_sec_head(P, st, 2,
-                           "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT TRÒN"))
+                           T("ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN CỘT TRÒN", lang)))
     else:
         S.append(_sec_head(P, st, 2,
-                           "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN"))
+                           T("ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN", lang)))
     from collections import Counter as _Ctr2
     _cnt2 = _Ctr2(getattr(r, "dia", 0) for r in sec.rebars)
     _bar_str2 = " + ".join(f"{_cnt2[d]:.0f}d{d:.0f}"
@@ -273,11 +279,11 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         except Exception:
             _t_na = None
         _sec_png2 = _czi(sec, _tBN, _tBx, _tBy, na_info=_t_na, width_in=3.5,
-                           show_compression=show_compression)
+                           show_compression=show_compression, lang=lang)
     except Exception:
         try:
             from .pdf_export import section_image as _si
-            _sec_png2 = _si(sec, width_in=2.8, show_stats=False)
+            _sec_png2 = _si(sec, width_in=2.8, show_stats=False, lang=lang)
         except Exception:
             _sec_png2 = None
     if _sec_png2:
@@ -297,73 +303,77 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         S.append(Spacer(1, 4*mm))
     if _is_circle2:
         S.extend(_two(P, st,
-            _mk( "Diện tích tiết diện bê tông nguyên A", "",
+            _mk( T("Diện tích tiết diện bê tông nguyên A", lang), "",
                   [f"A = π·D²/4",
                    f"= π × {_D2:.0f}² / 4",
                    f"= {sec.gross_area:,.0f} mm² "
                    f"(= {_f(sec.gross_area / 1e6, 4)} m²)"]),
-            _mk( "Diện tích cốt thép dọc As", "",
-                  [f"Số thanh: {_bar_str2}",
-                   f"Tổng As: {sec.steel_area:.0f} mm²",
-                   f"Hàm lượng μ: {100*sec.reinforcement_ratio:.2f}%"])))
+            _mk( T("Diện tích cốt thép dọc As", lang), "",
+                  [T("Số thanh: {b}", lang).format(b=_bar_str2),
+                   T("Tổng As: {v} mm²", lang).format(
+                       v=f"{sec.steel_area:.0f}"),
+                   T("Hàm lượng μ: {v}%", lang).format(
+                       v=f"{100*sec.reinforcement_ratio:.2f}")])))
         S.extend(_two(P, st,
-            _mk( "Mô men quán tính (I2 = I3)", "",
+            _mk( T("Mô men quán tính (I2 = I3)", lang), "",
                   [f"I = π·D⁴/64",
                    f"= π × {_D2:.0f}⁴ / 64",
                    f"= {_f(res.Ix / 1e9, 3)} × 10⁹ mm⁴"]),
-            _mk( "Bán kính quán tính (i2 = i3)", "",
+            _mk( T("Bán kính quán tính (i2 = i3)", lang), "",
                   [f"i = √(I / A) = D / 4",
                    f"= {_D2:.0f} / 4",
                    f"= {_f(res.ix, 2)} mm (= {_f(res.ix / 1000, 4)} m)"])))
     else:
         S.extend(_two(P, st,
-        _mk( "Diện tích tiết diện bê tông nguyên A", "",
+        _mk( T("Diện tích tiết diện bê tông nguyên A", lang), "",
               ["A = t2 · t3",
                f"= {inp.cy:.0f} × {inp.cx:.0f}",
                f"= {sec.gross_area:,.0f} mm² "
                f"(= {_f(sec.gross_area / 1e6, 4)} m²)"]),
-        _mk( "Diện tích cốt thép dọc As", "",
-              [f"Số thanh: {_bar_str2}",
-               f"Tổng As: {sec.steel_area:.0f} mm²",
-               f"Hàm lượng μ: {100*sec.reinforcement_ratio:.2f}%"])))
+        _mk( T("Diện tích cốt thép dọc As", lang), "",
+              [T("Số thanh: {b}", lang).format(b=_bar_str2),
+               T("Tổng As: {v} mm²", lang).format(
+                   v=f"{sec.steel_area:.0f}"),
+               T("Hàm lượng μ: {v}%", lang).format(
+                   v=f"{100*sec.reinforcement_ratio:.2f}")])))
         S.extend(_two(P, st,
-        _mk( "Mô men quán tính trục 2 (I2)", "",
+        _mk( T("Mô men quán tính trục 2 (I2)", lang), "",
               ["I₂ = (t3 · t2³) / 12",
                f"= ({inp.cx:.0f} × {inp.cy:.0f}³) / 12",
                f"= {_f(res.Ix / 1e9, 3)} × 10⁹ mm⁴"]),
-        _mk( "Mô men quán tính trục 3 (I3)", "",
+        _mk( T("Mô men quán tính trục 3 (I3)", lang), "",
               ["I₃ = (t2 · t3³) / 12",
                f"= ({inp.cy:.0f} × {inp.cx:.0f}³) / 12",
                f"= {_f(res.Iy / 1e9, 3)} × 10⁹ mm⁴"])))
         S.extend(_two(P, st,
-        _mk( "Bán kính quán tính phương 2 (i2)", "",
+        _mk( T("Bán kính quán tính phương 2 (i2)", lang), "",
               ["i₂ = √(I₂ / A) = t2 / √12",
                f"= {inp.cy:.0f} / 3.464",
                f"= {_f(res.ix, 2)} mm (= {_f(res.ix / 1000, 4)} m)"]),
-        _mk( "Bán kính quán tính phương 3 (i3)", "",
+        _mk( T("Bán kính quán tính phương 3 (i3)", lang), "",
               ["i₃ = √(I₃ / A) = t3 / √12",
                f"= {inp.cx:.0f} / 3.464",
                f"= {_f(res.iy, 2)} mm (= {_f(res.iy / 1000, 4)} m)"])))
 
 
     # ================= MỤC 3 =================
-    S.append(_sec_head(P, st, 3, "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
-                       "TCVN 5574:2018 Mục 8.1.2.4"))
+    S.append(_sec_head(P, st, 3, T("CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH", lang),
+                       T("TCVN 5574:2018 Mục 8.1.2.4", lang)))
     S.extend(_two(P, st,
-        _mk( "Chiều dài tính toán phương 2 (L02)", "",
+        _mk( T("Chiều dài tính toán phương 2 (L02)", lang), "",
               [f"L₀₂ = ψ · L = {_f(inp.psi_x, 2)} × {_f(inp.Lx, 2)}",
                f"= {_f(res.L0x, 2)} m"]),
-        _mk( "Chiều dài tính toán phương 3 (L03)", "",
+        _mk( T("Chiều dài tính toán phương 3 (L03)", lang), "",
               [f"L₀₃ = ψ · L = {_f(inp.psi_y, 2)} × {_f(inp.Ly, 2)}",
                f"= {_f(res.L0y, 2)} m"])))
-    ok2 = "ĐẠT" if res.lambda_x <= 120 else "KHÔNG ĐẠT"
-    ok3 = "ĐẠT" if res.lambda_y <= 120 else "KHÔNG ĐẠT"
+    ok2 = T("ĐẠT", lang) if res.lambda_x <= 120 else T("KHÔNG ĐẠT", lang)
+    ok3 = T("ĐẠT", lang) if res.lambda_y <= 120 else T("KHÔNG ĐẠT", lang)
     S.extend(_two(P, st,
-        _mk( "Độ mảnh cột phương 2 (λ2)", "",
+        _mk( T("Độ mảnh cột phương 2 (λ2)", lang), "",
               ["λ₂ = L₀₂ / i₂",
                f"= {_f(res.L0x * 1000, 0)} / {_f(res.ix, 1)}",
                f"= {_f(res.lambda_x, 1)} ≤ 120 → {ok2}"]),
-        _mk( "Độ mảnh cột phương 3 (λ3)", "",
+        _mk( T("Độ mảnh cột phương 3 (λ3)", lang), "",
               ["λ₃ = L₀₃ / i₃",
                f"= {_f(res.L0y * 1000, 0)} / {_f(res.iy, 1)}",
                f"= {_f(res.lambda_y, 1)} ≤ 120 → {ok3}"])))
@@ -371,21 +381,21 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     l03_t3 = (res.L0y * 1000) / inp.cx if inp.cx > 0 else 0
     need2 = res.lambda_x > 14 or l02_t2 > 4
     need3 = res.lambda_y > 14 or l03_t3 > 4
-    kl2 = ("BẮT BUỘC XÉT UỐN DỌC (kể đến hệ số η₂)" if need2
-           else "KHÔNG CẦN XÉT UỐN DỌC")
-    kl3 = ("BẮT BUỘC XÉT UỐN DỌC (kể đến hệ số η₃)" if need3
-           else "KHÔNG CẦN XÉT UỐN DỌC")
+    kl2 = (T("BẮT BUỘC XÉT UỐN DỌC (kể đến hệ số η₂)", lang) if need2
+           else T("KHÔNG CẦN XÉT UỐN DỌC", lang))
+    kl3 = (T("BẮT BUỘC XÉT UỐN DỌC (kể đến hệ số η₃)", lang) if need3
+           else T("KHÔNG CẦN XÉT UỐN DỌC", lang))
     S.extend(_two(P, st,
-        _mk( "Điều kiện xét hiệu ứng uốn dọc phương 2",
-              "Mục 8.1.2.1.2",
-              ["Xét khi λ₂ > 14 hoặc L₀₂ / t2 > 4",
+        _mk( T("Điều kiện xét hiệu ứng uốn dọc phương 2", lang),
+              T("Mục 8.1.2.1.2", lang),
+              [T("Xét khi λ₂ > 14 hoặc L₀₂ / t2 > 4", lang),
                f"λ₂ = {_f(res.lambda_x, 2)} "
                f"{'>' if res.lambda_x > 14 else '≤'} 14",
                f"L₀₂ / t2 = {_f(l02_t2, 2)}",
                f"= {kl2}"]),
-        _mk( "Điều kiện xét hiệu ứng uốn dọc phương 3",
-              "Mục 8.1.2.1.2",
-              ["Xét khi λ₃ > 14 hoặc L₀₃ / t3 > 4",
+        _mk( T("Điều kiện xét hiệu ứng uốn dọc phương 3", lang),
+              T("Mục 8.1.2.1.2", lang),
+              [T("Xét khi λ₃ > 14 hoặc L₀₃ / t3 > 4", lang),
                f"λ₃ = {_f(res.lambda_y, 2)} "
                f"{'>' if res.lambda_y > 14 else '≤'} 14",
                f"L₀₃ / t3 = {_f(l03_t3, 2)}",
@@ -393,48 +403,48 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
 
     # ================= MỤC 4 =================
     S.append(_sec_head(P, st, 4,
-                       "ĐỘ LỆCH TÂM TĨNH HỌC, ĐỘ LỆCH TÂM NGẪU NHIÊN & "
-                       "ĐỘ LỆCH TÂM BAN ĐẦU",
-                       "TCVN 5574:2018 Mục 8.1.2.2.4"))
+                       T("ĐỘ LỆCH TÂM TĨNH HỌC, ĐỘ LỆCH TÂM NGẪU NHIÊN & "
+                         "ĐỘ LỆCH TÂM BAN ĐẦU", lang),
+                       T("TCVN 5574:2018 Mục 8.1.2.2.4", lang)))
     N = abs(res.N) if res.N else 1.0
     # Mô men gốc thật (không suy từ Mx_star/η: sau sàn ea, Mx_star/η
     # = N·e0, không còn bằng mô men gốc khi e1 < ea).
     M2 = abs(inp.Mx)
     M3 = abs(inp.My)
     S.extend(_two(P, st,
-        _mk( "Độ lệch tâm tĩnh học phương 2 (e12)",
-              "Mục 8.1.2.2.4",
+        _mk( T("Độ lệch tâm tĩnh học phương 2 (e12)", lang),
+              T("Mục 8.1.2.2.4", lang),
               ["e₁₂ = |M₂| / N",
                f"= ({_f(M2 * 1000, 2)} × 10³) / {_f(N, 2)}",
                f"= {_f(res.e1x, 2)} mm"]),
-        _mk( "Độ lệch tâm tĩnh học phương 3 (e13)",
-              "Mục 8.1.2.2.4",
+        _mk( T("Độ lệch tâm tĩnh học phương 3 (e13)", lang),
+              T("Mục 8.1.2.2.4", lang),
               ["e₁₃ = |M₃| / N",
                f"= ({_f(M3 * 1000, 2)} × 10³) / {_f(N, 2)}",
                f"= {_f(res.e1y, 2)} mm"])))
     S.extend(_two(P, st,
-        _mk( "Độ lệch tâm ngẫu nhiên phương 2 (ea2)", "",
+        _mk( T("Độ lệch tâm ngẫu nhiên phương 2 (ea2)", lang), "",
               ["ea₂ = max(t2/600, L₀₂/600, 10mm)",
                f"= {_f(res.eax, 1)} mm"]),
-        _mk( "Độ lệch tâm ngẫu nhiên phương 3 (ea3)", "",
+        _mk( T("Độ lệch tâm ngẫu nhiên phương 3 (ea3)", lang), "",
               ["ea₃ = max(t3/600, L₀₃/600, 10mm)",
                f"= {_f(res.eay, 1)} mm"])))
     S.extend(_two(P, st,
-        _mk( "Độ lệch tâm ban đầu phương 2 (e02)", "",
+        _mk( T("Độ lệch tâm ban đầu phương 2 (e02)", lang), "",
               ["e₀₂ = e₁₂ + ea₂",
                f"= {_f(res.e1x, 1)} + {_f(res.eax, 1)}",
                f"= {_f(res.e0x, 1)} mm"]),
-        _mk( "Độ lệch tâm ban đầu phương 3 (e03)", "",
+        _mk( T("Độ lệch tâm ban đầu phương 3 (e03)", lang), "",
               ["e₀₃ = e₁₃ + ea₃",
                f"= {_f(res.e1y, 1)} + {_f(res.eay, 1)}",
                f"= {_f(res.e0y, 1)} mm"])))
 
     # ================= MỤC 5 =================
     S.append(_sec_head(P, st, 5,
-                       "ĐỘ CỨNG CHỐNG UỐN, LỰC TỚI HẠN EULER & PHÓNG ĐẠI "
-                       "MÔ MEN UỐN DỌC",
-                       "TCVN 5574:2018 Công thức (44) - (48)"))
-    phi_txt = ("2 (thiên về an toàn)"
+                       T("ĐỘ CỨNG CHỐNG UỐN, LỰC TỚI HẠN EULER & PHÓNG ĐẠI "
+                         "MÔ MEN UỐN DỌC", lang),
+                       T("TCVN 5574:2018 Công thức (44) - (48)", lang)))
+    phi_txt = (T("2 (thiên về an toàn)", lang)
                if not inp.long_term.has_data else _f(res.phi_L))
     phi_v = 2.0 if not inp.long_term.has_data else res.phi_L
     dirs = [
@@ -447,55 +457,54 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     def _mk5(d, e0, t, delta, kb, D, Ncr, eta, Mstar, Morig, L0, lam, kind):
         if kind == "phi":
             return _mk(
-                         f"Hệ số ảnh hưởng thời hạn tải trọng φL,{d}",
-                         "Công thức (48)",
+                         T("Hệ số ảnh hưởng thời hạn tải trọng φL,{d}", lang).format(d=d),
+                         T("Công thức (48)", lang),
                          [f"φL,{d} = 1 + ML1,{d} / ML,{d} ≤ 2.0",
                           f"φL = {phi_txt}"])
         if kind == "de":
-            return _mk( f"Độ lệch tâm tương đối phương {d} (δe,{d})",
-                         "Điều 8.1.2.4.2",
-                         [f"δe,{d} = e0{'3' if d == '2' else '2'} / t{d} "
-                          "(lấy trong [0.15, 1.5])",
+            return _mk( T("Độ lệch tâm tương đối phương {d} (δe,{d})", lang).format(d=d),
+                         T("Điều 8.1.2.4.2", lang),
+                         [T("δe,{d} = e0{e} / t{d} (lấy trong [0.15, 1.5])", lang).format(
+                              d=d, e='3' if d == '2' else '2'),
                           f"= {_f(e0, 2)} / {t:.0f} = {_f(delta, 3)}",
                           f"= {_f(delta, 3)} -"])
         if kind == "kb":
-            return _mk( f"Hệ số độ cứng bê tông phương {d} (kb,{d})",
-                         "Công thức (47)",
+            return _mk( T("Hệ số độ cứng bê tông phương {d} (kb,{d})", lang).format(d=d),
+                         T("Công thức (47)", lang),
                          [f"kb,{d} = 0.15 / [φL,{d} · (0.3 + δe,{d})]",
                           f"= 0.15 / [{_f(phi_v, 2)} × "
                           f"(0.3 + {_f(delta, 3)})]",
                           f"= {_f(kb, 3)} -"])
         if kind == "D":
-            return _mk( f"Độ cứng chống uốn quy ước phương {d} (D{d})",
-                         "Công thức (46)",
+            return _mk( T("Độ cứng chống uốn quy ước phương {d} (D{d})", lang).format(d=d),
+                         T("Công thức (46)", lang),
                          [f"D{d} = kb,{d} · Eb · I{d} + ks · Es · Is{d}",
                           "ks = 0.7",
                           f"= {_f(D, 1)} kN·m²"])
         if kind == "Ncr":
-            return _mk( f"Lực tới hạn Euler phương {d} (Ncr,{d})",
-                         "Công thức (45)",
+            return _mk( T("Lực tới hạn Euler phương {d} (Ncr,{d})", lang).format(d=d),
+                         T("Công thức (45)", lang),
                          [f"Ncr,{d} = (π² · D{d}) / L0{d}²",
                           f"= (π² × {_f(D, 1)}) / {_f(L0, 2)}²",
                           f"= {_f(Ncr, 2)} kN"])
         if kind == "eta":
             if lam is not None and lam <= 14.0:
-                return _mk( f"Hệ số uốn dọc phương {d} (η{d})",
+                return _mk( T("Hệ số uốn dọc phương {d} (η{d})", lang).format(d=d),
                              "TCVN 5574:2018 §8.1.2.1.2",
-                             [f"λ{d} = {_f(lam, 1)} ≤ 14 → theo "
-                              f"§8.1.2.1.2 không nhân η",
-                              f"η{d} = 1,000 (Ncr,{d} = {_f(Ncr, 1)} kN "
-                              f"chỉ để đối chiếu)",
+                             [T("λ{d} = {v} ≤ 14 → theo §8.1.2.1.2 không nhân η", lang).format(
+                                  d=d, v=_f(lam, 1)),
+                              T("η{d} = 1,000 (Ncr,{d} = {v} kN chỉ để đối chiếu)", lang).format(
+                                  d=d, v=_f(Ncr, 1)),
                               f"= {_f(eta, 3)}"])
-            return _mk( f"Hệ số uốn dọc phương {d} (η{d})",
-                         "Công thức (44)",
+            return _mk( T("Hệ số uốn dọc phương {d} (η{d})", lang).format(d=d),
+                         T("Công thức (44)", lang),
                          [f"η{d} = 1 / [1 - N / Ncr,{d}]",
                           f"= 1 / [1 - {_f(N, 1)} / {_f(Ncr, 1)}]",
                           f"= {_f(eta, 3)} ≥ 1.0"])
         if kind == "Ms":
-            return _mk( f"Mô men tính toán phương {d} (M{d}*)",
-                         "Mục 8.1.2.4",
-                         [f"M{d}* = sign·N·e0·η{d} / 1000 (dấu theo "
-                          f"M{d}; M{d} = 0 → dấu +)",
+            return _mk( T("Mô men tính toán phương {d} (M{d}*)", lang).format(d=d),
+                         T("Mục 8.1.2.4", lang),
+                         [T("M{d}* = sign·N·e0·η{d} / 1000 (dấu theo M{d}; M{d} = 0 → dấu +)", lang).format(d=d),
                           f"= {_f(N, 1)} × {_f(e0, 2)} × "
                           f"{_f(eta, 3)} / 1000",
                           f"= {_f(Mstar, 2)} kN·m"])
@@ -508,38 +517,38 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     alpha = math.degrees(math.atan2(res.Mx_star, res.My_star)) % 360.0 \
         if Ma > 1e-9 else 0.0
     S.append(KeepTogether(_two(P, st,
-        _mk( "Góc tác dụng mô men uốn tổng hợp α", "Góc uốn xiên",
+        _mk( T("Góc tác dụng mô men uốn tổng hợp α", lang), T("Góc uốn xiên", lang),
               [f"α = arctan(M₃* / M₂*)",
                f"= arctan({_f(abs(res.My_star), 2)} / {_f(abs(res.Mx_star), 2)})",
-               f"= {_f(alpha, 2)} độ (°)"]),
-        _mk( "Mô men uốn xiên tổng hợp Mα", "Véc-tơ tổng hợp",
+               T("= {v} độ (°)", lang).format(v=_f(alpha, 2))]),
+        _mk( T("Mô men uốn xiên tổng hợp Mα", lang), T("Véc-tơ tổng hợp", lang),
               [f"Mα = √((M₂*)² + (M₃*)²)",
                f"= √({_f(abs(res.Mx_star), 2)}² + {_f(abs(res.My_star), 2)}²)",
                f"= {_f(Ma, 2)} kN·m"]))))
 
     # ================= MỤC 6 =================
     S.append(_sec_head(P, st, 6,
-                       "ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC THEO MÔ HÌNH BIẾN DẠNG "
-                       "PHI TUYẾN (NDM)",
-                       "TCVN 5574:2018 Mục 8.1.2.7"))
+                       T("ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC THEO MÔ HÌNH BIẾN DẠNG "
+                         "PHI TUYẾN (NDM)", lang),
+                       T("TCVN 5574:2018 Mục 8.1.2.7", lang)))
     OA = math.sqrt(res.Mx_star**2 + res.My_star**2 + res.N**2)
     OB = math.sqrt(res.Bx**2 + res.By**2 + res.BN**2)
     S.append(KeepTogether(_two(P, st,
-        _mk( "Điểm nội lực tính toán A (Nội lực tác dụng)", "",
+        _mk( T("Điểm nội lực tính toán A (Nội lực tác dụng)", lang), "",
               ["A = (M₂tt, M₃tt, N)",
                f"= ({_f(res.Mx_star, 1)}, {_f(res.My_star, 1)}, "
                f"{_f(res.N, 1)})",
                f"= |OA| = {_f(OA, 1)} kN/kNm"]),
-        _mk( "Điểm giới hạn B (trên mặt tương tác)", "",
+        _mk( T("Điểm giới hạn B (trên mặt tương tác)", lang), "",
               ["B = (M₂gh, M₃gh, Ngh)",
                f"= ({_f(res.Bx, 1)}, {_f(res.By, 1)}, "
                f"{_f(res.BN, 1)})",
                f"= |OB| = {_f(OB, 1)} kN/kNm"]))))
     S.append(KeepTogether(_two(P, st,
-        _mk( "Góc uốn xiên α", "",
+        _mk( T("Góc uốn xiên α", lang), "",
               [f"α = {_f(alpha, 1)}°",
                f"Mα = {_f(Ma, 1)} kN·m"]),
-        _mk( "Tỷ số D/C", "",
+        _mk( T("Tỷ số D/C", lang), "",
               [f"D/C = |OA| / |OB| = {_f(OA, 1)} / {_f(OB, 1)}",
                f"= {_f(res.dc, 3)} (FS = {_f(res.fs, 2)})"],
               ""))))
@@ -566,8 +575,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         img1 = _keep(_pngs[0], 80)
         img2 = _keep(_pngs[1], 80)
         # 2 biểu đồ đặt ngang nhau
-        _ct = _T2([[[P("Biểu đồ tương tác N-Mα", st["cap"]), img1],
-                    [P("Biểu đồ tương tác M2-M3", st["cap"]), img2]]])
+        _ct = _T2([[[P(T("Biểu đồ tương tác N-Mα", lang), st["cap"]), img1],
+                    [P(T("Biểu đồ tương tác M2-M3", lang), st["cap"]), img2]]])
         _ct.setStyle(_TS2([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -582,8 +591,9 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _bg = "#D1FAE5" if _ok else "#FEE2E2"
         _fg = "#065F46" if _ok else "#991B1B"
         _t = Table([
-            [P(f"TỶ SỐ SỬ DỤNG (D/C) = {res.dc:.3f}  (FS = {res.fs:.2f})", st["result"])],
-            [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["result"])],
+            [P(T("TỶ SỐ SỬ DỤNG (D/C) = {dc:.3f}  (FS = {fs:.2f})", lang).format(
+                  dc=res.dc, fs=res.fs), st["result"])],
+            [P(T("✓ ĐẠT — D/C ≤ 1.000", lang) if _ok else T("✗ KHÔNG ĐẠT — D/C > 1.000", lang), st["result"])],
         ])
         _t.setStyle(_TS2([
             ("BACKGROUND", (0, 0), (-1, -1), _HC(_bg)),
@@ -600,8 +610,8 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
 
     # ================= MỤC 7 =================
     S.append(PageBreak())
-    S.append(_sec_head(P, st, 7, "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
-                       "TCVN 5574:2018 Mục 10.3.4 & 8.1.3"))
+    S.append(_sec_head(P, st, 7, T("KIỂM TRA KHẢ NĂNG CHỊU CẮT", lang),
+                       T("TCVN 5574:2018 Mục 10.3.4 & 8.1.3", lang)))
     def _full_card(title, ref, lines, result=""):
         """Render 1 card full-width."""
         from reportlab.platypus import Table as _T, TableStyle as _TS
@@ -631,12 +641,29 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
     stir_in = StirrupInput(dia=inp.sw_dia, spacing=inp.sw_spacing,
                            legs=inp.sw_legs)
     stir_res = check_stirrup(sec, stir_in, inp.concrete_grade)
+    # Dịch hiển thị các chuỗi do engine stirrup.py sinh ra (item/required/
+    # provided) khi xuất EN — chỉ ở tầng PDF, không đụng engine/GUI.
+    # Thứ tự: token dài trước để replace đúng ("Cấu tạo nhánh đai..." trước
+    # "nhánh").
+    _STIRRUP_TOKENS = ("Đường kính đai (10.3.4.2)", "Bước đai (10.3.4.4)",
+                       "Cấu tạo nhánh đai (10.3.4.5)", "ρ_mặt",
+                       "mỗi cạnh ≤ 4 thanh", "nhánh")
+
+    def _tr_stirrup(s, lang):
+        if lang != "EN":
+            return s
+        for _tok in _STIRRUP_TOKENS:
+            s = s.replace(_tok, T(_tok, lang))
+        return s
+
     chk_lines = []
     for chk in stir_res.checks:
         mark = "✓" if chk.ok else "✗"
-        chk_lines.append(f"{mark} {chk.item}: yêu cầu {chk.required}, "
-                         f"chọn {chk.provided}")
-    S.extend(_full_card("Cấu tạo cốt đai (10.3.4)", "", chk_lines))
+        chk_lines.append(T("{m} {t}: yêu cầu {r}, chọn {p}", lang).format(
+            m=mark, t=_tr_stirrup(chk.item, lang),
+            r=_tr_stirrup(chk.required, lang),
+            p=_tr_stirrup(chk.provided, lang)))
+    S.extend(_full_card(T("Cấu tạo cốt đai (10.3.4)", lang), "", chk_lines))
     sw_grade = STEEL_GRADES.get(inp.sw_steel_grade, STEEL_GRADES["CB400-V"])
     # Lấy combo/vị trí từ shear_cols (đã merge)
     _q2c = ""
@@ -677,10 +704,12 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             s_eff = _pc.get("s_eff", stir_in.spacing)
             if sh is None:
                 # KHÔNG có precalc: báo lỗi, không tự tính
-                raise ValueError(f"Thiếu kết quả cắt precalc cho phương {dnum} - vi phạm nguyên tắc 'tính 1 lần'")
+                raise ValueError(T("Thiếu kết quả cắt precalc cho phương {d} - "
+                                   "vi phạm nguyên tắc 'tính 1 lần'", lang).format(d=dnum))
         else:
             # KHÔNG có shear_cols: báo lỗi, không tự tính
-            raise ValueError("Thiếu shear_cols từ _tcvn_calculate_full - vi phạm nguyên tắc 'tính 1 lần'")
+            raise ValueError(T("Thiếu shear_cols từ _tcvn_calculate_full - "
+                               "vi phạm nguyên tắc 'tính 1 lần'", lang))
         m1 = "✓" if sh.ok1 else "✗"
         m2 = "✓" if sh.ok2 else "✗"
         # qsw đã lấy từ precalc (không tính lại)
@@ -690,14 +719,14 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
         _sig = sh.sigma_m if inp.N >= 0 else sh.sigma_t
         _sig_lbl = "σm" if inp.N >= 0 else "σt"
         if sh.qb_mode == "NONE":
-            _c96_line = ("ĐK (96): không có cốt đai → Qsw = 0" if sh.cond98_ok
-                         else "ĐK (96): — (đai không được kể do ĐK (98))")
+            _c96_line = (T("ĐK (96): không có cốt đai → Qsw = 0", lang) if sh.cond98_ok
+                         else T("ĐK (96): — (đai không được kể do ĐK (98))", lang))
         elif sh.cond96_ok:
-            _c96_line = (f"✓ ĐK (96): qsw = {_f(qsw, 1)} ≥ 0.25×Rbt×b "
-                         f"= {_f(sh.qsw_min96, 1)} N/mm")
+            _c96_line = T("✓ ĐK (96): qsw = {a} ≥ 0.25×Rbt×b = {b} N/mm", lang).format(
+                a=_f(qsw, 1), b=_f(sh.qsw_min96, 1))
         else:
-            _c96_line = (f"✗ ĐK (96): qsw = {_f(qsw, 1)} < 0.25×Rbt×b "
-                         f"= {_f(sh.qsw_min96, 1)} N/mm → Qb theo CT (97)")
+            _c96_line = T("✗ ĐK (96): qsw = {a} < 0.25×Rbt×b = {b} N/mm → Qb theo CT (97)", lang).format(
+                a=_f(qsw, 1), b=_f(sh.qsw_min96, 1))
         # Dòng s_max / ĐK (98): KHÔNG hiển thị ở bản chi tiết (theo yêu cầu
         # trình bày) — engine vẫn kiểm tra (98), hệ quả Qsw = 0 của nhóm đai
         # vi phạm vẫn thể hiện ở các dòng qsw/[Q] phía dưới.
@@ -712,28 +741,33 @@ def export_pdf_cards(inp: ColumnInput, res: CheckResult, filepath: str,
             _qb_line = (f"  Qb = {_f(sh.phi_n, 3)}×1.5×{_f(Rbt, 2)}×{b_w:.0f}×"
                         f"{h0u:.0f}²/{sh.C_opt:.0f}/1000 "
                         f"= {_f(sh.Qb_opt, 1)} kN")
-        cards7.append(_mk( f"Kiểm tra chịu cắt phương {dnum}", "",
+        _cmp_mark = "✓" if sh.ok else "✗"
+        _cmp_op = "≤" if abs(Q) <= sh.Qcap2 else ">"
+        cards7.append(_mk( T("Kiểm tra chịu cắt phương {n}", lang).format(n=dnum), "",
             [f"Q = {_f(Q, 1)} kN{(_q2c if dnum=='2' else _q3c)}",
              f"b = {b_w:.0f} mm, h₀ = {h0u:.0f} mm",
              f"Asw = {sw_txt} = {Asw:.0f} mm²",
              f"{_sig_lbl} = |N|/A = {_f(_sig, 2)} MPa → φn = {_f(sh.phi_n, 3)} (8.1.3.3.2)",
-             f"{m1} ĐK1 (dải nén xiên): Q ≤ φn×0.3×Rb×b×h₀",
+             T("{m} ĐK1 (dải nén xiên): Q ≤ φn×0.3×Rb×b×h₀", lang).format(m=m1),
              f"  = {_f(sh.phi_n, 3)}×0.3×{_f(Rb, 2)}×{b_w:.0f}×{h0u:.0f}/1000 "
              f"= {_f(sh.Qcap1, 1)} kN",
-             f"{m2} ĐK2 (vết nứt xiên): Q ≤ Qb + Qsw",
+             T("{m} ĐK2 (vết nứt xiên): Q ≤ Qb + Qsw", lang).format(m=m2),
              (f"  qsw = {_f(Rsw, 0)}×{Asw:.0f}/{s_eff:.0f} "
               f"= {_f(qsw, 1)} N/mm" if sh.cond98_ok else
-              f"  qsw (được kể, sau ĐK 98) = Σ Rsw×Asw,i/si "
-              f"= {_f(qsw, 1)} N/mm"),
+              T("  qsw (được kể, sau ĐK 98) = Σ Rsw×Asw,i/si = {v} N/mm", lang).format(
+                  v=_f(qsw, 1))),
              _c96_line,
              _qb_line,
-             f"  (Qb ∈ [{_f(Qb_lo, 1)}, {_f(Qb_hi, 1)}] kN — giới hạn trước φn)",
+             T("  (Qb ∈ [{a}, {b}] kN — giới hạn trước φn)", lang).format(
+                 a=_f(Qb_lo, 1), b=_f(Qb_hi, 1)),
              f"  Qsw = 0.75×{_f(qsw, 1)}×{sh.C_opt:.0f}/1000 "
              f"= {_f(sh.Qsw_opt, 1)} kN",
-             f"  → [Q]min = {_f(sh.Qcap2, 1)} kN tại C = {sh.C_opt:.0f} mm",
-             f"{'✓' if sh.ok else '✗'} So sánh: |Q| = {_f(abs(Q), 1)} kN "
-             f"{'≤' if abs(Q) <= sh.Qcap2 else '>'} [Q]min = {_f(sh.Qcap2, 1)} kN"],
-              "Kết luận: ĐẠT" if sh.ok else "Kết luận: KHÔNG ĐẠT"))
+             T("  → [Q]min = {a} kN tại C = {c} mm", lang).format(
+                 a=_f(sh.Qcap2, 1), c=f"{sh.C_opt:.0f}"),
+             T("{m} So sánh: |Q| = {a} kN {op} [Q]min = {b} kN", lang).format(
+                 m=_cmp_mark, a=_f(abs(Q), 1), op=_cmp_op,
+                 b=_f(sh.Qcap2, 1))],
+              T("Kết luận: ĐẠT", lang) if sh.ok else T("Kết luận: KHÔNG ĐẠT", lang)))
         shear_ok &= sh.ok
     if len(cards7) == 2:
         S.extend(_two(P, st, cards7[0], cards7[1]))

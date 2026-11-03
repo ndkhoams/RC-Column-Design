@@ -15,7 +15,8 @@ def _mpl_font(name: str):
     p = os.path.join(os.path.dirname(matplotlib.__file__),
                      "mpl-data", "fonts", "ttf", name)
     if not os.path.exists(p):
-        raise FileNotFoundError(f"Không tìm thấy font {name} của matplotlib")
+        raise FileNotFoundError(
+            T("Không tìm thấy font {n} của matplotlib").format(n=name))
     return p
 
 
@@ -280,7 +281,8 @@ def _radial_limit(curve, N_load: float, M_load: float):
 
 
 def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
-                      right_half=False, left_half=False) -> bytes:
+                      right_half=False, left_half=False,
+                      lang: str = "VN") -> bytes:
     """Biểu đồ tương tác N-M tại góc uốn xiên α.
     right_half=True: chỉ hiện nửa phải (M>=0) có đường nội lực.
     left_half=True: chỉ hiện nửa trái (M<=0) có đường nội lực."""
@@ -301,7 +303,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     n_pos = [p[0] for p in cv]
     m_neg = [-p[1] for p in cv]
     ax.plot(m_pos, n_pos, color=GREEN, lw=2.0, zorder=3,
-            label="Đường bao N-Mα")
+            label=T("Đường bao N-Mα", lang))
     ax.plot(m_neg, n_pos, color=GREEN, lw=2.0, zorder=3)
     ax.fill_betweenx(n_pos, 0, m_pos, color=GREEN, alpha=0.08, zorder=1)
     ax.fill_betweenx(n_pos, m_neg, 0, color=GREEN, alpha=0.08, zorder=1)
@@ -310,7 +312,7 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     lim = (res.BN, Mb)
     ax.plot([0, lim[1] * 1.18], [0, lim[0] * 1.18], color=RED,
             ls="--", lw=1.5, dashes=(4, 3), zorder=4,
-            label="Tia tải O-A-B")
+            label=T("Tia tải O-A-B", lang))
     ax.plot([Ma, Ma], [0, res.N], color=BLUE_DASH, ls="--",
             lw=1.2, dashes=(4, 3), alpha=0.8, zorder=2)
     ax.plot([0, Ma], [res.N, res.N], color=BLUE_DASH, ls="--",
@@ -344,13 +346,13 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     # Legend 4 mục như tab Kết quả (dùng Line2D custom)
     from matplotlib.lines import Line2D as _L2D
     _leg = [
-        _L2D([0], [0], color=GREEN, lw=2.2, label="Đường bao N-Mα"),
+        _L2D([0], [0], color=GREEN, lw=2.2, label=T("Đường bao N-Mα", lang)),
         _L2D([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-             label="Tia tải O-A-B"),
+             label=T("Tia tải O-A-B", lang)),
         _L2D([0], [0], marker="o", color="w", markerfacecolor=GREEN,
-             markersize=8, markeredgecolor="white", label="Điểm tải A"),
+             markersize=8, markeredgecolor="white", label=T("Điểm tải A", lang)),
         _L2D([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
-             markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+             markersize=7, markeredgecolor="white", label=T("Điểm giới hạn B", lang)),
     ]
     ax.legend(handles=_leg, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False)
@@ -371,7 +373,8 @@ def interaction_image(sec, inp, res, width_in=6.0, dpi=300, small=False,
     return buf.getvalue()
 
 
-def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
+def m2m3_image(sec, inp, res, width_in=4.0, dpi=300,
+               lang: str = "VN") -> bytes:
     """Biểu đồ tương tác M2-M3 tại N = BN (lực dọc của điểm giới
     hạn B trên tia D/C) — KHÔNG còn tại N tải như trước; chỉ lát
     cắt tại BN mới đi đúng qua B (moment_capacity(BN, α) = |B|,
@@ -430,13 +433,13 @@ def m2m3_image(sec, inp, res, width_in=4.0, dpi=300) -> bytes:
     ax.tick_params(labelsize=8)
     from matplotlib.lines import Line2D as _L2D2
     _leg2 = [
-        _L2D2([0], [0], color=BLUE, lw=2.2, label="Đường bao M2-M3"),
+        _L2D2([0], [0], color=BLUE, lw=2.2, label=T("Đường bao M2-M3", lang)),
         _L2D2([0], [0], color=RED, lw=1.5, ls="--", dashes=(4, 3),
-              label="Tia tải O-A-B"),
+              label=T("Tia tải O-A-B", lang)),
         _L2D2([0], [0], marker="o", color="w", markerfacecolor=GREEN,
-              markersize=8, markeredgecolor="white", label="Điểm tải A"),
+              markersize=8, markeredgecolor="white", label=T("Điểm tải A", lang)),
         _L2D2([0], [0], marker="D", color="w", markerfacecolor=ORANGE,
-              markersize=7, markeredgecolor="white", label="Điểm giới hạn B"),
+              markersize=7, markeredgecolor="white", label=T("Điểm giới hạn B", lang)),
     ]
     ax.legend(handles=_leg2, fontsize=8, loc="upper center",
               bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
@@ -664,7 +667,8 @@ def draw_compression_zone_ax(ax, sec, N_kN: float, M2_kNm: float, M3_kNm: float,
     ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                        sec_img_path=None, shear_info=None,
-                       show_compression: bool = True, _level: int = 0):
+                       show_compression: bool = True, _level: int = 0,
+                       lang: str = "VN"):
     """Xuất PDF Kết quả tính toán TCVN 5574:2018 (1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình vùng nén + 2 biểu đồ.
@@ -822,7 +826,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
 
         _alpha = _m.degrees(_m.atan2(res.Mx_star, res.My_star)) % 360.0 \
             if abs(res.Mx_star) + abs(res.My_star) > 1e-9 else 0.0
-        _ok_txt = "<b>ĐẠT</b>" if res.ok else "<b>KHÔNG ĐẠT</b>"
+        _ok_txt = f"<b>{T('ĐẠT' if res.ok else 'KHÔNG ĐẠT', lang)}</b>"
         # He so chieu dai tinh toan psi: doc tu L0 (engine da tinh) / L goc
         _psi2 = (res.L0x / inp.Lx) if inp.Lx else 0.0
         _psi3 = (res.L0y / inp.Ly) if inp.Ly else 0.0
@@ -831,98 +835,100 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
         left_flow = []
 
         # THÔNG TIN CHUNG
-        left_flow.append(_sec_table("THÔNG TIN CHUNG", [
-            ("Tiêu chuẩn", "TCVN 5574:2018"),
-            ("Cấu kiện", _ck_name or "—"),
+        left_flow.append(_sec_table(T("THÔNG TIN CHUNG", lang), [
+            (T("Tiêu chuẩn", lang), "TCVN 5574:2018"),
+            (T("Cấu kiện", lang), _ck_name or "—"),
         ]))
 
         # VẬT LIỆU (Es chi 1 hang o cuoi khoi)
         _mat_rows = []
         if _cg:
             _mat_rows += [
-                ("Bê tông", inp.concrete_grade),
-                ("Cường độ chịu nén, R<sub>b</sub>", f"{_fm(_cg.Rb)} MPa"),
-                ("Mô đun đàn hồi, E<sub>b</sub>", f"{_fm(_cg.Eb)} MPa"),
+                (T("Bê tông", lang), inp.concrete_grade),
+                (T("Cường độ chịu nén, R<sub>b</sub>", lang), f"{_fm(_cg.Rb)} MPa"),
+                (T("Mô đun đàn hồi, E<sub>b</sub>", lang), f"{_fm(_cg.Eb)} MPa"),
             ]
         if _sg:
             _mat_rows += [
-                ("Cốt thép dọc", inp.steel_grade),
-                ("Cường độ chịu kéo, R<sub>s</sub>", f"{_fm(_sg.Rs)} MPa"),
+                (T("Cốt thép dọc", lang), inp.steel_grade),
+                (T("Cường độ chịu kéo, R<sub>s</sub>", lang), f"{_fm(_sg.Rs)} MPa"),
             ]
         if _swg:
             _mat_rows += [
-                ("Cốt thép đai", inp.sw_steel_grade),
-                ("Cường độ chịu cắt, R<sub>sw</sub>", f"{_fm(_swg.Rsw)} MPa"),
-                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(_swg.Es)} MPa"),
+                (T("Cốt thép đai", lang), inp.sw_steel_grade),
+                (T("Cường độ chịu cắt, R<sub>sw</sub>", lang), f"{_fm(_swg.Rsw)} MPa"),
+                (T("Mô đun đàn hồi, E<sub>s</sub>", lang), f"{_fm(_swg.Es)} MPa"),
             ]
         elif _sg:
             _mat_rows.append(
-                ("Mô đun đàn hồi, E<sub>s</sub>", f"{_fm(_sg.Es)} MPa"))
-        left_flow.append(_sec_table("VẬT LIỆU", _mat_rows))
+                (T("Mô đun đàn hồi, E<sub>s</sub>", lang), f"{_fm(_sg.Es)} MPa"))
+        left_flow.append(_sec_table(T("VẬT LIỆU", lang), _mat_rows))
 
         # TIẾT DIỆN (theo loai tiet dien)
         _kind = getattr(sec, "kind", None) or getattr(inp, "section_type", "rect")
         if _kind == "circle":
-            _sec_rows = [("Hình tròn, đường kính d", f"{_t3:.0f} mm")]
+            _sec_rows = [(T("Hình tròn, đường kính d", lang), f"{_t3:.0f} mm")]
         elif _kind == "poly":
-            _sec_rows = [("Diện tích bê tông, A<sub>c</sub>",
+            _sec_rows = [(T("Diện tích bê tông, A<sub>c</sub>", lang),
                           f"{sec.gross_area:.0f} mm²")]
         else:
-            _sec_rows = [("Hình chữ nhật, t2 × t3",
+            _sec_rows = [(T("Hình chữ nhật, t2 × t3", lang),
                           f"{_t2:.0f} × {_t3:.0f} mm")]
-        _sec_rows.append(("Lớp bảo vệ cốt đai, c",
+        _sec_rows.append((T("Lớp bảo vệ cốt đai, c", lang),
                           f"{inp.cover:.0f} mm "
-                          f"(c_dọc = {cover_long(inp.cover, getattr(inp, 'sw_dia', 0.0) or 0.0):.0f} mm)"))
-        left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
+                          + T("(c_dọc = {cl:.0f} mm)", lang).format(
+                              cl=cover_long(inp.cover,
+                                            getattr(inp, 'sw_dia', 0.0) or 0.0))))
+        left_flow.append(_sec_table(T("TIẾT DIỆN", lang), _sec_rows))
 
         # BỐ TRÍ CỐT THÉP DỌC
-        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
-            ("Số lượng thép", " + ".join(_parts)),
-            ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
+        left_flow.append(_sec_table(T("BỐ TRÍ CỐT THÉP DỌC", lang), [
+            (T("Số lượng thép", lang), " + ".join(_parts)),
+            (T("Hàm lượng thép dọc, μ", lang), f"{_mu*100:.2f}%"),
         ]))
 
         # NỘI LỰC KIỂM TRA (M2, M3 gop 1 hang; V2, V3 o bang cat)
-        left_flow.append(_sec_table("NỘI LỰC KIỂM TRA", [
-            ("Vị trí cột", _vpos),
-            ("Tổ hợp tính toán", _combo_txt),
-            ("Lực dọc tính toán, N", f"{res.N:.1f} kN"),
-            ("Mômen ban đầu, M2, M3", f"{res.Mx:.1f} / {res.My:.1f} kNm"),
+        left_flow.append(_sec_table(T("NỘI LỰC KIỂM TRA", lang), [
+            (T("Vị trí cột", lang), _vpos),
+            (T("Tổ hợp tính toán", lang), _combo_txt),
+            (T("Lực dọc tính toán, N", lang), f"{res.N:.1f} kN"),
+            (T("Mômen ban đầu, M2, M3", lang), f"{res.Mx:.1f} / {res.My:.1f} kNm"),
         ]))
 
         # CHIỀU DÀI TÍNH TOÁN & HIỆU ỨNG UỐN DỌC (doc tu CheckResult —
         # engine da tinh 1 lan: L0, lambda, e0, Ncr, eta; psi = L0/L)
         left_flow.append(_sec_table(
-            "CHIỀU DÀI TÍNH TOÁN &amp; HIỆU ỨNG UỐN DỌC", [
-                ("Chiều dài cột, L2, L3",
+            T("CHIỀU DÀI TÍNH TOÁN & HIỆU ỨNG UỐN DỌC", lang).replace("&", "&amp;"), [
+                (T("Chiều dài cột, L2, L3", lang),
                  f"{_fm_m(inp.Lx)} / {_fm_m(inp.Ly)} m"),
-                ("Hệ số chiều dài tính toán, ψ2, ψ3",
+                (T("Hệ số chiều dài tính toán, ψ2, ψ3", lang),
                  f"{_psi2:.2f} / {_psi3:.2f}"),
-                ("Chiều dài tính toán, L02, L03",
+                (T("Chiều dài tính toán, L02, L03", lang),
                  f"{_fm_m(res.L0x)} / {_fm_m(res.L0y)} m"),
-                ("Độ mảnh cột, λ2, λ3",
+                (T("Độ mảnh cột, λ2, λ3", lang),
                  f"{res.lambda_x:.1f} / {res.lambda_y:.1f}"),
-                ("Độ lệch tâm ban đầu, e02, e03",
+                (T("Độ lệch tâm ban đầu, e02, e03", lang),
                  f"{res.e0x:.1f} / {res.e0y:.1f} mm"),
-                ("Lực tới hạn Euler, Ncr,2, Ncr,3",
+                (T("Lực tới hạn Euler, Ncr,2, Ncr,3", lang),
                  f"{res.Ncrx:.1f} / {res.Ncry:.1f} kN"),
-                ("Hệ số uốn dọc, η2, η3",
+                (T("Hệ số uốn dọc, η2, η3", lang),
                  f"{res.etax:.3f} / {res.etay:.3f}"),
             ]))
 
         # KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC
         _Mb = _m.hypot(res.Bx, res.By)
         _Ma = _m.hypot(res.Mx_star, res.My_star)
-        left_flow.append(_sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", [
-            ("Lực dọc tính toán, N", f"{res.N:.1f} kN"),
-            ("Mômen sau uốn dọc, M2*, M3*",
+        left_flow.append(_sec_table(T("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", lang), [
+            (T("Lực dọc tính toán, N", lang), f"{res.N:.1f} kN"),
+            (T("Mômen sau uốn dọc, M2*, M3*", lang),
              f"{res.Mx_star:.1f} / {res.My_star:.1f} kNm"),
-            (f"Mômen tổng kiểm tra, Mα (α = {_alpha:.1f}°)",
+            (T("Mômen tổng kiểm tra, Mα (α = {a:.1f}°)", lang).format(a=_alpha),
              f"{_Ma:.1f} kNm"),
-            ("Lực dọc giới hạn, Nu", f"{res.BN:.1f} kN"),
-            ("Mômen giới hạn, Mα,u", f"{_Mb:.1f} kNm"),
-            ("Tỉ số sử dụng khả năng chịu lực, D/C (FS)",
+            (T("Lực dọc giới hạn, Nu", lang), f"{res.BN:.1f} kN"),
+            (T("Mômen giới hạn, Mα,u", lang), f"{_Mb:.1f} kNm"),
+            (T("Tỉ số sử dụng khả năng chịu lực, D/C (FS)", lang),
              f"{res.dc:.3f} ({res.fs:.2f})"),
-            ("Kết luận", _ok_txt),
+            (T("Kết luận", lang), _ok_txt),
         ]))
 
         # ===== Cột phải: hình mặt cắt + 2 biểu đồ (căn giữa) =====
@@ -960,24 +966,28 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             _sec_png = compression_zone_image(
                 sec, getattr(res, "BN", inp.N),
                 getattr(res, "Bx", 0), getattr(res, "By", 0),
-                na_info=_cz_na, show_compression=show_compression)
+                na_info=_cz_na, show_compression=show_compression,
+                lang=lang)
             _blkA.append(_centered_img(_sec_png, _IW))
             # Biểu đồ N-Mα (có tiêu đề như app, chỉ hiện nửa phải có tải)
             _nm_png = interaction_image(sec, inp, res, width_in=3.2, dpi=150,
-                                        small=True, right_half=True)
+                                        small=True, right_half=True,
+                                        lang=lang)
             _blkB.append(Paragraph(
-                f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
+                T("<b>Biểu đồ tương tác N-Mα</b> (α = {a:.1f}°)", lang).format(a=_alpha),
                 st_chart_title))
             _blkB.append(_centered_img(_nm_png, _IW))
             # Biểu đồ M2-M3 (có tiêu đề như app)
-            _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150)
+            _m2m3_png = m2m3_image(sec, inp, res, width_in=3.2, dpi=150,
+                                   lang=lang)
             if isinstance(_m2m3_png, bytes):
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b>",
+                    T("<b>Mặt cắt M2-M3</b>", lang),
                     st_chart_title))
                 _blkC.append(_centered_img(_m2m3_png, _IW))
         except Exception as e:
-            _blkA = [Paragraph(f"(Không vẽ được hình: {e})", st_cell)]
+            _blkA = [Paragraph(T("(Không vẽ được hình: {e})", lang).format(e=e),
+                               st_cell)]
             _blkB, _blkC = [], []
         # --- Neo 3 khoi hinh cot phai: mat cat CAN TREN, M2-M3 CAN
         # DUOI, N-M CAN GIUA: phan chieu cao cot phai con thieu so
@@ -1022,7 +1032,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
 
         story = []
         story.append(Paragraph(
-            "KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", st_title))
+            T("KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", lang), st_title))
         story.append(t_main)
         story.append(Spacer(1, _MSP))
 
@@ -1041,49 +1051,51 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
                 _cols = compute_shear_cols(inp, sec)
             _r2, _r3 = _cols["2"], _cols["3"]
             _sw_data = [
-                [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT</b>", st_hdr_left),
-                 Paragraph("<b>Phương V2</b>", st_hdr),
-                 Paragraph("<b>Phương V3</b>", st_hdr)],
+                [Paragraph(f"<b>{T('KIỂM TRA KHẢ NĂNG CHỊU CẮT', lang)}</b>", st_hdr_left),
+                 Paragraph(f"<b>{T('Phương V2', lang)}</b>", st_hdr),
+                 Paragraph(f"<b>{T('Phương V3', lang)}</b>", st_hdr)],
             ]
             _sw_rows = [
-                ("Thép đai bố trí", _r2['sw_txt'], _r3['sw_txt']),
-                ("Lực cắt tính toán, Q",
+                (T("Thép đai bố trí", lang), _r2['sw_txt'], _r3['sw_txt']),
+                (T("Lực cắt tính toán, Q", lang),
                  f"{_r2['Q']:.1f} kN", f"{_r3['Q']:.1f} kN"),
-                ("Kích thước tiết diện, b × h<sub>0</sub>",
+                (T("Kích thước tiết diện, b × h<sub>0</sub>", lang),
                  f"{_r2['b']:.0f} × {_r2['h0']:.0f} mm",
                  f"{_r3['b']:.0f} × {_r3['h0']:.0f} mm"),
                 ("A<sub>sw</sub> = n × φ",
                  f"{_r2['Asw']:.0f} mm²", f"{_r3['Asw']:.0f} mm²"),
                 ("q<sub>sw</sub> = R<sub>sw</sub> × A<sub>sw</sub>/s",
                  f"{_r2['qsw']:.1f} N/mm", f"{_r3['qsw']:.1f} N/mm"),
-                ("Hệ số φ<sub>n</sub> (8.1.3.3.2)",
+                (T("Hệ số φ<sub>n</sub> (8.1.3.3.2)", lang),
                  f"{_r2['sh'].phi_n:.3f}", f"{_r3['sh'].phi_n:.3f}"),
-                ("Điều kiện (96): q<sub>sw</sub> ≥ 0.25×R<sub>bt</sub>×b",
-                 "— (không có đai)" if _r2['sh'].qb_mode == "NONE" else
-                 ("Đạt" if _r2['sh'].cond96_ok else "Không đạt → Q<sub>b</sub> theo CT (97)"),
-                 "— (không có đai)" if _r3['sh'].qb_mode == "NONE" else
-                 ("Đạt" if _r3['sh'].cond96_ok else "Không đạt → Q<sub>b</sub> theo CT (97)")),
+                (T("Điều kiện (96): q<sub>sw</sub> ≥ 0.25×R<sub>bt</sub>×b", lang),
+                 T("— (không có đai)", lang) if _r2['sh'].qb_mode == "NONE" else
+                 (T("Đạt", lang) if _r2['sh'].cond96_ok else T("Không đạt → Q<sub>b</sub> theo CT (97)", lang)),
+                 T("— (không có đai)", lang) if _r3['sh'].qb_mode == "NONE" else
+                 (T("Đạt", lang) if _r3['sh'].cond96_ok else T("Không đạt → Q<sub>b</sub> theo CT (97)", lang))),
                 # Hàng s_max + Điều kiện (98): KHÔNG hiển thị ở bản tóm tắt
                 # (theo yêu cầu trình bày) — engine vẫn kiểm tra (98) như cũ,
                 # Q_sw của nhóm đai vi phạm vẫn bị loại trong số liệu phía dưới.
-                ("Độ bền trên dải nén xiên Q ≤ φ<sub>n</sub>×0.3×R<sub>b</sub>×b×h<sub>0</sub>",
+                (T("Độ bền trên dải nén xiên Q ≤ φ<sub>n</sub>×0.3×R<sub>b</sub>×b×h<sub>0</sub>", lang),
                  f"{_r2['sh'].Qcap1:.1f} kN", f"{_r3['sh'].Qcap1:.1f} kN"),
                 ("Q<sub>b</sub> = 1.5×R<sub>bt</sub>×b×h<sub>0</sub><sup>2</sup>/C",
                  f"{_r2['sh'].Qb_opt:.1f} kN", f"{_r3['sh'].Qb_opt:.1f} kN"),
                 ("Q<sub>sw</sub> = 0.75×q<sub>sw</sub>×C",
                  f"{_r2['sh'].Qsw_opt:.1f} kN", f"{_r3['sh'].Qsw_opt:.1f} kN"),
-                ("Chiều dài hình chiếu của vết nứt xiên C",
+                (T("Chiều dài hình chiếu của vết nứt xiên C", lang),
                  f"{_r2['sh'].C_opt:.0f} mm", f"{_r3['sh'].C_opt:.0f} mm"),
-                ("Độ bền trên vết nứt xiên Q ≤ [Q] = Q<sub>b</sub> + Q<sub>sw</sub>",
+                (T("Độ bền trên vết nứt xiên Q ≤ [Q] = Q<sub>b</sub> + Q<sub>sw</sub>", lang),
                  f"{_r2['sh'].Qcap2:.1f} kN", f"{_r3['sh'].Qcap2:.1f} kN"),
-                ("Kết luận",
-                 "<b>ĐẠT</b>" if _r2['sh'].ok else "<b>KHÔNG ĐẠT</b>",
-                 "<b>ĐẠT</b>" if _r3['sh'].ok else "<b>KHÔNG ĐẠT</b>"),
+                (T("Kết luận", lang),
+                 f"<b>{T('ĐẠT' if _r2['sh'].ok else 'KHÔNG ĐẠT', lang)}</b>",
+                 f"<b>{T('ĐẠT' if _r3['sh'].ok else 'KHÔNG ĐẠT', lang)}</b>"),
             ]
+            _kl_txt = T("Kết luận", lang)
             for a, b, c in _sw_rows:
+                _is_kl = (a == _kl_txt)
                 _sw_data.append([Paragraph(a, st_lbl),
-                                 Paragraph(b, st_cell_b if "Kết luận" in a else st_cell),
-                                 Paragraph(c, st_cell_b if "Kết luận" in a else st_cell)])
+                                 Paragraph(b, st_cell_b if _is_kl else st_cell),
+                                 Paragraph(c, st_cell_b if _is_kl else st_cell)])
             # Căn giữa các cột giá trị
             for i in range(1, len(_sw_data)):
                 for j in (1, 2):
@@ -1111,7 +1123,8 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             t_sw.setStyle(TableStyle(_sw_style))
             _sw_story.append(t_sw)
         except Exception as e:
-            _sw_story.append(Paragraph(f"Không tính được thép đai: {e}", st_cell))
+            _sw_story.append(Paragraph(
+                T("Không tính được thép đai: {e}", lang).format(e=e), st_cell))
         # Giữ toàn bộ bảng thép đai trên cùng 1 trang
         # Dùng KeepTogether với table trực tiếp (không qua list trung gian) để tránh lệch lề
         if len(_sw_story) == 1 and isinstance(_sw_story[0], Table):
@@ -1165,7 +1178,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
             _doc = SimpleDocTemplate(
                 _buf, pagesize=A4, leftMargin=15 * mm,
                 rightMargin=15 * mm, topMargin=_MRG * mm,
-                bottomMargin=_MRG * mm, title="KIỂM TRA KNCL CỘT BTCT")
+                bottomMargin=_MRG * mm, title=T("KIỂM TRA KNCL CỘT BTCT", lang))
             _doc.build(_story)
         except Exception:
             if _safe:
@@ -1303,7 +1316,7 @@ def _export_summary_pdf_impl(sec, inp, res, filepath: str, case_info=None,
 
 def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
                        sec_img_path=None, shear_info=None,
-                       show_compression: bool = True):
+                       show_compression: bool = True, lang: str = "VN"):
     """Xuat PDF tom tat TCVN — LUON dung 1 trang A4.
 
     Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
@@ -1318,7 +1331,7 @@ def export_summary_pdf(sec, inp, res, filepath: str, case_info=None,
         _pages = _export_summary_pdf_impl(
             sec, inp, res, _buf, case_info=case_info,
             sec_img_path=sec_img_path, shear_info=shear_info,
-            show_compression=show_compression, _level=_lvl)
+            show_compression=show_compression, _level=_lvl, lang=lang)
         if _pages <= 1:
             break
     with open(filepath, "wb") as _f:

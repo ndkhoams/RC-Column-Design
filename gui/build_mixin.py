@@ -226,7 +226,7 @@ class BuildMixin:
                                        style="Top.TButton",
                                        command=self._export_pdf)
         self._btn_pdf_tab.pack(side=tk.LEFT, padx=(4, 0))
-        # Dropdown ngôn ngữ PDF (chỉ ACI dùng; TCVN/EC2/Vách luôn VN)
+        # Dropdown ngôn ngữ PDF (cột 3 tiêu chuẩn dùng; Vách luôn VN)
         ttk.Label(_tab_bar, text="Ngôn ngữ PDF:",
                   style="Muted.TLabel").pack(side=tk.LEFT, padx=(8, 2))
         self._pdf_lang_cb = ttk.Combobox(_tab_bar,
@@ -236,8 +236,8 @@ class BuildMixin:
         self._pdf_lang_cb.pack(side=tk.LEFT)
         _ToolTip(self._pdf_lang_cb,
                  "Chọn ngôn ngữ xuất PDF.\n"
-                 "Chỉ áp dụng cho ACI (cột);\n"
-                 "TCVN/EC2/Vách luôn tiếng Việt.")
+                 "Áp dụng cho CỘT (TCVN/ACI/EC2);\n"
+                 "Vách luôn tiếng Việt.")
         self._refresh_pdf_lang_state()
         # Container chứa 2 tab (thay Notebook)
         _tab_container = ttk.Frame(right)
@@ -408,15 +408,19 @@ class BuildMixin:
         _hook = getattr(self, "_toggle_wall_seismic", None)
         if _hook is not None:
             _hook()
-        # Dropdown ngôn ngữ PDF: chỉ bật khi đang ở chế độ ACI
+        # Dropdown ngôn ngữ PDF: bật ở chế độ cột (3 tiêu chuẩn), tắt ở vách
         self._refresh_pdf_lang_state()
 
     def _refresh_pdf_lang_state(self):
-        """Bật/tắt dropdown 'Ngôn ngữ PDF' theo tiêu chuẩn đang chọn
-        (được gọi ở cuối _toggle_code và 1 lần khi tạo dropdown)."""
+        """Bật/tắt dropdown 'Ngôn ngữ PDF' theo chế độ đang chọn
+        (được gọi ở cuối _toggle_code và 1 lần khi tạo dropdown).
+        Bật ở chế độ CỘT cả 3 tiêu chuẩn (TCVN/ACI/EC2); chế độ
+        Vách luôn tắt → PDF vách luôn tiếng Việt."""
         _cb = getattr(self, "_pdf_lang_cb", None)
         if _cb is not None:
-            _cb.config(state="readonly" if self.is_aci() else "disabled")
+            _is_wall = getattr(self, "cb_member", None) is not None \
+                and self.cb_member.get() == "Vách"
+            _cb.config(state="readonly" if not _is_wall else "disabled")
 
     # ---- 2. Tiết diện ----
     def _sec_section(self):

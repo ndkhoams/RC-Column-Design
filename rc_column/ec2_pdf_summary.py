@@ -17,6 +17,7 @@ from .pdf_export import (_mpl_font, _find_font, _find_font_bold, section_image,
                           draw_section_ax)
 from .cover_migration import cover_long
 from .ec2_chart_draw import draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax
+from .lang import T
 
 
 def _sys_font(bold=False):
@@ -81,7 +82,7 @@ def _f_dc(dc):
     return f"{float(dc):.3f}"
 
 
-def _ec2_charts_png(sec, conc, steel, ec2_res, inp):
+def _ec2_charts_png(sec, conc, steel, ec2_res, inp, lang: str = "VN"):
     """Tự vẽ 2 biểu đồ EC2 -> (png_nm_alpha, png_m2m3) bytes.
 
     Dùng figure cao (5.0 x 5.2) để trục tung (trục y) giãn ra tự nhiên,
@@ -98,7 +99,7 @@ def _ec2_charts_png(sec, conc, steel, ec2_res, inp):
     for draw_fn in (draw_ec2_nm_alpha_ax, draw_ec2_m2m3_ax):
         fig = plt.figure(figsize=(3.2, 3.2))
         ax = fig.add_subplot(111)
-        draw_fn(ax, sec, conc, steel, ec2_res, inp.N, _m2, _m3)
+        draw_fn(ax, sec, conc, steel, ec2_res, inp.N, _m2, _m3, lang=lang)
         fig.tight_layout()
         fig.subplots_adjust(bottom=0.22, top=0.93, left=0.12, right=0.95)
         buf = _io.BytesIO()
@@ -255,7 +256,8 @@ def _extract_shear_q(shear_info):
 def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                            case_info=None, sec_img_path=None, chart_pngs=None,
                            shear_info=None, slend_res=None, tied=None,
-                           fyk_sw=None, show_compression: bool = True, _level: int = 0):
+                           fyk_sw=None, show_compression: bool = True, _level: int = 0,
+                           lang: str = "VN"):
     """Xuất PDF Kết quả tính toán theo mẫu Excel (EC2, 1 trang A4).
 
     Layout 2 cột: trái = các bảng thông số, phải = hình mặt cắt + 2 biểu đồ.
@@ -408,7 +410,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             if abs(inp.Mx) + abs(inp.My) > 1e-9 else 0.0
         _dc = ec2_res.get("dc", 0)
         _fs = ec2_res.get("fs", 0)
-        _ok_txt = "<b>ĐẠT</b>" if ec2_res.get("ok") else "<b>KHÔNG ĐẠT</b>"
+        _ok_txt = "<b>" + T("ĐẠT" if ec2_res.get("ok") else "KHÔNG ĐẠT", lang) + "</b>"
 
         # Độ mảnh (tính gọn nếu chưa truyền vào)
         if slend_res is None:
@@ -418,44 +420,45 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
 
         # ===== Cột trái (dan y user chot 2026-10-21, khung nhu TCVN) =====
         left_flow = []
-        left_flow.append(_sec_table("THÔNG TIN CHUNG", [
-            ("Tiêu chuẩn", "EC2 (EN 1992-1-1:2004)"),
-            ("Cấu kiện", _ck_name or "—"),
+        left_flow.append(_sec_table(T("THÔNG TIN CHUNG", lang), [
+            (T("Tiêu chuẩn", lang), "EC2 (EN 1992-1-1:2004)"),
+            (T("Cấu kiện", lang), _ck_name or "—"),
         ]))
         _fyk_sw = fyk_sw if fyk_sw is not None else steel.fyk
         _fyd_sw = _fyk_sw / 1.15
-        left_flow.append(_sec_table("VẬT LIỆU", [
-            ("Cường độ bê tông, fck", f"{_fm(conc.fck)} MPa"),
-            ("Cường độ tính toán, fcd", f"{conc.fcd:.2f} MPa"),
-            ("Mô đun đàn hồi, Ecm", f"{conc.Ecm:.0f} MPa"),
-            ("Cường độ thép dọc, fyk", f"{_fm(steel.fyk)} MPa"),
-            ("Cường độ thép đai, fyk", f"{_fm(_fyk_sw)} MPa"),
-            ("Cường độ tính toán, fyd", f"{steel.fyd:.1f} MPa"),
-            ("Mô đun đàn hồi thép, Es", f"{steel.Es:.0f} MPa"),
+        left_flow.append(_sec_table(T("VẬT LIỆU", lang), [
+            (T("Cường độ bê tông, fck", lang), f"{_fm(conc.fck)} MPa"),
+            (T("Cường độ tính toán, fcd", lang), f"{conc.fcd:.2f} MPa"),
+            (T("Mô đun đàn hồi, Ecm", lang), f"{conc.Ecm:.0f} MPa"),
+            (T("Cường độ thép dọc, fyk", lang), f"{_fm(steel.fyk)} MPa"),
+            (T("Cường độ thép đai, fyk", lang), f"{_fm(_fyk_sw)} MPa"),
+            (T("Cường độ tính toán, fyd", lang), f"{steel.fyd:.1f} MPa"),
+            (T("Mô đun đàn hồi thép, Es", lang), f"{steel.Es:.0f} MPa"),
         ]))
         # TIẾT DIỆN (theo loai tiet dien)
         _kind = getattr(sec, "kind", None) or getattr(inp, "section_type", "rect")
         if _kind == "circle":
-            _sec_rows = [("Hình tròn, đường kính d", f"{_t3:.0f} mm")]
+            _sec_rows = [(T("Hình tròn, đường kính d", lang), f"{_t3:.0f} mm")]
         elif _kind == "poly":
-            _sec_rows = [("Diện tích bê tông, A<sub>c</sub>",
+            _sec_rows = [(T("Diện tích bê tông, A<sub>c</sub>", lang),
                           f"{sec.gross_area:.0f} mm²")]
         else:
-            _sec_rows = [("Hình chữ nhật, t2 × t3",
+            _sec_rows = [(T("Hình chữ nhật, t2 × t3", lang),
                           f"{_t2:.0f} × {_t3:.0f} mm")]
-        _sec_rows.append(("Lớp bảo vệ cốt đai, c",
+        _sec_rows.append((T("Lớp bảo vệ cốt đai, c", lang),
                           f"{inp.cover:.0f} mm "
-                          f"(c_dọc = {cover_long(inp.cover, getattr(inp, 'sw_dia', 0.0) or 0.0):.0f} mm)"))
-        left_flow.append(_sec_table("TIẾT DIỆN", _sec_rows))
-        left_flow.append(_sec_table("BỐ TRÍ CỐT THÉP DỌC", [
-            ("Số lượng thép", " + ".join(_parts)),
-            ("Hàm lượng thép dọc, μ", f"{_mu*100:.2f}%"),
+                          + T("(c_dọc = {cl:.0f} mm)", lang).format(
+                              cl=cover_long(inp.cover, getattr(inp, 'sw_dia', 0.0) or 0.0))))
+        left_flow.append(_sec_table(T("TIẾT DIỆN", lang), _sec_rows))
+        left_flow.append(_sec_table(T("BỐ TRÍ CỐT THÉP DỌC", lang), [
+            (T("Số lượng thép", lang), " + ".join(_parts)),
+            (T("Hàm lượng thép dọc, μ", lang), f"{_mu*100:.2f}%"),
         ]))
-        left_flow.append(_sec_table("NỘI LỰC KIỂM TRA", [
-            ("Vị trí cột", _vpos),
-            ("Tổ hợp tính toán", _combo_txt),
-            ("Lực dọc tính toán, NEd", f"{inp.N:.1f} kN"),
-            ("Mômen ban đầu, M2, M3", f"{inp.Mx:.1f} / {inp.My:.1f} kNm"),
+        left_flow.append(_sec_table(T("NỘI LỰC KIỂM TRA", lang), [
+            (T("Vị trí cột", lang), _vpos),
+            (T("Tổ hợp tính toán", lang), _combo_txt),
+            (T("Lực dọc tính toán, NEd", lang), f"{inp.N:.1f} kN"),
+            (T("Mômen ban đầu, M2, M3", lang), f"{inp.Mx:.1f} / {inp.My:.1f} kNm"),
         ]))
         # CHIỀU DÀI TÍNH TOÁN & HIỆU ỨNG BẬC 2 — chi doc tu slend_res
         # (dm cua _ec2_calculate_full) / ec2_res; thieu key nao bo hang
@@ -468,49 +471,49 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         _lam3 = _dm.get("lambda_3") or _sl3.get("lambda_sl") \
             or ec2_res.get("lambda_3")
         _len_rows = [
-            ("Chiều dài cột, L2, L3",
+            (T("Chiều dài cột, L2, L3", lang),
              f"{_fm_m(inp.Lx)} / {_fm_m(inp.Ly)} m"),
         ]
         if _l0_2 and _l0_3:
             _len_rows.append(
-                ("Chiều dài tính toán, l02, l03",
+                (T("Chiều dài tính toán, l02, l03", lang),
                  f"{_fm_m(float(_l0_2))} / {_fm_m(float(_l0_3))} m"))
         if _lam2 and _lam3:
             _len_rows.append(
-                ("Độ mảnh, λ2, λ3",
+                (T("Độ mảnh, λ2, λ3", lang),
                  f"{_f(_lam2, 1)} / {_f(_lam3, 1)}"))
         _ll2 = _sl2.get("lambda_lim")
         _ll3 = _sl3.get("lambda_lim")
         if _ll2 is not None and _ll3 is not None:
             _len_rows.append(
-                ("Độ mảnh giới hạn, λlim2, λlim3",
+                (T("Độ mảnh giới hạn, λlim2, λlim3", lang),
                  f"{_f(_ll2, 1)} / {_f(_ll3, 1)}"))
         _ei2 = _sl2.get("ei_mm")
         _ei3 = _sl3.get("ei_mm")
         if _ei2 is not None and _ei3 is not None:
             _len_rows.append(
-                ("Độ lệch tâm sai lệch, ei2, ei3",
+                (T("Độ lệch tâm sai lệch, ei2, ei3", lang),
                  f"{_f(_ei2, 1)} / {_f(_ei3, 1)} mm"))
         _mi2 = _sl2.get("M_imp")
         _mi3 = _sl3.get("M_imp")
         if _mi2 is not None and _mi3 is not None:
             _len_rows.append(
-                ("Mômen do sai lệch, Mimp2, Mimp3",
+                (T("Mômen do sai lệch, Mimp2, Mimp3", lang),
                  f"{_f(_mi2, 1)} / {_f(_mi3, 1)} kNm"))
         _fa2 = _sl2.get("factor", _sl2.get("so_factor"))
         _fa3 = _sl3.get("factor", _sl3.get("so_factor"))
         if _fa2 is not None and _fa3 is not None:
             _len_rows.append(
-                ("Hệ số phóng đại bậc 2, β2, β3",
+                (T("Hệ số phóng đại bậc 2, β2, β3", lang),
                  f"{_f(_fa2, 3)} / {_f(_fa3, 3)}"))
         _m22 = _sl2.get("so_M2")
         _m23 = _sl3.get("so_M2")
         if _m22 is not None and _m23 is not None:
             _len_rows.append(
-                ("Mômen bậc 2, M2,2, M2,3",
+                (T("Mômen bậc 2, M2,2, M2,3", lang),
                  f"{_f(_m22, 1)} / {_f(_m23, 1)} kNm"))
         left_flow.append(_sec_table(
-            "CHIỀU DÀI TÍNH TOÁN &amp; HIỆU ỨNG BẬC 2", _len_rows))
+            T("CHIỀU DÀI TÍNH TOÁN & HIỆU ỨNG BẬC 2", lang).replace("&", "&amp;"), _len_rows))
         # KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC (MEd da gom bac 2, giu dau
         # theo mo men goc nhu _ec2_calculate_full da khoi phuc)
         _BN = ec2_res.get("BN", 0)
@@ -534,17 +537,17 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
         _Ma = ec2_res.get("Malpha")
         if _Ma is None:
             _Ma = _m.hypot(_M2s, _M3s)
-        left_flow.append(_sec_table("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", [
-            ("Lực dọc tính toán, NEd", f"{inp.N:.1f} kN"),
-            ("Mômen thiết kế, MEd2, MEd3",
+        left_flow.append(_sec_table(T("KẾT QUẢ KIỂM TRA KHẢ NĂNG CHỊU LỰC", lang), [
+            (T("Lực dọc tính toán, NEd", lang), f"{inp.N:.1f} kN"),
+            (T("Mômen thiết kế, MEd2, MEd3", lang),
              f"{_M2sgn:.1f} / {_M3sgn:.1f} kNm"),
-            (f"Mômen tổng kiểm tra, Mα (α = {_alpha_r:.1f}°)",
+            (T("Mômen tổng kiểm tra, Mα (α = {a:.1f}°)", lang).format(a=_alpha_r),
              f"{_Ma:.1f} kNm"),
-            ("Lực dọc giới hạn, NRd", f"{_BN:.1f} kN"),
-            ("Mômen giới hạn, Mα,Rd", f"{_Mb:.1f} kNm"),
-            ("Tỉ số sử dụng khả năng chịu lực, D/C (FS)",
+            (T("Lực dọc giới hạn, NRd", lang), f"{_BN:.1f} kN"),
+            (T("Mômen giới hạn, Mα,Rd", lang), f"{_Mb:.1f} kNm"),
+            (T("Tỉ số sử dụng khả năng chịu lực, D/C (FS)", lang),
              f"{_f_dc(_dc)} ({_f(_fs, 2)})"),
-            ("Kết luận", _ok_txt),
+            (T("Kết luận", lang), _ok_txt),
         ]))
 
         # ===== Cột phải: hình + biểu đồ =====
@@ -581,30 +584,31 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                 pass
             _sec_png = _pdf_exp.compression_zone_image(sec, _BN, _Bx, _By,
                                                        na_info=_na,
-                                                       show_compression=show_compression)
+                                                       show_compression=show_compression,
+                                                       lang=lang)
             _blkA.append(_centered_img(_sec_png, _IW))
             # 2 biểu đồ EC2 (có tiêu đề)
-            _pngs = _ec2_charts_png(sec, conc, steel, ec2_res, inp)
+            _pngs = _ec2_charts_png(sec, conc, steel, ec2_res, inp, lang=lang)
             if _pngs and len(_pngs) >= 2:
                 _blkB.append(Paragraph(
-                    f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
+                    T("<b>Biểu đồ tương tác N-Mα</b> (α = {a:.1f}°)", lang).format(a=_alpha),
                     st_chart_title))
                 _blkB.append(_centered_img(_pngs[0], _IW))
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b>",
+                    T("<b>Mặt cắt M2-M3</b>", lang),
                     st_chart_title))
                 _blkC.append(_centered_img(_pngs[1], _IW))
             elif chart_pngs and len(chart_pngs) >= 2:
                 _blkB.append(Paragraph(
-                    f"<b>Biểu đồ tương tác N-Mα</b> (α = {_alpha:.1f}°)",
+                    T("<b>Biểu đồ tương tác N-Mα</b> (α = {a:.1f}°)", lang).format(a=_alpha),
                     st_chart_title))
                 _blkB.append(_centered_img(chart_pngs[0], _IW))
                 _blkC.append(Paragraph(
-                    f"<b>Mặt cắt M2-M3</b>",
+                    T("<b>Mặt cắt M2-M3</b>", lang),
                     st_chart_title))
                 _blkC.append(_centered_img(chart_pngs[1], _IW))
         except Exception as e:
-            _blkA = [Paragraph(f"(Không vẽ được hình: {e})", st_cell)]
+            _blkA = [Paragraph(T("(Không vẽ được hình: {e})", lang).format(e=e), st_cell)]
             _blkB, _blkC = [], []
         # --- Neo 3 khoi hinh cot phai: mat cat CAN TREN, M2-M3 CAN
         # DUOI, N-M CAN GIUA: phan chieu cao cot phai con thieu so
@@ -647,7 +651,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
 
         story = []
         story.append(Paragraph(
-            "KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", st_title))
+            T("KIỂM TRA KHẢ NĂNG CHỊU LỰC CỘT BÊ TÔNG CỐT THÉP", lang), st_title))
         story.append(t_main)
         story.append(Spacer(1, _MSP))
 
@@ -697,20 +701,21 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             else:
                 _sw_txt3 = f"{_sw_legs:.0f}φ{_sw_dia:.0f} a{_sw_s:.0f}"
             _data = [
-                [Paragraph("<b>KIỂM TRA KHẢ NĂNG CHỊU CẮT (EC2 6.2)</b>", st_hdr_left),
-                 Paragraph("<b>Phương V2</b>", st_hdr),
-                 Paragraph("<b>Phương V3</b>", st_hdr)],
+                [Paragraph("<b>" + T("KIỂM TRA KHẢ NĂNG CHỊU CẮT (EC2 6.2)", lang) + "</b>",
+                           st_hdr_left),
+                 Paragraph("<b>" + T("Phương V2", lang) + "</b>", st_hdr),
+                 Paragraph("<b>" + T("Phương V3", lang) + "</b>", st_hdr)],
             ]
             _v2 = _d2.get("Q")
             _v3 = _d3.get("Q")
             _sw_lines = [
-                ("Thép đai bố trí", _sw_txt2, _sw_txt3),
+                (T("Thép đai bố trí", lang), _sw_txt2, _sw_txt3),
                 ("Asw = n × φ",
                  f"{_Asw2:.0f} mm²", f"{_Asw3:.0f} mm²"),
-                ("Lực cắt tính toán, VEd",
+                (T("Lực cắt tính toán, VEd", lang),
                  f"{abs(_v2):.1f} kN" if _v2 else "—",
                  f"{abs(_v3):.1f} kN" if _v3 else "—"),
-                ("Kích thước chịu cắt, bw × d",
+                (T("Kích thước chịu cắt, bw × d", lang),
                  f"{_d2.get('b', 0):.0f} × {_d2.get('d', 0):.0f} mm",
                  f"{_d3.get('b', 0):.0f} × {_d3.get('d', 0):.0f} mm"),
                 ("VRd,c = [CRd,c×k×(100ρl×fck)⅓ + k1×σcp]×bw×d",
@@ -722,15 +727,15 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
                 ("VRd,s = (Asw/s)×z×fywd×cotθ (θ=45°)",
                  f"{_s2.get('VRd_s_kN', 0):.1f} kN",
                  f"{_s3.get('VRd_s_kN', 0):.1f} kN"),
-                ("Asw/s yêu cầu = VEd/(z×fywd×cotθ)",
+                (T("Asw/s yêu cầu = VEd/(z×fywd×cotθ)", lang),
                  f"{_s2.get('Asw_s_req', 0):.3f} mm²/mm",
                  f"{_s3.get('Asw_s_req', 0):.3f} mm²/mm"),
-                ("Kết luận",
-                 "<b>ĐẠT</b>" if _s2.get("ok") else "<b>KHÔNG ĐẠT</b>",
-                 "<b>ĐẠT</b>" if _s3.get("ok") else "<b>KHÔNG ĐẠT</b>"),
+                (T("Kết luận", lang),
+                 "<b>" + T("ĐẠT", lang) + "</b>" if _s2.get("ok") else "<b>" + T("KHÔNG ĐẠT", lang) + "</b>",
+                 "<b>" + T("ĐẠT", lang) + "</b>" if _s3.get("ok") else "<b>" + T("KHÔNG ĐẠT", lang) + "</b>"),
             ]
-            for a, b, c in _sw_lines:
-                _is_kl = "Kết luận" in a
+            for _ri, (a, b, c) in enumerate(_sw_lines):
+                _is_kl = (_ri == len(_sw_lines) - 1)  # hàng "Kết luận" cuối
                 _data.append([
                     Paragraph(a, st_lbl),
                     Paragraph(b, st_cell_b if _is_kl else st_cell),
@@ -761,7 +766,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             t_sw.setStyle(TableStyle(_st))
             _sw_story.append(t_sw)
         except Exception as e:
-            _sw_story.append(Paragraph(f"Không tính được cắt: {e}", st_cell))
+            _sw_story.append(Paragraph(T("Không tính được cắt: {e}", lang).format(e=e), st_cell))
         story.append(KeepTogether(_sw_story))
 
         # Do nhanh cac thanh phan (phuc vu phan bo gian trang)
@@ -810,7 +815,7 @@ def _export_ec2_summary_pdf_impl(sec, inp, ec2_res, conc, steel, filepath,
             _doc = SimpleDocTemplate(
                 _buf, pagesize=A4, leftMargin=15 * mm,
                 rightMargin=15 * mm, topMargin=_MRG * mm,
-                bottomMargin=_MRG * mm, title="KIỂM TRA KNCL CỘT BTCT")
+                bottomMargin=_MRG * mm, title=T("KIỂM TRA KNCL CỘT BTCT", lang))
             _doc.build(_story)
         except Exception:
             if _safe:
@@ -950,7 +955,8 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
                            case_info=None, sec_img_path=None,
                            chart_pngs=None, shear_info=None,
                            slend_res=None, tied=None, fyk_sw=None,
-                           show_compression: bool = True):
+                           show_compression: bool = True,
+                           lang: str = "VN"):
     """Xuat PDF tom tat EC2 — LUON dung 1 trang A4.
 
     Thu cac muc nen layout tu nhe den manh (giam le tren/duoi, nen
@@ -967,7 +973,7 @@ def export_ec2_summary_pdf(sec, inp, ec2_res, conc, steel, filepath,
             case_info=case_info, sec_img_path=sec_img_path,
             chart_pngs=chart_pngs, shear_info=shear_info,
             slend_res=slend_res, tied=tied, fyk_sw=fyk_sw,
-            show_compression=show_compression, _level=_lvl)
+            show_compression=show_compression, _level=_lvl, lang=lang)
         if _pages <= 1:
             break
     with open(filepath, "wb") as _f:

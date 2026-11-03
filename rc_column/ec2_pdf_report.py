@@ -10,6 +10,7 @@ import io
 
 from .ec2_report_v2 import generate_ec2_report_sections_v2
 from .pdf_report_cards import (_get_styles, _two, _sec_head, _full_case, _mk)
+from .lang import T
 
 
 
@@ -54,7 +55,8 @@ def _img_keep_aspect(png_bytes, w_mm=80):
 
 def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                          filepath, chart_pngs=None, case_info=None, tied=None,
-                         sec=None, show_compression: bool = True):
+                         sec=None, show_compression: bool = True,
+                         lang: str = "VN"):
     """Xuất PDF thuyết minh EC2 (EN 1992-1-1) kiểu card giống hệt app.
 
     inp: ColumnInput. ec2_res/slend_res/shear_res: dict kết quả EC2.
@@ -72,24 +74,26 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
     P = Paragraph
 
     sections = generate_ec2_report_sections_v2(inp, ec2_res, slend_res,
-                                                  shear_res, conc, steel, sec)
+                                                  shear_res, conc, steel, sec,
+                                                  lang=lang)
 
     doc = SimpleDocTemplate(filepath, pagesize=A4,
                             leftMargin=20 * mm, rightMargin=20 * mm,
                             topMargin=15 * mm, bottomMargin=10 * mm,
-                            title="KIỂM TRA KNCL CỘT BTCT")
+                            title=T("KIỂM TRA KNCL CỘT BTCT", lang))
     S = []
-    S.append(P("THUYẾT MINH TÍNH TOÁN CỘT BTCT", st["title"]))
-    S.append(P("(Tiêu chuẩn EC2 EN 1992-1-1:2004)", st["sub"]))
+    S.append(P(T("THUYẾT MINH TÍNH TOÁN CỘT BTCT", lang), st["title"]))
+    S.append(P(T("(Tiêu chuẩn EC2 EN 1992-1-1:2004)", lang), st["sub"]))
     _mn = _member_name(inp)
     if _mn:
-        S.append(P(f"Cấu kiện: {_mn}", st["sec_title"]))
+        S.append(P(T("Cấu kiện: {m}", lang).format(m=_mn), st["sec_title"]))
 
     if case_info:
-        S.append(P(f"Tổ hợp tính toán: {_full_case(case_info)} — "
-                   f"N = {_f(case_info.get('N', 0), 1)} kN, "
-                   f"M2 = {_f(case_info.get('M2', 0), 1)} kN·m, "
-                   f"M3 = {_f(case_info.get('M3', 0), 1)} kN·m",
+        S.append(P(T("Tổ hợp tính toán: {c} — N = {n} kN, M2 = {m2} kN·m, M3 = {m3} kN·m", lang).format(
+                       c=_full_case(case_info),
+                       n=_f(case_info.get('N', 0), 1),
+                       m2=_f(case_info.get('M2', 0), 1),
+                       m3=_f(case_info.get('M3', 0), 1)),
                    st["note"]))
 
     for _s in sections:
@@ -116,7 +120,7 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 except Exception:
                     pass
                 _sec_png = _czi(sec, _BN, _Bx, _By, na_info=_na,
-                                  show_compression=show_compression)
+                                  show_compression=show_compression, lang=lang)
                 _buf = _io.BytesIO(_sec_png)
                 from reportlab.platypus import Image as _Img
                 try:
@@ -143,7 +147,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _cd = dict(_cd)
                 # Style kết luận: nền xanh/đỏ
                 _is_concl = _cd.get("conclusion", False)
-                _concl_bg = "#D1FAE5" if "KHÔNG ĐẠT" not in _cd.get("result", "") else "#FEE2E2"
+                _failw = T("KHÔNG ĐẠT", lang)
+                _concl_bg = "#D1FAE5" if _failw not in _cd.get("result", "") else "#FEE2E2"
                 from reportlab.platypus import Table as _Tf2, TableStyle as _TSf2
                 from reportlab.lib.colors import HexColor as _HCf2
                 _rows2 = []
@@ -172,7 +177,8 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _filtered.append(_cd)
         cards = _filtered
         # Mục 7: card cấu tạo full-width (span 2 cột), V2/V3 ngang hàng
-        if _s["num"] == 7 and len(cards) >= 3 and "Cấu tạo" in cards[0].get("title", ""):
+        _t7 = cards[0].get("title", "") if cards else ""
+        if _s["num"] == 7 and len(cards) >= 3 and ("Cấu tạo" in _t7 or "Stirrup" in _t7):
             _cfg = cards[0]
             # Render full-width bằng table 1 cột
             from reportlab.platypus import Table as _T, TableStyle as _TS
@@ -220,17 +226,17 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _M2, _M3 = ec2_signed_design_moments(
                     ec2_res if isinstance(ec2_res, dict) else {}, inp)
                 _pngs = (ec2_interaction_image(sec, conc, steel, ec2_res,
-                                               _N, _M2, _M3),
+                                               _N, _M2, _M3, lang=lang),
                          ec2_m2m3_image(sec, conc, steel, ec2_res,
-                                        _N, _M2, _M3))
+                                        _N, _M2, _M3, lang=lang))
             except Exception:
                 _pngs = chart_pngs
             try:
                 img1 = _img_keep_aspect(_pngs[0])
                 img2 = _img_keep_aspect(_pngs[1])
                 ct = Table([
-                    [[P("Biểu đồ tương tác N-Mα", st["cap"]), img1],
-                     [P("Biểu đồ tương tác M2-M3", st["cap"]), img2]]
+                    [[P(T("Biểu đồ tương tác N-Mα", lang), st["cap"]), img1],
+                     [P(T("Biểu đồ tương tác M2-M3", lang), st["cap"]), img2]]
                 ])
                 ct.setStyle(TableStyle([
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -254,9 +260,10 @@ def export_ec2_pdf_cards(inp, ec2_res, slend_res, shear_res, conc, steel,
                 _bg = "#D1FAE5" if _ok else "#FEE2E2"
                 _fg = "#065F46" if _ok else "#991B1B"
                 _t = Table([
-                    [P(f"TỶ SỐ SỬ DỤNG (D/C) = {_dc.get('dc', 0):.3f}  (FS = {_dc.get('fs', 0):.2f})", st["result"]),
+                    [P(T("TỶ SỐ SỬ DỤNG (D/C) = {dc:.3f}  (FS = {fs:.2f})", lang).format(
+                         dc=_dc.get('dc', 0), fs=_dc.get('fs', 0)), st["result"]),
                      ],
-                    [P("✓ ĐẠT — D/C ≤ 1.000" if _ok else "✗ KHÔNG ĐẠT — D/C > 1.000", st["result"])],
+                    [P(T("✓ ĐẠT — D/C ≤ 1.000", lang) if _ok else T("✗ KHÔNG ĐẠT — D/C > 1.000", lang), st["result"])],
                 ])
                 _t.setStyle(TableStyle([
                     ("BACKGROUND", (0, 0), (-1, -1), _HCf(_bg)),

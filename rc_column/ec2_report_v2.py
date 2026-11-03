@@ -3,6 +3,8 @@
 import math
 from typing import Any, Dict, List
 
+from .lang import T
+
 
 def _f(x: float, nd: int = 2) -> str:
     if x is None or not math.isfinite(x):
@@ -31,7 +33,8 @@ def _mk(title: str, ref: str, lines: List[str], result: str = "", dc_conclusion:
 def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                                     slend_res: Dict[str, Any],
                                     shear_res: Dict[str, Any],
-                                    conc, steel, sec) -> List[Dict[str, Any]]:
+                                    conc, steel, sec,
+                                    lang: str = "VN") -> List[Dict[str, Any]]:
     """Tạo 7 mục thuyết minh theo mẫu TCVN cho EC2."""
     fck = conc.fck
     fyk = steel.fyk
@@ -53,24 +56,24 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     # ---- 1. Vật liệu ----
     sections.append({
         "num": 1,
-        "title": "ĐẶC TRƯNG VẬT LIỆU",
+        "title": T("ĐẶC TRƯNG VẬT LIỆU", lang),
         "ref": "EC2 3.1, 3.2",
         "cards": [
-            _mk("Bê tông",
+            _mk(T("Bê tông", lang),
                 "EC2 3.1",
                 [f"fck = {_fm(fck)} MPa",
                  f"fcd = {_f(conc.fcd, 2)} MPa",
                  f"Ecm = {_f(conc.Ecm, 0)} MPa"],
                 ""),
-            _mk("Cốt thép dọc",
+            _mk(T("Cốt thép dọc", lang),
                 "EC2 3.2",
                 [f"fyk = {_fm(fyk)} MPa",
                  f"fyd = {_f(steel.fyd, 1)} MPa",
                  "Es = 200000 MPa"],
                 ""),
-            _mk("Cốt thép đai",
+            _mk(T("Cốt thép đai", lang),
                 "EC2 3.2",
-                [f"fyk,đai = {_fm(fyk_sw)} MPa",
+                [T("fyk,đai = {v} MPa", lang).format(v=_fm(fyk_sw)),
                  "Es = 200000 MPa"],
                 ""),
         ],
@@ -93,40 +96,40 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     _rho = 100 * Ast / Ag if Ag > 0 else 0
     sections.append({
         "num": 2,
-        "title": "ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN",
+        "title": T("ĐẶC TRƯNG HÌNH HỌC TIẾT DIỆN", lang),
         "ref": "",
         "cards": [
-            _mk("Diện tích tiết diện bê tông nguyên Ac",
+            _mk(T("Diện tích tiết diện bê tông nguyên Ac", lang),
                 "",
                 [f"Ac = t2 × t3",
                  f"= {_f(cx, 0)} × {_f(cy, 0)}",
                  f"= {_f(Ag, 0)} mm² (= {_f(Ag/1e6, 4)} m²)"],
                 ""),
 
-            _mk("Diện tích cốt thép dọc As",
+            _mk(T("Diện tích cốt thép dọc As", lang),
                 "",
-                [f"Số thanh: {_bar_str}",
-                 f"Tổng As = {_f(Ast, 0)} mm²",
-                 f"Hàm lượng ρ = {_f(_rho, 2)}%"],
+                [T("Số thanh: {b}", lang).format(b=_bar_str),
+                 T("Tổng As = {v} mm²", lang).format(v=_f(Ast, 0)),
+                 T("Hàm lượng ρ = {v}%", lang).format(v=_f(_rho, 2))],
                 ""),
-            _mk("Mô men quán tính trục 2 (I2)",
+            _mk(T("Mô men quán tính trục 2 (I2)", lang),
                 "",
                 [f"I₂ = (t3 · t2³) / 12",
                  f"= ({_f(cx, 0)} × {_f(cy, 0)}³) / 12",
                  f"= {_f(_Ix/1e9, 3)} × 10⁹ mm⁴"],
                 ""),
-            _mk("Mô men quán tính trục 3 (I3)",
+            _mk(T("Mô men quán tính trục 3 (I3)", lang),
                 "",
                 [f"I₃ = (t2 · t3³) / 12",
                  f"= ({_f(cy, 0)} × {_f(cx, 0)}³) / 12",
                  f"= {_f(_Iy/1e9, 3)} × 10⁹ mm⁴"],
                 ""),
-            _mk("Bán kính quán tính phương 2 (i2)",
+            _mk(T("Bán kính quán tính phương 2 (i2)", lang),
                 "",
                 [f"i₂ = √(I₂ / Ac)",
                  f"= {_f(_ix, 2)} mm (= {_f(_ix/1000, 4)} m)"],
                 ""),
-            _mk("Bán kính quán tính phương 3 (i3)",
+            _mk(T("Bán kính quán tính phương 3 (i3)", lang),
                 "",
                 [f"i₃ = √(I₃ / Ac)",
                  f"= {_f(_iy, 2)} mm (= {_f(_iy/1000, 4)} m)"],
@@ -142,15 +145,15 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     _lam3 = _sl.get("lambda_3", 0) or _sl.get("lam3", 0) or 0
     sections.append({
         "num": 3,
-        "title": "CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH",
+        "title": T("CHIỀU DÀI TÍNH TOÁN & ĐỘ MẢNH", lang),
         "ref": "EC2 5.8.3",
         "cards": [
-            _mk("Chiều dài tính toán",
+            _mk(T("Chiều dài tính toán", lang),
                 "EC2 5.8.3.2",
                 [f"l0,2 = {_f(_l02, 2)} m",
                  f"l0,3 = {_f(_l03, 2)} m"],
                 ""),
-            _mk("Độ mảnh",
+            _mk(T("Độ mảnh", lang),
                 "EC2 5.8.3.1",
                 [f"λ2 = l0/i = {_f(_lam2, 1)}",
                  f"λ3 = l0/i = {_f(_lam3, 1)}",
@@ -174,16 +177,16 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     _emin = max(max(cx, cy)/30, 20)
     sections.append({
         "num": 4,
-        "title": "ĐỘ LỆCH TÂM",
+        "title": T("ĐỘ LỆCH TÂM", lang),
         "ref": "EC2 6.1(4)",
         "cards": [
-            _mk("Độ lệch tâm phương 2 (e2)",
+            _mk(T("Độ lệch tâm phương 2 (e2)", lang),
                 "EC2 6.1(4)",
                 [f"e₂ = |MEd2| / NEd",
                  f"= ({_f(abs(MEd2), 2)} × 10³) / {_f(_Nabs, 1)}",
                  f"= {_f(e2, 1)} mm"],
                 ""),
-            _mk("Độ lệch tâm phương 3 (e3)",
+            _mk(T("Độ lệch tâm phương 3 (e3)", lang),
                 "EC2 6.1(4)",
                 [f"e₃ = |MEd3| / NEd",
                  f"= ({_f(abs(MEd3), 2)} × 10³) / {_f(_Nabs, 1)}",
@@ -196,22 +199,30 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     _d2 = slend_res.get("dir2", {}) if isinstance(slend_res, dict) else {}
     _d3 = slend_res.get("dir3", {}) if isinstance(slend_res, dict) else {}
     _m5 = _d2.get("method", "") or "stiffness"
-    _mname = "Độ cứng danh nghĩa (5.8.7)" if "stiff" in str(_m5) else "Độ cong danh nghĩa (5.8.8)"
+    _mname = (T("Độ cứng danh nghĩa (5.8.7)", lang) if "stiff" in str(_m5)
+              else T("Độ cong danh nghĩa (5.8.8)", lang))
     _lam_lim = _d2.get("lambda_lim", 0) or 0
     sections.append({
         "num": 5,
-        "title": "HIỆU ỨNG BẬC 2",
+        "title": T("HIỆU ỨNG BẬC 2", lang),
         "ref": "EC2 5.8",
         "cards": [
-            _mk("Kiểm tra bỏ qua hiệu ứng bậc 2",
+            _mk(T("Kiểm tra bỏ qua hiệu ứng bậc 2", lang),
                 "EC2 5.8.3.1",
                 [f"λlim = 20·A·B·C/√n = {_f(_lam_lim, 1)}",
-                 f"Phương 2: λ2 = {_f(_lam2, 1)} {'≤' if _lam2 <= _lam_lim else '>'} λlim = {_f(_lam_lim, 1)} → {'Bỏ qua' if _lam2 <= _lam_lim else 'Xét bậc 2'}",
-                 f"Phương 3: λ3 = {_f(_lam3, 1)} {'≤' if _lam3 <= _lam_lim else '>'} λlim = {_f(_lam_lim, 1)} → {'Bỏ qua' if _lam3 <= _lam_lim else 'Xét bậc 2'}"],
+                 T("Phương 2: λ2 = {a} {op} λlim = {b} → {c}", lang).format(
+                     a=_f(_lam2, 1), op="≤" if _lam2 <= _lam_lim else ">",
+                     b=_f(_lam_lim, 1),
+                     c=T("Bỏ qua", lang) if _lam2 <= _lam_lim else T("Xét bậc 2", lang)),
+                 T("Phương 3: λ3 = {a} {op} λlim = {b} → {c}", lang).format(
+                     a=_f(_lam3, 1), op="≤" if _lam3 <= _lam_lim else ">",
+                     b=_f(_lam_lim, 1),
+                     c=T("Bỏ qua", lang) if _lam3 <= _lam_lim else T("Xét bậc 2", lang))],
                 ""),
-            _mk("Mô men thiết kế MEd",
+            _mk(T("Mô men thiết kế MEd", lang),
                 "EC2 5.8.7 / 5.8.8" if max(_lam2, _lam3) > _lam_lim else "",
-                [f"Phương pháp: {_mname}" if max(_lam2, _lam3) > _lam_lim else "Không cần xét bậc 2 → MEd = M0Ed (mô men bậc 1)",
+                [T("Phương pháp: {m}", lang).format(m=_mname) if max(_lam2, _lam3) > _lam_lim
+                 else T("Không cần xét bậc 2 → MEd = M0Ed (mô men bậc 1)", lang),
                  f"MEd = M0Ed + M2" if max(_lam2, _lam3) > _lam_lim else "",
                  f"MEd2 = {_f(MEd2, 1)} kN·m",
                  f"MEd3 = {_f(MEd3, 1)} kN·m"],
@@ -230,27 +241,27 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     alpha = math.degrees(math.atan2(MEd2, MEd3)) % 360.0 if Ma > 1e-9 else 0.0
     sections.append({
         "num": 6,
-        "title": "ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC NÉN UỐN XIÊN (NEd-MEd)",
+        "title": T("ĐÁNH GIÁ KHẢ NĂNG CHỊU LỰC NÉN UỐN XIÊN (NEd-MEd)", lang),
         "ref": "EC2 6.1",
         "cards": [
-            _mk("Điểm nội lực tính toán A (Nội lực tác dụng)",
+            _mk(T("Điểm nội lực tính toán A (Nội lực tác dụng)", lang),
                 "",
                 [f"A = (MEd2, MEd3, NEd)",
                  f"= ({_f(MEd2, 1)}, {_f(MEd3, 1)}, {_f(NEd, 1)})",
                  f"= |OA| = {_f(math.sqrt(MEd2**2 + MEd3**2 + NEd**2), 1)} kN/kNm"],
                 ""),
-            _mk("Điểm giới hạn B (trên mặt tương tác)",
+            _mk(T("Điểm giới hạn B (trên mặt tương tác)", lang),
                 "",
-                [f"B = (M2gh, M3gh, Ngh)",
+                [T("B = (M2gh, M3gh, Ngh)", lang),
                  f"= ({_f(Bx, 1)}, {_f(By, 1)}, {_f(BN, 1)})",
                  f"= |OB| = {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)} kN/kNm"],
                 ""),
-            _mk("Góc uốn xiên α",
+            _mk(T("Góc uốn xiên α", lang),
                 "",
                 [f"α = {_f(alpha, 1)}°",
                  f"Mα = {_f(Ma, 1)} kN·m"],
                 ""),
-            _mk("Tỷ số D/C",
+            _mk(T("Tỷ số D/C", lang),
                 "",
                 [f"D/C = |OA| / |OB| = {_f(math.sqrt(MEd2**2 + MEd3**2 + NEd**2), 1)} / {_f(math.sqrt(Bx**2 + By**2 + BN**2), 1)}",
                  f"= {_f(dc, 3)} (FS = {_f(fs, 2)})"],
@@ -268,15 +279,17 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
     _s_lim_e = min(20 * _dia_max, min(cx, cy), 400)
     _mk_de = "✓" if _sw_dia >= _dia_req_e - 1e-9 else "✗"
     _mk_se = "✓" if _sw_s <= _s_lim_e + 1e-9 else "✗"
-    _cfg_card = _mk("Cấu tạo cốt đai (9.5.3)",
+    _cfg_card = _mk(T("Cấu tạo cốt đai (9.5.3)", lang),
                 "EC2 9.5.3",
-                [f"{_mk_de} Đường kính đai (9.5.3(1)): yêu cầu ≥ max(6, 0.25×{_dia_max:.0f}) = {_dia_req_e:.1f} mm, chọn φ{_sw_dia:.0f}",
-                 f"{_mk_se} Bước đai (9.5.3(3)): yêu cầu ≤ min(20×{_dia_max:.0f}, min(b,h), 400) = {_s_lim_e:.0f} mm, chọn {_sw_s:.0f} mm"],
+                [T("{m} Đường kính đai (9.5.3(1)): yêu cầu ≥ max(6, 0.25×{dmax:.0f}) = {dreq:.1f} mm, chọn φ{sdia:.0f}", lang).format(
+                     m=_mk_de, dmax=_dia_max, dreq=_dia_req_e, sdia=_sw_dia),
+                 T("{m} Bước đai (9.5.3(3)): yêu cầu ≤ min(20×{dmax:.0f}, min(b,h), 400) = {slim:.0f} mm, chọn {s:.0f} mm", lang).format(
+                     m=_mk_se, dmax=_dia_max, slim=_s_lim_e, s=_sw_s)],
                 "")
     def _sh_card(d: Dict[str, Any], VEd: float, lbl: str):
         _dnum = "2" if "V2" in lbl else "3"
         if not d:
-            return _mk(f"Kiểm tra chịu cắt phương {_dnum}", "", ["—"], "")
+            return _mk(T("Kiểm tra chịu cắt phương {n}", lang).format(n=_dnum), "", ["—"], "")
         VRd_c = d.get("VRd_c_kN", 0.0) or 0.0
         VRd_max = d.get("VRd_max_kN", 0.0) or 0.0
         VRd_s = d.get("VRd_s_kN", 0.0) or 0.0
@@ -317,15 +330,19 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
                   f"= {_f(VRd_c, 1)} kN",
                   f"VRd,max = αcw×bw×z×ν1×fcd/(cotθ+tanθ) = {_f(VRd_max, 1)} kN",
                   f"VRd,s = (Asw/s)×z×fywd×cotθ (θ=45°) = {_f(VRd_s, 1)} kN",
-                  f"Asw/s yêu cầu = VEd/(z×fywd×cotθ) = {_f(asw_req, 3)} mm²/mm"]
+                  T("Asw/s yêu cầu = VEd/(z×fywd×cotθ) = {v} mm²/mm", lang).format(
+                      v=_f(asw_req, 3))]
         # Sức kháng khống chế lấy thẳng từ kết quả checker (tính 1 lần):
         # VRd,c nếu chưa cần đai tính toán, min(VRd,s, VRd,max) nếu đã cần đai
         _VRd = d.get("VRd_kN", 0.0) or 0.0
-        _lines.append(f"→ VRd (khống chế, theo checker) = {_f(_VRd, 1)} kN")
-        _lines.append(f"{_mark} So sánh: VEd = {_f(VEd, 1)} kN {'≤' if VEd <= _VRd else '>'} VRd = {_f(_VRd, 1)} kN")
-        return _mk(f"Kiểm tra chịu cắt phương {_dnum}", "EC2 6.2",
+        _lines.append(T("→ VRd (khống chế, theo checker) = {v} kN", lang).format(
+            v=_f(_VRd, 1)))
+        _lines.append(T("{m} So sánh: VEd = {q} kN {op} VRd = {v} kN", lang).format(
+            m=_mark, q=_f(VEd, 1),
+            op="≤" if VEd <= _VRd else ">", v=_f(_VRd, 1)))
+        return _mk(T("Kiểm tra chịu cắt phương {n}", lang).format(n=_dnum), "EC2 6.2",
                     _lines,
-                    "Kết luận: ĐẠT" if ok else "Kết luận: KHÔNG ĐẠT")
+                    T("Kết luận: ĐẠT", lang) if ok else T("Kết luận: KHÔNG ĐẠT", lang))
 
     _cfg_card["full"] = True
     if isinstance(shear_res, dict) and "dir2" in shear_res:
@@ -341,7 +358,7 @@ def generate_ec2_report_sections_v2(inp, ec2_res: Dict[str, Any],
         sh_cards = [_sh_card(shear_res or {}, VEd2, "V2/V3")]
     sections.append({
         "num": 7,
-        "title": "KIỂM TRA KHẢ NĂNG CHỊU CẮT",
+        "title": T("KIỂM TRA KHẢ NĂNG CHỊU CẮT", lang),
         "ref": "EC2 6.2",
         "cards": sh_cards,
     })

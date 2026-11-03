@@ -100,10 +100,11 @@ class PdfMixin:
             from rc_column.pdf_naming import default_pdf_filename
             _def = default_pdf_filename(
                 "vach" if _is_wall else "cot", _std, _ck, is_summary)
-            # Ngôn ngữ PDF: chỉ ACI (cột) đọc dropdown; TCVN/EC2/Vách luôn VN.
-            # _def luôn kết thúc ".pdf" (theo quy ước pdf_naming).
+            # Ngôn ngữ PDF: chế độ CỘT (3 tiêu chuẩn) đọc dropdown;
+            # chế độ Vách luôn VN. _def luôn kết thúc ".pdf"
+            # (theo quy ước pdf_naming).
             _pdf_lang = "EN" if (
-                self.is_aci()
+                not _is_wall
                 and getattr(self, "_pdf_lang_cb", None) is not None
                 and self._pdf_lang_cb.get() == "English") else "VN"
             if _pdf_lang == "EN":
@@ -160,7 +161,8 @@ class PdfMixin:
                 return
             # --- EC2 mode: dùng PDF EC2 ---
             if self.is_ec2() and getattr(self, "_ec2_res", None) is not None:
-                self._export_pdf_ec2(is_summary, path, _show_success)
+                self._export_pdf_ec2(is_summary, path, _show_success,
+                                     lang=_pdf_lang)
                 return
             if is_summary:
                 from rc_column.pdf_export import export_summary_pdf
@@ -190,7 +192,8 @@ class PdfMixin:
                                    sec_img_path=_sec_png,
                                    shear_info=getattr(self, "_pdf_shear",
                                                       None),
-                                   show_compression=self._pdf_show_compression())
+                                   show_compression=self._pdf_show_compression(),
+                                   lang=_pdf_lang)
             else:
                 from rc_column.pdf_report_cards import export_pdf_cards
                 # Gán tên cấu kiện từ textbox để hiển thị ở đầu PDF
@@ -203,7 +206,8 @@ class PdfMixin:
                            case_info=getattr(self, "_pdf_case", None),
                            shear_info=getattr(self, "_pdf_shear", None),
                            chart_pngs=_get_chart_pngs(),
-                           show_compression=self._pdf_show_compression())
+                           show_compression=self._pdf_show_compression(),
+                           lang=_pdf_lang)
             _show_success(path)
         except Exception as e:
             from tkinter import messagebox
@@ -279,8 +283,8 @@ class PdfMixin:
             from tkinter import messagebox
             messagebox.showerror("Xuất PDF ACI", str(ex))
 
-    def _export_pdf_ec2(self, is_summary, path, _show_success):
-        """Xuất PDF cho chế độ EC2 (EN 1992-1-1)."""
+    def _export_pdf_ec2(self, is_summary, path, _show_success, lang="VN"):
+        """Xuất PDF cho chế độ EC2 (EN 1992-1-1), lang: 'VN' hoặc 'EN'."""
         try:
             import io
             def _get_pngs():
@@ -305,8 +309,19 @@ class PdfMixin:
                     # (đã lưu trong _ec2_full, tương thích ngược qua _ec2_res)
                     pngs = _ec2_charts_png(
                         self._ec2_sec, self._ec2_conc, self._ec2_steel,
-                        self._ec2_res, self._ec2_inp)
+                        self._ec2_res, self._ec2_inp, lang=lang)
                 except Exception as _ex:
+                    pass
+            # PDF tóm tắt TIẾNG ANH: không dùng PNG từ figure của app
+            # (đang tiếng Việt) — render mới ảnh tiếng Anh từ dữ liệu EC2.
+            # Thất bại thì giữ pngs cũ (fallback ảnh Việt, vẫn xuất PDF).
+            if is_summary and lang == "EN":
+                try:
+                    from rc_column.ec2_pdf_summary import _ec2_charts_png
+                    pngs = _ec2_charts_png(
+                        self._ec2_sec, self._ec2_conc, self._ec2_steel,
+                        self._ec2_res, self._ec2_inp, lang="EN")
+                except Exception:
                     pass
             if is_summary:
                 from rc_column.ec2_pdf_summary import export_ec2_summary_pdf
@@ -323,7 +338,8 @@ class PdfMixin:
                     shear_info=getattr(self, "_ec2_shear", None),
                     slend_res=getattr(self, "_ec2_slend", None),
                     fyk_sw=_fyk_sw,
-                    show_compression=self._pdf_show_compression())
+                    show_compression=self._pdf_show_compression(),
+                    lang=lang)
             else:
                 from rc_column.ec2_pdf_report import export_ec2_pdf_cards
                 export_ec2_pdf_cards(
@@ -332,7 +348,8 @@ class PdfMixin:
                     path, chart_pngs=pngs,
                     case_info=getattr(self, "_pdf_case", None),
                     sec=self._ec2_sec,
-                    show_compression=self._pdf_show_compression())
+                    show_compression=self._pdf_show_compression(),
+                    lang=lang)
             _show_success(path)
         except Exception as ex:
             from tkinter import messagebox
